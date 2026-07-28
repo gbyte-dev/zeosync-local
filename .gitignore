@@ -1,0 +1,52 @@
+# ========================
+# ENV (Secrets)
+# ========================
+.env
+.env.*
+
+# ========================
+# Dependencies
+# ========================
+/vendor
+/node_modules
+
+# ========================
+# Storage (runtime files)
+# ========================
+/storage/*.key
+/storage/app/*
+/storage/framework/*
+/storage/logs/*
+
+# ========================
+# Cache
+# ========================
+/bootstrap/cache/*
+
+# ========================
+# Public Storage (symlink)
+# ========================
+/public/storage
+
+# ========================
+# Testing
+# ========================
+.phpunit.result.cache
+
+# ========================
+# Custom (your case)
+# ========================
+composer.json--
+.htaccess
+
+# ========================
+# OS Files
+# ========================
+.DS_Store
+Thumbs.db
+*.zip
+
+
+.vscode/
+
+*.sql

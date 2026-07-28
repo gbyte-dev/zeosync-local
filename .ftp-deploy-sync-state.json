@@ -1,0 +1,2201 @@
+{
+    "description": "DO NOT DELETE THIS FILE. This file is used to keep track of which files have been synced in the most recent deployment. If you delete this file a resync will need to be done (which can take a while) - read more: https://github.com/SamKirkland/FTP-Deploy-Action",
+    "version": "1.0.0",
+    "generatedTime": 1781705534928,
+    "data": [
+        {
+            "type": "file",
+            "name": ".env.example",
+            "size": 1785,
+            "hash": "2bddf0c1a1e05a2663e17f983d6c1c9f27bf8d0a7d15397c3880e0d3ff07412e"
+        },
+        {
+            "type": "file",
+            "name": ".htaccess",
+            "size": 1284,
+            "hash": "88c45b3fd2d5abbf3fb63068018f1648f487ee831725b0a33a8da65a655a0c19"
+        },
+        {
+            "type": "folder",
+            "name": "AmazonSync"
+        },
+        {
+            "type": "file",
+            "name": "README.md",
+            "size": 27,
+            "hash": "3028b14cbf908895065ce9d3cdb5d9e0e5d917d9df7f57dabfe69a464f33831c"
+        },
+        {
+            "type": "folder",
+            "name": "app"
+        },
+        {
+            "type": "file",
+            "name": "artisan",
+            "size": 425,
+            "hash": "f91a517c0c5d3a904c3f390933964a5e08ec1fc68146882730daac4aca4ffcec"
+        },
+        {
+            "type": "folder",
+            "name": "bootstrap"
+        },
+        {
+            "type": "file",
+            "name": "composer.json",
+            "size": 2999,
+            "hash": "2cceb24f01ceee3c0605e51f072dcfeb20e75fbf3168e2b34b4d4a40a52fea9c"
+        },
+        {
+            "type": "file",
+            "name": "composer.lock",
+            "size": 365922,
+            "hash": "b43a44a850434868adee6de12d234d2f46b1ee4f5d061907530f8dbeecce7133"
+        },
+        {
+            "type": "folder",
+            "name": "config"
+        },
+        {
+            "type": "folder",
+            "name": "database"
+        },
+        {
+            "type": "file",
+            "name": "index.php",
+            "size": 551,
+            "hash": "5e4adc65ef2ac1947acb8c690f0f357726151080d272dc6a8529631e6ee46d33"
+        },
+        {
+            "type": "file",
+            "name": "package.json",
+            "size": 414,
+            "hash": "e1bf666b49a401c06ede562b32fc741b8e8dc45cca0a67de136edfbd51335f33"
+        },
+        {
+            "type": "file",
+            "name": "package-lock.json",
+            "size": 93953,
+            "hash": "c6bd148737dce5ed27d951cbe9bbcb80e41073f63a6dcd7a1097012dba88773b"
+        },
+        {
+            "type": "folder",
+            "name": "public"
+        },
+        {
+            "type": "folder",
+            "name": "resources"
+        },
+        {
+            "type": "folder",
+            "name": "routes"
+        },
+        {
+            "type": "file",
+            "name": "shopify.app.toml",
+            "size": 761,
+            "hash": "2de17adc9fe6849ac7db9b20c8a781225909c0398bd4033ba6f9d6feee02ab15"
+        },
+        {
+            "type": "folder",
+            "name": "tests"
+        },
+        {
+            "type": "folder",
+            "name": "storage"
+        },
+        {
+            "type": "file",
+            "name": "vite.config.js",
+            "size": 436,
+            "hash": "b981a284135bcb7da21ea5e1aaa2dc31c8daeef92d9b4e5c79538bdb8dfaf6f0"
+        },
+        {
+            "type": "folder",
+            "name": "app/Http"
+        },
+        {
+            "type": "folder",
+            "name": "app/Http_old"
+        },
+        {
+            "type": "folder",
+            "name": "app/Mail"
+        },
+        {
+            "type": "folder",
+            "name": "app/Middleware"
+        },
+        {
+            "type": "folder",
+            "name": "app/Middleware_old"
+        },
+        {
+            "type": "folder",
+            "name": "app/Models"
+        },
+        {
+            "type": "folder",
+            "name": "app/Providers"
+        },
+        {
+            "type": "folder",
+            "name": "app/Services"
+        },
+        {
+            "type": "folder",
+            "name": "app/Services_old"
+        },
+        {
+            "type": "folder",
+            "name": "app/helpers"
+        },
+        {
+            "type": "file",
+            "name": "bootstrap/app.php",
+            "size": 620,
+            "hash": "231e6417beaa5a79b5973fadea9dd8f602ad9a1612ad2fb2522ede5b7f36ef64"
+        },
+        {
+            "type": "folder",
+            "name": "bootstrap/cache"
+        },
+        {
+            "type": "file",
+            "name": "bootstrap/providers.php",
+            "size": 164,
+            "hash": "1b73fbf22f71567c2848cbac2175d1661feab7c3a679e5c7ba84d978bde78c25"
+        },
+        {
+            "type": "file",
+            "name": "config/amazon.php",
+            "size": 363,
+            "hash": "88edc18360966a1f7aa5972ffc26876b4fcb4f5262196867be2798ab380a9499"
+        },
+        {
+            "type": "file",
+            "name": "config/app.php",
+            "size": 4277,
+            "hash": "57b7ce0dca560cdd3f1aabe2320f797ae6e110b9043e65442b6f8304f2002fb3"
+        },
+        {
+            "type": "file",
+            "name": "config/auth.php",
+            "size": 4147,
+            "hash": "741698fc3c1d55602d08cfb2370cf782dfef846800359b204f588424d24933d1"
+        },
+        {
+            "type": "file",
+            "name": "config/database.php",
+            "size": 6982,
+            "hash": "06759b7b36b8641e9025fe03dd728970c4cb02d5b58ff709cbb0649987b4bfc2"
+        },
+        {
+            "type": "file",
+            "name": "config/cache.php",
+            "size": 3683,
+            "hash": "b8bcf382283330b94c0a602ff06452de819041ea709e28eea5065d51d1d7d085"
+        },
+        {
+            "type": "file",
+            "name": "config/filesystems.php",
+            "size": 2532,
+            "hash": "ba7060d7a23e490c3ce830656f6d24ad3ccf5b868e3293f2a12e411959dc5635"
+        },
+        {
+            "type": "file",
+            "name": "config/mail.php",
+            "size": 3631,
+            "hash": "c43ff49a31c5f32ce21eb7159f2a4b3cd2f4074eaed5838d265646dbfedd3474"
+        },
+        {
+            "type": "file",
+            "name": "config/queue.php",
+            "size": 4199,
+            "hash": "6101774da7c8b79af46d0028f2b8b31a484c3f7eda10b76e5b27b6093ad364a4"
+        },
+        {
+            "type": "file",
+            "name": "config/logging.php",
+            "size": 4340,
+            "hash": "299ec1ba5b5a803c8e20f666ae7628e442e856cc2ff7ac9e2adb17b97e8ad63b"
+        },
+        {
+            "type": "file",
+            "name": "config/services.php",
+            "size": 1217,
+            "hash": "6f4bc519cec37b23b14f169e2d2613eb5b19995334eef1c956a2072e7899433e"
+        },
+        {
+            "type": "file",
+            "name": "config/session.php",
+            "size": 7848,
+            "hash": "22f89e5b632cb2e31ae581b36aef3e809490662e84c1740106a77529943eb6d5"
+        },
+        {
+            "type": "file",
+            "name": "config/view.php",
+            "size": 184,
+            "hash": "8e3780fbae28d0b12583b191d46d43c3a35f8ad9a1ebb7c00f5fb38ab19e0697"
+        },
+        {
+            "type": "folder",
+            "name": "database/factories"
+        },
+        {
+            "type": "folder",
+            "name": "database/migrations"
+        },
+        {
+            "type": "folder",
+            "name": "database/seeders"
+        },
+        {
+            "type": "folder",
+            "name": "public/build"
+        },
+        {
+            "type": "file",
+            "name": "public/.htaccess",
+            "size": 740,
+            "hash": "b7e379c77639fd56144947dbae84c84eb466d9c686ea81f2f013ae85421da923"
+        },
+        {
+            "type": "folder",
+            "name": "public/css"
+        },
+        {
+            "type": "file",
+            "name": "public/favicon.ico",
+            "size": 0,
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+            "type": "file",
+            "name": "public/index.php",
+            "size": 543,
+            "hash": "eba77cba39695b6bd091fe5211d481f7ebb2ce2d8d26230b5a609465d0a4aff9"
+        },
+        {
+            "type": "folder",
+            "name": "public/js"
+        },
+        {
+            "type": "file",
+            "name": "public/robots.txt",
+            "size": 24,
+            "hash": "e5c4b84484ee4216e9373be99380320c25dd94805f99f0a805846f087636553f"
+        },
+        {
+            "type": "folder",
+            "name": "public/productsimg"
+        },
+        {
+            "type": "folder",
+            "name": "resources/css"
+        },
+        {
+            "type": "folder",
+            "name": "resources/js"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old"
+        },
+        {
+            "type": "file",
+            "name": "routes/console.php",
+            "size": 210,
+            "hash": "9adccc33e7dd400683e434774077c7fdb2f299c5712cedf16a43fdf56f2850fa"
+        },
+        {
+            "type": "file",
+            "name": "routes/web.php_old",
+            "size": 4597,
+            "hash": "e00cb9be9f64a82a7beb3b8486e0e78e0c6bff9984fe7728442282452cf7304e"
+        },
+        {
+            "type": "file",
+            "name": "routes/web.php",
+            "size": 5633,
+            "hash": "de3a39ae855b08aca478b523c033af6d8c50c4bed952905bbb18cd8f57172965"
+        },
+        {
+            "type": "file",
+            "name": "routes/webShopify.php",
+            "size": 8703,
+            "hash": "f0f6633f1cf390c1d55401ec81caebc7e2e9e935553b9bf0279fa74a8a63cfd6"
+        },
+        {
+            "type": "file",
+            "name": "routes/webShopify.php_old",
+            "size": 5989,
+            "hash": "b7bdf656b62b9f622533835146fa79048a5bd21c1c593330a2165a769c69943c"
+        },
+        {
+            "type": "folder",
+            "name": "tests/Feature"
+        },
+        {
+            "type": "file",
+            "name": "tests/Pest.php",
+            "size": 1584,
+            "hash": "198632917ab7761af28a3cecce6492398d666ad6955cc67bf770f0f4c50bb3aa"
+        },
+        {
+            "type": "file",
+            "name": "tests/TestCase.php",
+            "size": 142,
+            "hash": "c7c209f5579c42647c1f7b2a79ac828e8b54ac62a98442045a6e94fa2c0d0ebc"
+        },
+        {
+            "type": "folder",
+            "name": "tests/Unit"
+        },
+        {
+            "type": "folder",
+            "name": "storage/app"
+        },
+        {
+            "type": "folder",
+            "name": "storage/framework"
+        },
+        {
+            "type": "folder",
+            "name": "storage/logs"
+        },
+        {
+            "type": "folder",
+            "name": "app/Http/Controllers"
+        },
+        {
+            "type": "folder",
+            "name": "app/Http/Middleware"
+        },
+        {
+            "type": "folder",
+            "name": "app/Http_old/Controllers"
+        },
+        {
+            "type": "folder",
+            "name": "app/Http_old/Middleware"
+        },
+        {
+            "type": "file",
+            "name": "app/Mail/DynamicMail.php",
+            "size": 599,
+            "hash": "8f18505694510eb4e7ab9e17b7a13d150b35f56b634ca52c7cbe407a8820190f"
+        },
+        {
+            "type": "file",
+            "name": "app/Mail/PlanActivatedMail.php",
+            "size": 508,
+            "hash": "3c1bffb2b11089df2a154489ac0f2fb324f4e12abb47eedfea5e09882486f045"
+        },
+        {
+            "type": "file",
+            "name": "app/Mail/SubscriptionCancelledMail.php",
+            "size": 392,
+            "hash": "7a758bc07551f4c1e594cd4a3df44f3e134b8fce0f77523f14dafb9951c765c2"
+        },
+        {
+            "type": "file",
+            "name": "app/Mail/WelcomeMail.php",
+            "size": 406,
+            "hash": "a0c1e073f57cc34e6bfefcfa7023598a6d04b4dc10ef8c35f7f5c8f8332fb72c"
+        },
+        {
+            "type": "file",
+            "name": "app/Middleware/RedirectIfAuthenticated.php",
+            "size": 639,
+            "hash": "f424dffa5b83cf4b1695dd5553b3eb38b04c7ca889654c4c06247d0f4ace1d36"
+        },
+        {
+            "type": "file",
+            "name": "app/Middleware/ResolveActiveShop.php",
+            "size": 3118,
+            "hash": "bec901def8dcb45801b8f431c2766a8a121c2684d7b5f8ce3817483d0704de02"
+        },
+        {
+            "type": "file",
+            "name": "app/Middleware_old/RedirectIfAuthenticated.php",
+            "size": 639,
+            "hash": "f424dffa5b83cf4b1695dd5553b3eb38b04c7ca889654c4c06247d0f4ace1d36"
+        },
+        {
+            "type": "file",
+            "name": "app/Middleware_old/ResolveActiveShop.php",
+            "size": 2448,
+            "hash": "3cc3c3a58b8a86597740f779776889d9e637c5a5e4033226ddcc65bcb36e4b18"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/Admin.php",
+            "size": 668,
+            "hash": "5b5eb8170ece2b6c1133c059b349daeb29e5df8f0d9076b7b7b0bd0f85d0e8bf"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/AdminSetting.php",
+            "size": 206,
+            "hash": "928b05496cd6a719c07108b327f3ab4cfa08cb7265dea98c68ce7174b988481b"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/AllProduct.php",
+            "size": 766,
+            "hash": "cc73d188d7cf4f26ddd760810f25cdbd770bfe665d60ebeaa920cfcd58af0c0c"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/AmazonPayloadTemplate.php",
+            "size": 124,
+            "hash": "4a06536d7a79a389d97f1ddf00953c078b50ececab7e2d98a05e5ec122e32f8c"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/AmazonProduct.php",
+            "size": 796,
+            "hash": "266c955c7f551a439a4279e75b98d27879c91d90678197496bf6b1eaaa43b893"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/AmazonSchema.php",
+            "size": 315,
+            "hash": "5e73aa7314cb8cc14a11f10d4c9247064a2c047ef7cd4564f20ae2d2fc618e3f"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/Category.php",
+            "size": 683,
+            "hash": "7dc996d7e0f5677d8a05617925d0e8904ef53f8111d5f62dc4600fcb22547344"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/Log.php",
+            "size": 318,
+            "hash": "ed2b56d46ba82b80a9b90659357a61c4670ef31494fc9ad1300cf3227ad5d04d"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/MailTemplate.php",
+            "size": 1180,
+            "hash": "85c2796b032d4d3d1f679073256c7afda935fd6b7d743fed35e6311db7807d96"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/Plan.php",
+            "size": 851,
+            "hash": "fd00993d8aaa1da969c87d87e0f7f3f8571ba1a55090035e9b7a33c9b0317b08"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/Product.php",
+            "size": 1414,
+            "hash": "5108281dc7716914a34369f4c6724ce305d23dc25e3f53ebeffa5be5cb246e32"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/ProductAttribute.php",
+            "size": 585,
+            "hash": "e9e4153409ace4ce63397109f9705e12a91a6561649cf5e92fd2a87fe89f2e26"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/ProductSchema.php",
+            "size": 621,
+            "hash": "5ef27b4c3dd0a593f19b8fea8cbdcf7b653d788e73ae3d09b7cb552cc97232ff"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/ProductSyncLog.php",
+            "size": 329,
+            "hash": "1fd0ae45796ece960ccf0602a4c266f9b38a9f9989036fe5405e326ea9732c73"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/ReturnItem.php",
+            "size": 528,
+            "hash": "f2b1d5af3e711bb10f7d20f0ebff3d96d0fb7dfa0338dd14387c0644d7344636"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/Setting.php",
+            "size": 547,
+            "hash": "439e4c2fa0df19e00aa6c1c874cb6d3254fddef8b072c895e44678a1d1806a86"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/Shop.php",
+            "size": 1310,
+            "hash": "8a87edc878f7bdb3d9d7c1b9a87c4067dc51c96a830049674cf4605e0e983782"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/ShopSubscription.php",
+            "size": 1491,
+            "hash": "72f04d76ce88b53063f771124fa2ea21e65fae376679aced423bd25983136efe"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/ShopifyOrder.php",
+            "size": 2000,
+            "hash": "75b40b9c82604a9bc69955c302ba8396638c6e6782a2897f7a9dd5f57c0e9cc5"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/ShopifySubscription.php",
+            "size": 641,
+            "hash": "1b4a0fd846fc18b5a62e5cb8645d1354001b0445c676afb25f1e91c2f1512f2b"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/Store.php",
+            "size": 854,
+            "hash": "00d57fd85fdbb6e509432c04d82c15a76874254b89153b818f2505909e71f35f"
+        },
+        {
+            "type": "file",
+            "name": "app/Models/User.php",
+            "size": 1025,
+            "hash": "41d800ffd4887c75e66af8eaedc756edce052eb662baae357308c6e364a6c9d2"
+        },
+        {
+            "type": "file",
+            "name": "app/Providers/AppServiceProvider.php",
+            "size": 500,
+            "hash": "c5b09449096afd2dfb88491a6a6b1a777b89bd2e85ca3e6e1f11d88cefe90c96"
+        },
+        {
+            "type": "file",
+            "name": "app/Providers/StripeServiceProvider.php",
+            "size": 2879,
+            "hash": "f12440d55ff12e50d257fc0a47c1c98d0bf7cdd60a5b8def0cde72c70435b48a"
+        },
+        {
+            "type": "folder",
+            "name": "app/Services/Amazon"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/AmazonPayloadAnalyzer.php",
+            "size": 5111,
+            "hash": "3edbd86453864d38fd61744515a2997a06641eff3407d7aa4a87b6ff76f0e7cd"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/AmazonPayloadTransformer.php",
+            "size": 4896,
+            "hash": "f21a81535d13cf7ef049c103c0e95e335c28a537431cf58b85b125668142f8b7"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/AmazonSchemaService.php",
+            "size": 8892,
+            "hash": "47e852e682be4b18ced3270e6f5d5c96fe7135e7b7786d3429a5d340550dacc7"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/AmazonService.php",
+            "size": 369523,
+            "hash": "4a7e6755c05b90aae1b70770866f681e87a4503b8a9fd661548bacf04823c058"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/CategoryService.php",
+            "size": 1305,
+            "hash": "5256cbb36162849ab0f0cdfb79f3b96149c2f44fa2ba4cb6589f9798904aa760"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/EmailDataHelper.php",
+            "size": 1707,
+            "hash": "cee93baf4b9643ebe38876aba26971e7c8fddbcadc8cfe63878917cc57596542"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/EmailService.php",
+            "size": 3218,
+            "hash": "a2734f7fd79effa949936f489f90bf75a457ebbdee63e7e65232174e0d285a35"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/ShopService.php",
+            "size": 1468,
+            "hash": "941b9eb974bb27a999bcbf2cb4d6cfab802e22b5d8a0b67f6c801a16141b7c8f"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/ShopifyBillingService.php",
+            "size": 13482,
+            "hash": "037adc507b17af3eb879c90bbbaefa6202f71a13f6362e01b300aa425eacdabb"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/ShopifyService.php",
+            "size": 8258,
+            "hash": "4b858255d2e93321a75ab689d9da91e5f56240d24593b3035c6db2ec7232fe7c"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/ShopifyWebhookService.php",
+            "size": 6368,
+            "hash": "12453949d5e3ebe2127da7f9cef97fb9b12eab518936f4adf6fe9647d5eafd18"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/SubscriptionService.php",
+            "size": 478,
+            "hash": "aa6ebe0460b6f37ed497261c03fd202b72a8c6c540727a0b48eeaf705e99ec02"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/StripeService.php",
+            "size": 20349,
+            "hash": "89e495ce1d1861d5c6f69004343fbe9b7c28d6425ad4ec5c6666e30aea56c66e"
+        },
+        {
+            "type": "file",
+            "name": "app/Services_old/AmazonService.php",
+            "size": 5262,
+            "hash": "15f9cc8d4ec49bde4f8fdc5e94aa4c10310d9a250ea527cbb47aea0bddac0a62"
+        },
+        {
+            "type": "file",
+            "name": "app/Services_old/ShopifyBillingService.php",
+            "size": 13241,
+            "hash": "4d6a1e9242804ac2f72f76629a8c9139b8d0ddf07c949bbdcfb7385d1253acaa"
+        },
+        {
+            "type": "file",
+            "name": "app/Services_old/ShopifyService.php",
+            "size": 8258,
+            "hash": "4b858255d2e93321a75ab689d9da91e5f56240d24593b3035c6db2ec7232fe7c"
+        },
+        {
+            "type": "file",
+            "name": "app/Services_old/StripeService.php",
+            "size": 20349,
+            "hash": "89e495ce1d1861d5c6f69004343fbe9b7c28d6425ad4ec5c6666e30aea56c66e"
+        },
+        {
+            "type": "file",
+            "name": "app/Services_old/ShopifyWebhookService.php",
+            "size": 4498,
+            "hash": "a0999b2d547be3d562680ad3976c6bdd847bece2769d85134e450c734eeb0267"
+        },
+        {
+            "type": "file",
+            "name": "app/helpers/SubscriptionHelper.php",
+            "size": 2142,
+            "hash": "7f7275cbe28be29f2d3496c007f85dfa22f7cda45c214033cf5df85ced97683d"
+        },
+        {
+            "type": "file",
+            "name": "app/helpers/mainHelper.php",
+            "size": 2457,
+            "hash": "c75951ad9a7cf90b7095870aaf340952a9727a718a7de20730e6a954302fb02e"
+        },
+        {
+            "type": "file",
+            "name": "database/factories/UserFactory.php",
+            "size": 1044,
+            "hash": "50bdc543f1b09d1a57260be55ad0e1a68aee4b34f63e1109dc94d9bcd3080526"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/0001_01_01_000001_create_cache_table.php",
+            "size": 867,
+            "hash": "2ca8398390ecef8eaf72aeac7fefce67f7de631b6f2ec7b7081c8db8953215dc"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/0001_01_01_000002_create_jobs_table.php",
+            "size": 1812,
+            "hash": "7c9c712adf4091c87bf2612f4d0dccdfa1df4501553e4ac068b83d7bd5462fa5"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_03_27_071953_create_shops_table.php",
+            "size": 1421,
+            "hash": "6916f0b863ad62a31a46bb6a3f716684dddfbefcc229db28ebd5d2873b2c0bcb"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_03_30_072015_create_products_table.php",
+            "size": 1594,
+            "hash": "aa91a81ccf3351bd8788b8063be83a48aa7d83355da1d946cdc417489e04ea8e"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/0001_01_01_000000_create_users_table.php",
+            "size": 1473,
+            "hash": "10d79883bc08ce46510f9ad8b1830b4d06d586dc56ae2c8bac3b3e491f69a90f"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_03_30_140000_create_amazon_products_table.php",
+            "size": 1086,
+            "hash": "6bf03de06a89f44dec895d92586ff825cee503f7a59dcb35f9e900fe4ade0725"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_03_31_000001_add_shopify_sync_columns_to_products_table.php",
+            "size": 1550,
+            "hash": "383c72bd8e6a2de132a9ba77aecf392d14d9f9cd7c0676d4d01c7d5213b505fa"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_03_31_000002_create_plans_table.php",
+            "size": 4435,
+            "hash": "6f5d6758c1a77ed286e77a4ff27384ca3127b43aee8abfb73ad1c85a094b8817"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_03_31_000003_create_shop_subscriptions_table.php",
+            "size": 955,
+            "hash": "5fd491fcaf35cd9b7133b7996255a4a1cb4ec2e7d3a5b7269a1b23ef76c070b9"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_03_31_000004_add_billing_cycle_months_to_shop_subscriptions_table.php",
+            "size": 784,
+            "hash": "b3ca313589e0c02890ac8f368251d712ee5d89bbd29853c62c335bb11b4f3566"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_04_01_0000017_add_log_table.php",
+            "size": 910,
+            "hash": "9e78c968b451675f69b3c0a9c2e4f9b7337b4f2e6fabb04c74d2e5d3fc7ea124"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_04_01_0000018_add_return_table.php",
+            "size": 945,
+            "hash": "7837288b10888d939d8aa7369585e9bd5871f9a65d44e3441468a7828eb3bbd1"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_04_02_065317_create_admins_table.php",
+            "size": 808,
+            "hash": "8f652e39b30320d197661ea1805c3eb6622908d9cbef621957a22306a86d6eec"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_04_04_132022_create_admin_settings_table.php",
+            "size": 651,
+            "hash": "92e80ce5189616b8b9dbb90d698aef5049314c1f55a217c382435c35e8a5e599"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_04_09_114635_create_mail_templates_table.php",
+            "size": 1030,
+            "hash": "bf55300566694e6b2d0cfb131f56b8d178e554e3702c395d1bfcc19c5896a85a"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_04_10_074323_create_shopify_subscriptions_table.php",
+            "size": 1543,
+            "hash": "a9c5b1b96d019dacee794dd469b8084a2b6fadd2720d585600828a7904d32277"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_04_28_000016_create_setting_table.php",
+            "size": 896,
+            "hash": "566eb11753a90b8d3a6cd6b13f432252419a096cf9ee0ee4383cdf9831e63275"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_04_27_080423_create_categories_table.php",
+            "size": 997,
+            "hash": "ea5c05de9b5778d308b9f3e211131258f10028a32d198a7e41433a4774edfadb"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_05_02_102711_create_shopify_orders_table.php",
+            "size": 2808,
+            "hash": "020393c5153cbf7fd0e022583e35a4abb5242674f767a0ca11d68f626bd36d4b"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_05_11_072348_create_amazon_schemas_table.php",
+            "size": 745,
+            "hash": "f7df588d99da2752c5c2b5e77085f7eb6cbf6e53f0c5d6ec1606df804cdcfa0a"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_05_30_095249_product_schemas.php",
+            "size": 954,
+            "hash": "f34429b85a3b11d41480202f1e23962836f88f3d7d203eb6a189b1ba2d37bb93"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_05_02_103437_add_synced_to_amazon_to_products_table.php",
+            "size": 549,
+            "hash": "a813a26cfce13fe8adc4adb95ad42e1caa5d80f73cfc389a6fef900ea3c1d83c"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_06_01_065535_allproducts.php",
+            "size": 1250,
+            "hash": "03b46a838e04316dc4de86d8c359ce6f7eabbfa4529c0ec02ffc51d7cb33c35a"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_05_30_081213_update_shop_subscriptions.php",
+            "size": 784,
+            "hash": "d81bdf5e32149e426afc7cc545f0c06ae1813df6a2e70c09588d1d9aa19f8d70"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_06_05_081005_add_status_to_categories_table.php",
+            "size": 609,
+            "hash": "ff5d44b14d175e9878547148c92366b082702e61eeae1aae9455a8e4e9e480ce"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_06_08_082546_create_amazon_payload_templates_table.php",
+            "size": 565,
+            "hash": "92aea276f055ce0e4c265946778ac849772215f6654beb5d64400e257fd3dd09"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_06_09_114516_add_smart_payload_to_amazon_products_table.php",
+            "size": 594,
+            "hash": "210e8eb365a716e3b33d3e568028a30d6aa9ffd448541c043ab43436343cef53"
+        },
+        {
+            "type": "folder",
+            "name": "database/migrations/database"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/2026_06_11_140058_add_rules_json_to_amazon_schemas_table.php",
+            "size": 717,
+            "hash": "3920e5eb77595b9f7210fd1a2496604adcbcbe61d1d15fca733f2d0db1ecd2b5"
+        },
+        {
+            "type": "file",
+            "name": "database/seeders/DatabaseSeeder.php",
+            "size": 482,
+            "hash": "cf8e4b6e48360218bb5534f66419c955288f78338eb8a3dba9d8ac3394ec3dbc"
+        },
+        {
+            "type": "file",
+            "name": "database/seeders/AdminSettingSeeder.php",
+            "size": 1775,
+            "hash": "7c794bbc74f464fd98ce6bae81e73b581e183692d031f7e5abc6711b66e7d217"
+        },
+        {
+            "type": "folder",
+            "name": "public/build/assets"
+        },
+        {
+            "type": "file",
+            "name": "database/seeders/AdminSeeder.php",
+            "size": 655,
+            "hash": "fa13aa584c092d5873a9beb632cd04daba87f697ae2578d38b0115caf1633613"
+        },
+        {
+            "type": "file",
+            "name": "public/build/manifest.json",
+            "size": 331,
+            "hash": "7455723b00788d6a3567b805a927f55b8efa1e8701d3d5cd51f65ea6657f3fc7"
+        },
+        {
+            "type": "file",
+            "name": "public/css/bootstrap.min.css",
+            "size": 303302,
+            "hash": "d1b8be0548dbcee2212c8f84b4c417b7d56eee26bcc1f86bce781d71c6b00cb7"
+        },
+        {
+            "type": "file",
+            "name": "public/css/plan.css",
+            "size": 6000,
+            "hash": "1fe5e77f66704775bfef9ce9bb5bcc20f5352a9ed3d3ba7638ed1eff777326d3"
+        },
+        {
+            "type": "file",
+            "name": "public/css/product.css",
+            "size": 0,
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+            "type": "file",
+            "name": "public/css/style.css",
+            "size": 16719,
+            "hash": "464d53b75f20d8748e2a2241a1bf906a236f54ae569767e72fd721bc3021d98f"
+        },
+        {
+            "type": "file",
+            "name": "public/js/bootstrap.bundle.min.js",
+            "size": 164502,
+            "hash": "99828c04b61e5fb3a786ad678af9a4b9bb8e4d8f5688878fd445e5224318aca1"
+        },
+        {
+            "type": "file",
+            "name": "public/productsimg/images.jpeg",
+            "size": 6239,
+            "hash": "3c42682289de897d1f6076e8016f7fab1f2c61829ef65bc4cf4d22f17ea35b2d"
+        },
+        {
+            "type": "file",
+            "name": "resources/css/app.css",
+            "size": 390,
+            "hash": "9f49ed837fdc773b89a294d1e86dc68828ef2f774d7e797ba5f89c2a08c84760"
+        },
+        {
+            "type": "file",
+            "name": "resources/js/app.js",
+            "size": 22,
+            "hash": "cf6dab196c721f6911ff99cc4f910897f978599a2d289971a316a5fc33091f94"
+        },
+        {
+            "type": "file",
+            "name": "resources/js/bootstrap.js",
+            "size": 127,
+            "hash": "6fd9fc82e68fa915a882f4e227b9faacbe7bfd66cb953c628840e83bda6b72f4"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/EditProduct_old.blade.php",
+            "size": 29039,
+            "hash": "c859bd786f2e83a115adbe4f0b919f46914c6b4618473ea0f2f205c36d88ef42"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/Return"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/EditProduct.blade.php",
+            "size": 61601,
+            "hash": "ece89f9855ea6d0a866b449d85197c8dd2fb9ab960ab35905e9d2739e3006a76"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/admin"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/allproducts"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/amazon"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/amazon-order-detail.blade.php",
+            "size": 22008,
+            "hash": "aec0f637692b539c93578eaaec4e928f62a261ed5d7c283dd20ce57d6bc180d6"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/amazon-reports.blade.php",
+            "size": 1824,
+            "hash": "9541eb1a5f6c16179e4b9e53ba87da0426a4b8187c6d8445db838c7364125617"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/amazon-test.blade copy.php",
+            "size": 48056,
+            "hash": "26e18ceb9aec8ea8759ec3663d5b35ecaad2792ff2496657f238f7b6f9b47daf"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/amazon-test.blade.php",
+            "size": 82987,
+            "hash": "a2d0d2aa715e472319a8b79e263c85e8c794b23fe5c6f33bcac82b45e5ada766"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/amazon-test_old.blade.php",
+            "size": 46104,
+            "hash": "55383707a9f5e1884c69bc4d1e755539b7adac0521d78551a2af1922f334b817"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/amazonconnect"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/connect.blade.php",
+            "size": 82,
+            "hash": "1530004fc850c17bad5b88bb572828370f3861bb8733606cbe03dfff86024c63"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/createProduct.blade.php",
+            "size": 42122,
+            "hash": "913e809dbf0b78a7f65b2fd9e0c8e8205eb3e979238a44c9b642b7e5f437cf37"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/dashboard.blade.php",
+            "size": 3917,
+            "hash": "f21137a3e90a63fa09a8ff947c369d55b6304fd587283265abe6c4ab6dc3c52b"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/emails"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/help.blade.php",
+            "size": 79,
+            "hash": "408da96c2a99550d43697a3f42cace5fa5dfd5ceb932551eec65b7b0ab0aa9c8"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/apiResponse.json",
+            "size": 14582,
+            "hash": "bd6800c26be624cdaf93135b7c2c02b9e2dcef120dbb60a11ad3f5d8bc9fca45"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/inventory.blade.php",
+            "size": 18075,
+            "hash": "b7ed70d10237313c1e1449e1edf4033b8acd3c2f6c753481761ffd840df34cb9"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/jsons"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/layouts"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/inventory"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/logs.blade.php",
+            "size": 3682,
+            "hash": "6f411c01e100400e3de5020b26f25abe4d6a03a217c727cf2cf803bd367ee86d"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/orders.blade.php",
+            "size": 17950,
+            "hash": "778b11f5d7136782be7a6a5b7e167fbfa7b045704dd14df7f470d0986adaac2b"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/pages"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/partials"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/plans.blade.php",
+            "size": 15940,
+            "hash": "40f2da67abf0f28b8aaafe710dfdfaab4b315169898aa6491e198ad26a3e21cd"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/order-details.blade.php",
+            "size": 16967,
+            "hash": "a9b81cdf959e92d3386f531cc630efc8fa9b11afbcbe9eadac1b66e17f789a99"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/products.blade.php",
+            "size": 16613,
+            "hash": "ee15b269843edc785645e409b7ced13f677c5248f8be4a23de2d9bdc1b98ef82"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/products_old.blade.php",
+            "size": 16305,
+            "hash": "5b5445ccae7414e9962b02cc0b17328e485bad7e7819b4b17fc7709dfadd8da4"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/product-view.blade.php",
+            "size": 19187,
+            "hash": "7884545ba4e7319629c5db16086c3895072071d6b5c4a53609afb407c1a1517d"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/return_refunds.blade.php",
+            "size": 6341,
+            "hash": "59c89b20bb0196bdd4b84eba892f3d3ef21b8e0f4abb56e49c59dc1e47a40f27"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/rules.blade.php",
+            "size": 80,
+            "hash": "5d65690b66547df86839a1162d975bc7c11606d66137f4da527ce0dec56309dd"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/schema"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/settings.blade.php",
+            "size": 5560,
+            "hash": "7f59211df14a0b215312250e2ea1a4ccc31c797ee01ae9b1369db7c7931bba5a"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/setup"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/subscription"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/support.blade.php",
+            "size": 6017,
+            "hash": "0215679ae88ac26fb647bc7146e2023e179dd254b6e6a6e1f1a86db29599404e"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/welcome.blade.php",
+            "size": 4955,
+            "hash": "18ad5403c400429c16129cc3018049113264c2162ce6f7b349d13b11ea6104dc"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/working_products.blade.php",
+            "size": 18172,
+            "hash": "a40734dea79038099ff78788c35c373d3d4b7e16cd9d2a4655ab53416f03646c"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/EditProduct.blade.php",
+            "size": 59447,
+            "hash": "934c070f651d3bdaac02dfcd8ba45f5e3e1b5c4613bddc7a8027333e29e43e1a"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/EditProduct_old.blade.php",
+            "size": 29039,
+            "hash": "c859bd786f2e83a115adbe4f0b919f46914c6b4618473ea0f2f205c36d88ef42"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/admin"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/amazonconnect"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/apiResponse.json",
+            "size": 14582,
+            "hash": "bd6800c26be624cdaf93135b7c2c02b9e2dcef120dbb60a11ad3f5d8bc9fca45"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/connect.blade.php",
+            "size": 82,
+            "hash": "1530004fc850c17bad5b88bb572828370f3861bb8733606cbe03dfff86024c63"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/createProduct.blade.php",
+            "size": 41336,
+            "hash": "d23e94bfd50bf43833f8989388fbbebcc1dfec95aea3151e46a026337f3af621"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/dashboard.blade.php",
+            "size": 3917,
+            "hash": "f21137a3e90a63fa09a8ff947c369d55b6304fd587283265abe6c4ab6dc3c52b"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/emails"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/Return"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/help.blade.php",
+            "size": 79,
+            "hash": "408da96c2a99550d43697a3f42cace5fa5dfd5ceb932551eec65b7b0ab0aa9c8"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/inventory"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/inventory.blade.php",
+            "size": 18075,
+            "hash": "b7ed70d10237313c1e1449e1edf4033b8acd3c2f6c753481761ffd840df34cb9"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/layouts"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/order-details.blade.php",
+            "size": 17335,
+            "hash": "cb1f3dcbdffd49d14307bb94773c73f0d7e64e53fcdb9bf27a4308abcb421f5a"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/orders.blade.php",
+            "size": 15100,
+            "hash": "63d1e7fd2e7a8275eed30914f6ed18e06f2252381c4d13356189cdede0e00503"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/pages"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/partials"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/plans.blade.php",
+            "size": 16706,
+            "hash": "9d1b540832c51e5d07ee883d821f7ebd61e934f329771c84032780f2505d7e0f"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/logs.blade.php",
+            "size": 3703,
+            "hash": "b8a93cb08ab4321fe4474402440a10cb608701020bef3341af20b5c2c0af9ebf"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/product-view.blade.php",
+            "size": 18874,
+            "hash": "1c7a38d1e6e702f18e8f6f015c96263044738312d20ab0f5764ea02ed4f84d34"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/postInstall,blade.php",
+            "size": 0,
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/products.blade.php",
+            "size": 15015,
+            "hash": "547c2acbdda9c11d6cb830004f3eee659cf60592b7726f301d6bcb24e7cb8b60"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/return_refunds.blade.php",
+            "size": 6341,
+            "hash": "59c89b20bb0196bdd4b84eba892f3d3ef21b8e0f4abb56e49c59dc1e47a40f27"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/rules.blade.php",
+            "size": 80,
+            "hash": "5d65690b66547df86839a1162d975bc7c11606d66137f4da527ce0dec56309dd"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/setup"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/settings.blade.php",
+            "size": 5531,
+            "hash": "f8367d4e2dbc2900c7707211d0cad2304d9a3bf439769b32eb738a9e020230fc"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/subscription"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/support.blade.php",
+            "size": 6044,
+            "hash": "bd954efc75ee6d68a3709f3965d68fcf4a22da304dbf587ef0dec853a10e30a7"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/welcome.blade.php",
+            "size": 4989,
+            "hash": "c2bccae7d41b1b22893633fab471572865af3ae1998292ba66bf047ec637d2e3"
+        },
+        {
+            "type": "file",
+            "name": "tests/Feature/ExampleTest.php",
+            "size": 147,
+            "hash": "9c8432a460e2d7e60a480c3e2199d0b25fb2ad5cef51a0b5e61ede384041a4b1"
+        },
+        {
+            "type": "file",
+            "name": "tests/Unit/ExampleTest.php",
+            "size": 81,
+            "hash": "d86e67e8dbb5e66fa3f63b8eaaf98529bf11786e3345e76dc2e1e1635e20ea56"
+        },
+        {
+            "type": "folder",
+            "name": "storage/app/private"
+        },
+        {
+            "type": "folder",
+            "name": "storage/app/public"
+        },
+        {
+            "type": "folder",
+            "name": "storage/framework/cache"
+        },
+        {
+            "type": "folder",
+            "name": "storage/framework/sessions"
+        },
+        {
+            "type": "folder",
+            "name": "storage/framework/testing"
+        },
+        {
+            "type": "folder",
+            "name": "storage/framework/views"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/AdminAuthController.php",
+            "size": 736,
+            "hash": "dfa687374cc523e0b084440e39c382ea4e2356bd3298bf491d750330f19426f5"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/AdminController.php",
+            "size": 1409,
+            "hash": "b2f73bf2dda55e61c7307314acc98d8d2bd6cdcdb2ca4f31d7fb32cf9dfeffdf"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/AmazonConnect.php",
+            "size": 4975,
+            "hash": "1bcd4a69d60fc14086ab807798dbfd18c0fd6508aec71d965cbc7bf65aad7620"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/AmazonSandboxController.php",
+            "size": 5253,
+            "hash": "276a91ffcd5b451deb949612673a0033e00bbb61c52d3bf3df5155509976d331"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/AmazonSchemaController.php",
+            "size": 26176,
+            "hash": "6b89e16286782c5c26e0af0139924ba4e42d2353477587e9862236dfe62c5531"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/CategoryController.php",
+            "size": 3074,
+            "hash": "efff725c094d00556772a0f2a8743748cb729b9253283b760f8b357a4506e282"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/Controller.php",
+            "size": 77,
+            "hash": "25d1c1ef8e6cc8a376553faacfba2b07d9dfaee9bdbb84f14f77517580e9deb1"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/DashboardController.php",
+            "size": 1743,
+            "hash": "858c9f2962e8ad19ed3dba2b6348dddba473681c2470fc0ea87cfdf74401283f"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/EmailController.php",
+            "size": 1355,
+            "hash": "a3244d539e00de3f7ecb20ed2f757dbf9a29f0b730cab6ec234780c9e1c942c1"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/InventoryController.php",
+            "size": 6786,
+            "hash": "17fe8a37af0967a60b1098cf90c74835573331b9f17a49e892fe0f21eb34c7c7"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/MailTemplateController.php",
+            "size": 1668,
+            "hash": "c4fbb3e3f9d203e2307cf0b380e909deff98c6e4cd4b62d478a1fc811fee0878"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/PlanController.php",
+            "size": 4685,
+            "hash": "4400352e13226eed006171798da1c498fad896d1b539b073c9022d9e1a4af141"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/ProductSchemaController.php",
+            "size": 4364,
+            "hash": "37ad2fdd7b7e0da653748671afb58664ce7b49447ca512115983bbafe019544e"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/ReturnController.php",
+            "size": 9677,
+            "hash": "d6ee07c352a3b7ef4bdcdef89844c0025f3550cb642743bed1e02f799a41166e"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/SettingsController.php",
+            "size": 6363,
+            "hash": "a1382a3b185d7116a6798b9b8447221f91423300301cf25a21e51b8a67b84248"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/ShopifyController.php",
+            "size": 113118,
+            "hash": "7160625bf7ded19dfda1cae6d38820f669c558de57faec8db17f8619ec6d3893"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/StripeWebhookController.php",
+            "size": 12040,
+            "hash": "70f2daa5967db45220d3aa0c3f2c5950f0a14325a9f71925416e7c343856cf9d"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/SubscriptionController.php",
+            "size": 11596,
+            "hash": "75d40558772c50fd6bfdd9b62a7702103140ab17b1d2d0c4a2cfdd1b5bcba2e5"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/TestController.php",
+            "size": 58632,
+            "hash": "0d63b66fd5899404dac3ada180cd6e5e42e985099d4100874da16606c8659bc1"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Controllers/AmazonSmartFormController.php",
+            "size": 1163,
+            "hash": "a7ea87f5cb65cce4a438de76ed438d5f42c295a0e8e1ad5ed4e8a78e88e99a40"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Middleware/CheckSubscription.php",
+            "size": 4560,
+            "hash": "964c0aacf28c40f1eda62429d6be37284b0d1797c8cd435d823de3f7c439e9a8"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Middleware/RedirectIfAuthenticated.php",
+            "size": 629,
+            "hash": "424b98fd2399af10ad045b63bd69f605563d872ae98efdfb2318f8892621a12f"
+        },
+        {
+            "type": "file",
+            "name": "app/Http/Middleware/ResolveActiveShop.php",
+            "size": 4317,
+            "hash": "b3bb54c84ba5400187a87f88221ec1482aabcdd77140e03cf36e791065bf821a"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/AdminAuthController.php",
+            "size": 736,
+            "hash": "dfa687374cc523e0b084440e39c382ea4e2356bd3298bf491d750330f19426f5"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/AdminController.php",
+            "size": 1409,
+            "hash": "b2f73bf2dda55e61c7307314acc98d8d2bd6cdcdb2ca4f31d7fb32cf9dfeffdf"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/AmazonConnect.php",
+            "size": 4975,
+            "hash": "1bcd4a69d60fc14086ab807798dbfd18c0fd6508aec71d965cbc7bf65aad7620"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/Controller.php",
+            "size": 77,
+            "hash": "25d1c1ef8e6cc8a376553faacfba2b07d9dfaee9bdbb84f14f77517580e9deb1"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/DashboardController.php",
+            "size": 1686,
+            "hash": "2c0f609cd122b64639be0b1f820703f2370f959e17df7ad03d09be7d2073d4b4"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/InventoryController.php",
+            "size": 6379,
+            "hash": "d6edb8c154f1ab2f02a3f7c8553ccdfaae6b30ff53d2f6d262d169d2002f81af"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/MailTemplateController.php",
+            "size": 1668,
+            "hash": "c4fbb3e3f9d203e2307cf0b380e909deff98c6e4cd4b62d478a1fc811fee0878"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/PlanController.php",
+            "size": 3375,
+            "hash": "aa6dd201147468ce081d5dd33454576e57e29f5e9333cf98b6aa07ffa8706f76"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/ReturnController.php",
+            "size": 9677,
+            "hash": "d6ee07c352a3b7ef4bdcdef89844c0025f3550cb642743bed1e02f799a41166e"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/SettingsController.php",
+            "size": 4033,
+            "hash": "1bdf6eecf5f59c7b5df731e05ebf04020fb4f165dc2ec5323dc2bacb7ba0703e"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/StripeWebhookController.php",
+            "size": 9384,
+            "hash": "5f19d3fe0b6065d5c79f9b839f28b5ed420964ddea450095acfb5ed62e48175d"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/SubscriptionController.php",
+            "size": 6351,
+            "hash": "51dbd3daf1bbcf37c55af831e8ad44741d3ab1ea9b3deb7d691ed5d4949dc180"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/TestController.php",
+            "size": 625,
+            "hash": "ee8cd0990d4d8dc42a508bff5e65a5a60ee300c77cc823e53efe5b8d2b5967eb"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Controllers/ShopifyController.php",
+            "size": 80766,
+            "hash": "e0991763d0a8dac43e2564199f84adc553b700f40bc79e478620da618eead0e4"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Middleware/RedirectIfAuthenticated.php",
+            "size": 629,
+            "hash": "424b98fd2399af10ad045b63bd69f605563d872ae98efdfb2318f8892621a12f"
+        },
+        {
+            "type": "file",
+            "name": "app/Http_old/Middleware/ResolveActiveShop.php",
+            "size": 3085,
+            "hash": "13e036bed8cce571c4835b647215c5e6cc2535e5a3d4e5448bb79cddf0bfd267"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/Amazon/AmazonIssueNormalizer.php",
+            "size": 2156,
+            "hash": "091ae202e665ee8b022d4ff40e118cd4cc152c54e4b6d01d56b369e6b5f4e7c5"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/Amazon/AmazonSchemaRuleParser.php",
+            "size": 1452,
+            "hash": "145f9495b03e6c0c1c8090045e59aabccb7924a6355acaf258fa64f1b65f2e89"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/Amazon/AmazonSchemaRules.php",
+            "size": 3884,
+            "hash": "ff40921443aaf5c96f2e70e1d8526975728aa64569f9f60873c2e5d2d5e160cc"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/Amazon/RefResolverService.php",
+            "size": 656,
+            "hash": "23a9187b3f25f8ac173d9cf692ab6deb61220faec49c899a685ca824eccc4e94"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/Amazon/SchemaParser.php",
+            "size": 2386,
+            "hash": "6ea3d0889a260d9001b460b4bcd5e2a2c82c2d82e060557f61a7f11aced365a8"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/Amazon/SchemaRendererService.php",
+            "size": 7978,
+            "hash": "4a639812c71b06374627bdc89fa6f2eba2177eb2bc29f15c8cf21427cc6fbb6e"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/Amazon/AmazonRuleEvaluator.php",
+            "size": 2516,
+            "hash": "43fc7532923faf622c945e094648ef635f43b9ed7f179f74b15049ae18781bd0"
+        },
+        {
+            "type": "file",
+            "name": "app/Services/Amazon/AmazonRuleSuggestionService.php",
+            "size": 1141,
+            "hash": "399276114aec7cc7c2c7a82eb2150a7f0e01049587cd0a2a5053e89ab8121c45"
+        },
+        {
+            "type": "folder",
+            "name": "database/migrations/database/migrations"
+        },
+        {
+            "type": "file",
+            "name": "public/build/assets/app-BuG9aa18.js",
+            "size": 37167,
+            "hash": "b72b05262114a88ba0c517763730e38dee3866c57e415540c92d6510261d7836"
+        },
+        {
+            "type": "file",
+            "name": "public/build/assets/app-Cg9bk4C0.css",
+            "size": 34042,
+            "hash": "f801bc904a4ba88b39d31307eba9570f610161521b51b83c7db798e2696c618b"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/Return/index.blade.php",
+            "size": 8079,
+            "hash": "69dbb92d81e7fd43554a6a6afb80fc7757d69b0d841feb027d58ab70b2990847"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/Return/view.blade.php",
+            "size": 2565,
+            "hash": "cd55959706fda68b8bf4fa26d7cce91f2f709967f210baead096f3031bba7cb9"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/admin/app-settings"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/admin/auth"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/index.blade.php",
+            "size": 762,
+            "hash": "bb7a0d343c3bffdc93fcc011d93797c323993a31b1ac681c8b960e4c3d812835"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/admin/layout"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/admin/mailtemplates"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/admin/orders"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/admin/plans"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/admin/settings"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/admin/shops"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/allproducts/toy.blade.php",
+            "size": 20058,
+            "hash": "6b72b1892d1e64725fde5b6b6a3b06eb0a608edb3cc47f290cf47e0c44c8e549"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/admin/products"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/emails/plan-activated.blade.php",
+            "size": 251,
+            "hash": "8cba85141543e16beb8ea5a202feff41bf6b16b1feb4ec2811bcf0d249025784"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/emails/subscription_cancelled.blade.php",
+            "size": 222,
+            "hash": "be68a688ce49dc603d51bacccedc0cadbba909d770e274c351ac102999653f12"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/emails/welcome.blade.php",
+            "size": 175,
+            "hash": "3e7dae408e7bbb0460101505a7f041d6a668a7f95bec16faa4902c36c97ca7c9"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/jsons/headphone_schema.json",
+            "size": 1584521,
+            "hash": "6c71cf6509cf25df1d80f7b88c71750bcfdf2f7dd497824137adeb05d47babc4"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/jsons/rules.json",
+            "size": 16566,
+            "hash": "ad95145d30f9670b2b04b113315ec1e995087e9b3237e26e6500ba424ffff402"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/amazon/smart-form.blade.php",
+            "size": 2584,
+            "hash": "e971fba0461e03c97943e66ca7f7b738077f1344538efd975437380c7ba7118d"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/amazonconnect/index.blade.php",
+            "size": 11524,
+            "hash": "69f0b9d75aa1dabef99525cd9d543c8f518c5c3cb0a6c32211f48561438c54ef"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/layouts/app.blade.php",
+            "size": 10484,
+            "hash": "6984f64f3646e4d68d4d575bc12c00682c3f499aa4e0d17d69d395f016fc4e53"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/jsons/shirt-schema.json",
+            "size": 1368706,
+            "hash": "e58e2cd5daa173e49c1dc0d44e9a783e751ddb96a00087ec97aa3dc5775b730b"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/inventory/index.blade.php",
+            "size": 18521,
+            "hash": "91662c7db9e4ced1c8849cc763490c84656d19da78960598f816533f64b0141e"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/inventory/view.blade.php",
+            "size": 6604,
+            "hash": "c6537fbe1a2a469360be9ea7d693c701237050b985a8fd8fb4df2512cddd0671"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/pages/products.blade.php",
+            "size": 3545,
+            "hash": "b12626f7591fbe67528c6d972701a7437bc58e3535e2f52a407d4613f2ee2181"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/layouts/guest.blade.php",
+            "size": 2527,
+            "hash": "ab96cfafd597a5347fd20016d0d1cac6456e7bd5742078a5398dd3c89b08e79e"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/partials/sidebar.blade.php",
+            "size": 3807,
+            "hash": "f4bccad84bd954b6a0da920a9dee4402a9fc7f55fbcc229f7a83c90006e388d9"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/schema/create.blade.php",
+            "size": 960,
+            "hash": "6afc50a695edf6a3f30125b8cf994d4ef15859b6ab391bf3de6e6b1baaab969a"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/schema/index.blade.php",
+            "size": 1124,
+            "hash": "cbcb7a00e016b4e3146d4663235fb3103ed658ad2ce1387d95420d3571a59531"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/schema/products"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/setup/activate.blade.php",
+            "size": 2344,
+            "hash": "3e738f444e1ec57f5eeea62fa7bf95f6ac8e6d57f8d22afae219fb43a701b20a"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/subscription/index.blade.php",
+            "size": 1622,
+            "hash": "f03f4123b05193b2aa8a658efc4ec5eeb8f2262957fd7e7ce747d9472bda1568"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/admin/auth"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/index.blade.php",
+            "size": 762,
+            "hash": "bb7a0d343c3bffdc93fcc011d93797c323993a31b1ac681c8b960e4c3d812835"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/admin/layout"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/admin/mailtemplates"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/admin/orders"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/admin/plans"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/admin/products"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/admin/settings"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views_old/admin/shops"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/amazonconnect/index.blade.php",
+            "size": 7156,
+            "hash": "ca4a4be9938825ab6c1837737b43cd00ae8dcae0477f23f2bd4e33f9ab0c3f3d"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/emails/plan-activated.blade.php",
+            "size": 251,
+            "hash": "8cba85141543e16beb8ea5a202feff41bf6b16b1feb4ec2811bcf0d249025784"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/emails/subscription_cancelled.blade.php",
+            "size": 222,
+            "hash": "be68a688ce49dc603d51bacccedc0cadbba909d770e274c351ac102999653f12"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/emails/welcome.blade.php",
+            "size": 175,
+            "hash": "3e7dae408e7bbb0460101505a7f041d6a668a7f95bec16faa4902c36c97ca7c9"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/Return/index.blade.php",
+            "size": 8079,
+            "hash": "69dbb92d81e7fd43554a6a6afb80fc7757d69b0d841feb027d58ab70b2990847"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/Return/view.blade.php",
+            "size": 2565,
+            "hash": "cd55959706fda68b8bf4fa26d7cce91f2f709967f210baead096f3031bba7cb9"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/inventory/index.blade.php",
+            "size": 18521,
+            "hash": "91662c7db9e4ced1c8849cc763490c84656d19da78960598f816533f64b0141e"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/inventory/view.blade.php",
+            "size": 6604,
+            "hash": "c6537fbe1a2a469360be9ea7d693c701237050b985a8fd8fb4df2512cddd0671"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/layouts/app.blade.php",
+            "size": 4344,
+            "hash": "13058744a05b43f294abc2d5835fd8f981598d16a44bb4be262858e6daa5765c"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/layouts/guest.blade.php",
+            "size": 2527,
+            "hash": "ab96cfafd597a5347fd20016d0d1cac6456e7bd5742078a5398dd3c89b08e79e"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/pages/products.blade.php",
+            "size": 3545,
+            "hash": "b12626f7591fbe67528c6d972701a7437bc58e3535e2f52a407d4613f2ee2181"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/partials/sidebar.blade.php",
+            "size": 3807,
+            "hash": "1f442d2a282870f8077a6b3489ffac14ecbee4c0145db8e21f8408ec7560bba1"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/setup/activate.blade.php",
+            "size": 2344,
+            "hash": "3e738f444e1ec57f5eeea62fa7bf95f6ac8e6d57f8d22afae219fb43a701b20a"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/subscription/index.blade.php",
+            "size": 1622,
+            "hash": "f03f4123b05193b2aa8a658efc4ec5eeb8f2262957fd7e7ce747d9472bda1568"
+        },
+        {
+            "type": "file",
+            "name": "database/migrations/database/migrations/xxxx_xx_xx_create_shopify_orders_table.php",
+            "size": 0,
+            "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/app-settings/index.blade.php",
+            "size": 8987,
+            "hash": "b787fac787d874c2428dcf988a61291c9b34a42cceb22b166b9867406bad2034"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/auth/login.blade.php",
+            "size": 2351,
+            "hash": "a6bca03181feab528a3a35fc6697b449a1aa3d3bc39c93cd33e457a4d710daca"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/layout/app.blade.php",
+            "size": 5444,
+            "hash": "a1a6885de8fedc070664a5e6d465c1d2a41b8df46fb297fcbdbc811345f01316"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/mailtemplates/create.blade.php",
+            "size": 9401,
+            "hash": "2ff74196c7fc9d869d8799b8268aeca4e7f9325935812e8fd1a09501cc9099a6"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/mailtemplates/edit.blade.php",
+            "size": 11511,
+            "hash": "3f618c23ab97f972dc75669d6f38f86ea65b7883868b5939f754ccda6262fbd2"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/mailtemplates/index.blade.php",
+            "size": 1845,
+            "hash": "1264005cfbb36c74ef24441749a156faf64989a3b7e86547fffb4caec1aa4a51"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/orders/index.blade.php",
+            "size": 946,
+            "hash": "3e8eaadd565c0b42af8a4bdf8a5a24326aeb27ef197caf6a29cd50183afbf642"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/orders/index.php",
+            "size": 862,
+            "hash": "443b4ba63fcf7ea80203308d1119875d5107ca8be128c0ab0cb5fa237985a4b5"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/plans/create.blade.php",
+            "size": 292,
+            "hash": "0929f0df83df23aae0af70c1fe9d1d6c66f8f1af4d6d202bd914de21bc9a62ff"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/plans/edit.blade.php",
+            "size": 314,
+            "hash": "1cca8817e5f7009ad138086667e845ae9d3835e7e6ff03a36defdb5ac1ab1b22"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/plans/form.blade.php",
+            "size": 9064,
+            "hash": "89ba75b20120a7175139a1cd0eee599cdce907ab019e5a69934eef77bdb46834"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/plans/index.blade.php",
+            "size": 1872,
+            "hash": "5d3d32006c09b66932378d5b76e8fa21cbf91d1395827a3703577758ac4385ad"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/settings/index.blade.php",
+            "size": 5210,
+            "hash": "05fefb0e53291b5a96e7c87f08d3ca6fcef54440172fd9dcbbb08d58f4af00e7"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/shops/index.blade.php",
+            "size": 1490,
+            "hash": "26cfcb0fbd111c8fcaffa972234d25a68196601d89c5c47352311a2c99d6314a"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/shops/view.blade.php",
+            "size": 11693,
+            "hash": "f5f3fc67c91aeb8e47fbfb0293088b5d612c9589fa7e57d731d68836e373fe18"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/schema/products/create.blade.php",
+            "size": 3032,
+            "hash": "181edbbad1033cb0832108a51171b47185dba505789ee7137652eaa5a773a24f"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/schema/products/field.blade.php",
+            "size": 915,
+            "hash": "cfbbe38038aefa27ea09df8e2bff04897d20f46622eaa17980fb13bd3c6d0fa6"
+        },
+        {
+            "type": "folder",
+            "name": "resources/views/schema/products/fields"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/auth/login.blade.php",
+            "size": 2351,
+            "hash": "a6bca03181feab528a3a35fc6697b449a1aa3d3bc39c93cd33e457a4d710daca"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/layout/app.blade.php",
+            "size": 5312,
+            "hash": "914e3fb44ad48867d64f6f97ecaa84b65f15ed542e69b21ccb3b4ba3b765c1a0"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/admin/products/index.blade.php",
+            "size": 993,
+            "hash": "cf9887564772d988eccae140b16ed2bda5023e1e2e715b3857540b64fa1074b6"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/mailtemplates/edit.blade.php",
+            "size": 11511,
+            "hash": "3f618c23ab97f972dc75669d6f38f86ea65b7883868b5939f754ccda6262fbd2"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/mailtemplates/create.blade.php",
+            "size": 9401,
+            "hash": "2ff74196c7fc9d869d8799b8268aeca4e7f9325935812e8fd1a09501cc9099a6"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/mailtemplates/index.blade.php",
+            "size": 1845,
+            "hash": "1264005cfbb36c74ef24441749a156faf64989a3b7e86547fffb4caec1aa4a51"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/orders/index.blade.php",
+            "size": 946,
+            "hash": "3e8eaadd565c0b42af8a4bdf8a5a24326aeb27ef197caf6a29cd50183afbf642"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/orders/index.php",
+            "size": 862,
+            "hash": "443b4ba63fcf7ea80203308d1119875d5107ca8be128c0ab0cb5fa237985a4b5"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/plans/Untitled",
+            "size": 11,
+            "hash": "f00cee7c290275bed5a95f37707e6888daaf7f52cd367f8ffd864c737b91d642"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/plans/create.blade.php",
+            "size": 292,
+            "hash": "0929f0df83df23aae0af70c1fe9d1d6c66f8f1af4d6d202bd914de21bc9a62ff"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/plans/edit.blade.php",
+            "size": 314,
+            "hash": "1cca8817e5f7009ad138086667e845ae9d3835e7e6ff03a36defdb5ac1ab1b22"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/plans/form.blade.php",
+            "size": 6822,
+            "hash": "8f414ef83fb47de1eb7dad55cf562eba81e487ee7610d852c19acb05aad7511b"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/plans/index.blade.php",
+            "size": 1872,
+            "hash": "5d3d32006c09b66932378d5b76e8fa21cbf91d1395827a3703577758ac4385ad"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/products/index.blade.php",
+            "size": 993,
+            "hash": "cf9887564772d988eccae140b16ed2bda5023e1e2e715b3857540b64fa1074b6"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/settings/index.blade.php",
+            "size": 7206,
+            "hash": "8bc3cacbdb1aac38455cd50648ff974827e1d8abd6c6272628fe4b2bd30c825c"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/shops/index.blade.php",
+            "size": 1490,
+            "hash": "26cfcb0fbd111c8fcaffa972234d25a68196601d89c5c47352311a2c99d6314a"
+        },
+        {
+            "type": "file",
+            "name": "resources/views_old/admin/shops/view.blade.php",
+            "size": 11693,
+            "hash": "f5f3fc67c91aeb8e47fbfb0293088b5d612c9589fa7e57d731d68836e373fe18"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/schema/products/fields/boolean.blade.php",
+            "size": 271,
+            "hash": "9e3ad6204a94f269811e56290b98518cf96a7876eb3a332a1e3738e5807ebc54"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/schema/products/fields/select.blade.php",
+            "size": 335,
+            "hash": "385d351e4129e80f34d17898c8fff82fa7ce0be9115fccdeb0372790d8fcb474"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/schema/products/fields/text.blade.php",
+            "size": 171,
+            "hash": "f427fec3fa42ea886b63087e718e9682c78fa21cc4dacc384fdf32036d736ecc"
+        },
+        {
+            "type": "file",
+            "name": "resources/views/schema/products/fields/textarea.blade.php",
+            "size": 170,
+            "hash": "ed8ee047ec35ec2a4b1ea6040ab1db98582ea6b76dd9e9066b3e1a5c5cbef737"
+        }
+    ]
+}
