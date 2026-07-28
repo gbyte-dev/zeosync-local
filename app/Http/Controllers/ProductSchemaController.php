@@ -1,0 +1,2000 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\ProductSchema;
+use Illuminate\Support\Facades\DB;
+use App\Services\Amazon\SchemaParser;
+use App\Models\AllProduct as Product;
+use App\Models\ProductAttribute;
+use Illuminate\Support\Str;
+use App\Services\Amazon\SchemaRendererService;
+use App\Http\Controllers\TestController;
+use App\Models\Category;
+use App\Models\Shop;
+use App\Models\ProductMarketplaceMapping;
+use App\Models\ProductSyncLog;
+use Illuminate\Support\Facades\Session;
+use App\Http\Controllers\ShopifyController;
+use App\Services\ProductLimitService;
+use App\Models\ShopSubscription;
+use App\Services\TransformsAmazonAttributes;
+use Illuminate\Support\Facades\Storage;
+use App\Services\AI\AIAutoFillService;
+use App\Services\AIFeatureService;
+
+class ProductSchemaController extends Controller
+{
+    protected $shop;
+    private readonly AIAutoFillService $aiAutoFillService;
+    private readonly AIFeatureService $aiFeatureService;
+    public function __construct()
+    {
+        $this->aiAutoFillService = app(AIAutoFillService::class);;
+        $this->aiFeatureService = app(AIFeatureService::class);
+        if (session('active_shop')) {
+            $this->shop = Shop::where('shop', session('active_shop'))->first();
+        } else {
+            $this->shop = Shop::where('shop', '!=', '')->first();
+        }
+    }
+    public function index()
+    {
+        $schemas = ProductSchema::latest()->paginate(20);
+        return view('schema.index', compact('schemas'));
+    }
+    public function create()
+    {
+        return view('schema.create');
+    }
+    public function addProductCategory(Request $request)
+    {
+        $categories = ProductSchema::WithRequiredColumns()->where('is_active', 1)->get();
+        if ($request->isMethod('post')) {
+            $request->validate([
+                'category_id' => 'required|exists:product_schemas,id',
+            ]);
+            $shop = $request->query('shop') ?? $request->input('shop');
+            return redirect()->route('admin.product.store', [
+                'schemaId' => $request->input('category_id'),
+                'shop' => $shop,
+            ]);
+        }
+        return view('schema.products.selectcategory', compact('categories'));
+    }
+    public function store(Request $request)
+    {
+        $request->validate([
+            'schema_file' => 'required|file|mimes:json'
+        ]);
+        $schemaJson = json_decode(
+            file_get_contents(
+                $request->file('schema_file')->path()
+            ),
+            true
+        );
+        if (!$schemaJson) {
+            return back()->withErrors(['schema_file' => 'Invalid JSON']);
+        }
+        $productType = basename($schemaJson['$id'] ?? uniqid());
+        $renderer =  new SchemaRendererService($schemaJson);
+        $fields = $renderer->render();
+        ProductSchema::updateOrCreate(
+            [
+                'product_type' => $productType
+            ],
+            [
+                'schema_json' => $schemaJson,
+                'parsed_json' => $fields,
+                'schema_version' => '1.0'
+            ]
+        );
+        $category = Category::where('slug', $productType)->first();
+        $category->status = 'active';
+        $category->save();
+        return redirect()->route('admin.category')->with(
+            'success',
+            'Schema imported successfully.'
+        );
+    }
+    public function productcreate(Request $request, $schemaId)
+    {
+        $schema = ProductSchema::findOrFail($schemaId);
+        $fields = $schema->parsed_json;
+        $tabs = [
+            'product' => [],
+            'images' => [],
+            'variations' => [],
+            'attributes' => [],
+            'product_rules' => [],
+            'battery_specs' => [],
+            'other' => [],
+        ];
+        foreach ($fields as $field) {
+            $name = strtolower($field['name']);
+
+            if (in_array($name, [
+                'item_name',
+                'brand',
+                'product_description',
+                'bullet_point',
+                'item_type_keyword',
+                'externally_assigned_product_identifier',
+                'supplier_declared_has_product_identifier_exemption',
+                'merchant_suggested_asin',
+                'model_number',
+                'part_number',
+                'generic_keyword',
+                'department',
+                'target_gender',
+                'age_range_description',
+                'number_of_items',
+                'item_package_quantity',
+                'product_site_launch_date',
+                'merchant_release_date',
+                'title_differentiation',
+            ])) {
+
+                $tabs['product'][] = $field;
+            } elseif (str_contains($name, 'image')) {
+
+                $tabs['images'][] = $field;
+            } elseif (
+                str_contains($name, 'variation') ||
+                str_contains($name, 'parent')
+            ) {
+
+                $tabs['variations'][] = $field;
+            } elseif (in_array($name, [
+                'color',
+                'size',
+                'material',
+                'style',
+                'pattern',
+                'manufacturer',
+                'model_name',
+                'flavor',
+                'item_weight',
+                'item_package_dimensions',
+                'item_package_weight',
+                'item_display_weight',
+            ])) {
+
+                $tabs['attributes'][] = $field;
+            } elseif (in_array($name, [
+                'list_price',
+                'merchant_shipping_group',
+                'max_order_quantity',
+                'gift_options',
+                'condition_type',
+                'condition_note',
+                'product_tax_code',
+                'fulfillment_availability',
+                'purchasable_offer',
+                'import_designation',
+                'country_of_origin',
+                'supplier_declared_dg_hz_regulation',
+                'ghs',
+                'hazmat',
+                'safety_data_sheet_url',
+                'is_this_product_subject_to_buyer_age_restrictions',
+                'california_proposition_65',
+                'pesticide_marking',
+                'fcc_radio_frequency_emission_compliance',
+                'regulatory_compliance_certification',
+                'dsa_responsible_party_address',
+                'compliance_media',
+                'gpsr_safety_attestation',
+                'gpsr_manufacturer_reference',
+                'contains_pfas',
+                'ships_globally',
+                'ghs_chemical_h_code',
+                'baa_taa_regulation_compliance',
+                'baa_taa_compliance_acknowledgement',
+                'taa_compliant_country',
+            ])) {
+
+                $tabs['product_rules'][] = $field;
+            } elseif (in_array($name, [
+                "batteries_required",
+                "batteries_included",
+                "battery",
+                "num_batteries",
+                "number_of_lithium_metal_cells",
+                "number_of_lithium_ion_cells",
+                "lithium_battery",
+                "has_multiple_battery_powered_components",
+                "contains_battery_or_cell",
+                "battery_contains_free_unabsorbed_liquid",
+                "is_battery_non_spillable",
+                "non_lithium_battery_packaging",
+                "has_replaceable_battery",
+                "non_lithium_battery_energy_content",
+                "has_less_than_30_percent_state_of_charge",
+                "battery_installation_device_type"
+            ])) {
+
+                $tabs['battery_specs'][] = $field;
+            } else {
+
+                $tabs['other'][] = $field;
+            }
+        }
+        $requiredFields = collect($fields)->where('required', true)->values();
+        $canUseAiAutoFill = $this->aiFeatureService->canUseAutoFill($this->shop->id);
+        $canUseAiSingleField = $this->aiFeatureService->canUseSingleField($this->shop->id);
+        return view(
+            'schema.products.create',
+            compact(
+                'tabs',
+                'schema',
+                'fields',
+                'requiredFields',
+                'canUseAiAutoFill',
+                'canUseAiSingleField'
+            )
+        );
+    }
+    public function productEdit($productid)
+    {
+        $productshow = Product::where('id', $productid)->first();
+        if (!$productshow) {
+            $productshow = Product::where('sku', $productid)->first();
+            if ($productshow) {
+                $productid = $productshow->id;
+            } else {
+                return redirect()->route('user.product.showProducts');
+            }
+        }
+        $prodAttri = ProductAttribute::where('product_id', $productid)->get();
+        $schema = ProductSchema::findOrFail($productshow->schema_id);
+        $fields = $schema->parsed_json;
+        $tabs = [
+            'product' => [],
+            'images' => [],
+            'variations' => [],
+            'attributes' => [],
+            'product_rules' => [],
+            'battery_specs' => [],
+            'other' => [],
+        ];
+        foreach ($fields as $field) {
+
+            $name = strtolower($field['name']);
+
+            if (in_array($name, [
+                'item_name',
+                'brand',
+                'product_description',
+                'bullet_point',
+                'item_type_keyword',
+                'externally_assigned_product_identifier',
+                'supplier_declared_has_product_identifier_exemption',
+                'merchant_suggested_asin',
+                'model_number',
+                'part_number',
+                'generic_keyword',
+                'department',
+                'target_gender',
+                'age_range_description',
+                'number_of_items',
+                'item_package_quantity',
+                'product_site_launch_date',
+                'merchant_release_date',
+                'title_differentiation',
+            ])) {
+
+                $tabs['product'][] = $field;
+            } elseif (str_contains($name, 'image')) {
+
+                $tabs['images'][] = $field;
+            } elseif (str_contains($name, 'variation') || str_contains($name, 'parent')) {
+
+                $tabs['variations'][] = $field;
+            } elseif (in_array($name, [
+                'color',
+                'size',
+                'material',
+                'style',
+                'pattern',
+                'manufacturer',
+                'model_name',
+                'flavor',
+                'item_weight',
+                'item_package_dimensions',
+                'item_package_weight',
+                'item_display_weight',
+            ])) {
+
+                $tabs['attributes'][] = $field;
+            } elseif (in_array($name, [
+                'list_price',
+                'merchant_shipping_group',
+                'max_order_quantity',
+                'gift_options',
+                'condition_type',
+                'condition_note',
+                'product_tax_code',
+                'fulfillment_availability',
+                'purchasable_offer',
+                'import_designation',
+                'country_of_origin',
+                'supplier_declared_dg_hz_regulation',
+                'ghs',
+                'hazmat',
+                'safety_data_sheet_url',
+                'is_this_product_subject_to_buyer_age_restrictions',
+                'california_proposition_65',
+                'pesticide_marking',
+                'fcc_radio_frequency_emission_compliance',
+                'regulatory_compliance_certification',
+                'dsa_responsible_party_address',
+                'compliance_media',
+                'gpsr_safety_attestation',
+                'gpsr_manufacturer_reference',
+                'contains_pfas',
+                'ships_globally',
+                'ghs_chemical_h_code',
+                'baa_taa_regulation_compliance',
+                'baa_taa_compliance_acknowledgement',
+                'taa_compliant_country',
+            ])) {
+
+                $tabs['product_rules'][] = $field;
+            } elseif (in_array($name, [
+                "batteries_required",
+                "batteries_included",
+                "battery",
+                "num_batteries",
+                "number_of_lithium_metal_cells",
+                "number_of_lithium_ion_cells",
+                "lithium_battery",
+                "has_multiple_battery_powered_components",
+                "contains_battery_or_cell",
+                "battery_contains_free_unabsorbed_liquid",
+                "is_battery_non_spillable",
+                "non_lithium_battery_packaging",
+                "has_replaceable_battery",
+                "non_lithium_battery_energy_content",
+                "has_less_than_30_percent_state_of_charge",
+                "battery_installation_device_type"
+            ])) {
+
+                $tabs['battery_specs'][] = $field;
+            } else {
+
+                $tabs['other'][] = $field;
+            }
+        }
+        $requiredFields = collect($fields)->where('required', true)->values();
+        $canUseAiAutoFill = $this->aiFeatureService->canUseAutoFill($this->shop->id);
+        $canUseAiSingleField = $this->aiFeatureService->canUseSingleField($this->shop->id);
+        return view(
+            'schema.products.create',
+            compact(
+                'tabs',
+                'schema',
+                'fields',
+                'requiredFields',
+                'productshow',
+                'prodAttri',
+                'canUseAiAutoFill',
+                'canUseAiSingleField'
+            )
+        );
+    }
+    // public function productstore(Request $request, $product_id = null)
+    // {
+    //     $product_id = DB::transaction(function() use ($request,$product_id){
+    //     $shop = new Shop();
+    //     $shop_id = $shop->getidByshop(session('active_shop'));
+    //     if(!isset($product_id)){
+    //         if($request->parent_id){
+    //             $product = Product::create([
+    //                 'parent_id' => $request->parent_id,
+    //                 'user_id' => $shop_id,
+    //                 'schema_id' => $request->schema_id,
+    //                 'sku' => strtoupper(Str::random(12))
+    //             ]);
+    //         }else{
+    //             $product = Product::create([
+    //                 'user_id' => $shop_id,
+    //                 'schema_id' => $request->schema_id,
+    //                 'sku' => strtoupper(Str::random(12))
+    //             ]);
+    //        }
+    //         $product_id = $product->id;
+    //     }
+    //     foreach( $request['attributes'] as $key => $value){
+    //         if(($key == 'country_of_origin') && $value==''){
+    //             $value = 'US';
+    //         }
+    //         if($value === null || $value === 'null' || $value === '') {
+    //             continue;
+    //         }
+    //         ProductAttribute::updateOrCreate(
+    //             [
+    //                 'product_id' => $product_id,
+    //                 'attribute_name' => $key,
+    //             ],
+    //             [
+    //                 'attribute_value' => $value,
+    //             ]
+    //         );
+    //     }
+    //     return $product_id;
+    //     });
+    //     if($request->save_draft){
+    //         return redirect()->route('admin.product.productEdit', ['product' => $product_id])->with('success','Product Saved as Draft');
+    //     }
+    //     return redirect()->route('admin.product.generatePayload',['product' => $product_id]);
+    //  //   return back();
+    // }
+    public function productstore(
+        Request $request,
+        ProductLimitService $productLimitService,
+        $product_id = null
+    ) {
+        $activeShop = $request->attributes->get('active_shop_model');
+        if (!$activeShop) {
+            return back()->with('error', 'Active shop not found.');
+        }
+        $shop_id = $activeShop->id;
+        // Check product limit only for new product creation
+        if (!isset($product_id)) {
+            $limitStatus = $productLimitService->canCreateProduct($shop_id);
+            if (!$limitStatus['allowed']) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'product_limit' => $limitStatus['message']
+                    ]);
+            }
+        }
+        $product_id = DB::transaction(function () use ($request, $product_id, $shop_id) {
+            if (!isset($product_id)) {
+                if ($request->parent_id) {
+                    $product = Product::create([
+                        'parent_id' => $request->parent_id,
+                        'user_id' => $shop_id,
+                        'schema_id' => $request->schema_id,
+                        'sku' => strtoupper(Str::random(12))
+                    ]);
+                } else {
+                    $product = Product::create([
+                        'user_id' => $shop_id,
+                        'schema_id' => $request->schema_id,
+                        'sku' => strtoupper(Str::random(12))
+                    ]);
+                }
+                $product_id = $product->id;
+            }
+            foreach ($request['attributes'] as $key => $value) {
+                if (($key == 'country_of_origin') && $value == '') {
+                    $value = 'US';
+                }
+                // if ($value === null || $value === 'null' || $value === '') {
+                //     continue;
+                // }
+                ProductAttribute::updateOrCreate(
+                    [
+                        'product_id' => $product_id,
+                        'attribute_name' => $key,
+                    ],
+                    [
+                        'attribute_value' => $value,
+                    ],
+                );
+            }
+            return $product_id;
+        });
+        if ($request->save_draft) {
+            return redirect()->route('admin.product.productEdit', [
+                'product' => $product_id,
+                'shop'    => $activeShop->shop,
+            ])->with('success', 'Product Saved as Draft');
+        }
+        return redirect()->route('admin.product.generatePayload', [
+            'product' => $product_id,
+            'shop'    => $activeShop->shop,
+        ]);
+    }
+    public function generatePayload(Product $product, $type = 'main', $fields = []): array
+    {
+        $attributes = [];
+        $requireddata = [];
+        $transformer = new TransformsAmazonAttributes();
+        $lensData = [];
+        if (!empty($fields)) {
+            $requiredFields = collect($fields)->where('required', true)->values();
+            foreach ($requiredFields as $requiredField) {
+                array_push($requireddata, $requiredField['name']);
+            }
+        }
+        foreach ($product->attributes as $attribute) {
+            $name  = $attribute->attribute_name;
+            $value = $attribute->attribute_value;
+            if (is_string($value)) {
+                $value = str_replace('"', '', $value);
+                $value = trim($value);
+            }
+            // Skip null / literal "null" entirely — never send empty attributes
+            if ($value === null || $value === 'null' || $value === '') {
+                continue;
+            }
+            $notreq = [
+                'contains_battery_or_cell',
+                'is_refurbished',
+                'packed_with_equipment',
+                'water_resistance_level',
+                'package_level'
+            ];
+            if (in_array($name, $notreq)) {
+                continue;
+            }
+            if (in_array($name, ['lens_color', 'lens_width', 'lens_material'], true)) {
+                $lensData[$name] = $value;
+                continue;
+            }
+            $canonicalName = match ($name) {
+                'color_name', 'colour' => 'color',
+                default => $name,
+            };
+            $transformed = $transformer->transformAttribute($canonicalName, $value);
+            if ($transformed === null) {
+                continue;
+            }
+            $attributes[$canonicalName] = $transformed;
+        }
+        if (!empty($lensData)) {
+            $lensTransformed = $transformer->transformAttribute('lens', $lensData);
+            if ($lensTransformed !== null) {
+                $attributes['lens'] = $lensTransformed;
+            }
+        }
+        return [
+            'requirements' => 'LISTING',
+            'attributes'   => $attributes,
+        ];
+    }
+    public function aiAutoFill(Request $request)
+    {
+        $request->validate([
+            'product_name'        => ['required', 'string'],
+            'product_description' => ['nullable', 'string'],
+            'category'            => ['required', 'string'],
+        ]);
+        $activeShop = Shop::where('shop', $request->input('shop'))
+            ->where('is_active', 1)
+            ->first();
+        if (!$activeShop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Active shop not found.',
+            ], 404);
+        }
+        if (!$this->aiFeatureService->canUseAutoFill($activeShop->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your current plan does not support AI AutoFill.',
+            ], 403);
+        }
+        try {
+            $result = $this->aiAutoFillService->generateGenericListing(
+                productName: $request->product_name,
+                productDescription: $request->product_description,
+                category: $request->category,
+            );
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            \Log::error('AI AutoFill Failed', [
+                'message'     => $e->getMessage(),
+                'product'     => $request->product_name,
+                'category'    => $request->category,
+                'description' => $request->product_description,
+            ]);
+            return response()->json([
+                'success' => false,
+                'errors'  => ['Failed to generate AI listing.'],
+                'data'    => [],
+            ], 500);
+        }
+    }
+    public function buildListingRequest(Product $product)
+    {
+        try {
+            if ($product->parent_id) {
+                $all = $this->addChildListing($product);
+                $payload = $all['payload'];
+                $payload2 = $all['payload2'];
+                $payload3 = $all['payload3'];
+                $prodAttributes['variants']['sku'] = $all['sku'];
+            } else {
+                $schema = ProductSchema::findOrFail($product->schema_id);
+                $fields = $schema->parsed_json;
+                $payload = $this->generatePayload($product, 'main', $fields);
+                $testcontroller = new TestController();
+                $sku = $product->sku;
+                $payload2 = $testcontroller->createOnlyListing($payload['attributes'], $schema->product_type ?? 'KEYBOARDS');
+                $payload3 = $testcontroller->createOnlyputListing($payload2, $sku);
+            }
+            if (isset($payload3['status']) && ($payload3['status'] == 'INVALID')) {
+                $this->updatelog(
+                    $product->id,
+                    'amazon',
+                    'sync_failed',
+                    false,
+                    is_array($payload3['issues'] ?? null) ? json_encode($payload3['issues']) : ($payload3['issues'] ?? 'Amazon listing validation failed.')
+                );
+                return redirect()->route('admin.product.productEdit', [
+                    'product' => $product->id,
+                    'shop' => request('shop'),
+                ])->with('errors_amazon', $payload3['issues']);
+            }
+            $generatejson = $this->generatejson($product->id);
+            $prodAttributes['sku'] = $product->sku;
+            $this->updateSyncAmazon($product->id, $prodAttributes);
+            $product->status = $payload3['status'];
+            $product->submission_status = $payload3['submissionId'];
+            $product->submitted_on = now();
+            $product->final_json = json_encode($payload);
+            $product->filled_json = json_encode($generatejson);
+            $product->save();
+            ProductAttribute::where('product_id', $product->id)->delete();
+            $this->updatelog($product->id, 'amazon', 'added', false);
+            return redirect()->route('user.product.showProducts')->with('success', 'Product added Successfully');
+            return response()->json([
+                'success' => true,
+                'message' => 'Product added successfully',
+                'sku' => $sku,
+                'response' => $payload3
+            ]);
+        } catch (\Exception $e) {
+            $this->updatelog($product->id, 'amazon', 'sync_failed', false, $e->getMessage());
+            $strmessage = str_replace('Bad Request (400) Response:', '', $e->getMessage());
+            $strmessage = json_decode($strmessage, true);
+            if (is_array($strmessage) && isset($strmessage['errors'])) {
+                $strmessage = $strmessage['errors'];
+            }
+            return redirect()->route('admin.product.productEdit', [
+                'product' => $product->id,
+                'shop' => request('shop'),
+            ])->with('errors_amazon', $strmessage);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    }
+    public function addChildListing(Product $product)
+    {
+        $parentproduct = Product::where('id', $product->parent_id)->first();
+        $parentSku =  $parentproduct->sku;
+        $schema = ProductSchema::findOrFail($product->schema_id);
+        $fields = $schema->parsed_json;
+        $attributes = $this->generatePayload($product, 'child')['attributes'];
+        $testcontroller = new TestController();
+        // Override for child
+        $attributes['parentage_level']            = [['value' => 'child']];
+        $attributes['child_parent_sku_relationship'] = [[
+            'child_relationship_type' => 'variation',
+            'parent_sku'              => $parentSku,
+        ]];
+        $newsku =  $product->sku;
+        $payload2 = $testcontroller->createOnlyListing($attributes, $schema->product_type ?? 'KEYBOARDS');
+        $payload3 = $testcontroller->createOnlyputListing($payload2, $newsku);
+        return ['payload' => $attributes, 'payload2' => $payload2, 'payload3' => $payload3, 'sku' => $newsku ?? ''];
+    }
+    /* private function transformAttribute(string $name, mixed $value): ?array
+    {
+        $weightUnitMap = [
+            'grams'=>'grams','gram'=>'grams','g'=>'grams','gr'=>'grams','gm'=>'grams','gms'=>'grams',
+            'kilograms'=>'kilograms','kilogram'=>'kilograms','kilo'=>'kilograms','kilos'=>'kilograms','kg'=>'kilograms','kgs'=>'kilograms',
+            'pounds'=>'pounds','pound'=>'pounds','lb'=>'pounds','lbs'=>'pounds','lb.'=>'pounds','lbs.'=>'pounds',
+            'ounces'=>'ounces','ounce'=>'ounces','oz'=>'ounces','oz.'=>'ounces','ozs'=>'ounces',
+            'milligrams'=>'milligrams','milligram'=>'milligrams','mg'=>'milligrams','mgs'=>'milligrams',
+            'micrograms'=>'micrograms','microgram'=>'micrograms','mcg'=>'micrograms','ug'=>'micrograms',
+            'metric tons'=>'metric_tons','metric ton'=>'metric_tons','tonnes'=>'metric_tons','tonne'=>'metric_tons','t'=>'metric_tons',
+        ];
+        $unitMap = [
+            'centimeters'=>'centimeters','centimeter'=>'centimeters','centimetre'=>'centimeters','centimetres'=>'centimeters','cm'=>'centimeters','cms'=>'centimeters','cm.'=>'centimeters',
+            'inches'=>'inches','inch'=>'inches','in'=>'inches','in.'=>'inches','"'=>'inches',
+            'feet'=>'feet','foot'=>'feet','ft'=>'feet','ft.'=>'feet',"'"=>'feet',
+            'meters'=>'meters','meter'=>'meters','metres'=>'meters','metre'=>'meters','m'=>'meters','m.'=>'meters',
+            'millimeters'=>'millimeters','millimeter'=>'millimeters','millimetres'=>'millimeters','millimetre'=>'millimeters','mm'=>'millimeters','mm.'=>'millimeters',
+            'yards'=>'yards','yard'=>'yards','yd'=>'yards','yds'=>'yards',
+        ];
+        $shop = Shop::where('shop', session('active_shop'))->first();
+        $marketplaceId = $shop?->amazon_marketplace_id;
+        // ── Boolean fields — must be actual booleans, not strings ─────────────
+        $booleanFields = [
+            'supplier_declared_has_product_identifier_exemption',
+            'batteries_required',
+            'batteries_included',
+            'is_refurbished',
+            'has_replaceable_battery',
+            'is_battery_non_spillable',
+            'battery_contains_free_unabsorbed_liquid',
+            'has_multiple_battery_powered_components',
+            'ships_globally',
+            'gpsr_safety_attestation',
+            'is_oem_sourced_product',
+            'is_this_product_subject_to_buyer_age_restrictions',
+            'is_green_purchasing_law_compliant',
+            'has_less_than_30_percent_state_of_charge',
+        ];
+        if (in_array($name, $booleanFields)) {
+            return [['value' => filter_var($value, FILTER_VALIDATE_BOOLEAN)]];
+        }
+        // ── Image locators — skip if null ─────────────────────────────────────
+        if (str_contains($name, 'image_locator')) {
+            return [['media_location' => $value]];
+        }
+        // ── item_package_dimensions ───────────────────────────────────────────
+        // Stored as "39L x 17.5W x 3H Centimeters"
+        if ($name === 'item_package_dimensions' ) {
+            if (preg_match('/^([\d.]+)L\s*x\s*([\d.]+)W\s*x\s*([\d.]+)H\s*(\w+)/i', $value, $m)) {
+                // Normalize unit to what Amazon accepts
+                $rawUnit = strtolower(trim($m[4]));
+                $unit    = $unitMap[$rawUnit] ?? $rawUnit;
+                return [[
+                    'length' => ['value' => (float)$m[1], 'unit' => $unit],
+                    'width'  => ['value' => (float)$m[2], 'unit' => $unit],
+                    'height' => ['value' => (float)$m[3], 'unit' => $unit],
+                ]];
+            }
+            return null;
+        }
+                // 40 x 20 x 30 inches
+        if ($name === 'item_depth_width_height') {
+            if (!preg_match('/([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)\s*([a-zA-Z"\']*)/i', $value, $m)) {
+                return null;
+            }
+            $rawUnit = strtolower(trim($m[4] ?: 'inches'));
+            // Convert to inches since schema only accepts "inches"
+            $toInches = [
+                'inches' => 1, 'inch' => 1, 'in' => 1,
+                'centimeters' => 0.393701, 'centimeter' => 0.393701, 'cm' => 0.393701,
+                'millimeters' => 0.0393701, 'mm' => 0.0393701,
+                'feet' => 12, 'ft' => 12,
+                'meters' => 39.3701, 'm' => 39.3701,
+            ];
+            if (!isset($toInches[$rawUnit])) {
+                return null; // Unknown unit, skip
+            }
+            $factor = $toInches[$rawUnit];
+            $depth  = round((float) $m[1] * $factor, 2);
+            $width  = round((float) $m[2] * $factor, 2);
+            $height = round((float) $m[3] * $factor, 2);
+            return [[
+                'depth'  => ['value' => $depth,  'unit' => 'inches'],
+                'width'  => ['value' => $width,  'unit' => 'inches'],
+                'height' => ['value' => $height, 'unit' => 'inches'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
+            ]];
+        }
+        // ── item_length_width_height (product dimensions, same pattern) ───────
+        if ($name === 'item_length_width_height') {
+            if (preg_match('/^([\d.]+)L\s*x\s*([\d.]+)W\s*x\s*([\d.]+)H\s*(\w+)/i', $value, $m)) {
+                $unit = strtolower($m[4]);
+                return [[
+                    'length' => ['value' => (float)$m[1], 'unit' => $unit],
+                    'width'  => ['value' => (float)$m[2], 'unit' => $unit],
+                    'height' => ['value' => (float)$m[3], 'unit' => $unit],
+                ]];
+            }
+            return null;
+        }
+        if (preg_match('/\b(dimension|item_dimensions|dimensions|height|breadth|width|length|l|w|h)\b/i', $name)) {
+                $length = $width = $height = null;
+                $unit = null;
+                // Match Length
+                if (preg_match('/(?:length|l)\s*[:=]?\s*([\d.]+)/i', $value, $m)) {
+                    $length = (float) $m[1];
+                }
+                // Match Width/Breadth
+                if (preg_match('/(?:width|breadth|w|b)\s*[:=]?\s*([\d.]+)/i', $value, $m)) {
+                    $width = (float) $m[1];
+                }
+                // Match Height
+                if (preg_match('/(?:height|h)\s*[:=]?\s*([\d.]+)/i', $value, $m)) {
+                    $height = (float) $m[1];
+                }
+                // Match unit
+                if (preg_match('/\b(cm|centimeter|centimeters|mm|millimeter|millimeters|m|meter|meters|in|inch|inches|ft|foot|feet)\b/i', $value, $m)) {
+                    $rawUnit = strtolower($m[1]);
+                    $unit = $unitMap[$rawUnit] ?? $rawUnit;
+                }
+                // Also support format: 10L x 20W x 30H cm
+                if ($length === null || $width === null || $height === null) {
+                    if (preg_match('/([\d.]+)\s*L\s*x\s*([\d.]+)\s*W\s*x\s*([\d.]+)\s*H\s*(\w+)?/i', $value, $m)) {
+                        $length = (float)$m[1];
+                        $width  = (float)$m[2];
+                        $height = (float)$m[3];
+                        if (!empty($m[4])) {
+                            $rawUnit = strtolower($m[4]);
+                            $unit = $unitMap[$rawUnit] ?? $rawUnit;
+                        }
+                    }
+                }
+                if ($length !== null && $width !== null && $height !== null) {
+                    return [[
+                        'length' => [
+                            'value' => $length,
+                            'unit'  => $unit ?? 'centimeters'
+                        ],
+                        'width' => [
+                            'value' => $width,
+                            'unit'  => $unit ?? 'centimeters'
+                        ],
+                        'height' => [
+                            'value' => $height,
+                            'unit'  => $unit ?? 'centimeters'
+                        ],
+                    ]];
+                }
+                return null;
+        }
+        if ($name === 'package_contains_sku') {
+            $shop = Shop::where('shop', session('active_shop'))->first();
+            return [[
+                'child_id'       => $value,
+                'quantity'       => 1,
+                'marketplace_id' => $shop?->amazon_marketplace_id,
+            ]];
+        }
+        // For item_package_weight / item_weight stored as "813 Grams"
+        if (in_array($name, ['item_package_weight', 'item_weight', 'item_display_weight','maximum_weight_recommendation'])) {
+            if (preg_match('/^([\d.]+)\s*(\w+)$/i', $value, $m)) {
+                $rawUnit = strtolower(trim($m[2]));
+                $unit    = $weightUnitMap[$rawUnit] ?? $rawUnit;
+                return [[
+                    'value' => (float)$m[1],
+                    'unit'  => $unit,
+                ]];
+            }
+            return null;
+        }
+        // ── list_price ────────────────────────────────────────────────────────
+        if ($name === 'list_price') {
+            return [[
+                'value'    => (float)$value,
+                'currency' => 'USD',
+            ]];
+        }
+        // ── purchasable_offer ─────────────────────────────────────────────────
+        if ($name === 'purchasable_offer') {
+            return [[
+                'our_price' => [[
+                    'schedule' => [[
+                        'value_with_tax' => (float)$value,
+                    ]],
+                ]],
+                'currency' => 'USD',
+            ]];
+        }
+        if ($name === 'fulfillment_availability') {
+            $decoded = json_decode($value, true);
+            if ($decoded && is_array($decoded)) {
+                return [$decoded];
+            }
+            // Map to correct channel code
+            $channelMap = [
+                'amazon'    => 'AMAZON_NA',
+                'amazon_na' => 'AMAZON_NA',
+                'fba'       => 'AMAZON_NA',
+                'default'   => 'DEFAULT',
+                'defualt'   => 'DEFAULT',   // typo in source data
+                'mfn'       => 'DEFAULT',
+                'merchant'  => 'DEFAULT',
+            ];
+            $channel = $channelMap[strtolower(trim($value))] ?? 'DEFAULT';
+            // Amazon's exact schema for fulfillment_availability:
+            return [[
+                'fulfillment_channel_code' => $channel,
+                'quantity'                 => 0,
+                'lead_time_to_ship_max_days' => 30,  // required by some product types
+            ]];
+        }
+        if ($name == 'frame_material') {
+                return null;
+        }
+        if ($name == 'frame' ) {
+            $frameColorEnum = [
+                'beige','black','blue','brown','gold','green','grey',
+                'multicolor','orange','pink','purple','red','silver','white','yellow'
+            ];
+            $rawColor = trim((string) $value);
+            $matchedColor = null;
+            foreach ($frameColorEnum as $enumColor) {
+                if (strcasecmp($rawColor, $enumColor) === 0) {
+                    $matchedColor = ucfirst($enumColor);
+                    break;
+                }
+            }
+            if ($matchedColor === null) {
+                $matchedColor = 'Multicolor';
+            }
+            // Pull the material value from the same source used by frame_material
+            $rawMaterial = 'Wood'; 
+            $material = $rawMaterial !== '' ? substr($rawMaterial, 0, 50) : 'Wood'; // fallback if source has no material
+            return [[
+                'color' => [[
+                    'value' => $matchedColor,
+                    'language_tag' => 'en_US'
+                ]],
+                'material' => [[
+                    'value' => $material,
+                    'language_tag' => 'en_US'
+                ]],
+                'marketplace_id' => $this->shop->amazon_marketplace_id
+            ]];
+        }
+        if ($name == 'seat_depth' || $name == 'seat_width' || $name == 'seat_height'||$name == 'seat') {            
+            preg_match('/([\d.]+)\s*([a-zA-Z"\']*)/', trim($value), $m);
+            $depthValue = isset($m[1]) ? (float) $m[1] : (float) $value;
+            $rawUnit    = isset($m[2]) && $m[2] !== '' ? $m[2] : 'inches'; 
+            $unit = resolveUnit($rawUnit, $unitMap);
+            if ($unit == null) {   return null;   }
+            return [[
+                'depth' => [[
+                    'value' => $depthValue,
+                    'unit'  => $unit
+                ]],
+                'marketplace_id' => 'ATVPDKIKX0DER'
+            ]];
+        }
+        $flatDimensionAttributes = [
+            'item_length',
+            'item_width',
+            'item_height',
+            'adjustable_seat_depth_maximum',
+            'adjustable_seat_depth_minimum',
+            'adjustable_seat_width_maximum',
+            'adjustable_seat_width_minimum',
+            'adjustable_seat_height_maximum',
+            'adjustable_seat_height_minimum',
+        ];
+        if (in_array($name, $flatDimensionAttributes, true)) {
+            preg_match('/([\d.]+)\s*([a-zA-Z"\']*)/', trim($value), $m);
+            $numericValue = isset($m[1]) ? (float) $m[1] : (float) $value;
+            $rawUnit      = isset($m[2]) && $m[2] !== '' ? $m[2] : 'inches'; // default if no unit given
+            $unit = resolveUnit($rawUnit, $unitMap);
+            if ($unit === null) {
+                return null; 
+            }
+            return [[
+                'value' => $numericValue,
+                'unit'  => $unit,
+                'marketplace_id' => $this->shop->amazon_marketplace_id,
+            ]];
+        }
+        // Must have both type + value; skip if missing
+        if ($name === 'externally_assigned_product_identifier') {
+            $decoded = json_decode($value, true);
+            if ($decoded && isset($decoded['type'], $decoded['value'])) {
+                return [[
+                    'type'  => $decoded['type'],   // "ean", "upc", "isbn"
+                    'value' => $decoded['value'],
+                ]];
+            } else {
+                return [[
+                    'type'  => 'upc',   // "ean", "upc", "isbn"
+                    'value' => '09785512' . random_int(1000, 9999),
+                ]];
+            }
+        }
+        // ── parentage_level — needs 'value' but Amazon is strict ─────────────
+        // Only send "parent" or "child" — skip if neither
+        if ($name === 'parentage_level') {
+            if (in_array($value, ['parent', 'child'])) {
+                return [['value' => $value]];
+            }
+            return null;
+        }
+        if ($name === 'language') {
+            $code = 'en_US';
+            return [['type' => $code, 'value' => $code]];
+        }
+        // ── num_batteries — needs 'quantity' + 'type' ─────────────────────────
+        if ($name === 'num_batteries') {
+            $decoded = json_decode($value, true);
+            if ($decoded) return [[$decoded]];
+            return null;
+        }
+        if ($name === 'country_of_origin') {
+            $countryMap = [
+                'CN'     => 'China',
+                'cn'     => 'China',
+                'US'     => 'United States of America',
+                'IN'     => 'India',
+                'DE'     => 'Germany',
+                'JP'     => 'Japan',
+                'KR'     => 'Republic of Korea',
+                'TW'     => 'Taiwan',
+                'VN'     => 'Vietnam',
+                'TH'     => 'Thailand',
+                'MX'     => 'Mexico',
+                'GB'     => 'United Kingdom of Great Britain and Northern Ireland',
+                // Full names
+                'china'  => 'China',
+                'india'  => 'India',
+                'taiwan' => 'Taiwan',
+                'japan'  => 'Japan',
+                'usa'    => 'United States of America',
+                'united states' => 'United States of America',
+            ];
+            $lookup = 'US';
+            // If nothing matched, pass the value as-is (let Amazon reject with detail)
+            return [['value' => $lookup ?? $value]];
+        }
+        // ── water_resistance_level — valid values ─────────────────────────────
+        // "waterproof" is rejected — must use Amazon enum
+        if ($name === 'water_resistance_level') {
+            $validValues = [
+                'water_resistant',
+                'waterproof',
+                'ipx4',
+                'ipx5',
+                'ipx6',
+                'ipx7',
+                'ipx8',
+                'ip67',
+                'ip68',
+                'not_water_resistant',
+            ];
+            // Map common values to Amazon-accepted equivalents
+            $map = ['waterproof' => 'ipx8', 'water proof' => 'ipx8'];
+            $normalized = $map[$value] ?? $value;
+            if (!in_array($normalized, $validValues)) {
+                return null; // skip invalid
+            }
+            return [['value' => $normalized]];
+        }
+        // ── supplier_declared_dg_hz_regulation ───────────────────────────────
+        if ($name === 'supplier_declared_dg_hz_regulation') {
+            // Amazon valid values for electronics with no dangerous goods:
+            $valid = [
+                'not_applicable',
+                'un3480',
+                'un3481',
+                'un3090',
+                'un3091',
+                'iata_section_ii',
+                'iata_section_ib',
+            ];
+            // 'not_applicable' IS valid — previous code was wrongly rejecting it
+            return in_array(strtolower($value), $valid)
+                ? [['value' => strtolower($value)]]
+                : [['value' => 'not_applicable']]; // safe fallback, never return null
+        }
+        // ── contains_battery_or_cell ─────────────────────────────────────────
+        // "battery" is rejected — must use Amazon enum
+        if ($name === 'contains_battery_or_cell') {
+            $map = [
+                'battery'                  => 'contains_battery',
+                'contains_battery'         => 'contains_battery',
+                'lithium_ion'              => 'contains_lithium_ion_battery',
+                'lithium_metal'            => 'contains_lithium_metal_battery',
+                'no'                       => 'does_not_contain_a_battery',    // note: underscore 'a'
+                'false'                    => 'does_not_contain_a_battery',
+                'does_not_contain_battery' => 'does_not_contain_a_battery',
+                'none'                     => 'does_not_contain_a_battery',
+            ];
+            return [['value' => $map[strtolower($value)] ?? 'contains_battery']];
+        }
+        if ($name === 'sleeve') {
+            return   [[
+                'type' => [[
+                    'value' => $value,
+                    'language_tag' => 'en_US'
+                ]]
+            ]];
+        }
+        // ── package_level ─────────────────────────────────────────────────────
+        // "unit" is rejected — correct value is "each"
+        if ($name === 'package_level') {
+            $map = [
+                'unit'  => 'each',
+                'each'  => 'each',
+                'pack'  => 'pack',
+                'set'   => 'set',
+            ];
+            return [['value' => $map[strtolower($value)] ?? 'each']];
+        }
+        // ── map_policy — "policy_1" is invalid ───────────────────────────────
+        // Only send if it's a real valid policy; otherwise omit
+        if ($name === 'map_policy') {
+            $validValues = ['map_policy_1', 'map_policy_2', 'no_map_policy'];
+            if (!in_array($value, $validValues)) {
+                return null; // skip garbage values
+            }
+            return [['value' => $value]];
+        }
+        // ── skip_offer — must be boolean ──────────────────────────────────────
+        if ($name === 'skip_offer') {
+            return [['value' => filter_var($value, FILTER_VALIDATE_BOOLEAN)]];
+        }
+        if ($name === 'max_order_quantity') {
+            $int = (int)$value;
+            return $int >= 1 ? [['value' => $int]] : null; // skip if 0, let Amazon use default
+        }
+        // ── Integer fields ────────────────────────────────────────────────────
+        $integerFields = [
+            'number_of_items',
+            'item_package_quantity',
+            'button_quantity',
+            'number_of_batteries',
+            'number_of_lithium_metal_cells',
+            'number_of_lithium_ion_cells',
+            'number_of_packs',
+            'total_usb_2_0_ports',
+            'unit_count',
+        ];
+        if (in_array($name, $integerFields)) {
+            return [['value' => (int)$value]];
+        }
+        if ($name === 'item_package_quantity') {
+            $int = (int)$value;
+            return [['value' => max(0, $int)]]; // enforce minimum of 1
+        }
+        // ── generic_keyword — max 1 occurrence, no comma splitting ───────────
+        if ($name === 'generic_keyword') {
+            // Amazon allows only 1 generic_keyword entry for KEYBOARD type
+            return [['value' => $value, 'language_tag' => 'en_US']];
+        }
+        // ── bullet_point — multiple entries OK ───────────────────────────────
+        if ($name === 'bullet_point') {
+            $lines = array_filter(array_map('trim', preg_split('/\r\n|\n/', $value)));
+            return array_values(array_map(fn($line) => [
+                'value'        => $line,
+                'language_tag' => 'en_US',
+            ], $lines));
+        }
+        // ── Fields requiring language_tag ─────────────────────────────────────
+        $langTagFields = ['item_name', 'product_description', 'care_instructions'];
+        if (in_array($name, $langTagFields)) {
+            return [['value' => $value, 'language_tag' => 'en_US']];
+        }
+        // ── manufacturer — truncate to 100 chars ─────────────────────────────
+        if ($name === 'manufacturer') {
+            return [['value' => mb_substr($value, 0, 100)]];
+        }
+        // ── condition_type — must not be sent as null ─────────────────────────
+        if ($name === 'condition_type') {
+            $conditionMap = [
+                'new_new'           => 'new_new',
+                'new'               => 'new_new',
+                'used_good'         => 'used_good',
+                'used_very_good'    => 'used_very_good',
+                'used_acceptable'   => 'used_acceptable',
+                'collectible_good'  => 'collectible_good',
+            ];
+            return [['value' => $conditionMap[strtolower($value)] ?? 'new_new']];
+        }
+        if ($name === 'variation_theme') {
+            // Clean up escaped slashes just in case
+            // $value = str_replace('\\/', '/', $value);
+            $upper = strtoupper($value);
+            // Valid KEYBOARD variation themes (from Amazon Product Type Definitions)
+            $validThemes = [
+                'COLOR',
+                'COMPATIBLE_DEVICES',
+                'KEYBOARD_LAYOUT',
+                'COLOR/COMPATIBLE_DEVICES',
+                'COLOR/KEYBOARD_LAYOUT',
+                'COMPATIBLE_DEVICES/KEYBOARD_LAYOUT',
+            ];
+            if (in_array($upper, $validThemes)) {
+                return [['name' => $upper]];
+            }
+            // 'COLOR/COMPATIBLE_DEVICES/KEYBOARD_LAYOUT' is 3-way — not valid
+            // Map to closest valid 2-way combination
+            $fallbackMap = [
+                'COLOR/COMPATIBLE_DEVICES/KEYBOARD_LAYOUT' => 'COLOR/COMPATIBLE_DEVICES',
+                'COLOR/KEYBOARD_LAYOUT/COMPATIBLE_DEVICES' => 'COLOR/COMPATIBLE_DEVICES',
+            ];
+            $mapped = $fallbackMap[$upper] ?? 'COLOR';
+            return [['name' => $mapped]];
+        }
+        if ($name === 'country_of_origin') {
+            $countryMap = [
+                'CN' => 'China',
+                'US' => 'United States of America',
+                'IN' => 'India',
+                'DE' => 'Germany',
+                'JP' => 'Japan',
+                'KR' => 'Republic of Korea',
+                'TW' => 'Taiwan',
+                'VN' => 'Vietnam',
+                'TH' => 'Thailand',
+                'MX' => 'Mexico',
+                'GB' => 'United Kingdom of Great Britain and Northern Ireland',
+                'China'  => 'China',
+                'India'  => 'India',
+                'Taiwan' => 'Taiwan',
+            ];
+            return [['value' => $countryMap[$value] ?? $value]];
+        }
+        if ($name === 'shirt_size' || $name === 'apparel_size') {
+            return  [[
+                'size_system' => 'as1',
+                'size_class' => 'alpha',
+                'size' => 'm',
+                'height_type' => 'tall',
+                'body_type' => 'regular'
+            ]];
+        }
+        if ($name === 'neck') {
+            return [[
+                'neck_style' => [[
+                    'value' => $value,
+                    'language_tag' => 'en_US'
+                ]]
+            ]];
+        }
+        return [['value' => $value]];
+    }
+    */
+    public function downloadScema($category = 'SHIRTS')
+    {
+        $testcontroller = new TestController();
+        $scema = $testcontroller->getDownloadSchema($category);
+        return response($scema)
+            ->header('Content-Type', 'application/json')
+            ->header(
+                'Content-Disposition',
+                'attachment; filename="' . strtolower($category) . '_schema.json"'
+            );
+    }
+    public function generatejson(int $productId): array
+    {
+        $attributes = ProductAttribute::where('product_id', $productId)
+            ->orderBy('id')->get();
+        $json = [];
+        foreach ($attributes as $attribute) {
+            $key = trim($attribute->attribute_name);
+            $value = $attribute->attribute_value;
+            if ($value === null || $value === '') {
+                continue;
+            }
+            if (isset($json[$key])) {
+                if (!is_array($json[$key])) {
+                    $json[$key] = [$json[$key]];
+                }
+                $json[$key][] = $value;
+            } else {
+                $json[$key] = $value;
+            }
+        }
+        return $json;
+    }
+    public function showProducts($product_id = null)
+    {
+        $shop = new Shop();
+        // $shopModel = $shop->where([ 'shop' => session('active_shop') ])->first();
+        // $shopSubscription = ShopSubscription::with('plan')
+        //     ->where('shop', $shopModel->id)
+        //     ->where('status', 'active')
+        //     ->first();
+        $productLimitReached = false;
+        $productLimit = 0;
+        $productUsed = 0;
+        // if ($shopSubscription && $shopSubscription->plan) {
+        //     $productLimit = $shopSubscription->plan->product_limit;
+        //     $productUsed = Product::where('shop_id', $shopModel->id)
+        //         ->whereBetween('created_at', [
+        //             $shopSubscription->activated_at,
+        //             $shopSubscription->current_period_end,
+        //         ])
+        //         ->count();
+        //     $productLimitReached = $productUsed >= $productLimit;
+        // }
+        if (!$product_id) {
+            $shop_id = $shop->getidByshop(session('active_shop'));
+            // $products = Product::with('attributes', 'schema')->where('user_id', $shop_id)->where(['submission_status' => '!= null' ])->whereNull('parent_id')->paginate(10);
+            $products = Product::with('attributes', 'schema')
+                ->where('user_id', $shop_id)
+                ->whereNull('parent_id')
+                ->where(function ($query) {
+                    $query->whereNotNull('submission_status')
+                        ->orWhere('status', 'draft');
+                })
+                ->paginate(10);
+            $parent_productid = '';
+        } else {
+            $shop_id = $shop->getidByshop(session('active_shop'));
+            $products = Product::with('attributes', 'schema')->where('user_id', $shop_id)->where('parent_id', $product_id)->paginate(10);
+            $parent_productid = $product_id;
+        }
+        return view('schema.products.index', compact('products', 'parent_productid', 'productLimitReached'));
+    }
+    public function generateField(Request $request)
+    {
+        $request->validate([
+            'product_name'      => ['required', 'string'],
+            'category'          => ['required', 'string'],
+            'field'             => ['required', 'string'],
+            'field_description' => ['nullable', 'string'],
+            'field_hint'        => ['nullable', 'string'],
+        ]);
+        $activeShop = Shop::where('shop', $request->input('shop'))
+            ->where('is_active', 1)
+            ->first();
+        if (!$activeShop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Active shop not found.',
+            ], 404);
+        }
+        if (!$this->aiFeatureService->canUseSingleField($activeShop->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your current plan does not support AI Field Generation.',
+            ], 403);
+        }
+        try {
+            $result = $this->aiAutoFillService->generateSingleField(
+                productName: $request->product_name,
+                category: $request->category,
+                field: $request->field,
+                fieldDescription: $request->field_description,
+                fieldHint: $request->field_hint,
+            );
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            \Log::error('AI Field Generation Failed', [
+                'message' => $e->getMessage(),
+                'field'   => $request->field,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to generate field.',
+            ], 500);
+        }
+    }
+    public function removeDrafts(Product $product)
+    {
+        ProductAttribute::where('product_id', $product->id)->delete();
+        $product->delete();
+        return redirect()->route('user.product.showProducts')->with('success', 'Product deleted successfully.');
+    }
+    private function getShopIdFromSession(): ?int
+    {
+        $shop = new Shop();
+        $shopid =  $shop->getidByshop(session('active_shop'));
+        if (!$shopid) {
+            return redirect()->route('crm.entry')->with('error', 'Please select a shop first.');
+        }
+        return $shopid;
+    }
+    public function SyncAmazonProductToShopify(Request $request, $sku)
+    {
+        $shopId = $this->getShopIdFromSession();
+        if (!$shopId) {
+            return redirect()->route('crm.entry')->with('error', 'Please select a shop first.');
+        }
+        $activeShop = $request->shop ?? session('active_shop');
+        $testcontroller = new TestController();
+        $productdata =  $testcontroller->getProductVariants($sku);
+        if (!$productdata) {
+            return redirect()->route('user.product.showProducts')->with('error', 'Product not found.');
+        }
+        $product = Product::with('attributes', 'schema')
+            ->where('sku', $sku)
+            ->where('user_id', $shopId)
+            ->first();
+        if (!$product) {
+            $product = $this->addProductToDbNotExists($productdata);
+        }
+        $childSkus = $productdata['relationships'][0]['relationships'][0]['childSkus'] ?? [];
+        $product = $this->map($productdata['attributes'], $sku, $childSkus);
+        $category = $productdata['productTypes'][0]['productType'] ?? null;
+        $syncid = $this->syncProduct($product, $shopId, $category);
+        if (!$product) {
+            return redirect()->route('user.product.showProducts')->with('error', 'Product not found.');
+        }
+        return view('shopifySchema.create', compact('product', 'activeShop', 'syncid'));
+    }
+    public function addProductToDbNotExists($productdata)
+    {
+        $shopId = $this->getShopIdFromSession();
+        $data['final_json'] = $prductattributes = json_encode($productdata['attributes'] ?? []);
+        $data['submitted_on'] = now();
+        $data['sku'] = $sku = $productdata['sku'] ?? null;
+        $data['user_id'] = $shopId;
+        $data['producttype'] = $producttypes = $productdata['productTypes'][0]['productType'] ?? null;
+        $scemaid = ProductSchema::where('product_type', $producttypes)->first();
+        if ($scemaid) {
+            $data['schema_id'] = $scemaid->id;
+        }
+        $data['status'] = $productdata['status'] ?? 'ACCEPTED';
+        $productmain = Product::updateOrCreate(
+            ['sku' => $sku, 'user_id' => $shopId],
+            $data
+        );
+        return $productmain;
+    }
+    public function map(array $attributes, string $sku = '', array $childSkus = []): array
+    {
+        return [
+            'title' => self::value($attributes, 'item_name'),
+            'body' => self::value($attributes, 'product_description'),
+            'sku' => $sku,
+            'price' => self::price($attributes),
+            'status' => 'active',
+            'vendor' => self::value($attributes, 'brand'),
+            'product_type' => self::value($attributes, 'item_type_keyword'),
+            'tags' => self::tags($attributes),
+            'collections' => '',
+            'images' => self::images($attributes),
+            'options' => self::variants($attributes),
+            'variants' => self::shopifyVariants($attributes, $childSkus),
+            'metafields' => self::metafields($attributes),
+            'amazon' => [
+                'variation_theme' => $attributes['variation_theme'][0]['name'] ?? null,
+                'parentage' => self::value($attributes, 'parentage_level'),
+                'merchant_suggested_asin' => self::value($attributes, 'merchant_suggested_asin'),
+                'marketplace_id' => $attributes['item_name'][0]['marketplace_id'] ?? null,
+                'product_type' => self::value($attributes, 'item_type_keyword'),
+                'brand' => self::value($attributes, 'brand'),
+                'manufacturer' => self::value($attributes, 'manufacturer'),
+                'model_name' => self::value($attributes, 'model_name'),
+                'model_number' => self::value($attributes, 'model_number'),
+                'country_of_origin' => self::value($attributes, 'country_of_origin'),
+            ]
+        ];
+    }
+    private static function shopifyVariants(array $attributes, array $childSkus): array
+    {
+        // No children → single variant
+        if (empty($childSkus)) {
+            $variant = [
+                'sku' => self::value($attributes, 'merchant_sku') ?: '',
+                'price' => self::price($attributes),
+            ];
+            foreach (self::variants($attributes) as $index => $option) {
+                $variant['option' . ($index + 1)] = $option['values'][0] ?? null;
+            }
+            return [$variant];
+        }
+        $variants = [];
+        foreach ($childSkus as $sku) {
+            $variant = [
+                'sku' => $sku,
+                'price' => self::price($attributes),
+            ];
+            foreach (self::variants($attributes) as $index => $option) {
+                $variant['option' . ($index + 1)] = $option['values'][0] ?? null;
+            }
+            $variants[] = $variant;
+        }
+        return $variants;
+    }
+    private static function value(array $attributes, string $key, string $field = 'value', $default = null)
+    {
+        return $attributes[$key][0][$field] ?? $default;
+    }
+    private static function price(array $attributes)
+    {
+        return
+            $attributes['list_price'][0]['value']
+            ?? $attributes['purchasable_offer'][0]['our_price'][0]['schedule'][0]['value_with_tax']
+            ?? 0;
+    }
+    private static function tags(array $attributes): string
+    {
+        $tags = [];
+        foreach (
+            [
+                'generic_keyword',
+                'style',
+                'pattern',
+                'material',
+                'department',
+                'target_gender',
+                'occasion_type',
+                'season',
+                'sport_type'
+            ] as $field
+        ) {
+            if (!isset($attributes[$field][0])) {
+                continue;
+            }
+            $value = $attributes[$field][0]['value'] ?? null;
+            if (!$value) {
+                continue;
+            }
+            if (is_array($value)) {
+                $tags = array_merge($tags, $value);
+            } else {
+                $tags = array_merge($tags, array_map('trim', explode(',', $value)));
+            }
+        }
+        return implode(', ', array_unique($tags));
+    }
+    private static function images(array $attributes): array
+    {
+        $images = [];
+        foreach ($attributes as $key => $rows) {
+            if (empty($rows[0]['media_location'])) {
+                continue;
+            }
+            $src = $rows[0]['media_location'];
+            $images[$src] = [
+                'id' => null,
+                'src' => $src
+            ];
+        }
+        return array_values($images);
+    }
+    private static function variants(array $attributes): array
+    {
+        $map = [
+            'color' => 'Color',
+            'size_name' => 'Size',
+            'apparel_size' => 'Size',
+            'style' => 'Style',
+            'material' => 'Material',
+            'pattern' => 'Pattern',
+            'flavor' => 'Flavor',
+            'capacity' => 'Capacity',
+            'pack_size' => 'Pack Size',
+            'finish_type' => 'Finish',
+            'scent' => 'Scent',
+            'team_name' => 'Team'
+        ];
+        $options = [];
+        foreach ($map as $amazonField => $shopifyName) {
+            if (!isset($attributes[$amazonField][0])) {
+                continue;
+            }
+            $row = $attributes[$amazonField][0];
+            $values = [];
+            if ($amazonField == 'apparel_size') {
+                if (!empty($row['size'])) {
+                    $values[] = $row['size'];
+                }
+                if (!empty($row['size_to'])) {
+                    $values[] = $row['size_to'];
+                }
+            } else {
+                if (!empty($row['value'])) {
+                    if (is_array($row['value'])) {
+                        $values = $row['value'];
+                    } else {
+                        $values[] = $row['value'];
+                    }
+                }
+            }
+            $values = array_unique(array_filter($values));
+            if (!$values) {
+                continue;
+            }
+            $options[] = [
+                'name' => $shopifyName,
+                'values' => array_values($values)
+            ];
+        }
+        return $options;
+    }
+    private static function metafields(array $attributes): array
+    {
+        $skip = [
+            'item_name',
+            'product_description',
+            'brand',
+            'item_type_keyword',
+            'generic_keyword',
+            'list_price',
+            'purchasable_offer',
+            'variation_theme',
+            'parentage_level',
+            'merchant_suggested_asin',
+            'main_product_image_locator',
+            'other_product_image_locator_1',
+            'other_product_image_locator_2',
+            'other_product_image_locator_3',
+            'other_product_image_locator_4',
+            'other_product_image_locator_5',
+            'other_product_image_locator_6',
+            'other_product_image_locator_7',
+            'other_product_image_locator_8',
+            'fulfillment_availability',
+            'color',
+            'size_name'
+        ];
+        $meta = [];
+        foreach ($attributes as $field => $rows) {
+            if (in_array($field, $skip) || empty($rows[0])) {
+                continue;
+            }
+            $value = self::flatten($rows[0]);
+            $meta[$field] = is_array($value)
+                ? ''  : (string) $value;
+            //json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        }
+        return $meta;
+    }
+    private static function flatten($value)
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+        if (isset($value['value'])) {
+            return self::flatten($value['value']);
+        }
+        unset(
+            $value['marketplace_id'],
+            $value['language_tag']
+        );
+        foreach ($value as $k => $v) {
+            $value[$k] = self::flatten($v);
+        }
+        return $value;
+    }
+    public function syncProduct($prodAttributes, $shop_id, $category = '')
+    {
+        $amzsku = $prodAttributes['variants'][0]['sku'] ?? $prodAttributes['sku'];
+        $productmap = ProductMarketplaceMapping::updateOrCreate(
+            [
+                'shop_id' => $shop_id,
+                'amazon_sku' => ($amzsku == '') ? $prodAttributes['sku'] : $amzsku,
+                'amazon_parent_sku' => $prodAttributes['sku']
+            ],
+            [
+                'amazon_product_type' => $category ?? '',
+                'submission_id' => $prodAttributes['submission_id'] ?? null,
+                'sync_status' => 'pending',
+                'sync_message' => $prodAttributes['message'] ?? '',
+            ]
+        );
+        return $productmap->id;
+    }
+    /**     
+     * condition when product is on amzon and syncing to shopify
+     */
+    public function updateSyncShopify($syncid, $shopifyres)
+    {
+        $shopId = $this->getShopIdFromSession();
+        $data = [];
+        if (isset($shopifyres['product']['variants'])) {
+            $data['shopify_variant_id'] = (string) $shopifyres['product']['variants'][0]['id'];
+            $data['shopify_product_id'] = (string) $shopifyres['product']['variants'][0]['product_id'];
+            $data['variant_id'] = (string) $shopifyres['product']['variants'][0]['id'];
+            $data['shopify_inventory_item_id'] = (string) $shopifyres['product']['variants'][0]['inventory_item_id'];
+            $data['sync_status'] = 'active';
+        } else {
+            $data['shopify_product_id'] = (string) $shopifyres['product']['id'];
+            $data['shopify_variant_id'] = (string) $shopifyres['product']['id'];
+            $data['shopify_inventory_item_id'] = (string) ($shopifyres['product']['inventory_item_id'] ?? '');
+            $data['sync_status'] = 'active';
+        }
+        $updated = ProductMarketplaceMapping::where('shop_id', $shopId)
+            ->where('id', $syncid)
+            ->update($data);
+        if (!$updated) {
+            $this->updatelog(
+                $data['shopify_product_id'],
+                'shopify',
+                'sync_failed',
+                false,
+                "No marketplace mapping row matched shop_id and id={$syncid}; nothing was updated."
+            );
+            return true;
+        }
+        $this->updatelog($data['shopify_product_id'], 'shopify', 'sync', false);
+        return true;
+    }
+    public function syncProductShopify($prodAttributes, $shop_id, $product_id, $producttype)
+    {
+        $productmap = ProductMarketplaceMapping::updateOrCreate(
+            [
+                'shop_id' => $shop_id,
+                'shopify_variant_id' => (string)$prodAttributes['shopify_variant_id'] ?? $prodAttributes['shopify_product_id'],
+                'shopify_product_id' => (string)$prodAttributes['shopify_product_id']
+            ],
+            [
+                'product_id' => $product_id ?? '',
+                'amazon_product_type' => $producttype,
+                'shopify_inventory_item_id' => (string)$prodAttributes['shopify_inventory_item_id'] ?? null,
+                'sync_status' => 'pending'
+            ]
+        );
+        return $productmap->id;
+    }
+    public function updateSyncAmazon($productid, $prodAttributes)
+    {
+        $productmappped = \App\Models\Product::where('amazon_product_id', $productid)->first();
+        if (!$productmappped) {
+            $this->updatelog($productid, 'amazon', 'sync_failed', false, 'No matching product found for amazon_product_id.');
+            return;
+        }
+        $shopifyid = $productmappped->shopify_id;
+        $shopId = $this->getShopIdFromSession();
+        $data = [];
+        if (isset($prodAttributes['variants'])) {
+            $data['amazon_sku'] = $prodAttributes['variants']['sku'] ?? $prodAttributes['sku'];
+            $data['amazon_parent_sku'] = $prodAttributes['sku'];
+            $data['sync_status'] = 'active';
+        } else {
+            $data['amazon_sku'] = $prodAttributes['sku'];
+            $data['amazon_parent_sku'] = $prodAttributes['sku'];
+            $data['sync_status'] = 'active';
+        }
+        $updated = ProductMarketplaceMapping::where('shop_id', $shopId)
+            ->where('shopify_product_id', $shopifyid)
+            ->update($data);
+        if (!$updated) {
+            $this->updatelog(
+                $productid,
+                'amazon',
+                'sync_failed',
+                false,
+                'No marketplace mapping row matched shop_id and shopify_product_id; nothing was updated.'
+            );
+            return;
+        }
+        $this->updatelog($productid, 'amazon', 'sync', false);
+        return true;
+    }
+    public function productstoreAmazon(array $attributes,  $schema_id = null, $product_id = null, $parent_id = null)
+    {
+        return DB::transaction(function () use ($attributes, $product_id, $schema_id, $parent_id) {
+            $shop = new Shop();
+            $shop_id = $shop->getidByshop(session('active_shop'));
+            // Create Product
+            if (!$product_id) {
+                $productData = [
+                    'user_id'   => $shop_id,
+                    'schema_id' => $schema_id,
+                    'sku'       => !empty($attributes['sku'])
+                        ? $attributes['sku']
+                        : strtoupper(Str::random(12)),
+                ];
+                if (!empty($parent_id)) {
+                    $productData['parent_id'] = $parent_id;
+                }
+                $product = Product::create($productData);
+                $product_id = $product->id;
+            }
+            // Save Attributes
+            foreach ($attributes as $key => $value) {
+                if ($key == 'country_of_origin' && empty($value)) {
+                    $value = 'US';
+                }
+                if (
+                    $value === null ||
+                    $value === '' ||
+                    $value === 'null'
+                ) {
+                    continue;
+                }
+                // Convert arrays to JSON if any
+                if (is_array($value)) {
+                    $value = json_encode($value);
+                }
+                ProductAttribute::updateOrCreate(
+                    [
+                        'product_id'     => $product_id,
+                        'attribute_name' => $key,
+                    ],
+                    [
+                        'attribute_value' => $value,
+                    ]
+                );
+            }
+            return $product_id;
+        });
+    }
+    /**
+     * Create a sync log entry and optionally remove the mapping record.
+     *
+     * Resolves a marketplace mapping for the given identifier based on the platform
+     * inferred from $for (any value containing "amazon" is treated as Amazon, otherwise
+     * Shopify). If $needremov is true and a mapping is found, it is deleted and the log
+     * reflects the removal — this takes precedence over the message normally derived from
+     * $type. If $needremov is true but no mapping is found, a 'no_action' status is logged
+     * instead. If multiple mapping rows match the identifier, only the first is used/deleted,
+     * and the log message notes that additional matches were found. If $type indicates a
+     * failure ('failed' or 'sync_failed'), the log status is set to 'failed' and $error
+     * (if provided) is appended to the message.
+     *
+     * No log entry is created if there is no active shop in the session; the method
+     * returns false in that case instead of writing a row with a missing shop_id.
+     *
+     * @param int|string $product_id The Shopify variant ID, Shopify product ID, Amazon SKU, or Amazon parent SKU to resolve.
+     * @param string $for The platform context. Any value containing "amazon" resolves to Amazon; anything else resolves to Shopify.
+     * @param string $type The sync action type such as 'added', 'deleted', 'sync', 'sync_removed', 'failed', or 'sync_failed'.
+     * @param bool $needremov Whether the matching marketplace mapping record should be deleted. When true and a mapping exists, the mapping is deleted and the log status is set to 'removed' regardless of $type.
+     * @param string|null $error Optional error/failure reason, appended to the log message when $type indicates a failure.
+     * @return bool True when the log entry is created successfully, false if there is no active shop in session and no log entry was written.
+     */
+    public function updatelog($product_id, $for, $type, $needremov = false, $error = null)
+    {
+        $shop = new Shop();
+        $shop_id = $shop->getidByshop(session('active_shop'));
+        if (!$shop_id) {
+            // No active shop in session — abort rather than writing a bad log row.
+            return false;
+        }
+        $platform = str_contains(strtolower((string) $for), 'amazon') ? 'amazon' : 'shopify';
+        $normalizedType = strtolower((string) $type) ?: 'product';
+        $mappingQuery = ProductMarketplaceMapping::query();
+        if ($platform === 'shopify') {
+            $mappingQuery->where(function ($query) use ($product_id) {
+                $query->where('shopify_variant_id', (string) $product_id)
+                    ->orWhere('shopify_product_id', (string) $product_id);
+            });
+        } else {
+            $mappingQuery->where(function ($query) use ($product_id) {
+                $query->where('amazon_sku', (string) $product_id)
+                    ->orWhere('amazon_parent_sku', (string) $product_id);
+            });
+        }
+        // Use get() instead of first() so we don't silently ignore extra matches.
+        $mappings = $mappingQuery->get();
+        $mapping = $mappings->first();
+        // Capture mapping details BEFORE deletion so the log reflects what existed,
+        // and note explicitly that it's about to be/was removed.
+        $mappingDetails = $mapping
+            ? sprintf(
+                'Mapped : shopify_variant_id=%s, shopify_product_id=%s, amazon_sku=%s, amazon_parent_sku=%s.',
+                $mapping->shopify_variant_id ?? 'null',
+                $mapping->shopify_product_id ?? 'null',
+                $mapping->amazon_sku ?? 'null',
+                $mapping->amazon_parent_sku ?? 'null'
+            )
+            : 'No matching marketplace mapping was found.';
+        if ($mappings->count() > 1) {
+            $mappingDetails .= sprintf(' Note: %d matching mapping rows found; only the first was used.', $mappings->count());
+        }
+        $didRemove = false;
+        if ($needremov && $mapping) {
+            $mapping->delete();
+            $didRemove = true;
+        }
+        $status = 'success';
+        $message = sprintf(
+            'Product sync status updated successfully for %s with identifier %s.',
+            $platform,
+            $product_id
+        );
+        $isFailure = in_array($normalizedType, ['failed', 'sync_failed'], true);
+        // If a removal actually happened, that takes precedence over $type-based
+        // messaging — otherwise we'd log "added" while having just deleted the mapping.
+        if ($didRemove) {
+            $status = 'removed';
+            $message = sprintf(
+                'Mapping removed for %s product %s (requested via needremov). %s',
+                $platform,
+                $product_id,
+                $mappingDetails
+            );
+        } elseif ($needremov && !$mapping) {
+            // Removal was requested but there was nothing to remove.
+            $status = 'no_action';
+            $message = sprintf(
+                'Removal requested for %s product %s, but no matching mapping was found.',
+                $platform,
+                $product_id
+            );
+        } elseif ($isFailure) {
+            $status = 'failed';
+            $message = sprintf(
+                'Sync failed for %s product %s. %s%s',
+                ucfirst($platform),
+                $product_id,
+                $mappingDetails,
+                $error ?  '.' : ''
+            );
+        } else {
+            switch ($normalizedType) {
+                case 'added':
+                    $message = sprintf(
+                        'Product added to %s sync. Identifier: %s. %s',
+                        ucfirst($platform),
+                        $product_id,
+                        $mappingDetails
+                    );
+                    break;
+                case 'deleted':
+                    $status = 'removed';
+                    $message = sprintf(
+                        'Product deleted from %s sync mapping. Identifier: %s. %s',
+                        ucfirst($platform),
+                        $product_id,
+                        $mappingDetails
+                    );
+                    break;
+                case 'sync_removed':
+                    $status = 'removed';
+                    $message = sprintf(
+                        '%s sync removed for product %s. Mapping cleanup completed. %s',
+                        ucfirst($platform),
+                        $product_id,
+                        $mappingDetails
+                    );
+                    break;
+                case 'sync':
+                    $message = sprintf(
+                        'Product synced successfully to %s. Identifier: %s. %s',
+                        ucfirst($platform),
+                        $product_id,
+                        $mappingDetails
+                    );
+                    break;
+                default:
+                    $message = sprintf(
+                        '%s sync state updated for product %s. %s',
+                        ucfirst($platform),
+                        $product_id,
+                        $mappingDetails
+                    );
+                    break;
+            }
+        }
+        ProductSyncLog::create([
+            'product_id' => $product_id,
+            'shop_id'    => $shop_id,
+            'platform'   => $platform,
+            'status'     => $status,
+            'message'    => $message,
+            'type'       => $normalizedType,
+        ]);
+        return true;
+    }
+    public function importSchema($category)
+    {
+        // 1. Generate the schema (same as before, via TestController)
+        $testcontroller = new TestController();
+        $schemaJson = $testcontroller->getDownloadSchema($category);
+        // getDownloadSchema may return an array or a JSON string — normalize to array
+        if (is_string($schemaJson)) {
+            $schemaJson = json_decode($schemaJson, true);
+        }
+        if (!$schemaJson) {
+            return back()->withErrors(['schema_file' => 'Invalid or empty schema generated for "' . $category . '"']);
+        }
+        // 2. Parse it (same logic as store())
+        $productType = basename($schemaJson['$id'] ?? uniqid());
+        $renderer = new SchemaRendererService($schemaJson);
+        $fields = $renderer->render();
+        ProductSchema::updateOrCreate(
+            [
+                'product_type' => $productType
+            ],
+            [
+                'schema_json' => $schemaJson,
+                'parsed_json' => $fields,
+                'schema_version' => '1.0'
+            ]
+        );
+        // 3. Activate the category
+        $categoryModel = Category::where('slug', $productType)->first();
+        if (!$categoryModel) {
+            return back()->withErrors(['schema_file' => 'No category found matching schema product type "' . $productType . '"']);
+        }
+        $categoryModel->status = 'active';
+        $categoryModel->save();
+        return redirect()->back()->with(
+            'success',
+            'Schema imported successfully for "' . $category . '".'
+        );
+    }
+    public function deactivateSchema($category)
+    {
+        $categoryModel = Category::where('slug', $category)->first();
+        if (!$categoryModel) {
+            return back()->withErrors(['schema_file' => 'No category found matching "' . $category . '"']);
+        }
+        $categoryModel->status = 'Inactive';
+        $categoryModel->save();
+        return redirect()->back()->with(
+            'success',
+            'Schema deactivated successfully for "' . $category . '".'
+        );
+    }
+}
