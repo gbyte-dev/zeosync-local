@@ -1112,9 +1112,22 @@
     });
 
     $(document).on('click', '.update-amazon-qty', function() {
-        const sku = $(this).data('sku');
-        const quantity = $(this).closest('tr').find('.amazon-qty').val();
-        updateAmazonQuantity(sku, quantity);
+
+        const button = $(this);
+        const row = button.closest('tr');
+        const qtyInput = row.find('.amazon-qty');
+
+        const sku = button.data('sku');
+        const quantity = qtyInput.val();
+
+        // Disable while updating
+        button.prop('disabled', true)
+            .text('Updating...');
+
+        qtyInput.prop('disabled', true);
+
+        updateAmazonQuantity(sku, quantity, button, qtyInput);
+
     });
 
     $(document).on('click', '.update-shopify-inventory', function() {
@@ -1154,7 +1167,8 @@
         });
     });
 
-    function updateAmazonQuantity(sku, quantity) {
+    function updateAmazonQuantity(sku, quantity, button, qtyInput) {
+
         const shop = new URLSearchParams(window.location.search).get('shop');
 
         $.ajax({
@@ -1166,16 +1180,31 @@
             data: {
                 quantity: quantity
             },
+
             success: function(response) {
-                console.log(response);
-                alert('Inventory updated successfully.');
+
+                alert(response.message ?? 'Inventory updated successfully.');
+
+                loadAmazon();
+
             },
+
             error: function(xhr) {
-                console.log(xhr);
-                console.log(xhr.responseJSON);
-                alert('Inventory update failed.');
+
+                alert(xhr.responseJSON?.message ?? 'Inventory update failed.');
+
+            },
+
+            complete: function() {
+
+                button.prop('disabled', false)
+                    .text('Update');
+
+                qtyInput.prop('disabled', false);
+
             }
         });
+
     }
 
     function updatePagination(type, start, total, totalPages) {
