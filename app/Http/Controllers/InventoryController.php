@@ -10,8 +10,8 @@ use App\Models\Shop;
 use App\Services\ShopifyService;
 use App\Services\AmazonInventoryReportService;
 use App\Services\AmazonService;
-use App\Models\ProductMarketplaceMapping;
 use App\Services\SyncLimitService;
+use App\Services\ShopifyInventoryService;
 use App\Services\AutoSkuMappingService;
 use Illuminate\Support\Facades\Log;
 
@@ -49,8 +49,157 @@ class InventoryController extends ShopifyController
         ));
     }
 
-    public function shopify(Request $request)
-    {
+    // public function shopify(Request $request)
+    // {
+    //     $shop = $request->query('shop');
+
+    //     $shopModel = Shop::where('shop', $shop)->first();
+
+    //     if (!$shopModel) {
+    //         return response()->json([]);
+    //     }
+
+    //     $token = $shopModel->access_token;
+
+    //     $cacheKey = "shopify_inventory_{$shop}";
+
+    //     $data = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($shop, $token) {
+
+    //         $shopify = new ShopifyService($shop, $token);
+
+    //         // ✅ Updated GraphQL structure
+    //         $structure = [
+    //             'id',
+    //             'title',
+    //             'featuredImage' => [
+    //                 'url'
+    //             ],
+    //             'variants(first: 50)' => [
+    //                 'nodes' => [
+    //                     'id',
+    //                     'title',
+    //                     'sku',
+    //                     'image' => ['url'],
+    //                     'inventoryQuantity',
+    //                     'inventoryItem' => [
+    //                         'id',
+    //                         'inventoryLevels(first: 1)' => [
+    //                             'nodes' => [
+    //                                 'quantities(names: ["available", "committed", "incoming", "on_hand"])' => [
+    //                                     'name',
+    //                                     'quantity'
+    //                                 ]
+    //                             ]
+    //                         ]
+    //                     ]
+    //                 ]
+    //             ]
+    //         ];
+
+    //         $allProducts = [];
+    //         $cursor = null;
+
+    //         do {
+    //             $response = $shopify->paginate($structure, 50, $cursor);
+
+    //             $allProducts = array_merge($allProducts, $response['data']);
+
+    //             $cursor = $response['next_cursor'];
+    //         } while ($response['has_next']);
+
+    //         $result = [];
+
+    //         $shopModel = Shop::where('shop', $shop)->first();
+
+    //         $mappings = ProductMarketplaceMapping::where('shop_id', $shopModel->id)
+    //             ->get()
+    //             ->keyBy('shopify_variant_id');
+
+    //         foreach ($allProducts as $product) {
+
+    //             foreach ($product['variants']['nodes'] ?? [] as $variant) {
+
+    //                 $qty = $variant['inventoryQuantity'] ?? 0;
+
+    //                 $available = 0;
+    //                 $committed = 0;
+    //                 $onHand = 0;
+    //                 $unavailable = 0;
+
+    //                 $levels = $variant['inventoryItem']['inventoryLevels']['nodes'] ?? [];
+
+    //                 if (!empty($levels)) {
+    //                     $quantities = $levels[0]['quantities'] ?? [];
+
+    //                     foreach ($quantities as $q) {
+    //                         if ($q['name'] === 'available') {
+    //                             $available = $q['quantity'];
+    //                         }
+    //                         if ($q['name'] === 'committed') {
+    //                             $committed = $q['quantity'];
+    //                         }
+    //                         if ($q['name'] === 'on_hand') {
+    //                             $onHand = $q['quantity'];
+    //                         }
+    //                     }
+
+    //                     // Shopify logic
+    //                     $unavailable = $onHand - $available;
+    //                 }
+    //                 $productId = str_replace('gid://shopify/Product/', '', $product['id']);
+    //                 $variantId = str_replace(
+    //                     'gid://shopify/ProductVariant/',
+    //                     '',
+    //                     $variant['id']
+    //                 );
+
+    //                 $mapping = $mappings[$variantId] ?? null;
+    //                 $isMapped = $mapping
+    //                     && !empty($mapping->shopify_variant_id)
+    //                     && !empty($mapping->amazon_sku);
+
+    //                 $inventoryItemId = isset($variant['inventoryItem']['id'])
+    //                     ? str_replace(
+    //                         'gid://shopify/InventoryItem/',
+    //                         '',
+    //                         $variant['inventoryItem']['id']
+    //                     )
+    //                     : null;
+
+    //                 $result[] = [
+    //                     'pid' => $productId,
+    //                     'vid' => $variantId,
+    //                     'inventory_item_id' => $inventoryItemId,
+    //                     'product' => $product['title'] ?? '',
+    //                     'variant' => $variant['title'] ?? '',
+    //                     'sku' => $variant['sku'] ?? 'No SKU',
+    //                     'available' => $available,
+    //                     'committed' => $committed,
+    //                     'on_hand' => $onHand,
+    //                     'unavailable' => max(0, $unavailable),
+    //                     'qty' => $qty,
+    //                     'status' => $available > 0 ? 'synced' : 'pending',
+    //                     'image' => $variant['image']['url'] ?? $product['featuredImage']['url'] ?? null,
+
+    //                     'is_mapped' => $isMapped,
+    //                     'mapped_sku' => $isMapped ? $mapping->amazon_sku : null,
+    //                     'mapping_id' => $isMapped ? $mapping->id : null,
+    //                 ];
+    //             }
+    //         }
+
+    //         return $result;
+    //     });
+    //     app(\App\Services\AutoSkuMappingService::class)
+    //         ->handle($shopModel, $data, Cache::get("amazon_inventory_{$shopModel->id}_ATVPDKIKX0DER", []));
+
+    //     return response()->json($data);
+    // }
+
+    public function shopify(
+        Request $request,
+        ShopifyInventoryService $shopifyInventoryService
+    ) {
         $shop = $request->query('shop');
 
         $shopModel = Shop::where('shop', $shop)->first();
@@ -59,139 +208,13 @@ class InventoryController extends ShopifyController
             return response()->json([]);
         }
 
-        $token = $shopModel->access_token;
+        $data = $shopifyInventoryService->getInventory($shopModel);
 
-        $cacheKey = "shopify_inventory_{$shop}";
-
-        $data = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($shop, $token) {
-
-            $shopify = new ShopifyService($shop, $token);
-
-            // ✅ Updated GraphQL structure
-            $structure = [
-                'id',
-                'title',
-                'featuredImage' => [
-                    'url'
-                ],
-                'variants(first: 50)' => [
-                    'nodes' => [
-                        'id',
-                        'title',
-                        'sku',
-                        'image' => ['url'],
-                        'inventoryQuantity',
-                        'inventoryItem' => [
-                            'id',
-                            'inventoryLevels(first: 1)' => [
-                                'nodes' => [
-                                    'quantities(names: ["available", "committed", "incoming", "on_hand"])' => [
-                                        'name',
-                                        'quantity'
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
-            ];
-
-            $allProducts = [];
-            $cursor = null;
-
-            do {
-                $response = $shopify->paginate($structure, 50, $cursor);
-
-                $allProducts = array_merge($allProducts, $response['data']);
-
-                $cursor = $response['next_cursor'];
-            } while ($response['has_next']);
-
-            $result = [];
-
-            $shopModel = Shop::where('shop', $shop)->first();
-
-            $mappings = ProductMarketplaceMapping::where('shop_id', $shopModel->id)
-                ->get()
-                ->keyBy('shopify_variant_id');
-
-            foreach ($allProducts as $product) {
-
-                foreach ($product['variants']['nodes'] ?? [] as $variant) {
-
-                    $qty = $variant['inventoryQuantity'] ?? 0;
-
-                    $available = 0;
-                    $committed = 0;
-                    $onHand = 0;
-                    $unavailable = 0;
-
-                    $levels = $variant['inventoryItem']['inventoryLevels']['nodes'] ?? [];
-
-                    if (!empty($levels)) {
-                        $quantities = $levels[0]['quantities'] ?? [];
-
-                        foreach ($quantities as $q) {
-                            if ($q['name'] === 'available') {
-                                $available = $q['quantity'];
-                            }
-                            if ($q['name'] === 'committed') {
-                                $committed = $q['quantity'];
-                            }
-                            if ($q['name'] === 'on_hand') {
-                                $onHand = $q['quantity'];
-                            }
-                        }
-
-                        // Shopify logic
-                        $unavailable = $onHand - $available;
-                    }
-                    $productId = str_replace('gid://shopify/Product/', '', $product['id']);
-                    $variantId = str_replace(
-                        'gid://shopify/ProductVariant/',
-                        '',
-                        $variant['id']
-                    );
-
-                    $mapping = $mappings[$variantId] ?? null;
-                    $isMapped = $mapping
-                        && !empty($mapping->shopify_variant_id)
-                        && !empty($mapping->amazon_sku);
-
-                    $inventoryItemId = isset($variant['inventoryItem']['id'])
-                        ? str_replace(
-                            'gid://shopify/InventoryItem/',
-                            '',
-                            $variant['inventoryItem']['id']
-                        )
-                        : null;
-
-                    $result[] = [
-                        'pid' => $productId,
-                        'vid' => $variantId,
-                        'inventory_item_id' => $inventoryItemId,
-                        'product' => $product['title'] ?? '',
-                        'variant' => $variant['title'] ?? '',
-                        'sku' => $variant['sku'] ?? 'No SKU',
-                        'available' => $available,
-                        'committed' => $committed,
-                        'on_hand' => $onHand,
-                        'unavailable' => max(0, $unavailable),
-                        'qty' => $qty,
-                        'status' => $available > 0 ? 'synced' : 'pending',
-                        'image' => $variant['image']['url'] ?? $product['featuredImage']['url'] ?? null,
-
-                        'is_mapped' => $isMapped,
-                        'mapped_sku' => $isMapped ? $mapping->amazon_sku : null,
-                        'mapping_id' => $isMapped ? $mapping->id : null,
-                    ];
-                }
-            }
-
-            return $result;
-        });
-        app(\App\Services\AutoSkuMappingService::class)
-            ->handle($shopModel, $data, Cache::get("amazon_inventory_{$shopModel->id}_ATVPDKIKX0DER", []));
+        app(AutoSkuMappingService::class)->handle(
+            $shopModel,
+            $data,
+            Cache::get("amazon_inventory_{$shopModel->id}_ATVPDKIKX0DER", [])
+        );
 
         return response()->json($data);
     }
@@ -228,15 +251,15 @@ class InventoryController extends ShopifyController
         $marketplaceId = 'ATVPDKIKX0DER';
 
         $cacheKey = "amazon_inventory_{$shop->id}_{$marketplaceId}";
+        Log::info('Amazon Cache Read', [
+            'shop_id' => $shop->id,
+            'cache_key' => $cacheKey,
+            'exists' => Cache::has($cacheKey),
+        ]);
 
-        $data = Cache::remember(
+        $data = Cache::get(
             $cacheKey,
-            now()->addMinutes(20),
-            function () use ($shop, $marketplaceId) {
-
-                return app(AmazonInventoryReportService::class)
-                    ->syncInventory($shop, $marketplaceId);
-            }
+            []
         );
 
         app(\App\Services\AutoSkuMappingService::class)

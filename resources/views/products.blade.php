@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('content')
 
+
 @push('css')
 <!-- DataTables Bootstrap 5 CSS -->
 <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
@@ -369,12 +370,13 @@
             @endif
         </div>
     </div>
+    
 
     <!-- Stat Pills -->
     <div class="sp-card-grid">
         <div class="sp-stat-pill">
             <span class="sp-stat-label">Total Products</span>
-            <span class="sp-stat-value val-default">{{ collect($products)->count() }}</span>
+            <span class="sp-stat-value val-default">{{ $totalProducts }}</span>
         </div>
         <div class="sp-stat-pill">
             <span class="sp-stat-label">Active</span>
@@ -387,9 +389,7 @@
         <div class="sp-stat-pill">
             <span class="sp-stat-label">Out of Stock</span>
             <span class="sp-stat-value val-danger">
-                {{ collect($products)->filter(function ($p) {
-                    return collect($p['variants'] ?? [])->sum('inventory_quantity') <= 0;
-                })->count() }}
+                {{ $outOfStockProducts }}
             </span>
         </div>
     </div>

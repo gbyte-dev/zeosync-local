@@ -1137,12 +1137,20 @@ class ShopifyController extends Controller
             $productLimitReached = $productUsed >= $productLimit;
         }
 
+        $outOfStockProducts = $allProducts->filter(function ($product) {
+            return collect($product->variants ?? [])
+                ->sum('inventory_quantity') <= 0;
+        })->count();
+        $totalProducts = $allProducts->count();
+
         return view('products', compact(
             'products',
             'activeShop',
             'productLimitReached',
             'productLimit',
-            'productUsed'
+            'productUsed',
+            'totalProducts',
+            'outOfStockProducts'
         ));
     }
     public function syncProductsToDB($shopModel)
@@ -1915,11 +1923,11 @@ class ShopifyController extends Controller
 
             // 8. Sync Log
             ProductSyncLog::create([
-                'product_id' => $dbProduct->id ?? null,
+                'product_id' => $dbProduct->id,
                 'shop_id' => $shopModel->id,
                 'platform' => 'shopify',
                 'status' => 'success',
-                'message' => 'Product updated (resync check applied)',
+                'message' => 'Product "' . $dbProduct->title . '" was updated successfully during resync.',
                 'type' => 'product'
             ]);
 

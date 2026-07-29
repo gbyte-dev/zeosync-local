@@ -18,38 +18,18 @@ use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Models\ShopifyOrder;
 use App\Models\ProductMarketplaceMapping;
+use App\Services\ShopifyInventoryService;
+use Illuminate\Support\Collection;
 
 
 class DashboardController extends ShopifyController
 {
-    // public function index(Request $request)
-    // {
-    //     $shopModel = $this->getActiveShop($request);
+    protected ShopifyInventoryService $shopifyInventoryService;
 
-    //     \Log::info('Dashboard Request', [
-    //         'url' => $request->fullUrl(),
-    //         'shop' => $shopModel?->shop,
-    //         'session' => session()->all(),
-    //     ]);
-
-    //     if (!$shopModel) {
-    //         return view('welcome');
-    //     }
-
-    //     \Log::info('DASHBOARD SHOP', [
-    //         'shop' => $shopModel->shop
-    //     ]);
-
-    //     return view('dashboard', [
-    //         'totalProducts' => Product::where('shop_id', $shopModel->id)->count(),
-    //         'totalOrders'   => 0,
-    //         'isConnected'   => !empty($shopModel->amazon_seller_id),
-    //         'recentLogs'    => SyncLog::where('shop_id', $shopModel->id)
-    //             ->latest()
-    //             ->take(10)
-    //             ->get(),
-    //     ]);
-    // }
+    public function __construct()
+    {
+        $this->shopifyInventoryService = app(ShopifyInventoryService::class);
+    }
 
     public function index(Request $request)
     {
@@ -70,8 +50,18 @@ class DashboardController extends ShopifyController
         }
 
         $shopId = $shop->id;
+        $inventory = $this->shopifyInventoryService->getInventory($shop);
+        $amazonInventory = [];
+
+        if (!empty($shop->amazon_marketplace_id)) {
+
+            $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_marketplace_id}";
+
+            $amazonInventory = Cache::get($cacheKey, []);
+        }
         $thirtyDaysAgo = \Carbon\Carbon::today()->subDays(30);
         $cacheTtl = 300; // Cache heavy charts for 5 minutes
+
 
         // 1. Top KPI Aggregates (Eager & efficient counts)
         $totalProducts = Product::where('shop_id', $shopId)->count();
@@ -103,6 +93,67 @@ class DashboardController extends ShopifyController
         if (class_exists(SyncLog::class)) {
             $recentLogs = SyncLog::where('shop_id', $shopId)->latest()->take(8)->get();
         }
+        $topSellingProducts = Cache::remember(
+            "shop_{$shopId}_top_selling_products",
+            $cacheTtl,
+            function () use ($shopId) {
+
+                return ShopifyOrder::where('shop_id', $shopId)
+                    ->where('order_created_at', '>=', now()->subDay())
+                    ->get()
+                    ->flatMap(function ($order) {
+
+                        $items = is_array($order->line_items)
+                            ? $order->line_items
+                            : json_decode($order->line_items, true);
+
+                        return is_array($items) ? $items : [];
+                    })
+                    ->groupBy('product_id')
+                    ->map(function ($items) {
+
+                        return [
+                            'title' => $items->first()['title'] ?? 'Unknown Product',
+
+                            'quantity' => collect($items)->sum('quantity'),
+
+                            'amount' => collect($items)->sum(function ($item) {
+                                return ($item['price'] ?? 0) * ($item['quantity'] ?? 0);
+                            }),
+                        ];
+                    })
+                    ->sortByDesc('quantity')
+                    ->take(5)
+                    ->values();
+            }
+        );
+
+        $topSellingChartLabels = $topSellingProducts
+            ->pluck('title')
+            ->map(fn($title) => \Illuminate\Support\Str::limit($title, 15))
+            ->values();
+
+        $topSellingChartData = $topSellingProducts
+            ->pluck('quantity')
+            ->values();
+
+        $lowInventoryProducts = collect($inventory)
+            ->filter(function ($item) {
+                return ($item['available'] ?? 0) < 10;
+            })
+            ->sortBy('available')
+            ->take(7)
+            ->values();
+
+        $amazonLowInventoryProducts = collect($amazonInventory)
+            ->filter(function ($item) {
+                return ($item['quantity'] ?? 0) <= 10;
+            })
+            ->sortBy('quantity')
+            ->take(7)
+            ->values();
+
+
 
         // Return only the exact variables required by the frontend
         return view('dashboard', compact(
@@ -112,34 +163,12 @@ class DashboardController extends ShopifyController
             'isShopConnected',
             'ordersTimeline',
             'productTrend',
-            'recentLogs'
+            'recentLogs',
+            'topSellingProducts',
+            'topSellingChartLabels',
+            'topSellingChartData',
+            'lowInventoryProducts',
+            'amazonLowInventoryProducts'
         ));
     }
-
-
-    // public function install(Request $request)
-    // {
-    //     $activeShop =
-    //         $request->get('shop')
-    //         ?? session('amazon_shop');
-
-    //     if (!$activeShop) {
-    //         return "Shop missing (no query, no session)";
-    //     }
-
-    //     // normalize
-    //     if (!str_contains($activeShop, '.myshopify.com')) {
-    //         $activeShop .= '.myshopify.com';
-    //     }
-
-    //     session(['amazon_shop' => $activeShop]);
-
-    //     $shop = Shop::where('shop', $activeShop)->first();
-
-    //     if ($shop) {
-    //         return view('dashboard');
-    //     }
-
-    //     return view('welcome');
-    // }
 }
