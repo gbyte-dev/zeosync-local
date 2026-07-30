@@ -175,7 +175,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/', [AdminController::class, 'dashboard'])
             ->name('admin.dashboard');
         Route::get('/dashboard', [AdminController::class, 'dashboard'])
-            ->name('admin.dashboard');
+            ->name('admin.main.dashboard');
         Route::post('/logout', [AdminAuthController::class, 'logout'])->name('admin.logout');
         Route::get('/shops', [AdminController::class, 'shops'])->name('admin.shops');
         Route::get('/orders', [AdminController::class, 'order'])->name('admin.orders');
