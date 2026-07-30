@@ -506,28 +506,9 @@ Route::get('/test-amazon-sync', function () {
     return 'Done';
 });
 
-Route::get('/test-amazon-refresh', function () {
 
-    $inventoryCacheService = app(\App\Services\InventoryCacheService::class);
+Route::get('/test-command', function () {
+    Artisan::call('amazon:refresh-inventory-cache');
 
-    $shops = \App\Models\Shop::query()
-        ->where('is_active', 1)
-        ->where('store_status', 'active')
-        ->whereNotNull('amazon_refresh_token')
-        ->whereNotNull('amazon_marketplace_id')
-        ->get();
-
-    foreach ($shops as $shop) {
-
-        if (! $inventoryCacheService->isExpired(
-            $shop,
-            $shop->amazon_marketplace_id
-        )) {
-            continue;
-        }
-
-        \App\Jobs\SyncAmazonInventoryJob::dispatch($shop->id);
-    }
-
-    return 'Done';
+    return nl2br(Artisan::output());
 });
