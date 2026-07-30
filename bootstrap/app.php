@@ -16,6 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $schedule->command('stores:check-status')
             ->everyMinute();
+
+        $schedule->command('amazon:refresh-inventory-cache')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
     })
     ->withMiddleware(function (Middleware $middleware): void {
 
