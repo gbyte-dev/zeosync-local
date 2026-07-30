@@ -22,7 +22,7 @@ class CategoryController extends Controller
    
     public function importCategories()
     {
-        $sqlFile = database_path('seeders/sql/categories.sql');
+        $sqlFile = database_path('sql/categories.sql');
         if (!File::exists($sqlFile)) {
             return response()->json(['message' => 'File not found']);
         }
