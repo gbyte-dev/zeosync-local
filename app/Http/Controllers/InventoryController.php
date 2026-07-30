@@ -13,6 +13,7 @@ use App\Services\AmazonService;
 use App\Services\SyncLimitService;
 use App\Services\ShopifyInventoryService;
 use App\Services\AutoSkuMappingService;
+use App\Services\InventoryCacheService;
 use Illuminate\Support\Facades\Log;
 
 
@@ -248,28 +249,20 @@ class InventoryController extends ShopifyController
             }
         }
 
-        $marketplaceId = 'ATVPDKIKX0DER';
+        $inventoryCacheService = app(InventoryCacheService::class);
 
-        $cacheKey = "amazon_inventory_{$shop->id}_{$marketplaceId}";
-        Log::info('Amazon Cache Read', [
-            'shop_id' => $shop->id,
-            'cache_key' => $cacheKey,
-            'exists' => Cache::has($cacheKey),
-        ]);
+        $response = $inventoryCacheService->getAmazonInventory($shop);
 
-        $data = Cache::get(
-            $cacheKey,
-            []
-        );
+        $data = $response['products'];
 
-        app(\App\Services\AutoSkuMappingService::class)
+        app(AutoSkuMappingService::class)
             ->handle(
                 $shop,
                 Cache::get("shopify_inventory_{$shop->shop}", []),
                 $data
             );
 
-        return response()->json($data);
+        return response()->json($response);
     }
 
     /**

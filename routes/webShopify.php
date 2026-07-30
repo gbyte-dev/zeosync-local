@@ -23,6 +23,7 @@ use App\Models\Shop;
 use App\Services\AmazonService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use App\Jobs\SyncAmazonInventoryJob;
 
 Route::get('verify', [DashboardController::class, 'install'])->name('i.dashboard');
 Route::get('verify', function () {
@@ -474,6 +475,59 @@ Route::get('/test/queue-work', function () {
     ]);
 
     \Log::info('QUEUE ROUTE FINISHED');
+
+    return 'Done';
+});
+
+// Route::get('/test-amazon-sync', function () {
+
+//     $shops = Shop::where('is_active', 1)
+//         ->whereNotNull('amazon_refresh_token')
+//         ->get();
+
+//     foreach ($shops as $shop) {
+//         SyncAmazonInventoryJob::dispatch($shop->id);
+//     }
+
+//     return 'Amazon inventory sync jobs dispatched.';
+// });
+
+Route::get('/test-amazon-sync', function () {
+
+    $shops = Shop::where('is_active', 1)
+        ->whereNotNull('amazon_refresh_token')
+        ->get();
+
+    foreach ($shops as $shop) {
+        app(App\Services\AmazonInventoryReportService::class)
+            ->syncInventory($shop, $shop->amazon_marketplace_id);
+    }
+
+    return 'Done';
+});
+
+Route::get('/test-amazon-refresh', function () {
+
+    $inventoryCacheService = app(\App\Services\InventoryCacheService::class);
+
+    $shops = \App\Models\Shop::query()
+        ->where('is_active', 1)
+        ->where('store_status', 'active')
+        ->whereNotNull('amazon_refresh_token')
+        ->whereNotNull('amazon_marketplace_id')
+        ->get();
+
+    foreach ($shops as $shop) {
+
+        if (! $inventoryCacheService->isExpired(
+            $shop,
+            $shop->amazon_marketplace_id
+        )) {
+            continue;
+        }
+
+        \App\Jobs\SyncAmazonInventoryJob::dispatch($shop->id);
+    }
 
     return 'Done';
 });

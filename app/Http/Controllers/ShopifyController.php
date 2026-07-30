@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\LOG;
 use Illuminate\Support\Facades\DB;
 use App\Models\ProductSyncLog;
 use SellingPartnerApi\SellingPartnerApi;
+use App\Models\AdminSetting;
 use SellingPartnerApi\Enums\Endpoint;
 use App\Models\ProductMarketplaceMapping;
 use App\Services\AmazonService;
@@ -229,12 +230,29 @@ class ShopifyController extends Controller
             'shop' => $shop,
             'time' => time()
         ]));
+
+        Log::info('SHOPIFY API KEY', [
+            'value' => AdminSetting::get(
+                'SHOPIFY_API_KEY',
+                config('services.shopify.api_key')
+            )
+        ]);
         // ⚡ build query safely
+        $shopifyApiKey = AdminSetting::get(
+            'SHOPIFY_API_KEY',
+            config('services.shopify.api_key')
+        );
+
+        $shopifyRedirectUri = AdminSetting::get(
+            'SHOPIFY_REDIRECT_URI',
+            config('services.shopify.redirect_uri')
+        );
+
         $query = http_build_query([
-            'client_id' => config('services.shopify.api_key'),
-            'scope' => $this->oauthScopes(),
-            'redirect_uri' => config('services.shopify.redirect_uri'),
-            'state' => $state,
+            'client_id'    => $shopifyApiKey,
+            'scope'        => $this->oauthScopes(),
+            'redirect_uri' => $shopifyRedirectUri,
+            'state'        => $state,
         ]);
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
         Log::info('STEP 4: REDIRECT URL', [
@@ -262,7 +280,10 @@ class ShopifyController extends Controller
         $computedHmac = hash_hmac(
             'sha256',
             urldecode(http_build_query($query)),
-            config('services.shopify.api_secret')
+            \App\Models\AdminSetting::get(
+                'SHOPIFY_API_SECRET',
+                config('services.shopify.api_secret')
+            )
         );
         if (!$hmac || !hash_equals($hmac, $computedHmac)) {
             Log::error('HMAC FAILED', [
@@ -301,8 +322,14 @@ class ShopifyController extends Controller
         // STEP 4: TOKEN EXCHANGE
         // =========================
         $response = Http::asJson()->post("https://{$shop}/admin/oauth/access_token", [
-            'client_id' => config('services.shopify.api_key'),
-            'client_secret' => config('services.shopify.api_secret'),
+            'client_id' => AdminSetting::get(
+                'SHOPIFY_API_KEY',
+                config('services.shopify.api_key')
+            ),
+            'client_secret' => AdminSetting::get(
+                'SHOPIFY_API_SECRET',
+                config('services.shopify.api_secret')
+            ),
             'code' => $code,
         ]);
         if (!$response->successful()) {
@@ -2484,9 +2511,18 @@ class ShopifyController extends Controller
         try {
             //   STEP 1: CONNECTOR
             $connector = \SellingPartnerApi\SellingPartnerApi::seller(
-                clientId: config('amazon.client_id'),
-                clientSecret: config('amazon.client_secret'),
-                refreshToken: config('amazon.refresh_token'),
+                clientId: AdminSetting::get(
+                    'production_client_id',
+                    config('amazon.client_id')
+                ),
+                clientSecret: AdminSetting::get(
+                    'production_client_secret',
+                    config('amazon.client_secret')
+                ),
+                refreshToken: AdminSetting::get(
+                    'amazon_refresh_token',
+                    config('amazon.refresh_token')
+                ),
                 endpoint: \SellingPartnerApi\Enums\Endpoint::NA_SANDBOX
             );
             // ,
@@ -2552,9 +2588,18 @@ class ShopifyController extends Controller
         return Cache::remember($cacheKey, now()->addHours(24), function () {
             try {
                 $connector = \SellingPartnerApi\SellingPartnerApi::seller(
-                    clientId: config('amazon.client_id'),
-                    clientSecret: config('amazon.client_secret'),
-                    refreshToken: config('amazon.refresh_token'),
+                    clientId: AdminSetting::get(
+                        'production_client_id',
+                        config('amazon.client_id')
+                    ),
+                    clientSecret: AdminSetting::get(
+                        'production_client_secret',
+                        config('amazon.client_secret')
+                    ),
+                    refreshToken: AdminSetting::get(
+                        'amazon_refresh_token',
+                        config('amazon.refresh_token')
+                    ),
                     endpoint: \SellingPartnerApi\Enums\Endpoint::NA_SANDBOX
                 );
                 $response = $connector->ordersV0()->getOrders(

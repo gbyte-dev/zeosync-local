@@ -7,40 +7,36 @@
 $groups = [
 'App Basic Details' => ['app_name','currency','timezone'],
 
-'Email / SMTP Settings' => [
-'admin_email','SMTP_host','SMTP_port',
-'SMTP_username','SMTP_password',
-'SMTP_encryption','from_email','from_name'
-],
-
-'Stripe Settings' => [
-'stripe_secret_key','stripe_publishable_key','stripe_webhook_secret'
-],
-
-'Amazon Test Credentials' => [
-'test_client_id','test_client_secret','test_refresh_token','is_testmode'
-],
-
-'Amazon Production Credentials' => [
-'production_client_id',
-'production_client_secret',
-'amazon_refresh_token',
-'amazon_seller_id',
-],
-
-'Shopify Credentials' => [
-'SHOPIFY_API_KEY','SHOPIFY_API_SECRET','SHOPIFY_REDIRECT_URI'
-],
-'Gemini AI Info' => [
-'openai_api_key',
-'ai_provider',
-'openai_model',
-'openai_temperature',
-'openai_endpoint',
-],
+    'Email / SMTP Settings' => [
+        'admin_email','SMTP_host','SMTP_port',
+        'SMTP_username','SMTP_password',
+        'SMTP_encryption','from_email','from_name'
+    ],
+    'Stripe Settings' => [
+        'stripe_secret_key','stripe_publishable_key','stripe_webhook_secret'
+    ],
+    'Amazon Credentials' => [
+        'production_client_id',
+        'production_client_secret',
+        'amazon_refresh_token',
+        'amazon_seller_id',
+    ],
+    'Shopify Credentials' => [
+        'SHOPIFY_API_KEY','SHOPIFY_API_SECRET','SHOPIFY_REDIRECT_URI'
+    ],
+    'Gemini AI Info' => [
+        'openai_api_key',
+        'ai_provider',
+        'openai_model',
+        'openai_temperature',
+        'openai_endpoint',
+    ],
 ];
 @endphp
 
+    <!-- 'Amazon Test Credentials' => [
+        'test_client_id','test_client_secret','test_refresh_token','is_testmode'
+    ], -->
 <div class="container-fluid">
 
     <div class="card shadow-sm">

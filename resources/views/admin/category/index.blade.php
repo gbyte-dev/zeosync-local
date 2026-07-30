@@ -46,7 +46,7 @@
                 </p>
             </div>
             <div class="col-sm-5">
-                <button class="btn btn-primary btn-sm  px-4 btn-add-category" style="float: inline-end;">
+                <button class="btn btn-primary btn-sm  px-4 btn-add-category" style="float:enline-end">
                     <i class="bi bi-plus-lg me-1"></i> Add Category
                 </button>
                 <form action="{{route('admin.search.categories')}}" style="display:inline-flex">
