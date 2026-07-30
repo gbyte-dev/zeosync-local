@@ -17,7 +17,7 @@ use App\Http\Controllers\ProductSchemaController;
 use App\Http\Controllers\TestController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CategoryController;
-
+ 
 
 
 require base_path('routes/webShopify.php');
