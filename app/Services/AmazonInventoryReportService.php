@@ -225,6 +225,17 @@ class AmazonInventoryReportService
 
         $this->updateProgress($shop, 100, 'Completed');
 
+        Cache::put(
+            "amazon_inventory_{$shop->id}_{$marketplaceId}",
+            $rows,
+            now()->addMinutes(25)
+        );
+
+        Log::info('Amazon inventory cached', [
+            'key' => "amazon_inventory_{$shop->id}_{$marketplaceId}",
+            'count' => count($rows),
+        ]);
+
         return $rows;
     }
 
