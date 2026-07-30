@@ -5,61 +5,67 @@
 @section('content')
 
 <style>
-
-
-    #shops-table_filter{
+    #shops-table_filter {
         float: inline-end;
     }
-    #shops-table_paginate{
+
+    #shops-table_paginate {
         float: inline-end;
         margin-top: 10px;
     }
-    #shops-table{
-         margin-bottom: 10px;
+
+    #shops-table {
+        margin-bottom: 10px;
     }
-    #shops-table_info{
+
+    #shops-table_info {
         float: inline-start;
         margin-top: 10px;
     }
-    #shops-table_length{
+
+    #shops-table_length {
         width: fit-content;
     }
-    .dataTables_length>label{
+
+    .dataTables_length>label {
         display: flex;
         align-items: center;
         gap: 10px;
     }
-    .dataTables_filter>label{
+
+    .dataTables_filter>label {
         display: flex;
         align-items: center;
         gap: 10px;
     }
 </style>
 
-<div class="container-fluid px-0" >
+<div class="container-fluid px-0">
 
     {{-- Header --}}
 
     <div class="card shadow-sm border-0  overflow-hidden">
-        <div class="p-3 text-dark shadow header" >
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-                <h5 class="fw-bold mb-1">Shops</h5>
-                <p class="mb-0 opacity-75">
-                   Manage your shops and their details
-                </p>
-            </div>
-            <!-- <button class="btn btn-light btn-sm fw-bold rounded-pill px-4 btn-add-category">
+        <div class="p-3 text-dark shadow header">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h5 class="fw-bold mb-1">Shops</h5>
+                    <p class="mb-0 opacity-75">
+                        Manage your shops and their details
+                    </p>
+                </div>
+                <!-- <button class="btn btn-light btn-sm fw-bold rounded-pill px-4 btn-add-category">
                 <i class="bi bi-plus-lg me-1"></i> Add Category
             </button> -->
+            </div>
         </div>
-    </div>
 
 
-    <div class="card-body border-0 shadow-sm overflow-hidden">
-        <!-- <div class="card-body p-2"> -->
+        <div class="card-body border-0 shadow-sm overflow-hidden">
+            <!-- <div class="card-body p-2"> -->
 
             {{-- Desktop Table --}}
+            @if($shops->count() > 0)
+
             <div class="table-responsive d-none d-md-block">
                 <table id="shops-table" class="table table-hover align-middle mb-0 w-100">
                     <thead class="table-light">
@@ -74,7 +80,7 @@
                     </thead>
 
                     <tbody>
-                        @forelse($shops as $shop)
+                        @foreach($shops as $shop)
                         <tr>
                             <td class="ps-4 text-muted fw-semibold">
                                 #{{ $shop->id }}
@@ -84,7 +90,7 @@
                                 <a href="{{ route('admin.shops.show', $shop->id) }}"
                                     class="text-dark text-decoration-none fw-bold d-flex align-items-center">
                                     <span class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary fw-bold me-2"
-                                          style="width: 38px; height: 38px;">
+                                        style="width: 38px; height: 38px;">
                                         {{ strtoupper(substr($shop->shop, 0, 1)) }}
                                     </span>
                                     <span>{{ $shop->shop }}</span>
@@ -100,6 +106,7 @@
                                 <span class="text-muted small">N/A</span>
                                 @endif
                             </td>
+
                             <td>
                                 @if($shop->subscription)
                                 <span class="badge bg-{{ $shop->subscription->status === 'active' ? 'success' : 'danger' }}">
@@ -126,16 +133,20 @@
                                 {{ $shop->created_at?->format('d M Y') }}
                             </td>
                         </tr>
-                        @empty
-                        <tr>
-                            <td colspan="6" class="text-center text-muted py-5">
-                                No shops found.
-                            </td>
-                        </tr>
-                        @endforelse
+                        @endforeach
                     </tbody>
                 </table>
             </div>
+
+            @else
+
+            <div class="d-none d-md-block">
+                <div class="alert alert-info text-center mb-0">
+                    No shops found.
+                </div>
+            </div>
+
+            @endif
 
             {{-- Mobile Cards --}}
             <div class="d-block d-md-none p-3">
@@ -151,7 +162,7 @@
                         <a href="{{ route('admin.shops.show', $shop->id) }}"
                             class="text-dark text-decoration-none fw-bold d-flex align-items-center">
                             <span class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary fw-bold me-2"
-                                  style="width: 38px; height: 38px;">
+                                style="width: 38px; height: 38px;">
                                 {{ strtoupper(substr($shop->shop, 0, 1)) }}
                             </span>
                             <span>{{ $shop->shop }}</span>
@@ -189,72 +200,79 @@
                 </div>
             </div>
 
-        <!-- </div> -->
+            <!-- </div> -->
 
+        </div>
     </div>
-</div>
 
-@endsection
+    @endsection
 
-@section('styles')
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
-@endsection
+    @section('styles')
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+    @endsection
 
-@section('scripts')
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+    @section('scripts')
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
 
-<script>
-    $(document).ready(function () {
-        // Desktop DataTable — pagination + search + sorting, styled for Bootstrap 5
-        $('#shops-table').DataTable({
-            pagingType: 'simple_numbers',
-            pageLength: 10,
-            lengthChange: true,
-            lengthMenu: [10, 25, 50, 100],
-            searching: true,
-            ordering: true,
-            info: true,
-            columnDefs: [
-                { orderable: false, targets: [1, 2, 3, 4] } // Shop link / badges not sortable
-            ],
-            language: {
-                search: "Search:",
-                searchPlaceholder: "Find a shop",
-                emptyTable: "No shops found",
-                zeroRecords: "No matching shops found",
-                info: "Showing _START_ to _END_ of _TOTAL_ shops",
-                infoEmpty: "Showing 0 shops",
-                infoFiltered: "(filtered from _MAX_ total shops)",
-                lengthMenu: "Show _MENU_ shops",
-                paginate: {
-                    previous: "Previous",
-                    next: "Next"
-                }
-            }
-        });
+    <script>
+        $(document).ready(function() {
+                    // Desktop DataTable — pagination + search + sorting, styled for Bootstrap 5
+                    if ($('#shops-table tbody tr').length > 0 &&
+                        $('#shops-table tbody tr td[colspan]').length === 0) {
 
-        // Mobile card search (simple client-side filter, mirrors desktop search behavior)
-        const mobileSearch = document.getElementById('mobile-shop-search');
-        const mobileCards = Array.from(document.querySelectorAll('[data-shop-card]'));
-        const mobileNoResults = document.getElementById('mobile-shop-no-results');
+                        if ($('#shops-table').length) {
 
-        if (mobileSearch) {
-            mobileSearch.addEventListener('input', function () {
-                const query = mobileSearch.value.trim().toLowerCase();
-                let visibleCount = 0;
+                            $('#shops-table').DataTable({
+                                pagingType: 'simple_numbers',
+                                pageLength: 10,
+                                lengthChange: true,
+                                lengthMenu: [10, 25, 50, 100],
+                                searching: true,
+                                ordering: true,
+                                info: true,
+                                columnDefs: [{
+                                    orderable: false,
+                                    targets: [1, 2, 3, 4]
+                                }],
+                                language: {
+                                    search: "Search:",
+                                    searchPlaceholder: "Find a shop",
+                                    emptyTable: "No shops found",
+                                    zeroRecords: "No matching shops found",
+                                    info: "Showing _START_ to _END_ of _TOTAL_ shops",
+                                    infoEmpty: "Showing 0 shops",
+                                    infoFiltered: "(filtered from _MAX_ total shops)",
+                                    lengthMenu: "Show _MENU_ shops",
+                                    paginate: {
+                                        previous: "Previous",
+                                        next: "Next"
+                                    }
+                                }
+                            });
+                        }
 
-                mobileCards.forEach(function (card) {
-                    const isVisible = card.textContent.toLowerCase().includes(query);
-                    card.style.display = isVisible ? '' : 'none';
-                    if (isVisible) visibleCount++;
-                });
+                        // Mobile card search (simple client-side filter, mirrors desktop search behavior)
+                        const mobileSearch = document.getElementById('mobile-shop-search');
+                        const mobileCards = Array.from(document.querySelectorAll('[data-shop-card]'));
+                        const mobileNoResults = document.getElementById('mobile-shop-no-results');
 
-                if (mobileNoResults) {
-                    mobileNoResults.classList.toggle('d-none', visibleCount !== 0 || mobileCards.length === 0);
-                }
-            });
-        }
-    });
-</script>
-@endsection
+                        if (mobileSearch) {
+                            mobileSearch.addEventListener('input', function() {
+                                const query = mobileSearch.value.trim().toLowerCase();
+                                let visibleCount = 0;
+
+                                mobileCards.forEach(function(card) {
+                                    const isVisible = card.textContent.toLowerCase().includes(query);
+                                    card.style.display = isVisible ? '' : 'none';
+                                    if (isVisible) visibleCount++;
+                                });
+
+                                if (mobileNoResults) {
+                                    mobileNoResults.classList.toggle('d-none', visibleCount !== 0 || mobileCards.length === 0);
+                                }
+                            });
+                        }
+                    });
+    </script>
+    @endsection
