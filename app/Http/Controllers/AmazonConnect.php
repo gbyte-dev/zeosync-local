@@ -14,6 +14,7 @@ use App\Http\Controllers\ShopifyController;
 use Illuminate\Support\Facades\Crypt;
 use App\Models\MailTemplate;
 use App\Services\EmailService;
+use App\Models\AdminSetting;
 
 class AmazonConnect extends ShopifyController
 {
@@ -27,7 +28,6 @@ class AmazonConnect extends ShopifyController
             return redirect()->route('dashboard')->with('error', 'Shop not found.');
         }
 
-
         return view('amazonconnect.index', compact('activeShop', 'shop'));
     }
 
@@ -36,6 +36,7 @@ class AmazonConnect extends ShopifyController
         $config = json_decode($request->input('amazon_config'), true);
         $activeShop = $request->shop;
         $shop = Shop::where('shop', $activeShop)->first();
+        $settings = AdminSetting::where('option_key','amazon_app_id')->pluck('option_value', 'option_key');
 
         if (!$config || !$shop) {
             return back()->with('error', 'Please select a valid marketplace.');
@@ -57,6 +58,8 @@ class AmazonConnect extends ShopifyController
             'amazon_pending_endpoint' => $config['endpoint'],
         ]);
 
+        $app_id = $settings['amazon_app_id']??config('amazon.app_id');
+
         $authUrl = match ($config['region']) {
             'eu'    => 'https://sellercentral-europe.amazon.com',
             'fe'    => 'https://sellercentral.amazon.co.jp',
@@ -64,7 +67,7 @@ class AmazonConnect extends ShopifyController
         };
 
         $query = http_build_query([
-            'application_id' => config('amazon.app_id'),
+            'application_id' => $app_id,
             'state'          => $state,
             'version'        => 'beta',
             'redirect_uri'   => route('amazon.callback'),
@@ -74,20 +77,15 @@ class AmazonConnect extends ShopifyController
 
             $encryptedShop = Crypt::encryptString($shop->shop);
             $requrl = url('amzon/authorize/shopify/' . $encryptedShop);
-
             $template = MailTemplate::where('slug', 'amazon-connect')->first();
 
             if ($template) {
-
                 $shop->amazon_connect_url = $requrl;
-
                 app(EmailService::class)->sendDynamicEmail(
-                    $template,
-                    $shop
+                    $template,   $shop
                 );
 
-                cache()->put(
-                    "amazon_connect_progress_{$shop->id}",
+                cache()->put("amazon_connect_progress_{$shop->id}",
                     [
                         'percent' => 20,
                         'message' => 'Authorization email sent.',
@@ -106,6 +104,7 @@ class AmazonConnect extends ShopifyController
         // Normal (non-iframe) flow
         return redirect()->away("{$authUrl}/apps/authorize/consent?{$query}");
     }
+
     public function authorizeAmazonIframe(Request $request, $ens)
     {
         $decryptedShop = Crypt::decryptString($ens);
@@ -129,15 +128,16 @@ class AmazonConnect extends ShopifyController
             default => 'https://sellercentral.amazon.com',
         };
 
+        $settings = AdminSetting::where('option_key','amazon_app_id')->pluck('option_value', 'option_key');
+        $app_id = $settings['amazon_app_id']??config('amazon.app_id');
 
         $query = http_build_query([
-            'application_id' => config('amazon.app_id'),
+            'application_id' => $app_id,
             'state'          => $state,
             'version'        => 'beta',
             'redirect_uri'   => route('amazon.callback'),
         ]);
-        cache()->put(
-            "amazon_connect_progress_{$shop->id}",
+        cache()->put( "amazon_connect_progress_{$shop->id}",
             [
                 'percent' => 40,
                 'message' => 'Amazon authorization page opened.',
@@ -162,19 +162,21 @@ class AmazonConnect extends ShopifyController
             }
         }
         
-
         if ($request->state !== $session_auth) {
             return redirect()->route('dashboard')->with('error', 'Invalid state.');
         }
 
+        $settings = AdminSetting::pluck('option_value', 'option_key');
+        $client_id = $settings['production_client_id']??config('amazon.client_id');
+        $client_secret = $settings['production_client_secret']??config('amazon.client_secret');
+
         $response = Http::asForm()->post('https://api.amazon.com/auth/o2/token', [
             'grant_type'    => 'authorization_code',
             'code'          => $request->spapi_oauth_code,
-            'client_id'     => config('amazon.client_id'),
-            'client_secret' => config('amazon.client_secret'),
+            'client_id'     => $client_id,
+            'client_secret' => $client_secret,
         ]);
 
-        // dd($response->json());
         if ($response->successful()) {
             $data = $response->json();
             $sessionshop = $shopdata->shop??session('amazon_shop');
@@ -202,17 +204,14 @@ class AmazonConnect extends ShopifyController
                 'amazon_pending_endpoint'
             ]);
 
-
             $shopName = str_replace('.myshopify.com', '', $shop->shop);
-
             NotificationService::send(
                 'amazon_account_status',
                 'Amazon Seller Connected',
                 "{$shopName} connected Amazon seller account successfully."
             );
 
-            cache()->put(
-                "amazon_connect_progress_{$shop->id}",
+            cache()->put( "amazon_connect_progress_{$shop->id}",
                 [
                     'percent' => 100,
                     'message' => 'Amazon connected successfully.',
@@ -230,18 +229,12 @@ class AmazonConnect extends ShopifyController
     public function progress(Request $request)
     {
         $shopModel = $this->getActiveShop($request);
-
         if (!$shopModel) {
-            return response()->json([
-                'percent' => 0,
-                'message' => 'Shop not found.',
-                'completed' => false,
-            ]);
+            return response()->json(['percent' => 0, 'message' => 'Shop not found.',  'completed' => false ]);
         }
 
         return response()->json(
-            cache()->get(
-                "amazon_connect_progress_{$shopModel->id}",
+            cache()->get("amazon_connect_progress_{$shopModel->id}",
                 [
                     'percent' => 0,
                     'message' => 'Preparing...',
@@ -254,12 +247,16 @@ class AmazonConnect extends ShopifyController
 
     public function syncOrders($shop)
     {
+        $settings = AdminSetting::pluck('option_value', 'option_key');
+        $client_id = $settings['production_client_id']??config('amazon.client_id');
+        $client_secret = $settings['production_client_secret']??config('amazon.client_secret');
+
         // 1. Get Access Token
         $auth = Http::asForm()->post('https://api.amazon.com/auth/o2/token', [
             'grant_type'    => 'refresh_token',
             'refresh_token' => $shop->amazon_refresh_token,
-            'client_id'     => config('amazon.client_id'),
-            'client_secret' => config('amazon.client_secret'),
+            'client_id'     => $client_id,
+            'client_secret' => $client_secret,
         ])->json();
 
         $accessToken = $auth['access_token'];
