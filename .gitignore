@@ -27,7 +27,7 @@
 # Public Storage (symlink)
 # ========================
 /public/storage
-
+/public/uploads/images/*
 # ========================
 # Testing
 # ========================
