@@ -20,6 +20,7 @@ $groups = [
         'production_client_secret',
         'amazon_refresh_token',
         'amazon_seller_id',
+        'amazon_app_id'
     ],
     'Shopify Credentials' => [
         'SHOPIFY_API_KEY','SHOPIFY_API_SECRET','SHOPIFY_REDIRECT_URI'
