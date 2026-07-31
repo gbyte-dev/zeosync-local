@@ -20,6 +20,8 @@ use App\Http\Controllers\ShopifyController;
 use App\Services\ProductLimitService;
 use App\Models\ShopSubscription;
 use App\Services\TransformsAmazonAttributes;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Services\AI\AIAutoFillService;
 use App\Services\AIFeatureService;
@@ -1948,41 +1950,78 @@ class ProductSchemaController extends Controller
     }
     public function importSchema($category)
     {
-        // 1. Generate the schema (same as before, via TestController)
-        $testcontroller = new TestController();
-        $schemaJson = $testcontroller->getDownloadSchema($category);
-        // getDownloadSchema may return an array or a JSON string — normalize to array
-        if (is_string($schemaJson)) {
-            $schemaJson = json_decode($schemaJson, true);
+        try {
+            // 1. Generate the schema
+            $testcontroller = new TestController();
+            $response = $testcontroller->getDownloadSchema($category);
+
+            $schemaJson = null;
+
+            // TACTIC A: Intercept and Handle JsonResponse Object
+            if ($response instanceof JsonResponse) {
+                // If the response contains an error status code (e.g., 400, 500)
+                if (!$response->isSuccessful()) {
+                    $responseData = $response->getData(true);
+                    // Log the exact payload causing the failure
+                    Log::error("Schema Fetch Failure for category '{$category}': ", $responseData ?? []);
+                    return back()->withErrors(['schema_file' => 'Failed to fetch a valid schema. Please check the system logs.']);
+                }
+                // If it's a successful JSON response, normalize it to an array
+                $schemaJson = $response->getData(true);
+            }
+            // TACTIC B: Handle raw JSON string
+            elseif (is_string($response)) {
+                $schemaJson = json_decode($response, true);
+            }
+            // TACTIC C: Handle raw Array
+            elseif (is_array($response)) {
+                $schemaJson = $response;
+            }
+
+            // 2. Validate the extracted data
+            if (empty($schemaJson) || !is_array($schemaJson)) {
+                Log::warning("Unusable schema data retrieved for category: {$category}");
+                return back()->withErrors(['schema_file' => 'Invalid or empty schema generated for "' . $category . '"']);
+            }
+
+            // 3. Parse it (The danger zone is now clear; $schemaJson is guaranteed to be an array)
+            $productType = basename($schemaJson['$id'] ?? uniqid());
+            $renderer = new SchemaRendererService($schemaJson);
+            $fields = $renderer->render();
+
+            ProductSchema::updateOrCreate(
+                [
+                    'product_type' => $productType
+                ],
+                [
+                    'schema_json' => $schemaJson,
+                    'parsed_json' => $fields,
+                    'schema_version' => '1.0'
+                ]
+            );
+
+            // 4. Activate the category
+            $categoryModel = Category::where('slug', $productType)->first();
+            if (!$categoryModel) {
+                Log::error("Schema import succeeded, but category model is missing for slug: {$productType}");
+                return back()->withErrors(['schema_file' => 'No category found matching schema product type "' . $productType . '"']);
+            }
+
+            $categoryModel->status = 'active';
+            $categoryModel->save();
+
+            return redirect()->back()->with(
+                'success',
+                'Schema imported successfully for "' . $category . '".'
+            );
+        } catch (\Exception $e) {
+            // TACTIC D: The Failsafe - Catch any unexpected crashes in rendering or DB insertion
+            Log::critical("System Exception in importSchema for category {$category}: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()->withErrors(['schema_file' => 'An unexpected internal error occurred while processing the schema.']);
         }
-        if (!$schemaJson) {
-            return back()->withErrors(['schema_file' => 'Invalid or empty schema generated for "' . $category . '"']);
-        }
-        // 2. Parse it (same logic as store())
-        $productType = basename($schemaJson['$id'] ?? uniqid());
-        $renderer = new SchemaRendererService($schemaJson);
-        $fields = $renderer->render();
-        ProductSchema::updateOrCreate(
-            [
-                'product_type' => $productType
-            ],
-            [
-                'schema_json' => $schemaJson,
-                'parsed_json' => $fields,
-                'schema_version' => '1.0'
-            ]
-        );
-        // 3. Activate the category
-        $categoryModel = Category::where('slug', $productType)->first();
-        if (!$categoryModel) {
-            return back()->withErrors(['schema_file' => 'No category found matching schema product type "' . $productType . '"']);
-        }
-        $categoryModel->status = 'active';
-        $categoryModel->save();
-        return redirect()->back()->with(
-            'success',
-            'Schema imported successfully for "' . $category . '".'
-        );
     }
     public function deactivateSchema($category)
     {

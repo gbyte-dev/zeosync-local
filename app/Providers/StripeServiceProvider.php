@@ -17,7 +17,7 @@ class StripeServiceProvider extends ServiceProvider
         $this->app->singleton(StripeClient::class, function () {
             // Get credentials from admin settings or env
             $secretKey = $this->getStripeSecretKey();
-            
+
             return new StripeClient($secretKey);
         });
 
@@ -31,12 +31,14 @@ class StripeServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Set Stripe API key globally
         $secretKey = $this->getStripeSecretKey();
 
+        if (empty($secretKey)) {
+            \Log::warning('Stripe secret key is not configured.');
+            return;
+        }
+
         Stripe::setApiKey($secretKey);
-        
-        // Set API version (optional)
         Stripe::setApiVersion('2024-06-20');
     }
 

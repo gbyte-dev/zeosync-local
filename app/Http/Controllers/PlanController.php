@@ -18,11 +18,6 @@ class PlanController extends Controller
 {
 
 
-    protected StripeService $stripeService;
-    public function __construct(StripeService $stripeService)
-    {
-        $this->stripeService = $stripeService;
-    }
     public function index()
     {
         $plans = Plan::orderBy('sort_order')->get();
@@ -202,7 +197,9 @@ class PlanController extends Controller
             'subscription_id' => $shopifySubscription->stripe_subscription_id,
         ]);
 
-        $result = $this->stripeService->cancelSubscription(
+        $stripeService = app(StripeService::class);
+
+        $result = $stripeService->cancelSubscription(
             $shopifySubscription->stripe_subscription_id
         );
 
