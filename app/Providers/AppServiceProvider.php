@@ -17,7 +17,7 @@ class AppServiceProvider extends ServiceProvider
     {
 
         require_once app_path('helpers/mainHelper.php');
-        // getMailSettings();
+	        getMailSettings();
     }
 
     /**

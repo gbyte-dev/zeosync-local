@@ -8,6 +8,7 @@ use App\Models\ProductMarketplaceMapping;
 use App\Models\AllProduct;
 use App\Models\Plan;
 use App\Models\Shop;
+use Illuminate\Support\Facades\DB;
 
 if (!function_exists('setting')) {
     function setting($key, $default = null)
@@ -21,16 +22,16 @@ if (!function_exists('setting')) {
 
 if (!function_exists('getMailSettings')) {
 function getMailSettings(){
-    $settings = AdminSetting::pluck('option_value', 'option_key');
+    $settings = DB::table('admin_settings')->pluck('option_value', 'option_key')->toArray();
 
     config([
-        'mail.mailers.smtp.host' => $settings['smtp_host'],
-        'mail.mailers.smtp.port' => $settings['smtp_port'],
-        'mail.mailers.smtp.username' => $settings['smtp_username'],
-        'mail.mailers.smtp.password' => $settings['smtp_password'],
-        'mail.mailers.smtp.encryption' => $settings['smtp_encryption'],
-        'mail.from.address' => $settings['smtp_from_email'],
-        'mail.from.name' => $settings['smtp_from_name'],
+        'mail.mailers.smtp.host' => $settings['SMTP_host']??env('MAIL_HOST', ''),
+        'mail.mailers.smtp.port' => $settings['SMTP_port']??env('MAIL_PORT', ''),
+        'mail.mailers.smtp.username' => $settings['SMTP_username']??env('MAIL_USERNAME', ''),
+        'mail.mailers.smtp.password' => $settings['SMTP_password']??env('MAIL_PASSWORD', ''),
+        'mail.mailers.smtp.encryption' => $settings['SMTP_encryption']??env('MAIL_ENCRYPTION', ''),
+        'mail.from.address' => $settings['from_email']??env('MAIL_FROM_ADDRESS', ''),
+        'mail.from.name' => $settings['from_name']??env('MAIL_FROM_NAME', ''),
     ]);
 }
 }
