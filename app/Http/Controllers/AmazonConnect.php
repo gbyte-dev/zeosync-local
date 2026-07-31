@@ -34,7 +34,7 @@ class AmazonConnect extends ShopifyController
     public function authorizeAmazon(Request $request)
     {
         $config = json_decode($request->input('amazon_config'), true);
-        $activeShop = $request->shop;
+        $activeShop = $request->shop??session('active_shop');
         $shop = Shop::where('shop', $activeShop)->first();
         $settings = AdminSetting::where('option_key','amazon_app_id')->pluck('option_value', 'option_key');
 
