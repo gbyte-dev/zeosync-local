@@ -221,6 +221,7 @@ class AdminController extends Controller
             'production_client_secret',
             'amazon_refresh_token',
             'amazon_seller_id',
+            'amazon_app_id',
 
             'SHOPIFY_API_KEY',
             'SHOPIFY_API_SECRET',
