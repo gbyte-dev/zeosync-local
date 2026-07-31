@@ -11,11 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('shop_subscriptions', function (Blueprint $table) {
-            $table->integer('requested_plan_id')
-                ->nullable()
-                ->after('updated_at');
-        });
+        if (!Schema::hasColumn('shop_subscriptions', 'requested_plan_id')) {
+            Schema::table('shop_subscriptions', function (Blueprint $table) {
+                $table->integer('requested_plan_id')
+                    ->nullable()
+                    ->after('updated_at');
+            });
+        }
     }
 
     /**
@@ -23,8 +25,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('shop_subscriptions', function (Blueprint $table) {
-            $table->dropColumn('requested_plan_id');
-        });
+        if (Schema::hasColumn('shop_subscriptions', 'requested_plan_id')) {
+            Schema::table('shop_subscriptions', function (Blueprint $table) {
+                $table->dropColumn('requested_plan_id');
+            });
+        }
     }
 };
