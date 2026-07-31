@@ -114,6 +114,7 @@ Route::post('/remove_drafts/{product}', [ProductSchemaController::class, 'remove
 Route::get('/amazonView/{sku}', [TestController::class, 'amazonView'])->name('user.product.amazonView');
 
 // Route::get('/check-mail-test', [TestController::class, 'checkMailTest'])->name('check.mail.test');
+Route::get('/support_front', function () {   return view('support_front'); })->name('shopify.support_frony');
 
 Route::get('/logout', [SettingsController::class, 'logout'])->name('site.logout');
 Route::prefix('admin')->group(function () {
@@ -129,6 +130,5 @@ Route::prefix('admin')->group(function () {
         Route::get('/import-categories', [CategoryController::class, 'importCategories'])->name('admin.import.categories');
         Route::get('/search-categories', [AdminController::class, 'categoryserchedChildren'])->name('admin.search.categories');
 
-        
     });
 });
