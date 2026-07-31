@@ -266,67 +266,73 @@
 
     @push('scripts')
 
-<script>
-    let shopifyData = [];
-    let amazonData = [];
-    let filteredData = [];
-    let activeTab = 'shopify';
-    let currentPage = 1;
-    let perPage = 10;
+    <script>
+        let shopifyData = [];
+        let amazonData = [];
+        let filteredData = [];
+        let activeTab = 'shopify';
+        let currentPage = 1;
+        let perPage = 10;
 
-    // Load Shopify
-    function loadShopify() {
-        activeTab = 'shopify';
-        currentPage = 1;
+        // Load Shopify
+        function loadShopify() {
+            activeTab = 'shopify';
+            currentPage = 1;
 
-        fetch('{{ route("shopify.inventory.shopify") }}')
-            .then(res => res.json())
-            .then(data => {
-                shopifyData = data;
-                filteredData = [...data];
-                renderTable();
-            });
-    }
-
-    // Load Amazon
-    function loadAmazon() {
-        activeTab = 'amazon';
-        currentPage = 1;
-
-        fetch('{{ route("shopify.inventory.amazon") }}')
-            .then(res => res.json())
-            .then(data => {
-                amazonData = data;
-                filteredData = [...data];
-                renderTable();
-            });
-
-    }
-
-
-    function renderTable() {
-        let data = filteredData;
-        let total = data.length;
-        let totalPages = Math.ceil(total / perPage);
-
-        if (currentPage > totalPages) {
-            currentPage = totalPages || 1;
+            fetch('{{ route("shopify.inventory.shopify") }}')
+                .then(res => res.json())
+                .then(data => {
+                    shopifyData = data;
+                    filteredData = [...data];
+                    renderTable();
+                });
         }
 
-        let start = (currentPage - 1) * perPage;
-        let paginated = data.slice(start, start + perPage);
-        let rows = '';
-        let synced = 0, pending = 0, error = 0;
+        function loadAmazon() {
+            activeTab = 'amazon';
+            currentPage = 1;
 
-        data.forEach(item => {
-            if (item.status === 'synced') synced++;
-            if (item.status === 'pending') pending++;
-            if (item.status === 'error') error++;
-        });
+            fetch('{{ route("shopify.inventory.amazon") }}')
+                .then(res => res.json())
+                .then(data => {
 
-        paginated.forEach(item => {
-            if (activeTab === 'shopify') {
-                rows += `
+                    amazonData = data.products ?? [];
+                    filteredData = [...amazonData];
+
+                    renderTable();
+
+                    if (data.status?.refreshing) {
+                        startProgress();
+                    }
+                });
+        }
+
+
+        function renderTable() {
+            let data = filteredData;
+            let total = data.length;
+            let totalPages = Math.ceil(total / perPage);
+
+            if (currentPage > totalPages) {
+                currentPage = totalPages || 1;
+            }
+
+            let start = (currentPage - 1) * perPage;
+            let paginated = data.slice(start, start + perPage);
+            let rows = '';
+            let synced = 0,
+                pending = 0,
+                error = 0;
+
+            data.forEach(item => {
+                if (item.status === 'synced') synced++;
+                if (item.status === 'pending') pending++;
+                if (item.status === 'error') error++;
+            });
+
+            paginated.forEach(item => {
+                if (activeTab === 'shopify') {
+                    rows += `
         <tr>
             <td><input type="checkbox"></td>
             <td class="d-flex align-items-center gap-2">
@@ -350,144 +356,144 @@
                     class="form-control form-control-sm" style="width:80px">
             </td>
         </tr>`;
-            }
-        });
-
-        document.querySelector(`#${activeTab}Table tbody`).innerHTML = rows;
-
-        document.getElementById('totalCount').innerText = total;
-        document.getElementById('syncedCount').innerText = synced;
-        document.getElementById('pendingCount').innerText = pending;
-        document.getElementById('errorCount').innerText = error;
-
-        let startItem = total === 0 ? 0 : start + 1;
-        let endItem = Math.min(start + perPage, total);
-
-        document.getElementById('paginationInfo').innerText =
-            `Showing ${startItem} to ${endItem} of ${total} results`;
-
-        let buttons = '';
-
-        // PREV
-        buttons += `<button class="page-btn ${currentPage === 1 ? 'disabled' : ''}" onclick="prevPage()">‹</button>`;
-
-        let startPage = Math.max(1, currentPage - 2);
-        let endPage = Math.min(totalPages, currentPage + 2);
-
-        // FIRST PAGE + DOTS
-        if (startPage > 1) {
-            buttons += `<button class="page-btn" onclick="goToPage(1)">1</button>`;
-            if (startPage > 2) {
-                buttons += `<span class="page-btn disabled">...</span>`;
-            }
-        }
-
-        // MIDDLE PAGES
-        for (let i = startPage; i <= endPage; i++) {
-            buttons += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
-        }
-
-        // LAST PAGE + DOTS
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) {
-                buttons += `<span class="page-btn disabled">...</span>`;
-            }
-            buttons += `<button class="page-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
-        }
-
-        // NEXT
-        buttons += `<button class="page-btn ${currentPage === totalPages ? 'disabled' : ''}" onclick="nextPage()">›</button>`;
-
-        document.getElementById('paginationButtons').innerHTML = buttons;
-    }
-
-    function goToPage(page) {
-        currentPage = page;
-        renderTable();
-    }
-
-    function nextPage() {
-        let totalPages = Math.ceil(filteredData.length / perPage);
-        if (currentPage < totalPages) {
-            currentPage++;
-            renderTable();
-        }
-    }
-
-    function prevPage() {
-        if (currentPage > 1) {
-            currentPage--;
-            renderTable();
-        }
-    }
-
-    // Filter
-    function applyFilter(types) {
-
-        currentPage = 1;
-        let search = document.getElementById('searchInput' + types).value.toLowerCase();
-        let status = document.getElementById('statusFilter' + types).value;
-        let data = activeTab === 'shopify' ? shopifyData : amazonData;
-
-        filteredData = data.filter(item => {
-
-            let matchSearch =
-                (item.sku && item.sku.toLowerCase().includes(search)) ||
-                (item.product && item.product.toLowerCase().includes(search));
-
-            let matchStatus = status ? item.status === status : true;
-            return matchSearch && matchStatus;
-        });
-
-        renderTable();
-    }
-
-
-
-    // Reset Filter
-
-    function resetFilter() {
-
-        currentPage = 1;
-        filteredData = activeTab === 'shopify'
-            ? [...shopifyData]  :  [...amazonData];
-
-        document.getElementById('searchInput').value = '';
-        document.getElementById('statusFilter').value = '';
-
-        renderTable();
-    }
-
-    // Badge
-    function badge(status) {
-
-        if (status === 'synced') return `<span class="badge bg-success">Synced</span>`;
-        if (status === 'pending') return `<span class="badge bg-warning">Pending</span>`;
-        if (status === 'error') return `<span class="badge bg-danger">Error</span>`;
-        return `<span class="badge bg-secondary">Unknown</span>`;
-
-    }
-
-    // Refresh Cache
-    function refreshCache(event) {
-
-        const btn = event.target;
-        btn.innerHTML = 'Refreshing...';
-        btn.disabled = true;
-        fetch('{{ route("shopify.inventory.refresh") }}')
-            .then(() => {
-                if (activeTab === 'shopify') loadShopify();
-                else loadAmazon();
-
-            })
-            .finally(() => {
-                btn.innerHTML = 'Force Refresh';
-                btn.disabled = false;
-
+                }
             });
-    }
 
-    loadShopify();
+            document.querySelector(`#${activeTab}Table tbody`).innerHTML = rows;
+
+            document.getElementById('totalCount').innerText = total;
+            document.getElementById('syncedCount').innerText = synced;
+            document.getElementById('pendingCount').innerText = pending;
+            document.getElementById('errorCount').innerText = error;
+
+            let startItem = total === 0 ? 0 : start + 1;
+            let endItem = Math.min(start + perPage, total);
+
+            document.getElementById('paginationInfo').innerText =
+                `Showing ${startItem} to ${endItem} of ${total} results`;
+
+            let buttons = '';
+
+            // PREV
+            buttons += `<button class="page-btn ${currentPage === 1 ? 'disabled' : ''}" onclick="prevPage()">‹</button>`;
+
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, currentPage + 2);
+
+            // FIRST PAGE + DOTS
+            if (startPage > 1) {
+                buttons += `<button class="page-btn" onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) {
+                    buttons += `<span class="page-btn disabled">...</span>`;
+                }
+            }
+
+            // MIDDLE PAGES
+            for (let i = startPage; i <= endPage; i++) {
+                buttons += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+
+            // LAST PAGE + DOTS
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    buttons += `<span class="page-btn disabled">...</span>`;
+                }
+                buttons += `<button class="page-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+
+            // NEXT
+            buttons += `<button class="page-btn ${currentPage === totalPages ? 'disabled' : ''}" onclick="nextPage()">›</button>`;
+
+            document.getElementById('paginationButtons').innerHTML = buttons;
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            renderTable();
+        }
+
+        function nextPage() {
+            let totalPages = Math.ceil(filteredData.length / perPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+
+        // Filter
+        function applyFilter(types) {
+
+            currentPage = 1;
+            let search = document.getElementById('searchInput' + types).value.toLowerCase();
+            let status = document.getElementById('statusFilter' + types).value;
+            let data = activeTab === 'shopify' ? shopifyData : amazonData;
+
+            filteredData = data.filter(item => {
+
+                let matchSearch =
+                    (item.sku && item.sku.toLowerCase().includes(search)) ||
+                    (item.product && item.product.toLowerCase().includes(search));
+
+                let matchStatus = status ? item.status === status : true;
+                return matchSearch && matchStatus;
+            });
+
+            renderTable();
+        }
+
+
+
+        // Reset Filter
+
+        function resetFilter() {
+
+            currentPage = 1;
+            filteredData = activeTab === 'shopify' ?
+                [...shopifyData] : [...amazonData];
+
+            document.getElementById('searchInput').value = '';
+            document.getElementById('statusFilter').value = '';
+
+            renderTable();
+        }
+
+        // Badge
+        function badge(status) {
+
+            if (status === 'synced') return `<span class="badge bg-success">Synced</span>`;
+            if (status === 'pending') return `<span class="badge bg-warning">Pending</span>`;
+            if (status === 'error') return `<span class="badge bg-danger">Error</span>`;
+            return `<span class="badge bg-secondary">Unknown</span>`;
+
+        }
+
+        // Refresh Cache
+        function refreshCache(event) {
+
+            const btn = event.target;
+            btn.innerHTML = 'Refreshing...';
+            btn.disabled = true;
+            fetch('{{ route("shopify.inventory.refresh") }}')
+                .then(() => {
+                    if (activeTab === 'shopify') loadShopify();
+                    else loadAmazon();
+
+                })
+                .finally(() => {
+                    btn.innerHTML = 'Force Refresh';
+                    btn.disabled = false;
+
+                });
+        }
+
+        loadShopify();
     </script>
 
     @endpush

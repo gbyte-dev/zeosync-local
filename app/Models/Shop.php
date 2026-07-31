@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
@@ -14,6 +15,8 @@ class Shop extends Model
      *
      * @var array<int, string>
      */
+    use SoftDeletes;
+
     protected $fillable = [
         'shop',
         'access_token',
