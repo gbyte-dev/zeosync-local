@@ -797,20 +797,28 @@
 
         progressTimer = setInterval(function() {
             $.ajax({
-                url: '/zeosync/inventory/amazon/progress',
-                type: 'GET',
+                url: "{{ route('inventory.amazon.progress') }}",
+                type: "GET",
                 data: {
-                    shop: new URLSearchParams(window.location.search).get('shop')
+                    shop: new URLSearchParams(window.location.search).get("shop"),
                 },
                 success: function(res) {
-                    console.log('Progress:', res.percent, res.message);
-                    $('#amazonProgressPercent').text((res.percent ?? 0) + '%');
-                    $('#amazonProgressMessage').text(res.message ?? 'Preparing...');
+                    console.log("Progress:", res.percent, res.message);
 
-                    if ((res.percent ?? 0) >= 100) {
+                    const percent = res.percent ?? 0;
+
+                    $("#amazonProgressPercent").text(percent + "%");
+                    $("#amazonProgressMessage").text(res.message ?? "Preparing...");
+
+                    if (percent >= 100) {
+
                         clearInterval(progressTimer);
+
+                        hideAmazonLoader();
+
+                        loadAmazon();
                     }
-                }
+                },
             });
         }, 1000);
     }
@@ -820,14 +828,14 @@
         if (!amazonConnected) {
             return;
         }
+
         console.log('Load Amazon Clicked');
-        showAmazonLoader();
-        startProgress();
+
         const shop = new URLSearchParams(window.location.search).get('shop');
         console.log('Shop:', shop);
 
         $.ajax({
-            url: '/zeosync/inventory/amazon',
+            url: "{{ route('shopify.inventory.amazon') }}",
             type: 'GET',
             data: {
                 shop: shop
@@ -836,12 +844,34 @@
                 console.log('Amazon request started');
             },
             success: function(response) {
+
                 console.log('Amazon request completed', response);
-                amazonData = response;
+
+                amazonData = response.products ?? [];
                 filteredData = [...amazonData];
+
                 activeTab = 'amazon';
                 currentPage = 1;
+
                 renderTable();
+
+                if (response.status?.refreshing) {
+
+                    console.log("Background refresh running");
+
+                    showAmazonLoader();
+                    startProgress();
+
+                } else {
+
+                    console.log("Serving cached inventory");
+
+                    hideAmazonLoader();
+
+                    if (progressTimer) {
+                        clearInterval(progressTimer);
+                    }
+                }
             },
             error: function(xhr) {
                 console.error('Amazon request failed', xhr);
@@ -849,15 +879,6 @@
             },
             complete: function() {
                 console.log('Amazon AJAX complete');
-                if (progressTimer) {
-                    clearInterval(progressTimer);
-                }
-                $('#amazonProgressPercent').text('100%');
-                $('#amazonProgressMessage').text('Completed');
-                setTimeout(function() {
-                    console.log('Hide Loader');
-                    hideAmazonLoader();
-                }, 700);
             }
         });
     }
@@ -1142,7 +1163,7 @@
         qtyInput.prop('disabled', true);
 
         $.ajax({
-            url: '/zeosync/inventory/shopify/update',
+            url: "{{ route('shopify.inventory.shopify') }}",
             type: 'POST',
             data: {
                 shop: shop,
@@ -1172,7 +1193,7 @@
         const shop = new URLSearchParams(window.location.search).get('shop');
 
         $.ajax({
-            url: `${window.location.origin}/zeosync/inventory/amazon/${sku}/update-quantity?shop=${encodeURIComponent(shop)}`,
+            url: `${window.location.origin}/inventory/amazon/${sku}/update-quantity?shop=${encodeURIComponent(shop)}`,
             type: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')

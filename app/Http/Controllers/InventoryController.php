@@ -225,6 +225,7 @@ class InventoryController extends ShopifyController
      */
     public function amazon(Request $request)
     {
+        Log::info('AMAZON INVENTORY API HIT');
         $shop = $request->attributes->get('active_shop_model');
 
         if (!$shop) {
@@ -251,7 +252,10 @@ class InventoryController extends ShopifyController
 
         $inventoryCacheService = app(InventoryCacheService::class);
 
-        $response = $inventoryCacheService->getAmazonInventory($shop);
+        $response = $inventoryCacheService->getAmazonInventory(
+            $shop,
+            $shop->amazon_marketplace_id
+        );
 
         $data = $response['products'];
 

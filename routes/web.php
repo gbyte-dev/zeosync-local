@@ -17,6 +17,7 @@ use App\Http\Controllers\ProductSchemaController;
 use App\Http\Controllers\TestController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ShopifyComplianceWebhookController;
 
 
 
@@ -31,13 +32,15 @@ Route::get('/', [ShopifyController::class, 'entry'])->name('crm.entry');
 Route::get('/install', [ShopifyController::class, 'install'])->name('shopify.install');
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/callback', [ShopifyController::class, 'callback'])->name('shopify.callback');
-Route::middleware([  ResolveActiveShop::class, \App\Http\Middleware\CheckSubscription::class
+Route::middleware([
+    ResolveActiveShop::class,
+    \App\Http\Middleware\CheckSubscription::class
 ])->group(function () {
     // Route::get('/products', [ShopifyController::class, 'products'])
     //     ->name('shopify.products');
     Route::get('/product/{id}', [ShopifyController::class, 'viewProduct'])->name('shopify.product.view');
     Route::get('/createProduct', [ShopifyController::class, 'create'])
-    ->name('shopify.product.create');
+        ->name('shopify.product.create');
     Route::get('/editProduct/{id}', [ShopifyController::class, 'editProduct'])->name('shopify.product.edit');
     Route::get('/orders', [ShopifyController::class, 'orders'])->name('orders.index');
     Route::get('/orders/{order}', [ShopifyController::class, 'showOrder'])->name('orders.show');
@@ -51,6 +54,10 @@ Route::middleware([  ResolveActiveShop::class, \App\Http\Middleware\CheckSubscri
     Route::post('logs/remove-all', [SettingsController::class, 'removeAllLogs'])->name('shopify.logs.remove.all');
     Route::delete('logs/{id}', [SettingsController::class, 'removeLog'])->name('shopify.logs.remove');
 });
+
+Route::get('/webhooks/customers/data_request', [ShopifyComplianceWebhookController::class, 'customersDataRequest']);
+Route::get('/webhooks/customers/redact', [ShopifyComplianceWebhookController::class, 'customersRedact']);
+Route::get('/webhooks/shop/redact', [ShopifyComplianceWebhookController::class, 'shopRedact']);
 
 Route::middleware([ResolveActiveShop::class])->group(function () {
     //  product page route 
@@ -72,15 +79,20 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::post('/image-upload', [ImageController::class, 'store'])->name('shopify.imgupload.store');
     Route::delete('/image-upload/{id}', [ImageController::class, 'destroy'])
         ->name('shopify.imgupload.delete');
-    Route::get('/rules', function () { return view('rules'); })->name('shopify.rules');
-    Route::get('/help', function () {  return view('help');   })->name('shopify.help');
-    Route::get('/support', function () {   return view('support'); })->name('shopify.support');
+    Route::get('/rules', function () {
+        return view('rules');
+    })->name('shopify.rules');
+    Route::get('/help', function () {
+        return view('help');
+    })->name('shopify.help');
+    Route::get('/support', function () {
+        return view('support');
+    })->name('shopify.support');
     Route::get('/notification', [NotificationController::class, 'usernotification'])->name('user.notification');
-    Route::post( '/settings/notifications',  [NotificationController::class, 'updateNotificationSettings'] )->name('notification.settings.update');
+    Route::post('/settings/notifications',  [NotificationController::class, 'updateNotificationSettings'])->name('notification.settings.update');
     Route::delete('/notification/user/all', [NotificationController::class, 'removeAllUserNotifications'])->name('user.notification.delete.all');
     Route::delete('/notification/user/{id}', [NotificationController::class, 'removeUserNotification'])->name('user.notification.delete');
     Route::post('/notification/user/mark-all-read', [NotificationController::class, 'markAllUserNotificationsRead'])->name('user.notification.markAllRead');
-
 });
 
 Route::post('/sync-to-amazon/{id}', [ShopifyController::class, 'syncToAmazon'])->name('shopify.sync.amazon');
@@ -114,7 +126,9 @@ Route::post('/remove_drafts/{product}', [ProductSchemaController::class, 'remove
 Route::get('/amazonView/{sku}', [TestController::class, 'amazonView'])->name('user.product.amazonView');
 
 // Route::get('/check-mail-test', [TestController::class, 'checkMailTest'])->name('check.mail.test');
-Route::get('/support_front', function () {   return view('support_front'); })->name('shopify.support_front');
+Route::get('/support_front', function () {
+    return view('support_front');
+})->name('shopify.support_front');
 
 Route::get('/logout', [SettingsController::class, 'logout'])->name('site.logout');
 Route::prefix('admin')->group(function () {
@@ -129,6 +143,5 @@ Route::prefix('admin')->group(function () {
         Route::post('/delete-category/{category}', [AdminController::class, 'deleteCategory'])->name('admin.category.delete');
         Route::get('/import-categories', [CategoryController::class, 'importCategories'])->name('admin.import.categories');
         Route::get('/search-categories', [AdminController::class, 'categoryserchedChildren'])->name('admin.search.categories');
-
     });
 });

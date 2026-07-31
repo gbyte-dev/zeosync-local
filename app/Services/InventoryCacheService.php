@@ -33,19 +33,43 @@ class InventoryCacheService
         string $marketplaceId = 'ATVPDKIKX0DER'
     ): array {
 
+        Log::info('getAmazonInventory START', [
+            'shop_id' => $shop->id,
+            'marketplace' => $marketplaceId,
+        ]);
+
         $inventory = Cache::get(
             $this->getInventoryCacheKey($shop, $marketplaceId),
             []
         );
 
-        if ($this->isExpired($shop, $marketplaceId)) {
+        Log::info('Inventory cache loaded', [
+            'count' => is_array($inventory) ? count($inventory) : 0,
+        ]);
+
+        $expired = $this->isExpired($shop, $marketplaceId);
+
+        Log::info('Cache expiry check', [
+            'expired' => $expired,
+            'status' => $this->getStatus($shop, $marketplaceId),
+        ]);
+
+        if ($expired) {
+            Log::info('Calling dispatchRefresh');
             $this->dispatchRefresh($shop, $marketplaceId);
         }
 
+        $status = $this->getStatus($shop, $marketplaceId);
+
+        Log::info('Returning response', [
+            'products' => is_array($inventory) ? count($inventory) : 0,
+            'status' => $status,
+        ]);
+
         return [
             'products' => $inventory,
-            'status' => $this->getStatus($shop, $marketplaceId),
-        ];
+            'status'   => $status,
+        ];  
     }
 
     /**
@@ -119,13 +143,27 @@ class InventoryCacheService
         string $marketplaceId = 'ATVPDKIKX0DER'
     ): void {
 
+        Log::info('dispatchRefresh ENTERED', [
+            'shop_id' => $shop->id,
+            'marketplace' => $marketplaceId,
+        ]);
+
         $status = $this->getStatus($shop, $marketplaceId);
 
+        Log::info('Current Refresh Status', $status);
+
         if ($status['refreshing'] ?? false) {
+            Log::info('Refresh already in progress. Dispatch skipped.');
             return;
         }
 
+        Log::info('Dispatching SyncAmazonInventoryJob', [
+            'shop_id' => $shop->id,
+        ]);
+
         SyncAmazonInventoryJob::dispatch($shop->id);
+
+        Log::info('SyncAmazonInventoryJob dispatched successfully');
     }
 
     /**
@@ -142,9 +180,18 @@ class InventoryCacheService
             return true;
         }
 
-        return now()->diffInMinutes(
-            $status['last_synced_at']
-        ) >= self::CACHE_TTL;
+        $lastSynced = \Carbon\Carbon::parse($status['last_synced_at']);
+        $minutes = $lastSynced->diffInMinutes(now());
+
+        Log::info('Expiry Debug', [
+            'last_synced_at' => $lastSynced->toDateTimeString(),
+            'now' => now()->toDateTimeString(),
+            'minutes' => $minutes,
+            'ttl' => self::CACHE_TTL,
+            'expired' => $minutes >= self::CACHE_TTL,
+        ]);
+
+        return $minutes >= self::CACHE_TTL;
     }
 
     /**
