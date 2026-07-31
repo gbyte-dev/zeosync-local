@@ -10,12 +10,12 @@
     <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ asset('css/sidebar.css') }}?v={{ time() }}" rel="stylesheet">
     <link href="{{ asset('css/style.css') }}?v={{ time() }}" rel="stylesheet">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('logo/favamzsync.png')}}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('logo/favamzsync.png')}}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('logo/favamzsync.png') }}">
 
-    <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
-
-    <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
 
     @stack('css')
 

@@ -9,6 +9,10 @@
 
     <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ asset('css/style.css') }}?v={{ time() }}" rel="stylesheet">
+    
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('logo/favamzsync.png')}}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('logo/favamzsync.png')}}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('logo/favamzsync.png') }}">
 
     <style>
         /* Enterprise SaaS App Layout - Tight Density */
