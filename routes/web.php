@@ -74,7 +74,7 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
         ->name('shopify.imgupload.delete');
     Route::get('/rules', function () { return view('rules'); })->name('shopify.rules');
     Route::get('/help', function () {  return view('help');   })->name('shopify.help');
-    Route::get('/support_us', function () {   return view('support_front'); })->name('shopify.support_us');
+    Route::get('/support', function () {   return view('support'); })->name('shopify.support');
     Route::get('/notification', [NotificationController::class, 'usernotification'])->name('user.notification');
     Route::post( '/settings/notifications',  [NotificationController::class, 'updateNotificationSettings'] )->name('notification.settings.update');
     Route::delete('/notification/user/all', [NotificationController::class, 'removeAllUserNotifications'])->name('user.notification.delete.all');
