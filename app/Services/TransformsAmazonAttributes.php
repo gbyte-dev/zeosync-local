@@ -115,7 +115,7 @@ class TransformsAmazonAttributes
             $regex = '/^\s*([\d.]+)\s*[Ll]?\s*x\s*([\d.]+)\s*[Ww]?\s*x\s*([\d.]+)\s*[Hh]?\s*(.*?)\s*$/i';
 
             if (!preg_match($regex, $valueString, $m)) {
-                dd($valueString);
+               // dd($valueString);
                 return null;
             }
 
