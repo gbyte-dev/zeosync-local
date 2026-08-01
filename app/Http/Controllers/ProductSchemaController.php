@@ -540,7 +540,7 @@ class ProductSchemaController extends Controller
                 continue;
             }
             $canonicalName = match ($name) {
-                'color_name', 'colour' => 'color','ring'=>'ring_size',
+                'color_name', 'colour' => 'color',
                 default => $name,
             };
 
