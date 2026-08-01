@@ -540,9 +540,11 @@ class ProductSchemaController extends Controller
                 continue;
             }
             $canonicalName = match ($name) {
-                'color_name', 'colour' => 'color',
+                'color_name', 'colour' => 'color','ring'=>'ring_size',
                 default => $name,
             };
+
+            
             $transformed = $transformer->transformAttribute($canonicalName, $value);
             if ($transformed === null) {
                 continue;
@@ -555,6 +557,9 @@ class ProductSchemaController extends Controller
                 $attributes['lens'] = $lensTransformed;
             }
         }
+
+        ring
+
         return [
             'requirements' => 'LISTING',
             'attributes'   => $attributes,
