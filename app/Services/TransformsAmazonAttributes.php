@@ -282,6 +282,17 @@ class TransformsAmazonAttributes
             ]];
         }
 
+
+        if ($name === 'item_diameter') {
+            preg_match('/(\d+(?:\.\d+)?)\s*([a-zA-Z\s]+)?/', strtolower(trim($value)), $m);
+            return [[
+                'value' => (float)($m[1] ?? $value),
+                'unit' => $unitMap[$m[2] ?? 'mm'] ?? 'millimeters',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
+
         if ($name === 'list_price') {
             return [['value' => (float) $value, 'currency' => 'USD']];
         }
@@ -359,7 +370,7 @@ class TransformsAmazonAttributes
             preg_match('/(\d+(?:\.\d+)?)\s*([a-zA-Z\s]+)?/', strtolower(trim($value)), $m);
             return [[
                 'value' => (float)($m[1] ?? $value),
-                'unit'  => $liguidunit[$m[2] ?? 'ml'] ?? 'milliliters'
+                'unit'  => $liquidUnit[$m[2] ?? 'ml'] ?? 'milliliters'
             ]];
         }
 
@@ -588,13 +599,6 @@ class TransformsAmazonAttributes
             ]];
         }
 
-        if ($name === 'item_diameter') {
-            return [[
-                'value' => 17.3,
-                'unit' => 'millimeters',
-                'marketplace_id' => $marketplaceId,
-            ]];
-        }
 
         return [['value' => $value]];
         }catch(\Exception $e){
@@ -753,7 +757,7 @@ class TransformsAmazonAttributes
             'milligrams'=>'milligrams','mg'=>'milligrams',
             'micrograms'=>'micrograms','mcg'=>'micrograms',
             'metric tons'=>'metric_tons','tonne'=>'metric_tons','t'=>'metric_tons',
-            'carat' => 'carats','carats' => 'carats','ct' => 'carats','cts' => 'carats',
+            'carat' => 'carats','carats' => 'carats','ct' => 'carats','cts' => 'carats','ctw' => 'carats','
             'ct.' => 'carats','karat' => 'carats','karats' => 'carats','kt' => 'carats','kts' => 'carats',
         ];
     }
