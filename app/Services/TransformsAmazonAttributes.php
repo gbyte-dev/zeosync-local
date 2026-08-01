@@ -110,14 +110,17 @@ class TransformsAmazonAttributes
         // ── L x W x H labeled dimensions ("39L x 17.5W x 3H Centimeters") or simple "10 x 2 x 2.7 inches" ──
         if (in_array($name, ['item_package_dimensions', 'item_length_width_height'])) {
             $valueString = trim((string) $value);
-            $m = [];
-            if (!preg_match('/^([\d.]+)\s*(?:L|W|H)?\s*[xX×*]\s*([\d.]+)\s*(?:L|W|H)?\s*[xX×*]\s*([\d.]+)\s*(?:L|W|H)?\s*([a-zA-Z.]+)?$/i',
-                $valueString,
-                $m
-            )) { return null;   }
+            $valueString = str_replace(['×', '*'], 'x', $valueString);
 
-            $unitToken = trim($m[4] ?? '');
-            $unit = $unitMap[strtolower($unitToken)] ?? strtolower($unitToken ?: 'inches');
+            $regex = '/^\s*([\d.]+)\s*[Ll]?\s*x\s*([\d.]+)\s*[Ww]?\s*x\s*([\d.]+)\s*[Hh]?\s*(.*?)\s*$/i';
+
+            if (!preg_match($regex, $valueString, $m)) {
+               // dd($valueString);
+                return null;
+            }
+
+            $unit = $unitMap[strtolower(trim($m[4] ?? ''))] ?? strtolower(trim($m[4] ?? 'inches'));
+
             return [[
                 'length' => ['value' => (float) $m[1], 'unit' => $unit],
                 'width'  => ['value' => (float) $m[2], 'unit' => $unit],
