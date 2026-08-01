@@ -292,39 +292,33 @@ class TransformsAmazonAttributes
                 ]];
             }
 
-            if ($name === 'stone_clarity') {
+            if ($name === 'stone') {
                 return [[
-                    'value' => 'VS1',
                     'marketplace_id' => $marketplaceId,
-                ]];
-            }
 
-            if ($name === 'stone_shape') {
-                return [[
-                    'value' => 'Round',
-                    'marketplace_id' => $marketplaceId,
-                ]];
-            }
+                    'clarity' => [[
+                        'language_tag' => 'en_US',
+                        'value' => 'VS1'
+                    ]],
 
-            if ($name === 'stone_color') {
-                return [[
-                    'value' => 'D',
-                    'marketplace_id' => $marketplaceId,
-                ]];
-            }
+                    'color' => [[
+                        'language_tag' => 'en_US',
+                        'value' => 'D'
+                    ]],
 
-            if ($name === 'stone_weight') {
-                return [[
-                    'value' => 1,
-                    'unit' => 'carats',
-                    'marketplace_id' => $marketplaceId,
-                ]];
-            }
+                    'creation_method' => [[
+                        'value' => 'natural'
+                    ]],
 
-            if ($name === 'stones') {
-                return [[
-                    'type' => 'Diamond',
-                    'marketplace_id' => $marketplaceId,
+                    'shape' => [[
+                        'language_tag' => 'en_US',
+                        'value' => 'Round'
+                    ]],
+
+                    'weight' => [[
+                        'value' => 1,
+                        'unit' => 'carats'
+                    ]]
                 ]];
             }
 
