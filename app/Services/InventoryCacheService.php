@@ -37,11 +37,25 @@ class InventoryCacheService
             'shop_id' => $shop->id,
             'marketplace' => $marketplaceId,
         ]);
+        $cacheKey = $this->getInventoryCacheKey($shop, $marketplaceId);
+        if (!Cache::has($cacheKey)) {
 
-        $inventory = Cache::get(
-            $this->getInventoryCacheKey($shop, $marketplaceId),
-            []
-        );
+            Log::warning('Amazon inventory cache not found. Refreshing immediately.', [
+                'shop_id' => $shop->id,
+            ]);
+
+            $inventory = $this->refreshAmazonInventory(
+                $shop,
+                $marketplaceId
+            );
+
+            return [
+                'products' => $inventory,
+                'status' => $this->getStatus($shop, $marketplaceId),
+            ];
+        }
+
+        $inventory = Cache::get($cacheKey, []);
 
         Log::info('Inventory cache loaded', [
             'count' => is_array($inventory) ? count($inventory) : 0,
@@ -69,7 +83,7 @@ class InventoryCacheService
         return [
             'products' => $inventory,
             'status'   => $status,
-        ];  
+        ];
     }
 
     /**
@@ -155,7 +169,7 @@ class InventoryCacheService
         if ($status['refreshing'] ?? false) {
             Log::info('Refresh already in progress. Dispatch skipped.');
             return;
-        }
+        };
 
         Log::info('Dispatching SyncAmazonInventoryJob', [
             'shop_id' => $shop->id,

@@ -853,6 +853,11 @@
                 activeTab = 'amazon';
                 currentPage = 1;
 
+                console.log('Active Tab:', activeTab);
+                console.log('Amazon Data Count:', amazonData.length);
+                console.log('Filtered Data Count:', filteredData.length);
+                console.log('First Amazon Item:', filteredData[0]);
+
                 renderTable();
 
                 if (response.status?.refreshing) {
