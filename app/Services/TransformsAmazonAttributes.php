@@ -349,7 +349,7 @@ class TransformsAmazonAttributes
                 ]];
             }
             
-        if ($name === 'item_diameter') {
+        if ($name === 'item_diameter' || $name === 'item_thickness') {
             preg_match('/(\d+(?:\.\d+)?)\s*([a-zA-Z\s]+)?/', strtolower(trim($value)), $m);
             return [[
                 'value' => (float)($m[1] ?? $value),
