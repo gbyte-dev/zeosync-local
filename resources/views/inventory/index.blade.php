@@ -9,26 +9,6 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
 <style>
-    /* Global Clean SaaS Environment - Tighter Density */
-    body {
-        background-color: #F4F6F8;
-        font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        color: #202223;
-        font-size: 13px;
-        /* Prevent accidental horizontal page scrolling in iframes */
-        overflow-x: hidden;
-    }
-
-    #sidebar {
-        visibility: visible !important;
-        opacity: 1 !important;
-        z-index: 9999 !important;
-    }
-
-    .saas-wrapper {
-        max-width: 1180px;
-        padding: 12px 16px;
-    }
 
     /* Page Header & Usage Card */
     .saas-page-header {
@@ -494,7 +474,7 @@
     }
 </style>
 
-<div class="saas-wrapper mt-3">
+<div class="saas-wrapper">
 
     {{-- Header & Usage --}}
     <div class="saas-page-header">
