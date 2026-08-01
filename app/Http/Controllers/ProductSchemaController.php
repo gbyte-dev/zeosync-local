@@ -558,8 +558,6 @@ class ProductSchemaController extends Controller
             }
         }
 
-        ring
-
         return [
             'requirements' => 'LISTING',
             'attributes'   => $attributes,
