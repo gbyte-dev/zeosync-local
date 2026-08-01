@@ -287,9 +287,13 @@ class TransformsAmazonAttributes
 
             if ($name === 'ring_size' || $name === 'ring') {
                 return [[
-                    'ring_size' => '7',
+                    'size' => [
+                        'language_tag' => 'en_US',
+                        'value' => '7'
+                    ],
                     'marketplace_id' => $marketplaceId,
                 ]];
+          
             }
 
             if ($name === 'stone') {
