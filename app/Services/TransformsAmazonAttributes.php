@@ -522,6 +522,80 @@ class TransformsAmazonAttributes
             return [['value' => strtolower(trim((string) $value))]];
         }
 
+        // only for rings
+
+        if ($name === 'ring_size') {
+            return [[
+                'value' => '7',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
+        if ($name === 'stone_clarity') {
+            return [[
+                'value' => 'VS1',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
+        if ($name === 'stone_shape') {
+            return [[
+                'value' => 'Round',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
+        if ($name === 'stone_color') {
+            return [[
+                'value' => 'D',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
+        if ($name === 'stone_weight') {
+            return [[
+                'value' => 1,
+                'unit' => 'carats',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
+        if ($name === 'stones') {
+            return [[
+                'type' => 'Diamond',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
+        if ($name === 'stones_creation_method') {
+            return [[
+                'creation_method' => 'Natural',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
+        if ($name === 'stones_treatment_method') {
+            return [[
+                'treatment_method' => 'Not Treated',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
+        if ($name === 'stone_id') {
+            return [[
+                'id' => 'Center Stone',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
+        if ($name === 'item_diameter') {
+            return [[
+                'value' => 17.3,
+                'unit' => 'millimeters',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
         return [['value' => $value]];
         }catch(\Exception $e){
             return [['value' => $value]];
