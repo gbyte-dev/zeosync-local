@@ -31,20 +31,14 @@ readonly class AIListingService
     {
         $startTime = microtime(true);
         $config = $this->configService->get();
-
         $rawText = null;
         $jsonText = null;
 
         try {
-
             $payload = $this->buildPayload($systemPrompt, $userPrompt, $config);
-
             $response = $this->sendRequest($payload, $config);
-
             $duration = round((microtime(true) - $startTime) * 1000, 2);
-
             $responseArray = $response->json();
-
             $rawText = $this->extractMessage($responseArray);
             // $usage   = $responseArray['usage'] ?? [];
 
@@ -55,7 +49,6 @@ readonly class AIListingService
             ];
 
             // this is token counter for test only start
-
             $stats = Cache::get('ai_test_tokens', [
                 'prompt' => 0,
                 'completion' => 0,
@@ -67,13 +60,6 @@ readonly class AIListingService
             $stats['total'] += $usage['total_tokens'] ?? 0;
 
             Cache::forever('ai_test_tokens', $stats);
-
-            // this is token counter for test only end
-
-            Log::info('AI Raw Response', [
-                'raw' => $rawText,
-            ]);
-
             $jsonText = $this->extractJson($rawText);
 
             Log::info('AI Extracted JSON', [
