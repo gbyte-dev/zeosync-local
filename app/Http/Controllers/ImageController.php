@@ -10,15 +10,14 @@ class ImageController extends Controller
 {
     public function index(Request $request)
     {
+	//  phpinfo();
         $shop = $request->attributes->get('active_shop_model');
 
         if (!$shop) {
             return back()->with('error', 'Shop not found.');
         }
 
-        $images = Image::where('shop_id', $shop->id)
-            ->latest()
-            ->get();
+        $images = Image::where('shop_id', $shop->id)->latest()->get();
 
         return view('image-upload', compact('images'));
     }
@@ -40,22 +39,17 @@ class ImageController extends Controller
             'image.mimes'      => 'Only JPG, JPEG, PNG and WEBP images are allowed.',
             'image.max'        => 'Image size must not exceed 10 MB.',
             'image.dimensions' => 'Image dimensions must be between 1000×1000 and 10000×10000 pixels.',
-        ]);
+        ]); 
         $file = $request->file('image');
-
         $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
         $destinationPath = public_path('uploads/images');
 
         if (!file_exists($destinationPath)) {
-
             mkdir($destinationPath, 0777, true);
         }
 
         $file->move($destinationPath, $fileName);
-
         $path = 'uploads/images/' . $fileName;
-
         $shop = $request->attributes->get('active_shop_model');
 
         if (!$shop) {
