@@ -111,10 +111,12 @@ class TransformsAmazonAttributes
         if (in_array($name, ['item_package_dimensions', 'item_length_width_height'])) {
             $valueString = trim((string) $value);
             $m = [];
+//dd($name,$value);
+	   $regex = '$pattern = '/^\s*([\d.]+)\s*[Ll]?\s*[xX×*$]\s*([\d.]+)\s*[Ww]?\s*[xX×*$]\s*([\d.]+)\s*[Hh]?\s*(.+)?$/i';
             if (!preg_match('/^([\d.]+)\s*(?:L|W|H)?\s*[xX×*]\s*([\d.]+)\s*(?:L|W|H)?\s*[xX×*]\s*([\d.]+)\s*(?:L|W|H)?\s*([a-zA-Z.]+)?$/i',
                 $valueString,
                 $m
-            )) { return null;   }
+            )) { dd($name);  return null;   }
 
             $unitToken = trim($m[4] ?? '');
             $unit = $unitMap[strtolower($unitToken)] ?? strtolower($unitToken ?: 'inches');
