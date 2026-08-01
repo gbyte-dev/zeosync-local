@@ -21,6 +21,7 @@ class Plan extends Model
         'sort_order',
         'stripe_price_ids',
         'trial_days',
+        'is_trial',
         'prices',
         'sync_limit',
         'product_limit',
