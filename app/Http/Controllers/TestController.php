@@ -122,7 +122,7 @@ class TestController extends Controller
     }
 
 
-    public function test($type = 'BEAUTY')
+    public function test($type = 'RING')
     {
         $connector = $this->getAmazonConnector();
         if (!$connector) {
@@ -141,10 +141,10 @@ class TestController extends Controller
         // $data = $this->getShirtDefinitions();
         // $data = $this->addProductWithoutVariation();
         // $data = $this->updateProductWithoutVariation();
-        // $data = $this->getUnitCountSchema($type);
+         $data = $this->getUnitCountSchema($type);
         //    $data = $this->testdata();
         //  $data = $this->getAllProductTypes();
-        $data = $this->getListingStatus('GQR1FGUVQIYB');
+        // $data = $this->getListingStatus('GQR1FGUVQIYB');
         // $data = $this->testBeautyData(); 
         return response()->json($data);
         return view('allproducts/toy');
