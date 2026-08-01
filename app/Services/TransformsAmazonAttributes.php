@@ -112,8 +112,9 @@ class TransformsAmazonAttributes
             $valueString = trim((string) $value);
             $m = [];
 //dd($name,$value);
-	   $regex = '$pattern = '/^\s*([\d.]+)\s*[Ll]?\s*[xX×*$]\s*([\d.]+)\s*[Ww]?\s*[xX×*$]\s*([\d.]+)\s*[Hh]?\s*(.+)?$/i';
-            if (!preg_match('/^([\d.]+)\s*(?:L|W|H)?\s*[xX×*]\s*([\d.]+)\s*(?:L|W|H)?\s*[xX×*]\s*([\d.]+)\s*(?:L|W|H)?\s*([a-zA-Z.]+)?$/i',
+//'/^([\d.]+)\s*(?:L|W|H)?\s*[xX×*]\s*([\d.]+)\s*(?:L|W|H)?\s*[xX×*]\s*([\d.]+)\s*(?:L|W|H)?\s*([a-zA-Z.]+)?$/i'
+    $regex =  '/^\s*([\d.]+)\s*[Ll]?\s*[xX×*$]\s*([\d.]+)\s*[Ww]?\s*[xX×*$]\s*([\d.]+)\s*[Hh]?\s*(.+)?$/i';
+            if (!preg_match($regex,
                 $valueString,
                 $m
             )) { dd($name);  return null;   }
