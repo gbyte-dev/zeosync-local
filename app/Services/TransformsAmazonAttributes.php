@@ -76,7 +76,7 @@ class TransformsAmazonAttributes
         }
 
         // ── Weight ─────────────────────────────────────────────────────────
-        if (in_array($name, ['item_package_weight', 'item_weight', 'item_display_weight', 'maximum_weight_recommendation'])) {
+        if (in_array($name, ['item_package_weight', 'item_weight', 'item_display_weight', 'maximum_weight_recommendation','total_diamond_weight'])) {
             if (!preg_match('/^([\d.]+)\s*(\w+)$/i', $value, $m)) {
                 return null;
             }
