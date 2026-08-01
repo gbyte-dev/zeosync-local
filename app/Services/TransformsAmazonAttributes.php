@@ -757,7 +757,7 @@ class TransformsAmazonAttributes
             'milligrams'=>'milligrams','mg'=>'milligrams',
             'micrograms'=>'micrograms','mcg'=>'micrograms',
             'metric tons'=>'metric_tons','tonne'=>'metric_tons','t'=>'metric_tons',
-            'carat' => 'carats','carats' => 'carats','ct' => 'carats','cts' => 'carats','ctw' => 'carats','
+            'carat' => 'carats','carats' => 'carats','ct' => 'carats','cts' => 'carats','ctw' => 'carats',
             'ct.' => 'carats','karat' => 'carats','karats' => 'carats','kt' => 'carats','kts' => 'carats',
         ];
     }
