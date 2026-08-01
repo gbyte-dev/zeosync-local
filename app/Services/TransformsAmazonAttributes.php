@@ -330,9 +330,6 @@ class TransformsAmazonAttributes
                     'value' => 'Diamond'
                 ],
                 'number_of_stones' => 1,
-                'creation_method' => 'natural',
-                'treatment_method' => 'untreated', // use a valid enum from the schema
-                'cut' => 'Excellent',
                 'marketplace_id' => $marketplaceId,
             ]];
         }
