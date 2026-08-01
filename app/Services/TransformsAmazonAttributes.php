@@ -285,7 +285,7 @@ class TransformsAmazonAttributes
 
               // only for rings
 
-            if ($name === 'ring_size') {
+            if ($name === 'ring_size' || $name === 'ring') {
                 return [[
                     'value' => '7',
                     'marketplace_id' => $marketplaceId,
