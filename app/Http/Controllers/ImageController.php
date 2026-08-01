@@ -10,6 +10,7 @@ class ImageController extends Controller
 {
     public function index(Request $request)
     {
+	//  phpinfo();
         $shop = $request->attributes->get('active_shop_model');
 
         if (!$shop) {
