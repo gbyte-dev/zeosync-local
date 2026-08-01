@@ -283,6 +283,72 @@ class TransformsAmazonAttributes
         }
 
 
+              // only for rings
+
+            if ($name === 'ring_size') {
+                return [[
+                    'value' => '7',
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
+            if ($name === 'stone_clarity') {
+                return [[
+                    'value' => 'VS1',
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
+            if ($name === 'stone_shape') {
+                return [[
+                    'value' => 'Round',
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
+            if ($name === 'stone_color') {
+                return [[
+                    'value' => 'D',
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
+            if ($name === 'stone_weight') {
+                return [[
+                    'value' => 1,
+                    'unit' => 'carats',
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
+            if ($name === 'stones') {
+                return [[
+                    'type' => 'Diamond',
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
+            if ($name === 'stones_creation_method') {
+                return [[
+                    'creation_method' => 'Natural',
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
+            if ($name === 'stones_treatment_method') {
+                return [[
+                    'treatment_method' => 'Not Treated',
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
+            if ($name === 'stone_id') {
+                return [[
+                    'id' => 1,
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+            
         if ($name === 'item_diameter') {
             preg_match('/(\d+(?:\.\d+)?)\s*([a-zA-Z\s]+)?/', strtolower(trim($value)), $m);
             return [[
@@ -532,73 +598,6 @@ class TransformsAmazonAttributes
             // enum unknown — passing raw value through for now
             return [['value' => strtolower(trim((string) $value))]];
         }
-
-        // only for rings
-
-        if ($name === 'ring_size') {
-            return [[
-                'value' => '7',
-                'marketplace_id' => $marketplaceId,
-            ]];
-        }
-
-        if ($name === 'stone_clarity') {
-            return [[
-                'value' => 'VS1',
-                'marketplace_id' => $marketplaceId,
-            ]];
-        }
-
-        if ($name === 'stone_shape') {
-            return [[
-                'value' => 'Round',
-                'marketplace_id' => $marketplaceId,
-            ]];
-        }
-
-        if ($name === 'stone_color') {
-            return [[
-                'value' => 'D',
-                'marketplace_id' => $marketplaceId,
-            ]];
-        }
-
-        if ($name === 'stone_weight') {
-            return [[
-                'value' => 1,
-                'unit' => 'carats',
-                'marketplace_id' => $marketplaceId,
-            ]];
-        }
-
-        if ($name === 'stones') {
-            return [[
-                'type' => 'Diamond',
-                'marketplace_id' => $marketplaceId,
-            ]];
-        }
-
-        if ($name === 'stones_creation_method') {
-            return [[
-                'creation_method' => 'Natural',
-                'marketplace_id' => $marketplaceId,
-            ]];
-        }
-
-        if ($name === 'stones_treatment_method') {
-            return [[
-                'treatment_method' => 'Not Treated',
-                'marketplace_id' => $marketplaceId,
-            ]];
-        }
-
-        if ($name === 'stone_id') {
-            return [[
-                'id' => 'Center Stone',
-                'marketplace_id' => $marketplaceId,
-            ]];
-        }
-
 
         return [['value' => $value]];
         }catch(\Exception $e){
