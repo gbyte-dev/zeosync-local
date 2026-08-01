@@ -322,6 +322,21 @@ class TransformsAmazonAttributes
                 ]];
             }
 
+            if ($name === 'stones') {
+            return [[
+                'id' => 1,
+                'type' => [
+                    'language_tag' => 'en_US',
+                    'value' => 'Diamond'
+                ],
+                'number_of_stones' => 1,
+                'creation_method' => 'natural',
+                'treatment_method' => 'untreated', // use a valid enum from the schema
+                'cut' => 'Excellent',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
             if ($name === 'stones_creation_method') {
                 return [[
                     'creation_method' => 'Natural',
