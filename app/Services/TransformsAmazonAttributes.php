@@ -116,6 +116,7 @@ class TransformsAmazonAttributes
 
             if (!preg_match($regex, $valueString, $m)) {
                 dd($valueString);
+                return null;
             }
 
             $unit = $unitMap[strtolower(trim($m[4] ?? ''))] ?? strtolower(trim($m[4] ?? 'inches'));
