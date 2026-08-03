@@ -1115,9 +1115,46 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
     });
 
-    function loadImagePickerImages(fieldName, pickerUrl, itemsEl, loadingEl) {
+    function renderImagePickerPage(images, fieldName, page, itemsEl, paginationEl) {
+        const perPage = 6;
+        const totalPages = Math.max(1, Math.ceil(images.length / perPage));
+        const safePage = Math.min(page, totalPages);
+        const start = (safePage - 1) * perPage;
+        const visibleImages = images.slice(start, start + perPage);
+
+        const html = visibleImages.map(function(image) {
+            return `
+                <div class="col-6 col-sm-4 col-md-3">
+                    <div class="position-relative rounded overflow-hidden shadow-sm border image-picker-hover-card" style="height: 82px; background: #f8f9fa;">
+                        <img src="${image.url}" alt="${image.name}" style="width: 100%; height: 100%; object-fit: cover;">
+                        <button type="button"
+                            class="btn btn-sm btn-primary position-absolute top-50 start-50 translate-middle opacity-0 select-image-item image-picker-select-btn"
+                            style="transition: opacity 0.2s ease; padding: 2px 8px; font-size: 11px;"
+                            data-field-name="${fieldName}"
+                            data-image-url="${image.url}">Select</button>
+                    </div>
+                </div>`;
+        }).join('');
+
+        itemsEl.innerHTML = html;
+
+        if (totalPages > 1) {
+            const pageNumbers = [];
+
+            for (let i = 1; i <= totalPages; i++) {
+                pageNumbers.push(`<button type="button" class="btn btn-sm ${i === safePage ? 'btn-primary' : 'btn-outline-secondary'} image-picker-page" data-page="${i}">${i}</button>`);
+            }
+
+            paginationEl.innerHTML = `<div class="d-flex justify-content-center gap-2 mt-3">${pageNumbers.join('')}</div>`;
+        } else {
+            paginationEl.innerHTML = '';
+        }
+    }
+
+    function loadImagePickerImages(fieldName, pickerUrl, itemsEl, loadingEl, paginationEl) {
         loadingEl.style.display = 'block';
         itemsEl.innerHTML = '';
+        paginationEl.innerHTML = '';
 
         $.ajax({
             url: pickerUrl,
@@ -1130,20 +1167,9 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                     return;
                 }
 
-                const html = response.images.map(function(image) {
-                    return `
-                        <div class="col-6 col-md-4 col-lg-3">
-                            <div class="card h-100 shadow-sm border-0">
-                                <img src="${image.url}" class="card-img-top" style="height: 110px; object-fit: cover;">
-                                <div class="card-body p-2">
-                                    <p class="card-text small mb-2 text-truncate">${image.name}</p>
-                                    <button type="button" class="btn btn-sm btn-primary w-100 select-image-item" data-field-name="${fieldName}" data-image-url="${image.url}">Select</button>
-                                </div>
-                            </div>
-                        </div>`;
-                }).join('');
-
-                itemsEl.innerHTML = html;
+                const images = response.images;
+                window.imagePickerImages = images;
+                renderImagePickerPage(images, fieldName, 1, itemsEl, paginationEl);
                 loadingEl.style.display = 'none';
             },
             error: function() {
@@ -1174,6 +1200,11 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             modalElement.className = 'modal fade';
             modalElement.tabIndex = -1;
             modalElement.innerHTML = `
+                <style>
+                    .image-picker-hover-card:hover .image-picker-select-btn { opacity: 1 !important; }
+                    .image-picker-select-btn { pointer-events: none; }
+                    .image-picker-hover-card:hover .image-picker-select-btn { pointer-events: auto; }
+                </style>
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header py-2">
@@ -1199,6 +1230,7 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                 <div class="mt-2 small">Loading images...</div>
                             </div>
                             <div id="image-picker-items" class="row g-2"></div>
+                            <div id="image-picker-pagination"></div>
                         </div>
                         <div class="modal-footer py-2">
                             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -1211,15 +1243,33 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
         const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
         const loadingEl = document.getElementById('image-picker-loading');
         const itemsEl = document.getElementById('image-picker-items');
+        const paginationEl = document.getElementById('image-picker-pagination');
         const uploadForm = $('#image-picker-upload-form');
 
         uploadForm.data('field-name', fieldName);
 
         button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Loading...');
-        loadImagePickerImages(fieldName, pickerUrl, itemsEl, loadingEl);
+        loadImagePickerImages(fieldName, pickerUrl, itemsEl, loadingEl, paginationEl);
 
         modal.show();
         button.prop('disabled', false).html(originalHtml);
+    });
+
+    $(document).on('click', '.image-picker-page', function(e) {
+        e.preventDefault();
+
+        const button = $(this);
+        const page = parseInt(button.data('page'), 10);
+        const fieldName = $('#image-picker-upload-form').data('field-name') || '';
+        const itemsEl = document.getElementById('image-picker-items');
+        const paginationEl = document.getElementById('image-picker-pagination');
+        const allImages = window.imagePickerImages || [];
+
+        if (!allImages.length) {
+            return;
+        }
+
+        renderImagePickerPage(allImages, fieldName, page, itemsEl, paginationEl);
     });
 
     $(document).on('submit', '#image-picker-upload-form', function(e) {
@@ -1229,6 +1279,7 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
         const statusEl = $('#image-picker-upload-status');
         const itemsEl = $('#image-picker-items');
         const loadingEl = $('#image-picker-loading');
+        const paginationEl = $('#image-picker-pagination');
         const submitButton = form.find('button[type="submit"]');
         const originalText = submitButton.html();
 
@@ -1252,7 +1303,7 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
                 statusEl.html('<span class="text-success">Image uploaded successfully.</span>');
                 form[0].reset();
-                loadImagePickerImages(form.data('field-name') || $('[name="attributes[main_product_image_locator]"]').attr('name')?.replace(/^attributes\[/, '').replace(/\]$/, '') || '', "{{ route('shopify.image-picker-images') }}", itemsEl[0], loadingEl[0]);
+                loadImagePickerImages(form.data('field-name') || $('[name="attributes[main_product_image_locator]"]').attr('name')?.replace(/^attributes\[/, '').replace(/\]$/, '') || '', "{{ route('shopify.image-picker-images') }}", itemsEl[0], loadingEl[0], paginationEl[0]);
             },
             error: function(xhr) {
                 const message = xhr.responseJSON?.message || 'Unable to upload image.';
