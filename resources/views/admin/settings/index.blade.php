@@ -47,7 +47,7 @@ $groups = [
 
         <div class="card-body">
 
-            <form method="POST" action="{{ route('admin.settings.update') }}">
+            <form method="POST" action="{{ route('admin.settings.update') }}" enctype="multipart/form-data">
                 @csrf
 
                 {{-- LOOP GROUPS --}}
@@ -65,7 +65,7 @@ $groups = [
 
                             @php
                             $value = $settings[$key] ?? '';
-                            if($value == 'app_logo' || $value == 'app_favicon'){
+                            if($key == 'app_logo' || $key == 'app_favicon'){
                                 $type = 'file';
                             }else{
                                 $type = 'text';
