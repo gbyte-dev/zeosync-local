@@ -197,3 +197,8 @@
 .in-iframe .sp-btn{
     padding: 0 12px;
 }
+
+.in-iframe .sidebar{
+    max-width: 200px;
+    min-width: 200px;
+}
