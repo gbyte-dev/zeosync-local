@@ -116,7 +116,14 @@ $groups = [
 
                                     <input type="<?= $type ?>" name="{{ $key }}" class="form-control"
                                         value="{{ old($key, $value) }}">
-
+                                    @if($key === 'app_logo' && $value)
+                                        <div class="mt-2">
+                                            <img src="{{ asset('storage/logo/' . $value) }}" alt="App Logo" style="max-height: 50px;">
+                                        </div>
+                                    @elseif($key === 'app_favicon' && $value)@
+                                        <div class="mt-2">
+                                            <img src="{{ asset('storage/logo/' . $value) }}" alt="App Favicon" style="max-height: 50px;">
+                                        </div>
                                     @endif
 
                                 </div>

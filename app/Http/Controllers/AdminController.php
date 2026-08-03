@@ -242,8 +242,11 @@ class AdminController extends Controller
             if( $key === 'app_logo' || $key === 'app_favicon') {
                 if ($request->hasFile($key)) {
                     $file = $request->file($key);
-                    $filename = time() . '_' . $file->getClientOriginalName();
-                    $path = $file->storeAs('public/uploads', $filename);
+                    $filename =  $file->getClientOriginalName();
+                    if(file_exists(public_path('logo/' . $filename))) {
+                        unlink(public_path('logo/' . $filename));
+                    }
+                    $path = $file->storeAs('public/logo', $filename);
                     AdminSetting::updateOrCreate(
                         ['option_key' => $key],
                         ['option_value' => $path]
