@@ -94,6 +94,15 @@
             position: relative;
         }
 
+        .in-iframe .content {
+            flex: 1;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background-color: var(--sp-bg);
+            position: relative;
+        }
 
         /* Mobile View */
         @media (max-width: 767.98px) {
@@ -626,7 +635,13 @@
             });
         });
     </script>
-
+    <script>
+    if (window.self !== window.top) {
+        document.documentElement.classList.add('in-iframe');
+    } else {
+        document.documentElement.classList.add('normal-page');
+    }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 
