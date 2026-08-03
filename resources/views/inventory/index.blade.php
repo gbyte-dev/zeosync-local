@@ -474,7 +474,7 @@
     }
 </style>
 
-<div class="saas-wrapper">
+<div class="container-fluid py-3 px-3 saas-wrapper">
 
     {{-- Header & Usage --}}
     <div class="saas-page-header">
