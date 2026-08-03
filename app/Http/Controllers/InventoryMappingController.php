@@ -77,81 +77,9 @@ class InventoryMappingController extends Controller
         ]);
     }
 
-    // public function saveProductMapping(Request $request)
-    // {
-    //     $request->validate([
-    //         'shop' => 'required',
-    //         'amazon_sku' => 'required',
-    //         'product_id' => 'required',
-    //         'variant_id' => 'required',
-    //         'shopify_product_id' => 'required',
-    //         'shopify_variant_id' => 'required',
-    //         'shopify_inventory_item_id' => 'required',
-    //     ]);
-
-    //     $shop = Shop::where('shop', $request->shop)->firstOrFail();
-
-    //     // Variant already mapped
-    //     $exists = ProductMarketplaceMapping::where('shop_id', $shop->id)
-    //         ->where('shopify_variant_id', $request->shopify_variant_id)
-    //         ->exists();
-
-    //     if ($exists) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'Variant already mapped.'
-    //         ], 422);
-    //     }
-
-    //     // Check sync limit
-    //     $syncLimit = app(SyncLimitService::class)->canMap($shop);
-
-    //     if (!$syncLimit['allowed']) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => $syncLimit['message'],
-    //             'used' => $syncLimit['used'],
-    //             'limit' => $syncLimit['limit'],
-    //             'remaining' => $syncLimit['remaining'],
-    //         ], 403);
-    //     }
-
-    //     $product = Product::findOrFail($request->product_id);
-
-    //     $variants = is_array($product->variants)
-    //         ? $product->variants
-    //         : json_decode($product->variants, true);
-
-    //     $selectedVariant = collect($variants)
-    //         ->firstWhere('id', (string) $request->variant_id);
-
-    //     ProductMarketplaceMapping::create([
-    //         'shop_id' => $shop->id,
-    //         'product_id' => $product->id,
-    //         'variant_id' => (string)$request->variant_id,
-    //         'shopify_product_id' => $request->shopify_product_id,
-    //         'shopify_variant_id' => $request->shopify_variant_id,
-    //         'shopify_inventory_item_id' => $request->shopify_inventory_item_id,
-    //         'amazon_sku' => $request->amazon_sku,
-    //         'quantity' => $selectedVariant['inventory_quantity'] ?? 0,
-    //         'sync_status' => 'pending',
-    //         'submission_status' => 'not_submitted',
-    //     ]);
-
-    //     return response()->json([
-    //         'success' => true,
-    //         'message' => 'Product mapped successfully.',
-    //         'used' => $syncLimit['used'] + 1,
-    //         'limit' => $syncLimit['limit'],
-    //         'remaining' => max(0, $syncLimit['remaining'] - 1),
-    //     ]);
-    // }
 
     public function saveProductMapping(Request $request)
     {
-        Log::info('========== SAVE PRODUCT MAPPING ==========');
-        Log::info('Request Data', $request->all());
-
         $request->validate([
             'shop' => 'required',
             'amazon_sku' => 'required',
@@ -164,16 +92,9 @@ class InventoryMappingController extends Controller
 
         $shop = Shop::where('shop', $request->shop)->firstOrFail();
 
-        Log::info('Shop', [
-            'id' => $shop->id,
-            'shop' => $shop->shop,
-        ]);
-
         $exists = ProductMarketplaceMapping::where('shop_id', $shop->id)
             ->where('shopify_variant_id', $request->shopify_variant_id)
             ->exists();
-
-        Log::info('Mapping Exists', ['exists' => $exists]);
 
         if ($exists) {
             return response()->json([
@@ -183,8 +104,6 @@ class InventoryMappingController extends Controller
         }
 
         $syncLimit = app(SyncLimitService::class)->canMap($shop);
-
-        Log::info('Sync Limit', $syncLimit);
 
         if (!$syncLimit['allowed']) {
             return response()->json([
@@ -197,11 +116,6 @@ class InventoryMappingController extends Controller
         }
 
         $product = Product::findOrFail($request->product_id);
-
-        Log::info('Product', [
-            'id' => $product->id,
-        ]);
-
         $variants = is_array($product->variants)
             ? $product->variants
             : json_decode($product->variants, true);
@@ -224,9 +138,7 @@ class InventoryMappingController extends Controller
             'sync_status' => 'pending',
             'submission_status' => 'not_submitted',
         ];
-
-        Log::info('Insert Payload', $insertData);
-
+        
         $mapping = ProductMarketplaceMapping::create($insertData);
 
         Log::info('Saved Record', $mapping->fresh()->toArray());
@@ -243,8 +155,6 @@ class InventoryMappingController extends Controller
 
     public function saveAmazonMapping(Request $request)
     {
-        Log::info('========== SAVE AMAZON MAPPING ==========');
-        Log::info('Request Data', $request->all());
 
         $request->validate([
             'shop' => 'required',
@@ -255,28 +165,15 @@ class InventoryMappingController extends Controller
 
         $shop = Shop::where('shop', $request->shop)->firstOrFail();
 
-        Log::info('Shop', [
-            'id' => $shop->id,
-            'shop' => $shop->shop,
-        ]);
-
         $product = Product::where(
             'shopify_id',
             $request->product_id
         )->firstOrFail();
 
-        Log::info('Product', [
-            'id' => $product->id,
-            'shopify_id' => $product->shopify_id,
-        ]);
-
         $variants = is_array($product->variants)
             ? $product->variants
             : json_decode($product->variants, true);
 
-        Log::info('Variants Count', [
-            'count' => is_array($variants) ? count($variants) : 0,
-        ]);
 
         $variant = collect($variants)->firstWhere(
             'id',
@@ -297,10 +194,6 @@ class InventoryMappingController extends Controller
             ->where('shopify_variant_id', '!=', (string) $request->shopify_variant_id)
             ->exists();
 
-        Log::info('Amazon SKU Already Mapped', [
-            'exists' => $amazonExists,
-        ]);
-
         if ($amazonExists) {
             return response()->json([
                 'success' => false,
@@ -320,7 +213,6 @@ class InventoryMappingController extends Controller
         if (!$existingMapping) {
 
             $syncLimit = app(SyncLimitService::class)->canMap($shop);
-
             Log::info('Sync Limit', $syncLimit);
 
             if (!$syncLimit['allowed']) {
@@ -345,11 +237,6 @@ class InventoryMappingController extends Controller
             'amazon_parent_sku' => $request->amazon_parent_sku ?: $request->amazon_sku,
             'quantity' => (string) ($variant['inventory_quantity'] ?? 0),
         ];
-
-        Log::info('UpdateOrCreate Search Keys', [
-            'shop_id' => $shop->id,
-            'shopify_variant_id' => (string) $variant['id'],
-        ]);
 
         Log::info('UpdateOrCreate Payload', $updateData);
 
