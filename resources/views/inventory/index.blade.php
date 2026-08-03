@@ -679,8 +679,8 @@
                     <thead>
                         <tr>
                             <th class="text-nowrap">SKU</th>
-                            <th class="text-nowrap">Mapped To</th>
                             <th>Product</th>
+                            <th class="text-nowrap">Mapped To</th>
                             <th class="text-nowrap">Qty</th>
                             <th class="text-nowrap">Status</th>
                             <th class="text-nowrap">Action</th>
@@ -829,18 +829,32 @@
             },
             success: function(response) {
 
+                console.log('Amazon request completed', response);
+
                 amazonData = response.products ?? [];
                 filteredData = [...amazonData];
 
                 activeTab = 'amazon';
                 currentPage = 1;
+
+                console.log('Active Tab:', activeTab);
+                console.log('Amazon Data Count:', amazonData.length);
+                console.log('Filtered Data Count:', filteredData.length);
+                console.log('First Amazon Item:', filteredData[0]);
+
                 renderTable();
 
                 if (response.status?.refreshing) {
+
+                    console.log("Background refresh running");
+
                     showAmazonLoader();
                     startProgress();
 
                 } else {
+
+                    console.log("Serving cached inventory");
+
                     hideAmazonLoader();
 
                     if (progressTimer) {
@@ -850,6 +864,7 @@
             },
             error: function(xhr) {
                 console.error('Amazon request failed', xhr);
+                alert('Failed to load Amazon Inventory.');
             },
             complete: function() {
                 console.log('Amazon AJAX complete');
@@ -925,27 +940,27 @@
                             </div>
                         </td>
                         <td class="text-nowrap">
-                            <span
-                                title="${item.sku || 'No SKU'}"
-                                data-bs-toggle="tooltip"
-                                data-bs-container="body"
-                                data-bs-placement="top"
-                                style="cursor:pointer;">
-                                ${(item.sku || 'No SKU').length > 20
-                                    ? (item.sku || 'No SKU').substring(0, 20) + '...'
-                                    : (item.sku || 'No SKU')}
-                            </span>
-                        </td>
+    <span
+        title="${item.sku || 'No SKU'}"
+        data-bs-toggle="tooltip"
+        data-bs-container="body"
+        data-bs-placement="top"
+        style="cursor:pointer;">
+        ${(item.sku || 'No SKU').length > 20
+            ? (item.sku || 'No SKU').substring(0, 20) + '...'
+            : (item.sku || 'No SKU')}
+    </span>
+</td>
                         <td class="text-nowrap">
-                            ${
-                                item.mapped_sku
-                                    ? `<a href="{{ route('user.product.amazonView', ['sku' => '__SKU__']) }}"
-                                            class="text-decoration-none">
-                                            ${item.mapped_sku}
-                                    </a>`.replace('__SKU__', encodeURIComponent(item.mapped_sku))
-                                    : `<span class="text-muted">N/A</span>`
-                            }
-                        </td>
+    ${
+        item.mapped_sku
+            ? `<a href="{{ route('user.product.amazonView', ['sku' => '__SKU__']) }}"
+                    class="text-decoration-none">
+                    ${item.mapped_sku}
+               </a>`.replace('__SKU__', encodeURIComponent(item.mapped_sku))
+            : `<span class="text-muted">N/A</span>`
+    }
+</td>
                         <td>
                             <input type="number"
                                    value="${item.available || 0}"
@@ -991,20 +1006,19 @@
                 rows += `
                     <tr>
                         <td class="text-nowrap"><a class="text-dark" href="${amazonViewUrl}"> ${item.sku ?? '-'}</a></td>
-                         <td class="text-nowrap">
-                            ${
-                                item.mapped_shopify_variant_id
-                                    ? item.mapped_shopify_variant_id
-                                    : '<span class="text-muted">NA</span>'
-                            }
-                        </td>
                         <td>
                             <span class="product-title-clamp" title="${item.title ?? '-'}"
       data-bs-toggle="tooltip"  data-bs-container="body"  data-bs-placement="top"  style="cursor:pointer;">
     ${(item.title ?? '-').length > 20 ? (item.title ?? '-').substring(0, 20) + '...' : (item.title ?? '-')}
 </span>
                         </td>
-                       
+                        <td class="text-nowrap">
+    ${
+        item.mapped_shopify_variant_id
+            ? item.mapped_shopify_variant_id
+            : '<span class="text-muted">NA</span>'
+    }
+</td>
                         <td>
                             <input type="number"
                                    class="form-control form-control-sm qty-input amazon-qty"
@@ -1097,7 +1111,9 @@
 
             },
             error: function(xhr) {
-               // console.log(xhr);
+
+                console.log(xhr);
+
                 alert(xhr.responseJSON?.message ?? 'Failed to unmap product.');
 
             }
