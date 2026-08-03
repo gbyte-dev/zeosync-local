@@ -282,51 +282,43 @@ class TransformsAmazonAttributes
             ]];
         }
 
+            // only for rings
+        if ($name === 'ring_size' || $name === 'ring') {
+            return $this->updateRingValue($value,6.8);
+        
+        }
 
-              // only for rings
+        if ($name === 'stone') {
+            return [[
+                'marketplace_id' => $marketplaceId,
 
-            if ($name === 'ring_size' || $name === 'ring') {
-                return [[
-                    'size' => [
-                        'language_tag' => 'en_US',
-                        'value' => '7'
-                    ],
-                    'marketplace_id' => $marketplaceId,
-                ]];
-          
-            }
+                'clarity' => [[
+                    'language_tag' => 'en_US',
+                    'value' => 'VS1'
+                ]],
 
-            if ($name === 'stone') {
-                return [[
-                    'marketplace_id' => $marketplaceId,
+                'color' => [[
+                    'language_tag' => 'en_US',
+                    'value' => 'D'
+                ]],
 
-                    'clarity' => [[
-                        'language_tag' => 'en_US',
-                        'value' => 'VS1'
-                    ]],
+                'creation_method' => [[
+                    'value' => 'natural'
+                ]],
 
-                    'color' => [[
-                        'language_tag' => 'en_US',
-                        'value' => 'D'
-                    ]],
+                'shape' => [[
+                    'language_tag' => 'en_US',
+                    'value' => 'Round'
+                ]],
 
-                    'creation_method' => [[
-                        'value' => 'natural'
-                    ]],
+                'weight' => [[
+                    'value' => 1,
+                    'unit' => 'carats'
+                ]]
+            ]];
+        }
 
-                    'shape' => [[
-                        'language_tag' => 'en_US',
-                        'value' => 'Round'
-                    ]],
-
-                    'weight' => [[
-                        'value' => 1,
-                        'unit' => 'carats'
-                    ]]
-                ]];
-            }
-
-           if ($name === 'stones') {
+        if ($name === 'stones') {
             return [[
                 'id' => 1,
 
@@ -356,26 +348,26 @@ class TransformsAmazonAttributes
             ]];
         }
 
-            if ($name === 'stones_creation_method') {
-                return [[
-                    'creation_method' => 'Natural',
-                    'marketplace_id' => $marketplaceId,
-                ]];
-            }
+        if ($name === 'stones_creation_method') {
+            return [[
+                'creation_method' => 'Natural',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
 
-            if ($name === 'stones_treatment_method') {
-                return [[
-                    'treatment_method' => 'Not Treated',
-                    'marketplace_id' => $marketplaceId,
-                ]];
-            }
+        if ($name === 'stones_treatment_method') {
+            return [[
+                'treatment_method' => 'Not Treated',
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
 
-            if ($name === 'stone_id') {
-                return [[
-                    'id' => 1,
-                    'marketplace_id' => $marketplaceId,
-                ]];
-            }
+        if ($name === 'stone_id') {
+            return [[
+                'id' => 1,
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
             
         if ($name === 'item_diameter' || $name === 'item_thickness') {
             preg_match('/(\d+(?:\.\d+)?)\s*([a-zA-Z\s]+)?/', strtolower(trim($value)), $m);
@@ -716,6 +708,45 @@ class TransformsAmazonAttributes
         $result['marketplace_id'] = $marketplaceId;
 
         return $result;
+    }
+
+
+    private function updateRingValue($size = 'Adjustable', $lower = null, $upper = null)
+    {
+
+        $ring = [
+            [
+                "marketplace_id" => "ATVPDKIKX0DER",
+                "size" => [
+                    [
+                        "language_tag" => "en_US",
+                        "value" => $size
+                    ]
+                ]
+            ]
+        ];
+        
+        $size = strtolower(trim($size));
+        if (strcasecmp($size, 'adjustable') === 0) {
+            if ($lower !== null) {
+                $ring[0]['sizing_lower_range'] = [
+                    [
+                        "language_tag" => "en_US",
+                        "value" => (string) $lower
+                    ]
+                ];
+            }
+
+            if ($upper !== null) {
+                $ring[0]['sizing_upper_range'] = [
+                    [
+                        "language_tag" => "en_US",
+                        "value" => (string) $upper
+                    ]
+                ];
+            }
+        }
+        return $ring;
     }
 
     private function booleanFields(): array
