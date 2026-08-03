@@ -41,7 +41,10 @@
         align-items: center;
         gap: 10px;
     }
-
+    
+    .in-iframe .saas-page-title{
+        font-size: 18px;
+    }
     .saas-page-subtitle {
         color: #6D7175;
         font-size: 13px;
