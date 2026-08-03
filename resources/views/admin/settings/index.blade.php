@@ -5,7 +5,7 @@
 
 @php
 $groups = [
-'App Basic Details' => ['app_name','currency','timezone'],
+'App Basic Details' => ['app_name','currency','timezone', 'app_logo','app_favicon'],
 
     'Email / SMTP Settings' => [
         'admin_email','SMTP_host','SMTP_port',
@@ -65,6 +65,11 @@ $groups = [
 
                             @php
                             $value = $settings[$key] ?? '';
+                            if($value == 'app_logo' || $value == 'app_favicon'){
+                                $type = 'file';
+                            }else{
+                                $type = 'text';
+                            }
                             @endphp
 
                             <div class="col-md-6 col-12">
@@ -95,8 +100,7 @@ $groups = [
                                     @elseif(in_array($key, ['app_maintenance','install_info']))
 
                                     <div class="form-check mt-2">
-                                        <input type="checkbox" name="{{ $key }}" value="1"
-                                            class="form-check-input"
+                                        <input type="checkbox" name="{{ $key }}" value="1" class="form-check-input"
                                             {{ old($key, $value) == '1' ? 'checked' : '' }}>
                                     </div>
 
@@ -110,7 +114,7 @@ $groups = [
 
                                     @else
 
-                                    <input type="text" name="{{ $key }}" class="form-control"
+                                    <input type="<?= $type ?>" name="{{ $key }}" class="form-control"
                                         value="{{ old($key, $value) }}">
 
                                     @endif
