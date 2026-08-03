@@ -1115,6 +1115,176 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
     });
 
+    function loadImagePickerImages(fieldName, pickerUrl, itemsEl, loadingEl) {
+        loadingEl.style.display = 'block';
+        itemsEl.innerHTML = '';
+
+        $.ajax({
+            url: pickerUrl,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if (!response.success || !response.images || !response.images.length) {
+                    itemsEl.innerHTML = '<div class="col-12 text-center text-muted py-3">No saved images found. Upload images first.</div>';
+                    loadingEl.style.display = 'none';
+                    return;
+                }
+
+                const html = response.images.map(function(image) {
+                    return `
+                        <div class="col-6 col-md-4 col-lg-3">
+                            <div class="card h-100 shadow-sm border-0">
+                                <img src="${image.url}" class="card-img-top" style="height: 110px; object-fit: cover;">
+                                <div class="card-body p-2">
+                                    <p class="card-text small mb-2 text-truncate">${image.name}</p>
+                                    <button type="button" class="btn btn-sm btn-primary w-100 select-image-item" data-field-name="${fieldName}" data-image-url="${image.url}">Select</button>
+                                </div>
+                            </div>
+                        </div>`;
+                }).join('');
+
+                itemsEl.innerHTML = html;
+                loadingEl.style.display = 'none';
+            },
+            error: function() {
+                itemsEl.innerHTML = '<div class="col-12 text-center text-danger py-3">Unable to load images.</div>';
+                loadingEl.style.display = 'none';
+            }
+        });
+    }
+
+    $(document).on('click', '.image-picker-btn', function(e) {
+        e.preventDefault();
+
+        const button = $(this);
+        const originalHtml = button.html();
+        const fieldName = button.data('field');
+        const pickerUrl = button.data('picker-url') || "{{ route('shopify.image-picker-images') }}";
+        const field = $('[name="attributes[' + fieldName + ']"]');
+
+        if (!field.length) {
+            return;
+        }
+
+        let modalElement = document.getElementById('image-picker-modal');
+
+        if (!modalElement) {
+            modalElement = document.createElement('div');
+            modalElement.id = 'image-picker-modal';
+            modalElement.className = 'modal fade';
+            modalElement.tabIndex = -1;
+            modalElement.innerHTML = `
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header py-2">
+                            <h5 class="modal-title small fw-bold">Select an image</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body p-3">
+                            <form id="image-picker-upload-form" class="border rounded p-2 mb-3" enctype="multipart/form-data">
+                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-8">
+                                        <label class="form-label small mb-1">Upload a new image</label>
+                                        <input type="file" name="image" class="form-control form-control-sm" accept="image/jpeg,image/png,image/webp" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">Upload</button>
+                                    </div>
+                                </div>
+                                <div id="image-picker-upload-status" class="small mt-2"></div>
+                            </form>
+                            <div id="image-picker-loading" class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                <div class="mt-2 small">Loading images...</div>
+                            </div>
+                            <div id="image-picker-items" class="row g-2"></div>
+                        </div>
+                        <div class="modal-footer py-2">
+                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.appendChild(modalElement);
+        }
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+        const loadingEl = document.getElementById('image-picker-loading');
+        const itemsEl = document.getElementById('image-picker-items');
+        const uploadForm = $('#image-picker-upload-form');
+
+        uploadForm.data('field-name', fieldName);
+
+        button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Loading...');
+        loadImagePickerImages(fieldName, pickerUrl, itemsEl, loadingEl);
+
+        modal.show();
+        button.prop('disabled', false).html(originalHtml);
+    });
+
+    $(document).on('submit', '#image-picker-upload-form', function(e) {
+        e.preventDefault();
+
+        const form = $(this);
+        const statusEl = $('#image-picker-upload-status');
+        const itemsEl = $('#image-picker-items');
+        const loadingEl = $('#image-picker-loading');
+        const submitButton = form.find('button[type="submit"]');
+        const originalText = submitButton.html();
+
+        const formData = new FormData(this);
+
+        statusEl.text('Uploading...');
+        submitButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Uploading...');
+
+        $.ajax({
+            url: "{{ route('shopify.imgupload.store') }}",
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            dataType: 'json',
+            success: function(response) {
+                if (!response.success) {
+                    statusEl.html('<span class="text-danger">' + (response.message || 'Upload failed.') + '</span>');
+                    return;
+                }
+
+                statusEl.html('<span class="text-success">Image uploaded successfully.</span>');
+                form[0].reset();
+                loadImagePickerImages(form.data('field-name') || $('[name="attributes[main_product_image_locator]"]').attr('name')?.replace(/^attributes\[/, '').replace(/\]$/, '') || '', "{{ route('shopify.image-picker-images') }}", itemsEl[0], loadingEl[0]);
+            },
+            error: function(xhr) {
+                const message = xhr.responseJSON?.message || 'Unable to upload image.';
+                statusEl.html('<span class="text-danger">' + message + '</span>');
+            },
+            complete: function() {
+                submitButton.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+
+    $(document).on('click', '.select-image-item', function(e) {
+        e.preventDefault();
+
+        const button = $(this);
+        const fieldName = button.data('field-name');
+        const imageUrl = button.data('image-url');
+        const field = $('[name="attributes[' + fieldName + ']"]');
+
+        if (field.length) {
+            field.val(imageUrl);
+            field.trigger('input');
+            field.trigger('change');
+        }
+
+        const modalElement = document.getElementById('image-picker-modal');
+
+        if (modalElement) {
+            bootstrap.Modal.getInstance(modalElement)?.hide();
+        }
+    });
+
     // $(document).on('click', '.ai-field-btn', function() {
 
     //     console.log('================ AI FIELD START ================');

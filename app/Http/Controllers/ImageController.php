@@ -22,6 +22,35 @@ class ImageController extends Controller
         return view('image-upload', compact('images'));
     }
 
+    public function forSelection(Request $request)
+    {
+        $shop = $request->attributes->get('active_shop_model');
+
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Shop not found.',
+            ], 404);
+        }
+
+        $images = Image::where('shop_id', $shop->id)
+            ->latest()
+            ->get()
+            ->map(function ($image) {
+                return [
+                    'id' => $image->id,
+                    'name' => basename($image->image),
+                    'path' => $image->image,
+                    'url' => asset($image->image),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'images' => $images,
+        ]);
+    }
+
     public function store(Request $request)
     {
 
@@ -39,7 +68,7 @@ class ImageController extends Controller
             'image.mimes'      => 'Only JPG, JPEG, PNG and WEBP images are allowed.',
             'image.max'        => 'Image size must not exceed 10 MB.',
             'image.dimensions' => 'Image dimensions must be between 1000×1000 and 10000×10000 pixels.',
-        ]); 
+        ]);
         $file = $request->file('image');
         $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
         $destinationPath = public_path('uploads/images');
@@ -53,13 +82,33 @@ class ImageController extends Controller
         $shop = $request->attributes->get('active_shop_model');
 
         if (!$shop) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Shop not found.',
+                ], 404);
+            }
+
             return back()->with('error', 'Shop not found.');
         }
 
-        Image::create([
+        $image = Image::create([
             'shop_id' => $shop->id,
             'image'   => $path,
         ]);
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Image uploaded successfully.',
+                'image' => [
+                    'id' => $image->id,
+                    'name' => basename($image->image),
+                    'path' => $image->image,
+                    'url' => asset($image->image),
+                ],
+            ]);
+        }
 
         return back()->with('success', 'Image uploaded successfully.');
     }
