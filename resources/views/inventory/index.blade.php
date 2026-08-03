@@ -205,7 +205,7 @@
     }
 
     .saas-table td {
-        padding: 6px 16px;
+        padding: 1px 16px;
         /* Added small vertical padding for tighter fit */
         vertical-align: middle;
         border-bottom: 1px solid #E5E7EB;
@@ -219,7 +219,7 @@
         /* Constrains column growth preventing table breakout */
         white-space: nowrap;
         overflow: hidden;
-        text-overflow: ellipsis;
+        /* text-overflow: ellipsis; */
     }
 
     /* Override Bootstrap modal position for Shopify iframe */
@@ -624,7 +624,7 @@
                             <th class="text-nowrap">Status</th>
                         </tr>
                     </thead>
-                    <tbody></tbody>
+                    <tbody style="font-size: small;"></tbody>
                 </table>
             </div>
 
@@ -682,7 +682,7 @@
                             <th class="text-nowrap">Action</th>
                         </tr>
                     </thead>
-                    <tbody></tbody>
+                    <tbody style="font-size: 12px;"></tbody>
                 </table>
             </div>
 
