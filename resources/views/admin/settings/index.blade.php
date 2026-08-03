@@ -120,7 +120,7 @@ $groups = [
                                             <div class="mt-2">
                                                 <img src="{{ asset('storage/logo/' . $value) }}" alt="App Logo" style="max-height: 50px;">
                                             </div>
-                                        @elseif($key === 'app_favicon' && $value)@
+                                        @elseif($key === 'app_favicon' && $value)
                                             <div class="mt-2">
                                                 <img src="{{ asset('storage/logo/' . $value) }}" alt="App Favicon" style="max-height: 50px;">
                                             </div>
