@@ -73,6 +73,10 @@ class AmazonConnect extends ShopifyController
             'redirect_uri'   => route('amazon.callback'),
         ]);
 
+        session([
+            'amazon_is_iframe' => $request->boolean('is_iframe')
+        ]);
+
         if (isset($request->is_iframe) && $request->is_iframe == 1) {
 
             $encryptedShop = Crypt::encryptString($shop->shop);
@@ -119,9 +123,12 @@ class AmazonConnect extends ShopifyController
         $state = $shop->amazon_oauth_state ?? bin2hex(random_bytes(16));
         session([
             'amazon_oauth_state'        => $shop->amazon_oauth_state,
-            'amazon_pending_id'        => $shop->amazon_marketplace_id,
-            'amazon_pending_region'    => $shop->amazon_mws_region,
-            'amazon_pending_endpoint'  => $shop->amazon_pending_endpoint,
+            'amazon_pending_id'         => $shop->amazon_marketplace_id,
+            'amazon_pending_region'     => $shop->amazon_mws_region,
+            'amazon_pending_endpoint'   => $shop->amazon_pending_endpoint,
+
+            // ADD THIS
+            'amazon_is_iframe'          => true,
         ]);
 
         $authUrl = match ($shop->amazon_mws_region) {
@@ -223,10 +230,22 @@ class AmazonConnect extends ShopifyController
                 ],
                 now()->addMinutes(10)
             );
+            $isIframe = session('amazon_is_iframe', false);
 
-            return redirect()->route('amazon.connect.success', [
-                'shop' => $shop->shop,
-            ]);
+            $request->session()->forget('amazon_is_iframe');
+
+            if ($isIframe) {
+
+                return redirect()->route('amazon.connect.success', [
+                    'shop' => $shop->shop,
+                ]);
+            }
+
+            return redirect()
+                ->route('dashboard', [
+                    'shop' => $shop->shop,
+                ])
+                ->with('success', 'Amazon Connected!');
         }
 
         return redirect()->route('dashboard')->with('error', 'Failed to connect Amazon.');
