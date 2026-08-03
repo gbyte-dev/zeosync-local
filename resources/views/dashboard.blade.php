@@ -69,13 +69,17 @@
     .in-iframe .saas-stat-value{
         font-size: 20px; 
     }
-    
+
     .in-iframe .saas-stat-card{
         padding: 8px 9px;
     }
 
     .in-iframe .card-title-custom{
         font-size: 14px;
+    }
+
+    .in-iframe .low-inventory-table {
+        font-size:10px;
     }
 
     /* Graph / Recent Activity Cards */
