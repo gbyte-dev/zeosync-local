@@ -146,8 +146,6 @@
 
     .select2-container--bootstrap-5.select2-container--focus .select2-selection {
         border-color: #2563EB !important;
-        box-shadow: 0 0 0 1px #2563EB !important;
-        padding: inherit;
     }
 
     .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
