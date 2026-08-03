@@ -76,6 +76,7 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
         ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
         ->name('shopify.webhooks.orders.create');
     Route::get('/image-upload', [ImageController::class, 'index'])->name('shopify.imgupload');
+    Route::get('/image-picker-images', [ImageController::class, 'forSelection'])->name('shopify.image-picker-images');
     Route::post('/image-upload', [ImageController::class, 'store'])->name('shopify.imgupload.store');
     Route::delete('/image-upload/{id}', [ImageController::class, 'destroy'])
         ->name('shopify.imgupload.delete');

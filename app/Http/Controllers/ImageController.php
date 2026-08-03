@@ -22,6 +22,35 @@ class ImageController extends Controller
         return view('image-upload', compact('images'));
     }
 
+    public function forSelection(Request $request)
+    {
+        $shop = $request->attributes->get('active_shop_model');
+
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Shop not found.',
+            ], 404);
+        }
+
+        $images = Image::where('shop_id', $shop->id)
+            ->latest()
+            ->get()
+            ->map(function ($image) {
+                return [
+                    'id' => $image->id,
+                    'name' => basename($image->image),
+                    'path' => $image->image,
+                    'url' => asset($image->image),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'images' => $images,
+        ]);
+    }
+
     public function store(Request $request)
     {
 
