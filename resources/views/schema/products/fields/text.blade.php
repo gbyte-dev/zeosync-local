@@ -67,7 +67,7 @@ $idreq = $field['required'] ? 'required' : '';
     border:3px solid #dc3545 !important;
     background:#fff0f0 !important;
     @else
-     border:1px solid
+     border:1px solid #aaaaeb !important;
 @endif
 ">
 
