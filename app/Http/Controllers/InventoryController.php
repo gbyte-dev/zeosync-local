@@ -210,7 +210,8 @@ class InventoryController extends ShopifyController
         }
 
         $data = $shopifyInventoryService->getInventory($shopModel);
-
+        dd($data
+        );
         app(AutoSkuMappingService::class)->handle(
             $shopModel,
             $data,
