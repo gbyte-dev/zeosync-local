@@ -1097,9 +1097,7 @@
 
             },
             error: function(xhr) {
-
-                console.log(xhr);
-
+               // console.log(xhr);
                 alert(xhr.responseJSON?.message ?? 'Failed to unmap product.');
 
             }
