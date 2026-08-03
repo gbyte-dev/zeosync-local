@@ -84,6 +84,9 @@ $field['type'] = 'textarea';
 }
 
 $fieldHint = \App\Support\AmazonFieldHint::get($field['name']);
+$isImageField = \Illuminate\Support\Str::contains($field['name'], 'image_locator');
+$showAiButton = $canUseAiSingleField && in_array($field['type'], ['text','textarea']) && !$isImageField;
+$showImagePickerButton = $isImageField;
 @endphp
 
 <div class="card-body p-2 row">
@@ -100,8 +103,8 @@ $fieldHint = \App\Support\AmazonFieldHint::get($field['name']);
                         @endif
                     </label>
 
-                    {{-- Mobile AI Button --}}
-                    @if($canUseAiSingleField && in_array($field['type'], ['text','textarea']) && !\Illuminate\Support\Str::contains($field['name'], 'image_locator'))
+                    {{-- Mobile AI / Image Picker Button --}}
+                    @if($showAiButton)
 
                     <button type="button"
                         class="btn btn-sm btn-outline-primary ai-field-btn d-inline-block d-md-none"
@@ -111,6 +114,16 @@ $fieldHint = \App\Support\AmazonFieldHint::get($field['name']);
                         data-hint="{{ $fieldHint['example'] ?? '' }}">
                         <img src="{{ asset('images/ai-icon.png') }}" width="18" height="18">
                         Auto Fill
+                    </button>
+
+                    @elseif($showImagePickerButton)
+
+                    <button type="button"
+                        class="btn btn-sm btn-outline-success image-picker-btn d-inline-block d-md-none"
+                        data-field="{{ $field['name'] }}"
+                        data-picker-url="{{ route('shopify.image-picker-images') }}">
+                        <i class="bi bi-images"></i>
+                        Select Image
                     </button>
 
                     @endif
@@ -133,7 +146,7 @@ $fieldHint = \App\Support\AmazonFieldHint::get($field['name']);
         </div>
     </div>
 
-    @if($canUseAiSingleField && in_array($field['type'], ['text','textarea']) && !\Illuminate\Support\Str::contains($field['name'], 'image_locator'))
+@if($showAiButton || $showImagePickerButton)
     <div class="col-sm-8">
         @else
         <div class="col-sm-8">
@@ -160,7 +173,7 @@ $fieldHint = \App\Support\AmazonFieldHint::get($field['name']);
 
         <div class="col-sm-2 d-flex align-items-center" style="margin-top: -29px;">
 
-            @if($canUseAiSingleField && in_array($field['type'], ['text','textarea']) && !\Illuminate\Support\Str::contains($field['name'], 'image_locator'))
+            @if($showAiButton)
             <button type="button"
                 class="btn btn-sm btn-outline-primary ai-field-btn d-none d-md-inline-block"
                 data-field="{{ $field['name'] }}"
@@ -169,6 +182,14 @@ $fieldHint = \App\Support\AmazonFieldHint::get($field['name']);
                 data-hint="{{ $fieldHint['example'] ?? '' }}">
                 <img src="{{ asset('images/ai-icon.png') }}" width="18" height="18">
                 Auto Fill
+            </button>
+            @elseif($showImagePickerButton)
+            <button type="button"
+                class="btn btn-sm btn-outline-success image-picker-btn d-none d-md-inline-block"
+                data-field="{{ $field['name'] }}"
+                data-picker-url="{{ route('shopify.image-picker-images') }}">
+                <i class="bi bi-images"></i>
+                Select Image
             </button>
             @endif
 
