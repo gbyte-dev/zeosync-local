@@ -55,12 +55,27 @@
         color: #6B7280;
         letter-spacing: .05em;
     }
-
+    
+    .in-iframe .saas-stat-label{
+        font-size: 10px; 
+    }
     .saas-stat-value {
         font-size: 24px;
         font-weight: 700;
         color: #111827;
         line-height: 1;
+    }
+
+    .in-iframe .saas-stat-value{
+        font-size: 20px; 
+    }
+    
+    .in-iframe .saas-stat-card{
+        padding: 8px 9px;
+    }
+
+    .in-iframe .card-title-custom{
+        font-size: 14px;
     }
 
     /* Graph / Recent Activity Cards */
