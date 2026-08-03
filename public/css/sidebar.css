@@ -8,7 +8,7 @@
     min-width: var(--sidebar-width);
     max-width: var(--sidebar-width); /* Hard ceiling stops horizontal shifting */
     height: 100% !important;
-min-height: 100vh !important;
+    min-height: 100vh !important;
     background-color: #202938;
     padding: 16px 12px;
     
@@ -188,4 +188,12 @@ min-height: 100vh !important;
     .sidebar.active {
         left: 0;
     }
+}
+
+.in-iframe .sidebar__link{
+    height: 30px;
+}
+
+.in-iframe .sp-btn{
+    padding: 0 12px;
 }
