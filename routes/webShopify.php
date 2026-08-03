@@ -165,6 +165,10 @@ Route::post('webhooks/stripe', [StripeWebhookController::class, 'handle'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('stripe.webhook');
 Route::get('payment/success', [SubscriptionController::class, 'success'])->name('payment.success');
+Route::get(
+    '/payment/success/page',
+    [SubscriptionController::class, 'paymentSuccessPage']
+)->name('payment.success.page');
 Route::get('payment/cancel', [SubscriptionController::class, 'cancel'])->name('payment.cancel');
 Route::get('/check-payment-status', [SubscriptionController::class, 'checkStatus'])
     ->name('payment.status');

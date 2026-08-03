@@ -123,6 +123,9 @@ class SubscriptionController extends ShopifyController
             'plan_id' => 'required|exists:plans,id',
             'billing_interval' => 'nullable|integer|in:1,12',
         ]);
+        session([
+            'payment_is_iframe' => $request->boolean('is_iframe')
+        ]);
         $shopModel = $this->getActiveShop($request);
         if (!$shopModel) {
             return redirect()->back()->with('error', 'No shop connected.');
@@ -349,8 +352,9 @@ class SubscriptionController extends ShopifyController
                 ]);
             }
         }
-        return redirect($this->shopAwareUrl('/plans', $this->getActiveShop($request)->shop))
-            ->with('success', 'Payment successful.');
+        return redirect()->route('payment.success.page', [
+            'shop' => $shopModel?->shop,
+        ]);
     }
     public function checkStatus(Request $request)
     {
@@ -368,6 +372,12 @@ class SubscriptionController extends ShopifyController
         return response()->json([
             'status' => $subscription->status,
             'payment_status' => $subscription->payment_status
+        ]);
+    }
+    public function paymentSuccessPage(Request $request)
+    {
+        return view('payment.success', [
+            'shop' => $request->shop,
         ]);
     }
 }
