@@ -95,13 +95,7 @@
         }
 
         .in-iframe .content {
-            flex: 1;
-            min-width: 0 !important;
-            min-height: 0 !important;
-            overflow-y: auto;
-            overflow-x: hidden;
-            background-color: var(--sp-bg);
-            position: relative;
+            padding: 1px;
         }
 
         /* Mobile View */
