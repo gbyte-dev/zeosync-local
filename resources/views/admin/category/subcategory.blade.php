@@ -51,7 +51,7 @@
             </div>
 
              <a href="{{ route('admin.category') }}" class="btn btn-primary btn-sm rounded-3" style="">
-                ← Back
+                <i class="bi bi-arrow-left"></i> Back
             </a>
         </div>
     </div>
