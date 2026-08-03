@@ -1148,7 +1148,7 @@
         qtyInput.prop('disabled', true);
 
         $.ajax({
-            url: "{{ route('shopify.inventory.shopify') }}",
+            url: "{{ route('inventory.shopify.update') }}",
             type: 'POST',
             data: {
                 shop: shop,
