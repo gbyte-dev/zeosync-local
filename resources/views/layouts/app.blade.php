@@ -94,6 +94,9 @@
             position: relative;
         }
 
+        .in-iframe .content {
+            padding: 1px;
+        }
 
         /* Mobile View */
         @media (max-width: 767.98px) {
@@ -626,7 +629,13 @@
             });
         });
     </script>
-
+    <script>
+    if (window.self !== window.top) {
+        document.documentElement.classList.add('in-iframe');
+    } else {
+        document.documentElement.classList.add('normal-page');
+    }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 
