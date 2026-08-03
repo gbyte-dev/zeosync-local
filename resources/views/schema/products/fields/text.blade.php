@@ -44,6 +44,11 @@ if($field['name'] == 'fc_shelf_life'){
     $extramsg = 'Please use only days like 100 , 365 for year and other';
 }
 
+if($field['name'] == 'ring'){
+    $extramsg = 'Please use only numbers like 6.5 , 7 , 8.5 etc';
+}
+
+
 $idreq = $field['required'] ? 'required' : '';
 
 @endphp
