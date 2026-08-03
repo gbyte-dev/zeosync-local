@@ -51,6 +51,11 @@ Route::prefix('amazon')
             ->name('amazon.sync');
         Route::get('disconnect', [AmazonConnect::class, 'disconnect'])->name('amazon.disconnect');
     });
+
+Route::get(
+    '/amazon/connect/success',
+    [AmazonConnect::class, 'success']
+)->name('amazon.connect.success');
 //store settings
 Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
 Route::post('settings', [SettingsController::class, 'update'])->name('settings.update');
