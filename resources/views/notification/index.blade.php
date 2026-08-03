@@ -205,7 +205,7 @@
 </style>
 
 <div class="content">
-    <div class="saas-wrapper mt-4">
+    <div class="saas-wrapper">
 
         {{-- Page Header --}}
         <div class="saas-page-header row">
