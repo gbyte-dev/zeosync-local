@@ -210,12 +210,12 @@
     }
 
     .sp-table td {
-        padding: 4px 12px;
+        padding: 0px 12px;
         font-size: 13px;
         color: #111827;
         border-bottom: 1px solid #E5E7EB;
         vertical-align: middle;
-        height: 48px;
+        height: 10px;
     }
 
     .sp-table tbody tr:hover td {
