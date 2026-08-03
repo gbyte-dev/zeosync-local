@@ -198,6 +198,8 @@ class AdminController extends Controller
             'app_name',
             'currency',
             'timezone',
+            'app_logo',
+            'app_favicon',
 
             'admin_email',
             'SMTP_host',
@@ -236,10 +238,23 @@ class AdminController extends Controller
         ];
 
         foreach ($keys as $key) {
+
+            if( $key === 'app_logo' || $key === 'app_favicon') {
+                if ($request->hasFile($key)) {
+                    $file = $request->file($key);
+                    $filename = time() . '_' . $file->getClientOriginalName();
+                    $path = $file->storeAs('public/uploads', $filename);
+                    AdminSetting::updateOrCreate(
+                        ['option_key' => $key],
+                        ['option_value' => $path]
+                    );
+                }
+                continue; // Skip to the next iteration
+            }
+
             AdminSetting::updateOrCreate(
                 ['option_key' => $key],
-                [
-                    'option_value' => in_array($key, ['is_testmode', 'app_maintenance', 'install_info'])
+                ['option_value' => in_array($key, ['is_testmode', 'app_maintenance', 'install_info'])
                         ? ($request->has($key) ? '1' : '0')
                         : ($request->input($key) ?? '')
                 ]
