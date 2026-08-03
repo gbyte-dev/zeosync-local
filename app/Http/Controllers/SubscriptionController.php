@@ -326,6 +326,8 @@ class SubscriptionController extends ShopifyController
     }
     public function success(Request $request)
     {
+
+    dd(session()->all());
         Log::info('PAYMENT SUCCESS HIT', [
             'shop' => $request->shop
         ]);
