@@ -51,6 +51,10 @@
         min-width: 280px;
     }
 
+    .in-iframe .saas-usage-box {
+        padding: 0px 0px;
+    }
+
     .saas-usage-header {
         display: flex;
         justify-content: space-between;
@@ -474,7 +478,7 @@
     }
 </style>
 
-<div class="saas-wrapper">
+<div class="container-fluid py-3 px-3 saas-wrapper">
 
     {{-- Header & Usage --}}
     <div class="saas-page-header">
