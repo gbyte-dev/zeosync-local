@@ -1127,19 +1127,9 @@ class ShopifyController extends Controller
             }
         );
         //   PAGINATION
-        $perPage = 10;
-        $page = LengthAwarePaginator::resolveCurrentPage();
-        $items = $allProducts->slice(($page - 1) * $perPage, $perPage)->values();
-        $products = new LengthAwarePaginator(
-            $items,
-            $allProducts->count(),
-            $perPage,
-            $page,
-            [
-                'path' => request()->url(),
-                'query' => request()->query()
-            ]
-        );
+        $products = $allProducts;
+
+
 
         $shopSubscription = ShopSubscription::with('plan')
             ->where('shop_id', $shopModel->id)

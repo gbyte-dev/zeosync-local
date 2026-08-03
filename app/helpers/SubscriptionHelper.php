@@ -2,7 +2,7 @@
 
 use App\Models\ShopSubscription;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log; 
+use Illuminate\Support\Facades\Log;
 
 if (!function_exists('isSubscriptionActive')) {
 
@@ -44,14 +44,28 @@ if (!function_exists('isSubscriptionActive')) {
         //  Expiry check
         $isExpired = false;
 
-        if ($subscription->current_period_end) {
-            $isExpired = Carbon::parse($subscription->current_period_end)->isPast();
+        if (
+            $subscription->status === 'trialing' &&
+            $subscription->is_trial
+        ) {
+
+            $isExpired = $subscription->trial_ends_at
+                ? Carbon::parse($subscription->trial_ends_at)->isPast()
+                : true;
+        } else {
+
+            $isExpired = $subscription->current_period_end
+                ? Carbon::parse($subscription->current_period_end)->isPast()
+                : true;
         }
 
         Log::info('EXPIRY CHECK', [
+            'status' => $subscription->status,
+            'is_trial' => $subscription->is_trial,
+            'trial_ends_at' => $subscription->trial_ends_at,
             'current_period_end' => $subscription->current_period_end,
             'is_expired' => $isExpired,
-            'now' => now()
+            'now' => now(),
         ]);
 
         // Expired → update DB (only once safely)
@@ -65,7 +79,9 @@ if (!function_exists('isSubscriptionActive')) {
                 $subscription->update([
                     'status' => 'expired',
                     'ended_at' => now(),
-                    'trial_used' => $subscription->is_trial ? 1 : $subscription->trial_used
+                    'current_period_end' => now(),
+                    'trial_used' => $subscription->is_trial ? 1 : $subscription->trial_used,
+                    'is_trial' => 0,
                 ]);
             }
 

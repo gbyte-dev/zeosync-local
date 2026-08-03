@@ -377,6 +377,11 @@ class StripeService
                 'subscription_id'     => $shopifySubscription->id,
             ];
 
+            Log::info('START EMAIL SEND', [
+                'template' => $templateName,
+                'to' => $toEmail,
+            ]);
+
             if ($templateName) {
 
                 $template = MailTemplate::where('slug', $templateName)
@@ -384,8 +389,10 @@ class StripeService
                     ->first();
 
                 if ($template) {
+                    Log::info('CALLING TEMPLATE EMAIL');
                     $this->sendTemplateEmail($toEmail, $template, $emailData);
                 } else {
+                    Log::info('CALLING DEFAULT EMAIL');
                     $this->sendDefaultPaymentEmail($toEmail, $emailData);
                 }
             } else {

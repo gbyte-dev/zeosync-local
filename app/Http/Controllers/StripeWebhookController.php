@@ -380,11 +380,29 @@ class StripeWebhookController extends Controller
             'plan_id' => $shopSubscription?->plan_id,
             'requested_plan_id' => $shopSubscription?->requested_plan_id,
         ]);
+        // Activate pending subscription (new subscription / trial -> paid)
+        if (
+            $shopSubscription &&
+            $shopSubscription->status === 'pending'
+        ) {
+
+            $shopSubscription->update([
+                'status' => 'active',
+                'activated_at' => now(),
+                'current_period_end' => $periodEnd,
+            ]);
+
+            Log::info('PENDING SUBSCRIPTION ACTIVATED', [
+                'shop_id' => $shopSubscription->shop_id,
+                'plan_id' => $shopSubscription->plan_id,
+            ]);
+        }
 
         if (
             $shopSubscription &&
             !empty($shopSubscription->requested_plan_id)
         ) {
+
 
             $newPlan = Plan::find(
                 $shopSubscription->requested_plan_id
@@ -408,6 +426,10 @@ class StripeWebhookController extends Controller
                 'price' => $price,
                 'requested_plan_id' => null,
                 'status' => 'active',
+                'activated_at' => now(),
+                'current_period_end' => $periodEnd,
+                'is_trial' => 0,
+                'trial_ends_at' => null,
             ]);
 
             Log::info('PLAN SWITCH COMPLETED', [

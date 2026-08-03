@@ -7,7 +7,8 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
 $shopLabel = $currentShop ?: 'your connected store';
 
 $currentPlan = $subscription?->plan;
-$selectedInterval = $subscription?->billing_interval ?? 'EVERY_30_DAYS';
+$rawInterval = $subscription?->billing_interval ?? 'EVERY_30_DAYS';
+$selectedInterval = $rawInterval === 'ANNUAL' ? 12 : 1;
 
 $statusValue = strtolower((string) ($subscription?->status ?? 'pending'));
 $statusLabels = [
@@ -21,7 +22,11 @@ $statusLabels = [
 ];
 $subscriptionStatus = $statusLabels[$statusValue] ?? ucfirst($statusValue ?: 'Pending');
 
-if (in_array($statusValue, ['active', 'accepted'], true) && $subscription?->trial_ends_at?->isFuture()) {
+if (
+$subscription?->is_trial == 1 &&
+$subscription?->status === 'trialing' &&
+$subscription?->trial_ends_at?->isFuture()
+) {
 $subscriptionStatus = 'Trialing';
 }
 @endphp
@@ -705,11 +710,16 @@ $subscriptionStatus = 'Trialing';
     'Scale' => 3,
     ];
     $currentPlanName = $currentPlan?->name ?? null;
+
+    $plansCollection = collect($plans);
+    $trialPlans = $plansCollection->filter(fn($p) => $p->is_trial == 1);
+    $regularPlans = $plansCollection->filter(fn($p) => $p->is_trial != 1);
+    $displayPlans = $trialPlans->isNotEmpty() ? $trialPlans->concat($regularPlans) : $plans;
     @endphp
 
     {{-- Plans Grid --}}
     <div class="saas-plans-grid">
-        @forelse ($plans as $plan)
+        @forelse ($displayPlans as $plan)
 
         @if($plan->is_trial && $subscription && $subscription->trial_used == 1)
         @continue
@@ -805,7 +815,7 @@ $subscriptionStatus = 'Trialing';
                     @else
                     <div class="mb-3">
                         <label class="saas-label">Billing interval</label>
-                        <select name="billing_interval" id="billing_interval" class="saas-select">
+                        <select name="billing_interval" id="billing_interval_{{ $plan->id }}" class="saas-select">
                             @foreach($plan->prices as $interval => $price)
                             @php
                             if($interval == 'EVERY_30_DAYS'){
@@ -818,7 +828,7 @@ $subscriptionStatus = 'Trialing';
                             $description = 'Billed every 365 days';
                             }
                             @endphp
-                            <option value="{{ $months }}" {{ $isCurrentPlan && $selectedInterval === $months ? 'selected' : '' }}>
+                            <option value="{{ $months }}" {{ $isCurrentPlan && (int)$selectedInterval === (int)$months ? 'selected' : '' }}>
                                 {{ $label }} · {{ $description }}
                             </option>
                             @endforeach
@@ -835,7 +845,7 @@ $subscriptionStatus = 'Trialing';
                     && now()->lt($subscription->trial_ends_at);
                     @endphp
 
-                    @if($loop->first)
+                    @if($plan->is_trial)
                     @if($isTrialActive)
                     <button type="button" class="saas-btn saas-btn-primary" disabled>Trial Active</button>
                     @elseif($hasUsedTrial)

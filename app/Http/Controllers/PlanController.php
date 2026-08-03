@@ -57,10 +57,9 @@ class PlanController extends Controller
         $data['ai_single_field'] = $request->boolean('ai_single_field');
 
         //  HANDLE TRIAL PLAN
-        if ($request->has('is_trial')) {
-            $data['prices'] = [
-                'EVERY_30_DAYS' => 0
-            ];
+        if ($request->boolean('is_trial')) {
+            $data['prices'] = [];
+            $data['stripe_price_ids'] = [];
             $data['is_trial'] = 1;
         } else {
             $data['prices'] = array_filter($request->prices ?? [], function ($value) {
@@ -118,14 +117,10 @@ class PlanController extends Controller
         $data['ai_single_field'] = $request->boolean('ai_single_field');
 
         //  HANDLE TRIAL PLAN
-        if ($request->has('is_trial')) {
-            $data['prices'] = [
-                'EVERY_30_DAYS' => 0
-            ];
-            $data['is_trial'] = 1;
-
-            // optional clean
+        if ($request->boolean('is_trial')) {
+            $data['prices'] = [];
             $data['stripe_price_ids'] = [];
+            $data['is_trial'] = 1;
         } else {
             $data['prices'] = array_filter($request->prices ?? [], function ($value) {
                 return $value !== null && $value !== '';
