@@ -30,7 +30,7 @@ if($field['name'] == 'fc_shelf_life'){
             border:3px solid #dc3545 !important;
             background:#fff0f0 !important;
         @else
-        border:1px solid
+        border:1px solid #aaaaeb !important;
         @endif
         ">
 
