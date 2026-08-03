@@ -182,7 +182,7 @@ class ShopifyService
         $response = $this->graphql($query, [
             'cursor' => $cursor
         ]);
-dd($response->body());
+dd($response->body(),$query );
         if (!$response || !isset($response['data']['products'])) {
             return [
                 'data' => [],
