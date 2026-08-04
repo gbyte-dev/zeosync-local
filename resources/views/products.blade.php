@@ -50,6 +50,9 @@
         margin-bottom: 16px;
     }
 
+    in-iframe .sp-card-grid {
+        grid-template-columns: repeat(4, minmax(180px, 1fr));
+    }
     /* Buttons */
     .sp-actions {
         display: flex;
