@@ -353,6 +353,18 @@ class AdminController extends Controller
         return view('admin.shops.index', compact('shops'));
     }
 
+    public function updateShop(Request $request, Shop $shop)
+    {
+        $data = $request->validate([
+            'shop_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $shop->update($data);
+
+        return back()->with('success', 'Shop details updated successfully.');
+    }
+
     public function cancel(Shop $shop)
     {
         $subscription = ShopSubscription::where('shop_id', $shop->id)->first();
