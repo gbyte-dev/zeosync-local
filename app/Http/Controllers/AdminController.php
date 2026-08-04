@@ -239,25 +239,37 @@ class AdminController extends Controller
 
         foreach ($keys as $key) {
 
-            if( $key === 'app_logo' || $key === 'app_favicon') {
+            if ($key === 'app_logo' || $key === 'app_favicon') {
+
                 if ($request->hasFile($key)) {
+
                     $file = $request->file($key);
-                    $filename =  $file->getClientOriginalName();
-                    if(file_exists(public_path('logo/' . $filename))) {
-                        unlink(public_path('logo/' . $filename));
+
+                    $filename = time() . '_' . $file->getClientOriginalName();
+
+                    // Purani file delete
+                    $old = AdminSetting::where('option_key', $key)->value('option_value');
+
+                    if ($old && file_exists(public_path($old))) {
+                        unlink(public_path($old));
                     }
-                    $path = $file->storeAs('public/logo', $filename);
+
+                    // Save in public/logo
+                    $file->move(public_path('logo'), $filename);
+
                     AdminSetting::updateOrCreate(
                         ['option_key' => $key],
-                        ['option_value' => $path]
+                        ['option_value' => 'logo/' . $filename]
                     );
                 }
-                continue; // Skip to the next iteration
+
+                continue;
             }
 
             AdminSetting::updateOrCreate(
                 ['option_key' => $key],
-                ['option_value' => in_array($key, ['is_testmode', 'app_maintenance', 'install_info'])
+                [
+                    'option_value' => in_array($key, ['is_testmode', 'app_maintenance', 'install_info'])
                         ? ($request->has($key) ? '1' : '0')
                         : ($request->input($key) ?? '')
                 ]

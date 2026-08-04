@@ -13,7 +13,33 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
 ]));
 @endphp
 
+<style>
+    .sidebar__logo {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px 16px 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, .08);
+        margin-bottom: 12px;
+    }
+
+    .sidebar__logo-img {
+        width: 100%;
+        max-width: 180px;
+        height: auto;
+        object-fit: contain;
+        display: block;
+    }
+</style>
+
 <nav id="sidebar" class="sidebar">
+    <div class="sidebar__logo">
+        <a href="{{ route('dashboard').($currentShop ? '?shop='.$currentShop : '') }}">
+            <img src="{{ asset('logo/logoamazonysync.png') }}"
+                alt="Logo"
+                class="sidebar__logo-img">
+        </a>
+    </div>
 
     <!-- Dashboard -->
     <div class="sidebar__item">
@@ -169,9 +195,9 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
 </nav>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    if (window.self !== window.top) {
-        document.getElementById('logout-button').style.display = 'none';
-    }
-});
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.self !== window.top) {
+            document.getElementById('logout-button').style.display = 'none';
+        }
+    });
 </script>

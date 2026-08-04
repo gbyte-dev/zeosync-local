@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>@yield('title', 'Admin Dashboard') | Amazon Sync</title>
@@ -7,18 +8,23 @@
     {{-- Bootstrap 5 --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('logo/favamzsync.png')}}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('logo/favamzsync.png')}}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('logo/favamzsync.png') }}">
+    @php
+    $favicon = \App\Models\AdminSetting::where('option_key', 'app_favicon')->value('option_value');
+    $faviconUrl = $favicon ? asset($favicon) : asset('logo/favamzsync.png');
+    @endphp
+
+    <link rel="icon" type="image/png" href="{{ $faviconUrl }}?v={{ time() }}">
+    <link rel="apple-touch-icon" href="{{ $faviconUrl }}?v={{ time() }}">
 
     <style>
         body {
             background: #f5f7fb;
         }
-        
+
         .admin-layout {
             min-height: 100vh;
         }
+
         .sidebar {
             width: 260px;
             min-height: 100vh;
@@ -27,20 +33,25 @@
             position: sticky;
             top: 0;
         }
+
         .sidebar-brand {
             padding: 24px 20px;
             border-bottom: 1px solid rgba(255, 255, 255, .08);
         }
+
         .sidebar-brand h5 {
             font-weight: 800;
             margin: 0;
         }
+
         .sidebar-brand small {
             color: #94a3b8;
         }
+
         .sidebar-menu {
             padding: 16px 12px;
         }
+
         .sidebar-link {
             display: flex;
             align-items: center;
@@ -52,18 +63,22 @@
             font-weight: 400;
             transition: .2s;
         }
+
         .sidebar-link:hover,
         .sidebar-link.active {
             background: rgba(37, 99, 235, .18);
             color: #fff;
         }
+
         .sidebar-link i {
             font-size: 18px;
         }
+
         .main-area {
             flex: 1;
             min-width: 0;
         }
+
         .top-navbar {
             height: 70px;
             background: #fff;
@@ -73,10 +88,12 @@
             top: 0;
             z-index: 1000;
         }
+
         .page-title {
             font-weight: 800;
             color: #111827;
         }
+
         .notification-btn {
             width: 42px;
             height: 42px;
@@ -87,21 +104,25 @@
             align-items: center;
             justify-content: center;
         }
+
         .notification-menu {
             width: 340px;
             border: 0;
             border-radius: 18px;
             box-shadow: 0 18px 45px rgba(15, 23, 42, .15);
             overflow: hidden;
-        } 
+        }
+
         .notification-item {
             padding: 12px 16px;
             font-size: 14px;
             border-bottom: 1px solid #f1f5f9;
         }
+
         .notification-item:last-child {
             border-bottom: 0;
         }
+
         .admin-avatar {
             width: 38px;
             height: 38px;
@@ -113,43 +134,54 @@
             justify-content: center;
             font-weight: 800;
         }
+
         .content-area {
             padding: 15px;
         }
+
         .offcanvas-start {
             width: 270px !important;
             background: linear-gradient(180deg, #0f172a, #111827);
             color: #fff;
         }
+
         .mobile-menu-btn {
             border-radius: 12px;
         }
+
         .logout-btn {
             border-radius: 10px;
             font-weight: 700;
         }
+
         .toast {
             border-radius: 14px;
         }
+
         @media(max-width: 991px) {
             .desktop-sidebar {
                 display: none;
             }
+
             .top-navbar {
                 padding: 0 16px;
             }
+
             .content-area {
                 padding: 11px;
             }
         }
+
         @media(max-width: 576px) {
             .admin-name {
                 display: none;
             }
+
             .notification-menu {
                 width: 300px;
             }
         }
+
         .offcanvas-start {
             width: 260px !important;
             position: fixed;
@@ -158,14 +190,17 @@
             height: 100vh;
             overflow: hidden;
         }
+
         .offcanvas-body {
             overflow-y: auto;
             height: calc(100vh - 70px);
             /* header height ke hisab se */
         }
+
         body {
             overflow-x: hidden;
         }
+
         @media (min-width: 992px) {
             .offcanvas-start {
                 visibility: visible !important;
@@ -179,20 +214,20 @@
             }
         }
 
-        tbody, td{
-            font-size:small;
+        tbody,
+        td {
+            font-size: small;
         }
 
         .header {
             background: rgba(var(--bs-body-color-rgb), 0.11);
             border-radius: 22px 22px 0 0;
-            border-top:1px solid gray;
+            border-top: 1px solid gray;
         }
-
-
     </style>
     @stack('css')
 </head>
+
 <body>
     {{-- Toast Container --}}
     <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999">
@@ -426,4 +461,5 @@
     @yield('scripts')
     @stack('scripts')
 </body>
+
 </html>
