@@ -17,6 +17,7 @@ use App\Models\ShopSubscription;
 use App\Models\ProductMarketplaceMapping;
 use App\Services\UserNotificationService;
 use App\Models\AmazonSchema;
+use Illuminate\Support\Facades\Storage;
 
 class AdminController extends Controller
 {
@@ -247,19 +248,24 @@ class AdminController extends Controller
 
                     $filename = time() . '_' . $file->getClientOriginalName();
 
-                    // Purani file delete
+                    // Delete old file if exists
                     $old = AdminSetting::where('option_key', $key)->value('option_value');
 
-                    if ($old && file_exists(public_path($old))) {
-                        unlink(public_path($old));
+                    if ($old && Storage::disk('public')->exists($old)) {
+                        Storage::disk('public')->delete($old);
                     }
 
-                    // Save in public/logo
-                    $file->move(public_path('logo'), $filename);
+                    // Store file in storage/app/public/logo
+                    $path = $file->storeAs(
+                        'logo',
+                        $filename,
+                        'public'
+                    );
 
+                    // Save relative path in database
                     AdminSetting::updateOrCreate(
                         ['option_key' => $key],
-                        ['option_value' => 'logo/' . $filename]
+                        ['option_value' => $path]
                     );
                 }
 
