@@ -42,7 +42,7 @@
         background: #fff;
         border-radius: 20px;
         padding: 22px;
-        border: 1px solid #eef2f7;
+        border: 1px solid  #c2c2c2;
         box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
         display: flex;
         align-items: center;
@@ -94,8 +94,7 @@
 
     .pro-card-header h5 {
         margin: 0;
-        font-weight: 800;
-        color: #111827;
+        font-weight: 600;
     }
 
     .info-row {
@@ -165,24 +164,6 @@
 </style>
 
 <div class="shop-dashboard">
-
-    {{-- Header --}}
-   <div class="card shadow-sm border-0  overflow-hidden">
-        <div class="p-3 mb-2 text-dark shadow header">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-                <h5 class="mb-1">Shop Dashboard</h5>
-                <p class="mb-0 opacity-75">  Key metrics and subscription details for {{ $shop->shop_name }}  </p>
-            </div>
-            @if($shop->is_active)
-            <span class="status-pill bg-success text-white">● Active</span>
-            @else
-            <span class="status-pill bg-danger text-white">● Inactive</span>
-            @endif
-          
-        </div>
-    </div>
-
 
     {{-- Stats --}}
     <div class="stats-grid">
