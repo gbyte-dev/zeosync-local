@@ -12,11 +12,22 @@
 
     @php
     $favicon = \App\Models\AdminSetting::where('option_key', 'app_favicon')->value('option_value');
-    $faviconUrl = $favicon ? asset($favicon) : asset('logo/favamzsync.png');
+
+    $fallback = asset('logo/favamzsync.png');
+
+    $faviconUrl = $fallback;
+
+    if (
+    !empty($favicon) &&
+    \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon)
+    ) {
+    $faviconUrl = asset('storage/' . $favicon);
+    }
     @endphp
 
-    <link rel="icon" type="image/png" href="{{ $faviconUrl }}?v={{ time() }}">
-    <link rel="apple-touch-icon" href="{{ $faviconUrl }}?v={{ time() }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
 
     <style>
         /* Enterprise SaaS App Layout - Tight Density */
