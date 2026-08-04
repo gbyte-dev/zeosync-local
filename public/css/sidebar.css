@@ -202,3 +202,8 @@
     max-width: 200px;
     min-width: 200px;
 }
+
+.in-iframe .sidebar__submenu{
+    padding-left: 0px;
+    gap: 0;
+}
