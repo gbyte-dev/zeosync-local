@@ -72,17 +72,7 @@ class ShopifyController extends Controller
                 'shop' => $shop
             ]);
         }
-        //   PRIORITY 3: Session fallback
-        // if (!$shop) {
-        //     $shop = session('active_shop');
-        //     LOG::info('SHOP FROM SESSION', [
-        //         'shop' => $shop
-        //     ]);
-        // }
-        // LOG::info('FINAL SHOP DETECTED', [
-        //     'shop' => $shop
-        // ]);
-        // ❌ No shop → show landing page
+
         if (!$shop) {
             return view('welcome'); // landing page
         }
@@ -95,10 +85,7 @@ class ShopifyController extends Controller
             'token' => $shopModel->access_token ?? null
         ]);
         // ✅ Already installed
-        if (
-            $shopModel &&
-            $shopModel->is_active == 1 &&
-            !empty($shopModel->access_token)
+        if ( $shopModel &&  $shopModel->is_active == 1 && !empty($shopModel->access_token)
         ) {
             if (!$this->isShopActive($shopModel)) {
 
