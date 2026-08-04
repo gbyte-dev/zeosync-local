@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amazon Account Connected</title>
+    <title>Payment Successful | ZeoSync</title>
     <style>
         body {
             margin: 0;
@@ -73,7 +72,7 @@
             color: #16a34a;
         }
 
-        h1 {
+        h2 {
             font-size: 26px;
             font-weight: 700;
             color: #202223;
@@ -85,79 +84,11 @@
             font-size: 15px;
             color: #6d7175;
             line-height: 1.6;
-            margin: 0 0 32px 0;
+            margin: 0 0 36px 0;
             padding: 0 16px;
         }
 
-        .store-card {
-            background-color: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 18px 24px;
-            margin-bottom: 32px;
-            display: block;
-            width: 100%;
-            box-sizing: border-box;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
-        }
-
-        .store-card span {
-            display: block;
-            font-size: 12px;
-            color: #6d7175;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-bottom: 6px;
-            font-weight: 600;
-        }
-
-        .store-card strong {
-            font-size: 18px;
-            color: #202223;
-            font-weight: 600;
-            word-break: break-all;
-        }
-
-        .next-steps-card {
-            background-color: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 24px;
-            text-align: left;
-            margin-bottom: 36px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-        }
-
-        .next-steps-card h5 {
-            font-size: 15px;
-            font-weight: 700;
-            color: #202223;
-            margin: 0 0 16px 0;
-        }
-
-        .next-steps-card ol {
-            margin: 0;
-            padding-left: 24px;
-            color: #6d7175;
-        }
-
-        .next-steps-card li {
-            margin-bottom: 12px;
-            font-size: 14px;
-            line-height: 1.5;
-            padding-left: 6px;
-        }
-
-        .next-steps-card li:last-child {
-            margin-bottom: 0;
-        }
-
-        .next-steps-card strong {
-            color: #202223;
-            font-weight: 600;
-        }
-
-        .btn-shopify {
+        .btn-primary {
             width: 100%;
             height: 52px;
             background-color: #008060;
@@ -171,22 +102,52 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            text-decoration: none;
             box-shadow: 0 4px 10px rgba(0, 128, 96, 0.2);
+            box-sizing: border-box;
         }
 
-        .btn-shopify:hover {
+        .btn-primary:hover {
             background-color: #006e52;
             box-shadow: 0 6px 14px rgba(0, 128, 96, 0.25);
             transform: translateY(-1px);
         }
 
-        .btn-shopify:active {
+        .btn-primary:active {
             transform: translateY(0);
             box-shadow: 0 2px 6px rgba(0, 128, 96, 0.2);
         }
 
+        .btn-secondary {
+            width: 100%;
+            height: 52px;
+            background-color: #ffffff;
+            color: #202223;
+            border: 1px solid #c9cccf;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            box-sizing: border-box;
+        }
+
+        .btn-secondary:hover {
+            background-color: #f9fafb;
+            border-color: #b5b7b9;
+        }
+
+        .btn-secondary:active {
+            background-color: #f4f6f8;
+        }
+
         .footer {
-            margin-top: 32px;
+            margin-top: 24px;
             font-size: 13px;
             color: #6d7175;
             line-height: 1.5;
@@ -197,100 +158,81 @@
             .card {
                 padding: 32px 20px;
             }
-
             .success-icon-wrapper {
                 width: 88px;
                 height: 88px;
                 margin-bottom: 24px;
             }
-
             .success-icon-wrapper svg {
                 width: 44px;
                 height: 44px;
             }
-
-            h1 {
+            h2 {
                 font-size: 22px;
             }
-
             p.description {
                 font-size: 14px;
                 padding: 0;
             }
-
             .app-logo {
                 height: 56px;
             }
-
             .logo-container {
                 margin-bottom: 24px;
             }
-
             .container {
                 padding: 16px;
             }
         }
     </style>
 </head>
-
 <body>
 
-    <div class="container">
+<div class="container">
 
-        <div class="logo-container">
-            @php
+    <div class="logo-container">
+        @php
             $logo = AdminSetting('app_logo');
-            @endphp
-            @if($logo && file_exists(public_path('storage/' . $logo)))
+        @endphp
+        @if($logo && file_exists(public_path('storage/' . $logo)))
             <img src="{{ asset('storage/' . $logo) }}" alt="Logo" class="app-logo">
-            @else
+        @else
             <img src="{{ asset('logo/favamzsync.png') }}" alt="Logo" class="app-logo">
-            @endif
+        @endif
+    </div>
+
+    <div class="card">
+
+        <div class="success-icon-wrapper">
+            <svg fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0L3.293 9.207a1 1 0 111.414-1.414l4.043 4.043 6.543-6.543a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
         </div>
 
-        <div class="card">
+        <h2>Payment Successful</h2>
 
-            <div class="success-icon-wrapper">
-                <svg fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0L3.293 9.207a1 1 0 111.414-1.414l4.043 4.043 6.543-6.543a1 1 0 011.414 0z" clip-rule="evenodd" />
-                </svg>
-            </div>
+        <p class="description">
+            Your subscription has been activated successfully.<br><br>
+            Please return to your Shopify Admin and continue using ZeoSync.
+        </p>
 
-            <h1>Amazon Account Connected Successfully</h1>
-
-            <p class="description">
-                Your Amazon Seller account has been connected successfully with <strong>AmazonSync</strong>.<br><br>
-                Amazon authorization is completed outside Shopify's embedded application. To continue using AmazonSync, simply return to your Shopify Admin and reopen the app.
-            </p>
-
-            @if(!empty($shop))
-            <div class="store-card">
-                <span>Connected Store</span>
-                <strong>{{ $shop }}</strong>
-            </div>
-            @endif
-
-            <div class="next-steps-card">
-                <h5>Next Steps</h5>
-                <ol>
-                    <li>Go back to your Shopify Admin.</li>
-                    <li>Open the <strong>AmazonSync</strong> app again.</li>
-                    <li>Your Amazon account is now connected and ready to use.</li>
-                </ol>
-            </div>
-
-            <button onclick="window.close();" class="btn-shopify">
-                Close This Page
+        @if(!empty($shop))
+            <a href="{{ route('dashboard',['shop'=>$shop]) }}" target="_top" class="btn-primary">
+                Open ZeoSync
+            </a>
+        @else
+            <button onclick="window.close()" class="btn-secondary">
+                Close Window
             </button>
+        @endif
 
-            <div class="footer">
-                If this window doesn't close automatically, simply return to your Shopify Admin and reopen AmazonSync.
-            </div>
-
+        <div class="footer">
+            You can safely close this page after completing the above action.
         </div>
 
     </div>
 
-</body>
+</div>
 
+</body>
 </html>
