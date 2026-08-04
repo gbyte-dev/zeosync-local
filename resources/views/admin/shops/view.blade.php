@@ -42,7 +42,7 @@
         background: #fff;
         border-radius: 20px;
         padding: 22px;
-        border: 1px solid #eef2f7;
+        border: 1px solid  #c2c2c2;
         box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
         display: flex;
         align-items: center;
@@ -94,8 +94,7 @@
 
     .pro-card-header h5 {
         margin: 0;
-        font-weight: 800;
-        color: #111827;
+        font-weight: 600;
     }
 
     .info-row {
@@ -166,24 +165,6 @@
 
 <div class="shop-dashboard">
 
-    {{-- Header --}}
-   <div class="card shadow-sm border-0  overflow-hidden">
-        <div class="p-3 mb-2 text-dark shadow header">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-                <h5 class="mb-1">Shop Dashboard</h5>
-                <p class="mb-0 opacity-75">  Key metrics and subscription details for {{ $shop->shop_name }}  </p>
-            </div>
-            @if($shop->is_active)
-            <span class="status-pill bg-success text-white">● Active</span>
-            @else
-            <span class="status-pill bg-danger text-white">● Inactive</span>
-            @endif
-          
-        </div>
-    </div>
-
-
     {{-- Stats --}}
     <div class="stats-grid">
 
@@ -229,7 +210,7 @@
         {{-- Shop Info --}}
         <div class="pro-card">
             <div class="pro-card-header">
-                <h5>🏪 Shop Information</h5>
+                <h5> Shop Information</h5>
             </div>
 
             <div class="info-row">
@@ -237,14 +218,41 @@
                 <div class="info-value">{{ $shop->shop }}</div>
             </div>
 
-            <div class="info-row">
-                <div class="info-label">Shop Name</div>
-                <div class="info-value">{{ $shop->shop_name }}</div>
-            </div>
+            @if(session('success'))
+                <div class="alert alert-success m-3 mb-0">{{ session('success') }}</div>
+            @endif
 
-            <div class="info-row">
-                <div class="info-label">Email Address</div>
-                <div class="info-value">{{ $shop->email }}</div>
+            @if(session('error'))
+                <div class="alert alert-danger m-3 mb-0">{{ session('error') }}</div>
+            @endif
+
+            @if($errors->any())
+                <div class="alert alert-danger m-3 mb-0">
+                    <ul class="mb-0">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <div class="p-4 border-top">
+                <form action="{{ route('admin.shops.update', $shop->id) }}" method="POST">
+                    @csrf
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="shop_name" class="form-label">Shop Name</label>
+                            <input type="text" class="form-control" id="shop_name" name="shop_name" value="{{ old('shop_name', $shop->shop_name) }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ old('email', $shop->email) }}" required>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+                    </div>
+                </form>
             </div>
 
             <div class="info-row">
@@ -267,7 +275,7 @@
         {{-- Subscription --}}
         <div class="pro-card">
             <div class="pro-card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">📋 Subscription Details</h5>
+                <h5 class="mb-0"> Subscription Details</h5>
 
                 @if($shop->subscription && $shop->subscription->status !== 'cancelled')
                     <form action="{{ route('admin.shops.cancel', $shop->id) }}"
