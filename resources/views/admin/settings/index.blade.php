@@ -117,19 +117,29 @@ $groups = [
                                     <input type="{{ $type }}" name="{{ $key }}" class="form-control"
                                         value="{{ old($key, $value) }}">
 
-                                    @if($key === 'app_logo' && $value)
-                                    <div class="mt-2">
-                                        <img src="{{ asset($value) }}"
-                                            alt="App Logo"
-                                            style="max-height:50px;">
-                                    </div>
+                                    @php
+                                    use Illuminate\Support\Facades\Storage;
+                                    @endphp
 
-                                    @elseif($key === 'app_favicon' && $value)
+                                    @if($key === 'app_logo')
+                                    @if(!empty($value) && Storage::disk('public')->exists($value))
                                     <div class="mt-2">
-                                        <img src="{{ asset($value) }}"
-                                            alt="App Favicon"
-                                            style="max-height:50px;">
+                                        <label class="form-label small text-muted">Existing Logo Preview</label>
+                                        <img src="{{ Storage::url($value) }}"
+                                            alt="App Logo"
+                                            style="max-height:70px; max-width:220px;">
                                     </div>
+                                    @endif
+
+                                    @elseif($key === 'app_favicon')
+                                    @if(!empty($value) && Storage::disk('public')->exists($value))
+                                    <div class="mt-2">
+                                        <label class="form-label small text-muted">Existing Favicon Preview</label>
+                                        <img src="{{ Storage::url($value) }}"
+                                            alt="App Favicon"
+                                            style="height:48px; width:48px;">
+                                    </div>
+                                    @endif
                                     @endif
 
                                     @endif
