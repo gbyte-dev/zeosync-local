@@ -12,7 +12,10 @@ class SyncLimitService
     {
         $subscription = ShopSubscription::with('plan')
             ->where('shop_id', $shop->id)
-            ->where('status', 'active')
+            ->whereIn('status', [
+                'active',
+                'trialing',
+            ])
             ->latest('started_at')
             ->first();
 
