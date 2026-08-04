@@ -207,3 +207,7 @@
     padding-left: 0px;
     gap: 0;
 }
+
+.in-iframe .sidebar__link.active{
+    font-weight: 500;
+}
