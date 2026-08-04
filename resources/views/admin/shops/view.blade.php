@@ -209,9 +209,9 @@
 
         {{-- Shop Info --}}
         <div class="pro-card">
-            <div class="pro-card-header">
-                <h5> Shop Information</h5>
-                <button type="submit" class="btn btn-primary btn-sm" onclick="document.getElementById('saveChangesBtn').click()">Save Changes</button>
+            <div class="pro-card-header row">
+                <h5 class="col-md-8"> Shop Information</h5>
+                <button type="submit" class="btn btn-primary btn-sm col-md-4" onclick="document.getElementById('saveChangesBtn').click()">Save Changes</button>
 
             </div>
 
