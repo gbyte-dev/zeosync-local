@@ -379,8 +379,8 @@
 
 <div class="pg-wrap container-fluid">
     <!-- Page header -->
-    <div class="pg-header">
-        <h2 class="pg-title">Create Product</h2>
+    <div class="saas-page-header">
+        <h4 class="pg-title">Create Product</h4>
         <p class="pg-subtitle">Fill in the details below to list your product</p>
     </div>
 
