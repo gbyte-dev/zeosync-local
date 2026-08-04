@@ -10,9 +10,13 @@
     <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ asset('css/sidebar.css') }}?v={{ time() }}" rel="stylesheet">
     <link href="{{ asset('css/style.css') }}?v={{ time() }}" rel="stylesheet">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('logo/favamzsync.png')}}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('logo/favamzsync.png')}}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('logo/favamzsync.png') }}">
+    @php
+    $favicon = \App\Models\AdminSetting::where('option_key', 'app_favicon')->value('option_value');
+    $faviconUrl = $favicon ? asset($favicon) : asset('logo/favamzsync.png');
+    @endphp
+
+    <link rel="icon" type="image/png" href="{{ $faviconUrl }}?v={{ time() }}">
+    <link rel="apple-touch-icon" href="{{ $faviconUrl }}?v={{ time() }}">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
@@ -630,11 +634,11 @@
         });
     </script>
     <script>
-    if (window.self !== window.top) {
-        document.documentElement.classList.add('in-iframe');
-    } else {
-        document.documentElement.classList.add('normal-page');
-    }
+        if (window.self !== window.top) {
+            document.documentElement.classList.add('in-iframe');
+        } else {
+            document.documentElement.classList.add('normal-page');
+        }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>

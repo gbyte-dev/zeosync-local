@@ -41,7 +41,8 @@ class ResolveActiveShop
             $request->routeIs('crm.entry') ||
             $request->routeIs('shopify.install') ||
             $request->routeIs('shopify.callback') ||
-            $request->routeIs('setup.form')
+            $request->routeIs('setup.form') ||
+            $request->routeIs('setup.store')
         ) {
 
             Log::info('BYPASS ROUTE', [
@@ -55,6 +56,24 @@ class ResolveActiveShop
 
                 session([
                     'active_shop' => $activeShop,
+                ]);
+            }
+
+            $shop = Shop::where('shop', $activeShop)
+                ->where('is_active', 1)
+                ->first();
+
+            if (
+                $shop &&
+                filled($shop->shop_name) &&
+                filled($shop->email) &&
+                (
+                    $request->routeIs('setup.form') ||
+                    $request->routeIs('setup.store')
+                )
+            ) {
+                return redirect()->route('dashboard', [
+                    'shop' => $shop->shop,
                 ]);
             }
 
@@ -120,6 +139,19 @@ class ResolveActiveShop
             'shop'    => $shop->shop,
         ]);
 
+        $isActivated = filled($shop->shop_name) && filled($shop->email);
+
+        if (
+            !$isActivated &&
+            !$request->routeIs('setup.form') &&
+            !$request->routeIs('setup.store')
+        ) {
+            return redirect()
+                ->route('setup.form', [
+                    'shop' => $shop->shop,
+                ])
+                ->with('error', 'Please fill the activation form to activate the app.');
+        }
         // if ($shop->needsStatusCheck()) {
 
         //     app(\App\Services\StoreStatusService::class)->check($shop);

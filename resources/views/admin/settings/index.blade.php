@@ -7,35 +7,35 @@
 $groups = [
 'App Basic Details' => ['app_name','currency','timezone', 'app_logo','app_favicon'],
 
-    'Email / SMTP Settings' => [
-        'admin_email','SMTP_host','SMTP_port',
-        'SMTP_username','SMTP_password',
-        'SMTP_encryption','from_email','from_name'
-    ],
-    'Stripe Settings' => [
-        'stripe_secret_key','stripe_publishable_key','stripe_webhook_secret'
-    ],
-    'Amazon Credentials' => [
-        'production_client_id',
-        'production_client_secret',
-        'amazon_refresh_token',
-        'amazon_seller_id',
-        'amazon_app_id'
-    ],
-    'Shopify Credentials' => [
-        'SHOPIFY_API_KEY','SHOPIFY_API_SECRET','SHOPIFY_REDIRECT_URI'
-    ],
-    'Gemini AI Info' => [
-        'openai_api_key',
-        'ai_provider',
-        'openai_model',
-        'openai_temperature',
-        'openai_endpoint',
-    ],
+'Email / SMTP Settings' => [
+'admin_email','SMTP_host','SMTP_port',
+'SMTP_username','SMTP_password',
+'SMTP_encryption','from_email','from_name'
+],
+'Stripe Settings' => [
+'stripe_secret_key','stripe_publishable_key','stripe_webhook_secret'
+],
+'Amazon Credentials' => [
+'production_client_id',
+'production_client_secret',
+'amazon_refresh_token',
+'amazon_seller_id',
+'amazon_app_id'
+],
+'Shopify Credentials' => [
+'SHOPIFY_API_KEY','SHOPIFY_API_SECRET','SHOPIFY_REDIRECT_URI'
+],
+'Gemini AI Info' => [
+'openai_api_key',
+'ai_provider',
+'openai_model',
+'openai_temperature',
+'openai_endpoint',
+],
 ];
 @endphp
 
-    <!-- 'Amazon Test Credentials' => [
+<!-- 'Amazon Test Credentials' => [
         'test_client_id','test_client_secret','test_refresh_token','is_testmode'
     ], -->
 <div class="container-fluid">
@@ -66,9 +66,9 @@ $groups = [
                             @php
                             $value = $settings[$key] ?? '';
                             if($key == 'app_logo' || $key == 'app_favicon'){
-                                $type = 'file';
+                            $type = 'file';
                             }else{
-                                $type = 'text';
+                            $type = 'text';
                             }
                             @endphp
 
@@ -114,20 +114,27 @@ $groups = [
 
                                     @else
 
-                                        <input type="<?= $type ?>" name="{{ $key }}" class="form-control"
-                                            value="{{ old($key, $value) }}">
-                                        @if($key === 'app_logo' && $value)
-                                            <div class="mt-2">
-                                                <img src="{{ asset('storage/logo/' . $value) }}" alt="App Logo" style="max-height: 50px;">
-                                            </div>
-                                        @elseif($key === 'app_favicon' && $value)
-                                            <div class="mt-2">
-                                                <img src="{{ asset('storage/logo/' . $value) }}" alt="App Favicon" style="max-height: 50px;">
-                                            </div>
-                                        @endif
-                                    @endif
-                                
+                                    <input type="{{ $type }}" name="{{ $key }}" class="form-control"
+                                        value="{{ old($key, $value) }}">
+
+                                    @if($key === 'app_logo' && $value)
+                                    <div class="mt-2">
+                                        <img src="{{ asset($value) }}"
+                                            alt="App Logo"
+                                            style="max-height:50px;">
                                     </div>
+
+                                    @elseif($key === 'app_favicon' && $value)
+                                    <div class="mt-2">
+                                        <img src="{{ asset($value) }}"
+                                            alt="App Favicon"
+                                            style="max-height:50px;">
+                                    </div>
+                                    @endif
+
+                                    @endif
+
+                                </div>
                             </div>
 
                             @endforeach
