@@ -4,293 +4,200 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amazon Account Connected</title>
+
+    <title>Amazon Connected</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #f6f6f7;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #202223;
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
+        body{
+            margin:0;
+            background:#f6f6f7;
+            font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+            color:#202223;
         }
 
-        .container {
-            width: 100%;
-            max-width: 680px;
-            padding: 24px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        .wrapper{
+            min-height:100vh;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            padding:30px;
         }
 
-        .logo-container {
-            margin-bottom: 32px;
-            text-align: center;
+        .card-box{
+            width:100%;
+            max-width:650px;
+            background:#fff;
+            border-radius:16px;
+            box-shadow:0 10px 30px rgba(0,0,0,.08);
+            padding:45px;
         }
 
-        .app-logo {
-            height: 70px;
-            width: auto;
-            object-fit: contain;
+        .icon{
+            width:85px;
+            height:85px;
+            border-radius:50%;
+            background:#E3FCEF;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            margin:0 auto 25px;
         }
 
-        .card {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-radius: 18px;
-            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.08), 0 0 0 1px #e5e7eb;
-            padding: 48px;
-            box-sizing: border-box;
-            text-align: center;
+        .icon svg{
+            width:45px;
+            height:45px;
+            color:#008060;
         }
 
-        .success-icon-wrapper {
-            width: 104px;
-            height: 104px;
-            background-color: #f0fdf4;
-            border: 1px solid #dcfce7;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 28px auto;
-            box-shadow: 0 8px 16px -4px rgba(22, 163, 74, 0.12);
+        h1{
+            font-size:30px;
+            font-weight:700;
+            margin-bottom:15px;
         }
 
-        .success-icon-wrapper svg {
-            width: 52px;
-            height: 52px;
-            color: #16a34a;
+        p{
+            color:#6d7175;
+            font-size:16px;
+            line-height:1.7;
         }
 
-        h1 {
-            font-size: 26px;
-            font-weight: 700;
-            color: #202223;
-            margin: 0 0 16px 0;
-            letter-spacing: -0.01em;
+        .instruction{
+            background:#F6F6F7;
+            border-left:4px solid #008060;
+            border-radius:8px;
+            padding:20px;
+            margin:30px 0;
         }
 
-        p.description {
-            font-size: 15px;
-            color: #6d7175;
-            line-height: 1.6;
-            margin: 0 0 32px 0;
-            padding: 0 16px;
+        .instruction h5{
+            font-size:17px;
+            font-weight:600;
+            margin-bottom:15px;
         }
 
-        .store-card {
-            background-color: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 18px 24px;
-            margin-bottom: 32px;
-            display: block;
-            width: 100%;
-            box-sizing: border-box;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+        .instruction ol{
+            margin:0;
+            padding-left:20px;
         }
 
-        .store-card span {
-            display: block;
-            font-size: 12px;
-            color: #6d7175;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-bottom: 6px;
-            font-weight: 600;
+        .instruction li{
+            margin-bottom:10px;
+            color:#4b4f56;
         }
 
-        .store-card strong {
-            font-size: 18px;
-            color: #202223;
-            font-weight: 600;
-            word-break: break-all;
+        .store-box{
+            background:#F1F2F3;
+            border-radius:8px;
+            padding:14px;
+            font-weight:600;
+            margin-top:20px;
         }
 
-        .next-steps-card {
-            background-color: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 24px;
-            text-align: left;
-            margin-bottom: 36px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        .btn-shopify{
+            background:#008060;
+            color:#fff;
+            border:none;
+            padding:12px 28px;
+            border-radius:8px;
+            font-weight:600;
+            margin-top:25px;
         }
 
-        .next-steps-card h5 {
-            font-size: 15px;
-            font-weight: 700;
-            color: #202223;
-            margin: 0 0 16px 0;
+        .btn-shopify:hover{
+            background:#006e52;
+            color:#fff;
         }
 
-        .next-steps-card ol {
-            margin: 0;
-            padding-left: 24px;
-            color: #6d7175;
-        }
-
-        .next-steps-card li {
-            margin-bottom: 12px;
-            font-size: 14px;
-            line-height: 1.5;
-            padding-left: 6px;
-        }
-
-        .next-steps-card li:last-child {
-            margin-bottom: 0;
-        }
-
-        .next-steps-card strong {
-            color: #202223;
-            font-weight: 600;
-        }
-
-        .btn-shopify {
-            width: 100%;
-            height: 52px;
-            background-color: #008060;
-            color: #ffffff;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 10px rgba(0, 128, 96, 0.2);
-        }
-
-        .btn-shopify:hover {
-            background-color: #006e52;
-            box-shadow: 0 6px 14px rgba(0, 128, 96, 0.25);
-            transform: translateY(-1px);
-        }
-
-        .btn-shopify:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 6px rgba(0, 128, 96, 0.2);
-        }
-
-        .footer {
-            margin-top: 32px;
-            font-size: 13px;
-            color: #6d7175;
-            line-height: 1.5;
-            text-align: center;
-        }
-
-        @media (max-width: 600px) {
-            .card {
-                padding: 32px 20px;
-            }
-
-            .success-icon-wrapper {
-                width: 88px;
-                height: 88px;
-                margin-bottom: 24px;
-            }
-
-            .success-icon-wrapper svg {
-                width: 44px;
-                height: 44px;
-            }
-
-            h1 {
-                font-size: 22px;
-            }
-
-            p.description {
-                font-size: 14px;
-                padding: 0;
-            }
-
-            .app-logo {
-                height: 56px;
-            }
-
-            .logo-container {
-                margin-bottom: 24px;
-            }
-
-            .container {
-                padding: 16px;
-            }
+        .footer{
+            margin-top:35px;
+            font-size:14px;
+            color:#8c9196;
         }
     </style>
+
 </head>
 
 <body>
 
-    <div class="container">
+<div class="wrapper">
 
-        <div class="logo-container">
-            @php
-            $logo = AdminSetting('app_logo');
-            @endphp
-            @if($logo && file_exists(public_path('storage/' . $logo)))
-            <img src="{{ asset('storage/' . $logo) }}" alt="Logo" class="app-logo">
-            @else
-            <img src="{{ asset('logo/favamzsync.png') }}" alt="Logo" class="app-logo">
-            @endif
+    <div class="card-box text-center">
+
+        @php
+            $logo = \App\Models\AdminSetting::where('option_key', 'app_logo')->value('option_value');
+            $logoUrl = asset('logo/favamzsync.png');
+
+            if (!empty($logo) && \Illuminate\Support\Facades\Storage::disk('public')->exists($logo)) {
+                $logoUrl = asset('storage/' . $logo);
+            }
+        @endphp
+        <div style="margin-bottom: 25px;">
+            <img src="{{ $logoUrl }}" alt="App Logo" style="max-height: 55px; width: auto; object-fit: contain;">
         </div>
 
-        <div class="card">
+        <div class="icon">
 
-            <div class="success-icon-wrapper">
-                <svg fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0L3.293 9.207a1 1 0 111.414-1.414l4.043 4.043 6.543-6.543a1 1 0 011.414 0z" clip-rule="evenodd" />
-                </svg>
+            <svg fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0L3.293 9.207a1 1 0 111.414-1.414l4.043 4.043 6.543-6.543a1 1 0 011.414 0z"
+                    clip-rule="evenodd"/>
+            </svg>
+
+        </div>
+
+        <h1>Amazon Account Connected Successfully</h1>
+
+        <p>
+
+            Your Amazon Seller account has been connected successfully with
+            <strong>AmazonSync</strong>.
+
+            <br><br>
+
+            Amazon authorization is completed outside Shopify's embedded application.
+            To continue using AmazonSync, simply return to your Shopify Admin and reopen the app.
+
+        </p>
+
+        @if(!empty($shop))
+            <div class="store-box">
+                Connected Store<br>
+                {{ $shop }}
             </div>
+        @endif
 
-            <h1>Amazon Account Connected Successfully</h1>
+        <div class="instruction text-start">
 
-            <p class="description">
-                Your Amazon Seller account has been connected successfully with <strong>AmazonSync</strong>.<br><br>
-                Amazon authorization is completed outside Shopify's embedded application. To continue using AmazonSync, simply return to your Shopify Admin and reopen the app.
-            </p>
+            <h5>Next Steps</h5>
 
-            @if(!empty($shop))
-            <div class="store-card">
-                <span>Connected Store</span>
-                <strong>{{ $shop }}</strong>
-            </div>
-            @endif
+            <ol>
+                <li>Go back to your Shopify Admin.</li>
+                <li>Open the <strong>AmazonSync</strong> app again.</li>
+                <li>Your Amazon account is now connected and ready to use.</li>
+            </ol>
 
-            <div class="next-steps-card">
-                <h5>Next Steps</h5>
-                <ol>
-                    <li>Go back to your Shopify Admin.</li>
-                    <li>Open the <strong>AmazonSync</strong> app again.</li>
-                    <li>Your Amazon account is now connected and ready to use.</li>
-                </ol>
-            </div>
+        </div>
 
-            <button onclick="window.close();" class="btn-shopify">
-                Close This Page
-            </button>
+        <button
+            onclick="window.close();"
+            class="btn btn-shopify">
 
-            <div class="footer">
-                If this window doesn't close automatically, simply return to your Shopify Admin and reopen AmazonSync.
-            </div>
+            Close This Page
+
+        </button>
+
+        <div class="footer">
+
+            If this window doesn't close automatically,
+            simply return to your Shopify Admin and reopen AmazonSync.
 
         </div>
 
     </div>
 
-</body>
+</div>
 
+</body>
 </html>
