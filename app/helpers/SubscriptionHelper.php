@@ -83,7 +83,7 @@ if (!function_exists('isSubscriptionActive')) {
         return true;
     }
 
-    public function getShopActiveData($shopId)
+     function getShopActiveData($shopId)
     {
         $shops = DB::table('shops')->where('shop_id', $shopId)->latest()->first();
 
