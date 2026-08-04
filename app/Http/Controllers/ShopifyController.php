@@ -249,10 +249,10 @@ class ShopifyController extends Controller
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
         // return redirect()->away($redirectUrl);
         return response("
-    <script>
-        window.top.location.href = '{$redirectUrl}';
-    </script>
-");
+            <script>
+                window.top.location.href = '{$redirectUrl}';
+            </script>
+        ");
     }
     public function callback(Request $request)
     {

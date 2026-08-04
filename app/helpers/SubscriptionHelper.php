@@ -3,23 +3,16 @@
 use App\Models\ShopSubscription;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 if (!function_exists('isSubscriptionActive')) {
 
     function isSubscriptionActive($shopId)
     {
-        Log::info('CHECK START', [
-            'input_shopId' => $shopId,
-            'type' => gettype($shopId)
-        ]);
 
         $subscription = ShopSubscription::where('shop_id', $shopId)
             ->latest()
             ->first();
-
-        Log::info('SUBSCRIPTION FETCHED', [
-            'subscription' => $subscription
-        ]);
 
         // ❌ No subscription
         if (!$subscription) {
@@ -44,11 +37,8 @@ if (!function_exists('isSubscriptionActive')) {
         //  Expiry check
         $isExpired = false;
 
-        if (
-            $subscription->status === 'trialing' &&
-            $subscription->is_trial
-        ) {
-
+        if ( $subscription->status === 'trialing' &&  $subscription->is_trial) 
+        {
             $isExpired = $subscription->trial_ends_at
                 ? Carbon::parse($subscription->trial_ends_at)->isPast()
                 : true;
@@ -91,5 +81,21 @@ if (!function_exists('isSubscriptionActive')) {
         Log::info('SUBSCRIPTION ACTIVE OR TRIALING');
 
         return true;
+    }
+
+    public function getShopActiveData($shopId)
+    {
+        $shops = DB::table('shops')->where('shop_id', $shopId)->latest()->first();
+
+        if (!$shops) {
+            return false;
+        }
+
+        if( $shops->shop_name && $shops->email){
+            return true;
+        }
+
+        return false;
+
     }
 }
