@@ -62,7 +62,6 @@ Route::get('/webhooks/shop/redact', [ShopifyComplianceWebhookController::class, 
 Route::middleware([ResolveActiveShop::class])->group(function () {
     //  product page route 
     Route::get('/products', [ShopifyController::class, 'products'])->name('shopify.products');
-
     Route::post('/createProduct', [ShopifyController::class, 'createProduct'])->name('shopify.product.create.post');
     // edit product
     // Route::get('/editProduct/{id}', [ShopifyController::class, 'editProduct'])->name('shopify.product.edit');
@@ -80,15 +79,9 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::post('/image-upload', [ImageController::class, 'store'])->name('shopify.imgupload.store');
     Route::delete('/image-upload/{id}', [ImageController::class, 'destroy'])
         ->name('shopify.imgupload.delete');
-    Route::get('/rules', function () {
-        return view('rules');
-    })->name('shopify.rules');
-    Route::get('/help', function () {
-        return view('help');
-    })->name('shopify.help');
-    Route::get('/support', function () {
-        return view('support');
-    })->name('shopify.support');
+    Route::get('/rules', function () { return view('rules');  })->name('shopify.rules');
+    Route::get('/help', function () { return view('help'); })->name('shopify.help');
+    Route::get('/support', function () { return view('support'); })->name('shopify.support');
     Route::get('/notification', [NotificationController::class, 'usernotification'])->name('user.notification');
     Route::post('/settings/notifications',  [NotificationController::class, 'updateNotificationSettings'])->name('notification.settings.update');
     Route::delete('/notification/user/all', [NotificationController::class, 'removeAllUserNotifications'])->name('user.notification.delete.all');
@@ -127,9 +120,7 @@ Route::post('/remove_drafts/{product}', [ProductSchemaController::class, 'remove
 Route::get('/amazonView/{sku}', [TestController::class, 'amazonView'])->name('user.product.amazonView');
 
 // Route::get('/check-mail-test', [TestController::class, 'checkMailTest'])->name('check.mail.test');
-Route::get('/support_front', function () {
-    return view('support_front');
-})->name('shopify.support_front');
+Route::get('/support_front', function () {  return view('support_front'); })->name('shopify.support_front');
 
 Route::get('/logout', [SettingsController::class, 'logout'])->name('site.logout');
 Route::prefix('admin')->group(function () {

@@ -26,16 +26,13 @@ use Illuminate\Support\Facades\Artisan;
 use App\Jobs\SyncAmazonInventoryJob;
 
 Route::get('verify', [DashboardController::class, 'install'])->name('i.dashboard');
-Route::get('verify', function () {
-    return view('welcome');
-})->name('crm.verify');
+Route::get('verify', function () { return view('welcome'); })->name('crm.verify');
 Route::get('subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
 Route::get('planview', [SubscriptionController::class, 'plans'])->name('shopify.plans');
 // THIS IS JUST TETSING WILL BE REMOVED IN FUTURE
 Route::POST('plans/subscribe', [SubscriptionController::class, 'subscribeToPlan'])->name('plans.subscribe');
 Route::get('connect', [AmazonConnect::class, 'connect'])->name('amazon.connect');
-Route::get(
-    'amzon/authorize/shopify/{ens}',
+Route::get('amzon/authorize/shopify/{ens}',
     [AmazonConnect::class, 'authorizeAmazonIframe']
 )->name('amazon.authorize.iframe');
 Route::get('amazon/callback', [AmazonConnect::class, 'handleCallback'])->name('amazon.callback');
@@ -46,16 +43,12 @@ Route::prefix('amazon')
         Route::get('authorize', [AmazonConnect::class, 'authorizeAmazon'])
             ->name('amazon.authorize');
 
-
         Route::get('sync-orders', [AmazonConnect::class, 'syncOrders'])
             ->name('amazon.sync');
         Route::get('disconnect', [AmazonConnect::class, 'disconnect'])->name('amazon.disconnect');
     });
 
-Route::get(
-    '/amazon/connect/success',
-    [AmazonConnect::class, 'success']
-)->name('amazon.connect.success');
+Route::get('/amazon/connect/success', [AmazonConnect::class, 'success'])->name('amazon.connect.success');
 //store settings
 Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
 Route::post('settings', [SettingsController::class, 'update'])->name('settings.update');

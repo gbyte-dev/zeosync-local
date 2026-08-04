@@ -54,14 +54,11 @@ class DashboardController extends ShopifyController
         $amazonInventory = [];
 
         if (!empty($shop->amazon_marketplace_id)) {
-
             $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_marketplace_id}";
-
             $amazonInventory = Cache::get($cacheKey, []);
         }
         $thirtyDaysAgo = \Carbon\Carbon::today()->subDays(30);
         $cacheTtl = 300; // Cache heavy charts for 5 minutes
-
 
         // 1. Top KPI Aggregates (Eager & efficient counts)
         $totalProducts = Product::where('shop_id', $shopId)->count();
@@ -72,7 +69,6 @@ class DashboardController extends ShopifyController
         $isShopConnected = true; // Replace with actual OAuth token check
 
         // 2. Chart.js Data Generation (Cached)
-        // A. Orders Timeline (Last 30 Days)
         $ordersTimeline = Cache::remember("shop_{$shopId}_orders_timeline", $cacheTtl, function () use ($shopId, $thirtyDaysAgo) {
             return ShopifyOrder::where('shop_id', $shopId)
                 ->where('created_at', '>=', $thirtyDaysAgo)
@@ -114,9 +110,7 @@ class DashboardController extends ShopifyController
 
                         return [
                             'title' => $items->first()['title'] ?? 'Unknown Product',
-
                             'quantity' => collect($items)->sum('quantity'),
-
                             'amount' => collect($items)->sum(function ($item) {
                                 return ($item['price'] ?? 0) * ($item['quantity'] ?? 0);
                             }),

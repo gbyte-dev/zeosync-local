@@ -29,9 +29,6 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('*', function ($view) {
 
-            // ---------------- Admin ----------------
-           
-            
             $adminNotifications = AdminNotification::where('is_read', 0)
                 ->latest()
                 ->take(3)
@@ -54,21 +51,14 @@ class AppServiceProvider extends ServiceProvider
 
             if ($shopId) {
                 $userNotifications = UserNotification::where('shop_id', $shopId)
-                    ->where('is_read', 0)
-                    ->latest()
-                    ->take(3)
-                    ->get();
+                    ->where('is_read', 0)->latest()->take(3)->get();
                 $userUnreadCount = UserNotification::where('shop_id', $shopId)
-                    ->where('is_read', 0)
-                    ->count();
+                    ->where('is_read', 0)->count();
             }
 
             $view->with([
-                // Admin
                 'adminNotifications' => $adminNotifications,
                 'unreadCount' => $adminUnreadCount,
-
-                // User
                 'userNotifications' => $userNotifications,
                 'userUnreadCount' => $userUnreadCount,
             ]);
