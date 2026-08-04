@@ -211,16 +211,14 @@
         <div class="pro-card">
             <div class="pro-card-header">
                 <h5> Shop Information</h5>
+                <button type="submit" class="btn btn-primary btn-sm" onclick="document.getElementById('saveChangesBtn').click()">Save Changes</button>
+
             </div>
 
             <div class="info-row">
                 <div class="info-label">Shop URL</div>
                 <div class="info-value">{{ $shop->shop }}</div>
             </div>
-
-            @if(session('success'))
-                <div class="alert alert-success m-3 mb-0">{{ session('success') }}</div>
-            @endif
 
             @if(session('error'))
                 <div class="alert alert-danger m-3 mb-0">{{ session('error') }}</div>
@@ -249,8 +247,8 @@
                             <input type="email" class="form-control" id="email" name="email" value="{{ old('email', $shop->email) }}" required>
                         </div>
                     </div>
-                    <div class="mt-3">
-                        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+                    <div class="mt-3 d-none">
+                        <button type="submit" class="btn btn-primary btn-sm" id="saveChangesBtn">Save Changes</button>
                     </div>
                 </form>
             </div>
