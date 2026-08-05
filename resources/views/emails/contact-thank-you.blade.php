@@ -15,7 +15,7 @@
             <p style="font-size:16px; color:#334155; line-height:1.7;">Thank you for contacting Zeosync. We received your message and one of our team members will connect with you soon.</p>
             <p style="font-size:16px; color:#334155; line-height:1.7;"><strong>Your request:</strong></p>
             <p style="font-size:15px; color:#475569; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px;">{{ $contact->message }}</p>
-            <p style="font-size:16px; color:#334155; line-height:1.7;">If you need to update your request, just reply to this email.</p>
+            <p style="font-size:16px; color:#334155; line-height:1.7;">This is a system-generated email. Please do not reply to this message.</p>
             <p style="font-size:16px; color:#334155; line-height:1.7;">Thanks again,<br>The Zeosync Team</p>
         </div>
     </div>

@@ -43,7 +43,7 @@
             <p class="text-muted mb-4">Watch this short video to get started in minutes.</p>
 
             <div class="ratio ratio-16x9 mb-3">
-                <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Zeosync tutorial" allowfullscreen></iframe>
+                <iframe src="https://www.youtube-nocookie.com/embed/Mhp-LZlHv8k?si=9oT33WJYoC1KBLpr" title="Zeosync tutorial" allowfullscreen></iframe>
             </div>
 
             <p class="small text-muted">Prefer a guided walkthrough? Visit our <a href="/help">Help Center</a>.</p>
