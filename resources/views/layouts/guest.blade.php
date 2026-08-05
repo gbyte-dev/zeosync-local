@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amazon Sync</title>
+    <title>Zeosync — Amazon & Shopify Sync</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
@@ -66,23 +66,24 @@
         }
 
         .topbar__logo{
-            height: 70px;
-            width: 200px;
-        }
+                height: 56px;
+                width: auto;
+                max-width: 220px;
+            }
 
         #menuToggle {
             background: transparent;
             border: none;
-            color: #5C5F62;
-            font-size: 16px;
+            color: #111827;
+            font-size: 26px;
             cursor: pointer;
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background-color 0.15s ease, color 0.15s ease;
+            transition: background-color 0.12s ease, color 0.12s ease, transform 0.12s ease;
             padding: 0;
         }
 
@@ -94,11 +95,50 @@
         }
 
         .topbar span {
+            display: flex;
+            align-items: center;
             font-weight: 650;
             font-size: 14px;
             letter-spacing: -0.2px;
             color: #1A1A1A;
         }
+
+        /* Sidebar (mobile) */
+        #sidebar {
+            position: fixed;
+            right: 0;
+            top: 0;
+            height: 100vh;
+            width: 280px;
+            max-width: 90vw;
+            background: #fff;
+            box-shadow: -8px 0 24px rgba(16,24,40,0.08);
+            transform: translateX(110%);
+            transition: transform 0.18s ease;
+            z-index: 50;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        #sidebar.active {
+            transform: translateX(0%);
+        }
+
+        #sidebar .nav-link {
+            display: block;
+            padding: 10px 8px;
+            color: #111827;
+            text-decoration: none;
+            border-radius: 6px;
+        }
+
+        #siteFooter {
+            background: #0f172a;
+            color: #94a3b8;
+            padding: 28px 18px;
+        }
+
+        #siteFooter a { color: #cbd5e1; text-decoration: none }
 
         /* Apple-inspired Blur Overlay */
         .overlay {
@@ -133,10 +173,17 @@
 </head>
 
 <body>
-    <!-- Topbar (mobile) -->
-    <div class="topbar row">
-        <span class="col-10 col-md-10 col-sm-11"><img src="{{ getLogo() }}" alt="Logo" class="topbar__logo"></span>
-         <button id="menuToggle" class="col-1 col-md-1 col-sm-1">☰</button>
+    <!-- Topbar -->
+    <div class="topbar container-fluid">
+        <div class="d-flex align-items-center justify-content-between w-100">
+            <div class="d-flex align-items-center">
+                <a href="/" class="d-inline-block me-3"><img src="{{ getLogo() }}" alt="Zeosync" class="topbar__logo"></a>
+            </div>
+
+            <div class="d-flex align-items-center">
+                <button id="menuToggle" aria-label="Open menu">☰</button>
+            </div>
+        </div>
     </div>
 
     <div class="app-layout">
@@ -144,10 +191,56 @@
         <!-- Overlay -->
         <div class="overlay" id="overlay"></div>
 
+        <!-- Sidebar / Mobile Menu -->
+        <aside id="sidebar" aria-hidden="true">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <strong>Menu</strong>
+                <button id="closeSidebar" aria-label="Close menu">✕</button>
+            </div>
+
+            <nav>
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link" href="/about">About</a>
+                <a class="nav-link" href="/pricing">Pricing</a>
+                <a class="nav-link" href="/contact">Contact Us</a>
+                <a class="nav-link" href="/terms">Terms</a>
+                <a class="nav-link" href="/privacy">Privacy Policy</a>
+            </nav>
+        </aside>
+
         <!-- Content -->
         <div class="content">
             @yield('content')
         </div>
+
+        <!-- Footer -->
+        <footer id="siteFooter">
+            <div class="container d-md-flex justify-content-between">
+                <div class="mb-3 mb-md-0">
+                    <h5 class="text-white">Zeosync</h5>
+                    <div class="small">Sync Amazon & Shopify effortlessly</div>
+                </div>
+
+                <div class="d-flex gap-4 small">
+                    <div>
+                        <div class="fw-bold text-white">Company</div>
+                        <div><a href="/about">About</a></div>
+                        <div><a href="/pricing">Pricing</a></div>
+                        <div><a href="/contact">Contact Us</a></div>
+                    </div>
+
+                    <div>
+                        <div class="fw-bold text-white">Legal</div>
+                        <div><a href="/terms">Terms</a></div>
+                        <div><a href="/privacy">Privacy</a></div>
+                    </div>
+                </div>
+
+                <div class="text-md-end small text-muted">
+                    &copy; {{ date('Y') }} Zeosync. All rights reserved.
+                </div>
+            </div>
+        </footer>
 
     </div>
 
@@ -172,15 +265,32 @@
             if (menuBtn && sidebar) {
                 menuBtn.addEventListener('click', () => {
                     sidebar.classList.add('active');
+                    sidebar.setAttribute('aria-hidden', 'false');
                     if (overlay) overlay.classList.add('active');
                     document.body.classList.add('sidebar-open');
+                    // move focus into sidebar
+                    const firstLink = sidebar.querySelector('.nav-link');
+                    if(firstLink) firstLink.focus();
                 });
             }
 
             if (overlay) {
                 overlay.addEventListener('click', () => {
-                    if (sidebar) sidebar.classList.remove('active');
+                    if (sidebar) {
+                        sidebar.classList.remove('active');
+                        sidebar.setAttribute('aria-hidden', 'true');
+                    }
                     overlay.classList.remove('active');
+                    document.body.classList.remove('sidebar-open');
+                });
+            }
+
+            const closeSidebarBtn = document.getElementById('closeSidebar');
+            if (closeSidebarBtn && sidebar) {
+                closeSidebarBtn.addEventListener('click', () => {
+                    sidebar.classList.remove('active');
+                    sidebar.setAttribute('aria-hidden', 'true');
+                    if (overlay) overlay.classList.remove('active');
                     document.body.classList.remove('sidebar-open');
                 });
             }

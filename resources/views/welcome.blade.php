@@ -8,7 +8,7 @@
         <div class="container" style="max-width: 900px;">
 
             <h1 class="fw-bold mb-3">
-                Sync Amazon & Shopify Effortlessly
+                Sync Amazon & Shopify Effortlessly with Zeosync
             </h1>
 
             <p class="text-muted mb-4">
@@ -33,6 +33,20 @@
                 Example: demo-store.myshopify.com
             </p>
 
+        </div>
+    </section>
+
+    {{-- VIDEO TUTORIAL --}}
+    <section class="py-5">
+        <div class="container text-center" style="max-width: 960px;">
+            <h3 class="fw-bold mb-3">Quick Tutorial</h3>
+            <p class="text-muted mb-4">Watch this short video to get started in minutes.</p>
+
+            <div class="ratio ratio-16x9 mb-3">
+                <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Zeosync tutorial" allowfullscreen></iframe>
+            </div>
+
+            <p class="small text-muted">Prefer a guided walkthrough? Visit our <a href="/help">Help Center</a>.</p>
         </div>
     </section>
 
