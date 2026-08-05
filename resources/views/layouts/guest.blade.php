@@ -29,7 +29,13 @@
 
     <style>
         /* Enterprise SaaS App Layout - Tight Density */
+        html, body {
+            min-height: 100%;
+        }
+
         body {
+            display: flex;
+            flex-direction: column;
             background-color: #F4F6F8;
             /* Shopify admin background */
             font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -38,6 +44,7 @@
             color: #202223;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            min-height: 100vh;
         }
 
         body.sidebar-open {
@@ -48,7 +55,8 @@
         .app-layout {
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
+            flex: 1;
+            min-height: 0;
         }
 
         /* Minimal SaaS Topbar */
