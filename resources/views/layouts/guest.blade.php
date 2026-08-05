@@ -12,17 +12,15 @@
 
     @php
     $favicon = \App\Models\AdminSetting::where('option_key', 'app_favicon')->value('option_value');
-
     $fallback = asset('logo/favamzsync.png');
-
     $faviconUrl = $fallback;
 
-    if (
-    !empty($favicon) &&
-    \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon)
+    if ( !empty($favicon) &&  \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon)
     ) {
-    $faviconUrl = asset('storage/' . $favicon);
+        $faviconUrl = asset('storage/' . $favicon);
     }
+
+     $faviconUrl = getFavicon();
     @endphp
 
     <link rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
@@ -134,7 +132,7 @@
     <!-- Topbar (mobile) -->
     <div class="topbar">
         <button id="menuToggle">☰</button>
-        <span>amazonSync</span>
+        <span><img src="{{ getLogo() }}" alt="Logo" class="topbar__logo">amazonSync</span>
     </div>
 
     <div class="app-layout">
