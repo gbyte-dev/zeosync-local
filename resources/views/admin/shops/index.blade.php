@@ -45,7 +45,7 @@
     {{-- Header --}}
 
     <div class="card shadow-sm border-0  overflow-hidden">
-        <div class="p-3 text-dark shadow header">
+<?php /*   <div class="p-3 text-dark shadow header">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
                     <h5 class="fw-bold mb-1">Shops</h5>
@@ -58,7 +58,7 @@
             </button> -->
             </div>
         </div>
-
+*/ ?>
 
         <div class="card-body border-0 shadow-sm overflow-hidden">
             <!-- <div class="card-body p-2"> -->
