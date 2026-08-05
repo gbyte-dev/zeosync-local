@@ -135,8 +135,8 @@
 <body>
     <!-- Topbar (mobile) -->
     <div class="topbar row">
-        <span class="col-11 col-sm-11"><img src="{{ getLogo() }}" alt="Logo" class="topbar__logo"></span>
-         <button id="menuToggle" class="col-1 col-sm-1">☰</button>
+        <span class="col-10 col-md-10 col-sm-11"><img src="{{ getLogo() }}" alt="Logo" class="topbar__logo"></span>
+         <button id="menuToggle" class="col-1 col-md-1 col-sm-1">☰</button>
     </div>
 
     <div class="app-layout">
