@@ -136,6 +136,15 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
         </a>
     </div>
 
+    <!-- AI Chat -->
+    <div class="sidebar__item">
+        <a href="{{ route('shopify.ai.chat').($currentShop ? '?shop='.$currentShop : '') }}"
+            class="sidebar__link {{ request()->routeIs('shopify.ai.chat') ? 'active' : '' }}">
+            <i class="bi bi-chat-left-text sidebar__icon"></i>
+            <span class="sidebar__text">AI Chat</span>
+        </a>
+    </div>
+
     <!-- Sync History -->
     <div class="sidebar__item">
         <a href="{{ route('shopify.logs').($currentShop ? '?shop='.$currentShop : '') }}"
