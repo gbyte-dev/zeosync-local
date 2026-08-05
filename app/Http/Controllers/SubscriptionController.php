@@ -25,17 +25,13 @@ class SubscriptionController extends ShopifyController
         $activeShop = $shopModel?->shop;
         if (!$shopModel) {
             return redirect(
-                $this->shopAwareUrl(
-                    '/',
-                    $request->query('shop') ?? $request->input('shop')
+                $this->shopAwareUrl( '/',  $request->query('shop') ?? $request->input('shop')
                 )
             )->with('error', 'No shop connected.');
         }
-        $plans = Plan::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
+        $plans = Plan::query()->where('is_active', true)->orderBy('sort_order')
+            ->orderBy('id')->get();
+
         $subscription = ShopSubscription::with('plan')
             ->where('shop_id', $shopModel->id)
             ->first();
@@ -88,37 +84,12 @@ class SubscriptionController extends ShopifyController
                 'description' => 'Billed every 365 days'
             ],
         ];
-        return view(
-            'plans',
-            compact(
-                'plans',
-                'subscription',
-                'activeShop',
-                'billingOptions'
-            )
-        );
+        return view('plans', compact( 'plans', 'subscription','activeShop', 'billingOptions'));
+
     }
-    // public function plans(Request $request)
-    // {
-    //     $shopModel = $this->getActiveShop($request);
-    //     $activeShop = $shopModel?->shop;
-    //     if (!$shopModel) {
-    //         return redirect($this->shopAwareUrl('/', $request->query('shop') ?? $request->input('shop')))
-    //             ->with('error', 'No shop connected.');
-    //     }
-    //     $plans = Plan::query()
-    //         ->where('is_active', true)
-    //         ->orderBy('sort_order')
-    //         ->orderBy('id')
-    //         ->get();
-    //     $subscription = ShopSubscription::with('plan')
-    //         ->where('shop_id', $shopModel->id)
-    //         ->first();
-    //     return view('plans', compact('plans', 'subscription', 'activeShop'));
-    // }
+
     public function subscribeToPlan(Request $request)
     {
-        Log::info('Controller subscriptioncontroller called');
         $request->validate([
             'plan_id' => 'required|exists:plans,id',
             'billing_interval' => 'nullable|integer|in:1,12',
@@ -146,18 +117,9 @@ class SubscriptionController extends ShopifyController
         $existingSubscription = ShopSubscription::where('shop_id', $shopModel->id)->first();
         // If user is currently on trial and selects a paid plan,
         // end the trial immediately.
-        if (
-            !$plan->is_trial &&
-            $existingSubscription &&
+        if ( !$plan->is_trial && $existingSubscription &&
             $existingSubscription->status === 'trialing'
         ) {
-
-            Log::info('Trial upgraded to paid plan', [
-                'shop_id' => $shopModel->id,
-                'old_plan' => $existingSubscription->plan_id,
-                'new_plan' => $plan->id,
-            ]);
-
             $existingSubscription->update([
                 'ended_at' => now(),
                 'trial_ends_at' => now(),
@@ -181,7 +143,6 @@ class SubscriptionController extends ShopifyController
                     'status' => 'trialing',
                     'price' => 0,
                     'billing_cycle_months' => 1,
-                    //  IMPORTANT FIELDS
                     'trial_days' => $trialDays,
                     'is_trial' => 1,
                     'trial_used' => 0,
@@ -190,7 +151,6 @@ class SubscriptionController extends ShopifyController
                     'trial_ends_at' => $trialEnd,
                     'current_period_end' => $trialEnd,
                     'ended_at' => $trialEnd,
-                    //  CLEAN PAYMENT DATA
                     'shopify_return_url' => null,
                     'shopify_confirmation_url' => null,
                 ]
@@ -198,6 +158,7 @@ class SubscriptionController extends ShopifyController
             return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
                 ->with('success', 'Trial activated successfully.');
         }
+
         $billingCycleMonths = (int) $request->input('billing_interval', 1);
         $startedAt = now();
         Log::info('BILLING MONTHS DEBUG', [
@@ -248,7 +209,7 @@ class SubscriptionController extends ShopifyController
             ['shop_id' => $shopModel->id], // Argument 1: Search criteria
             ['plan_id' => $request->plan_id] // Argument 2: Data to add if NOT found
         );
-        // 🔥 CASE 1: already active plan → DO NOT overwrite
+
         // Active paid subscription -> create upgrade request
         if ($subscription->status === 'active') {
 
@@ -286,19 +247,14 @@ class SubscriptionController extends ShopifyController
             return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
                 ->with('error', 'Failed to generate payment link. Please try again.');
         }
-        // try {
-        //     \Mail::to($shopModel->email)->send(
-        //         new \App\Mail\PlanActivatedMail($shopModel, $plan)
-        //     );
-        // } catch (\Exception $e) {
-        //     \Log::error('Plan mail failed: ' . $e->getMessage());
-        // }
+
         return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
             ->with([
                 'success' => "{$plan->name} plan activation initiated for {$shopModel->shop}",
                 'payment_initiated' => true
             ]);
     }
+
     public function cancel(Request $request)
     {
         $shopModel = $this->getActiveShop($request);
@@ -327,6 +283,7 @@ class SubscriptionController extends ShopifyController
         return redirect('/crm/plans')
             ->with('error', 'Payment cancelled.');
     }
+
     public function success(Request $request)
     {
         Log::info('PAYMENT SUCCESS HIT', [
@@ -356,6 +313,7 @@ class SubscriptionController extends ShopifyController
             'shop' => $shopModel?->shop,
         ]);
     }
+
     public function checkStatus(Request $request)
     {
         $shop = $request->get('shop');
@@ -364,8 +322,8 @@ class SubscriptionController extends ShopifyController
             return response()->json(['status' => 'not_found']);
         }
         $subscription = \App\Models\ShopifySubscription::where('shop_id', $shopModel->id)
-            ->latest()
-            ->first();
+            ->latest()->first();
+
         if (!$subscription) {
             return response()->json(['status' => 'not_found']);
         }
@@ -374,6 +332,7 @@ class SubscriptionController extends ShopifyController
             'payment_status' => $subscription->payment_status
         ]);
     }
+
     public function paymentSuccessPage(Request $request)
     {
         return view('payment.success', [
