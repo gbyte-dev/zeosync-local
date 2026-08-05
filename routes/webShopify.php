@@ -7,6 +7,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ReturnController;
@@ -187,6 +188,8 @@ Route::prefix('admin')->group(function () {
         Route::get('/settings', [AdminController::class, 'settings'])->name('admin.settings');
         Route::post('/settings', [AdminController::class, 'settingsupdate'])->name('admin.settings.update');
         Route::get('/category', [AdminController::class, 'category'])->name('admin.category');
+        Route::get('/contact-requests', [ContactController::class, 'adminIndex'])->name('admin.contact-requests');
+        Route::get('/contact-requests/{contact}', [ContactController::class, 'adminShow'])->name('admin.contact-requests.show');
         Route::get('/category/{id}/children', [AdminController::class, 'categoryChildren'])
             ->name('admin.category.children');
         Route::get('/allplans', [PlanController::class, 'index'])->name('admin.plans');

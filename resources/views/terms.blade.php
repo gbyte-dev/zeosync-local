@@ -3,7 +3,7 @@
 @section('content')
 <div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-lg-8">
+        <div class="col-lg-11">
             <h5 class="mb-4">Terms & Conditions</h5>
             
             <div class="card mb-4">
