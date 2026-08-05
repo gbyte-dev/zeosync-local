@@ -166,20 +166,24 @@ if (!function_exists('checkAmazonConnected')) {
 
 if (!function_exists('getLogo')) {
     function getLogo(){
-     
         $settings = DB::table('admin_settings')->where('option_key', 'app_logo')->first();
-        if($settings && ($settings->app_logo != null && !empty($settings->app_logo) ) ){
-            $path = public_path($settings->app_logo);
-            $exists = \Illuminate\Support\Facades\Storage::disk('public')->exists($settings->app_logo);
+
+        if ($settings && !empty($settings->option_value)) {
+            $logoPath = $settings->option_value;
+            $path = public_path($logoPath);
+            $exists = \Illuminate\Support\Facades\Storage::disk('public')->exists($logoPath);
+
             if (file_exists($path)) {
-                return asset($settings->app_logo);
-            }elseif($exists){
-                return asset('storage/' . $settings->app_logo);
+                return asset($logoPath);
+            } elseif ($exists) {
+                return asset('storage/' . $logoPath);
             }
         }
+
         return asset('logo/logoamazonysync.png');
     }
 }
+
 
 if (!function_exists('getFavicon')) {
     function getFavicon(){
