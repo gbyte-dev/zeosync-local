@@ -1,5 +1,10 @@
 @php
     $isAdmin = request()->is('admin*');
+    if(!$isAdmin && session('active_shop') === null && !request()->has('shop')) {
+        $layout = 'layouts.guest';
+    } else {
+        $layout = $isAdmin ? 'admin.layout.app' : 'layouts.app';
+    }
     $layout = $isAdmin ? 'admin.layout.app' : 'layouts.app';
     
     try {
