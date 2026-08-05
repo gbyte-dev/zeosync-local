@@ -259,7 +259,7 @@
             <div class="container">
                <div class="row">
                     <div class="mb-3 col-sm-6">
-                        <h5 class="text-white">Zeosync</h5>
+                        <h5 class="text-white">{{getAppName()}}</h5>
                         <div class="small">Sync Amazon & Shopify effortlessly</div>
                     </div>
 
