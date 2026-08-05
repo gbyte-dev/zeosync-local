@@ -60,10 +60,26 @@ class AIController extends Controller
                 'message' => $response['message'],
             ];
             $request->session()->put('ai_chat_history', $history);
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $response['message'],
+                    'history' => $history,
+                ]);
+            }
+
             return redirect()->route('shopify.ai.chat', ['shop' => $request->query('shop')]);
         }
 
         Log::error('AI chat error', ['error' => $response['error']]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'error' => $response['error'],
+            ], 422);
+        }
 
         return back()
             ->withErrors(['prompt' => $response['error']])
