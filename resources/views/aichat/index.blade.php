@@ -73,8 +73,6 @@
         padding: 14px 16px;
         border-radius: 18px;
         border: 1px solid transparent;
-        line-height: 1.55;
-        white-space: pre-line;
     }
 
     .ai-chat-message.user {
