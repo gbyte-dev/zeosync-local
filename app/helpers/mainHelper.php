@@ -163,3 +163,37 @@ if (!function_exists('checkAmazonConnected')) {
         return false;
     }
 }
+
+if (!function_exists('getLogo')) {
+    function getLogo(){
+     
+        $settings = DB::table('admin_settings')->where('shop', $shop)->first();
+        if($settings && ($settings->app_logo != null && !empty($settings->app_logo) ) ){
+            $path = public_path($settings->app_logo);
+            $exists = \Illuminate\Support\Facades\Storage::disk('public')->exists($settings->app_logo);
+            if (file_exists($path)) {
+                return asset($settings->app_logo);
+            }elseif($exists){
+                return asset('storage/' . $settings->app_logo);
+            }
+        }
+        return asset('logo/logoamazonysync.png');
+    }
+}
+
+if (!function_exists('getFavicon')) {
+    function getFavicon(){
+     
+        $settings = DB::table('admin_settings')->where('shop', $shop)->first();
+        if($settings && ($settings->app_favicon != null && !empty($settings->app_favicon) ) ){
+            $path = public_path($settings->app_favicon);
+            $exists = \Illuminate\Support\Facades\Storage::disk('public')->exists($settings->app_favicon);
+            if (file_exists($path)) {
+                return asset($settings->app_favicon);
+            }elseif($exists){
+                return asset('storage/' . $settings->app_favicon);
+            }
+        }
+        return asset('logo/favamzsync.png');
+    }
+}
