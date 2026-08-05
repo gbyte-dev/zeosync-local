@@ -12,6 +12,7 @@ use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\AIController;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\ProductSchemaController;
 use App\Http\Controllers\TestController;
@@ -50,6 +51,8 @@ Route::middleware([
     Route::get('returns/amazon/{id}', [ReturnController::class, 'viewAmazon'])->name('shopify.returns.view.amazon');
     Route::get('returns/shopify/{id}', [ReturnController::class, 'viewShopify'])->name('shopify.returns.view.shopify');
     Route::get('/inventory', [InventoryController::class, 'index'])->name('shopify.inventory.index');
+    Route::get('/ai-chat', [AIController::class, 'index'])->name('shopify.ai.chat');
+    Route::post('/ai-chat', [AIController::class, 'ask'])->name('shopify.ai.chat.ask');
     Route::get('logs', [SettingsController::class, 'logs'])->name('shopify.logs');
     Route::post('logs/remove-all', [SettingsController::class, 'removeAllLogs'])->name('shopify.logs.remove.all');
     Route::delete('logs/{id}', [SettingsController::class, 'removeLog'])->name('shopify.logs.remove');
