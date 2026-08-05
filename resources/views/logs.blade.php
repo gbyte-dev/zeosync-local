@@ -325,7 +325,7 @@
 
                         <td>
                             <span class="fw-semibold text-dark text-capitalize">
-                                {{ $log->type ?? 'order' }}
+                                {{ str_replace('_', ' ', ucfirst($log->type ?? 'order')) }}
                             </span>
                         </td>
 

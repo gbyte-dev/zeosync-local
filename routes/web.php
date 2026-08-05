@@ -13,6 +13,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\AIController;
+use App\Http\Controllers\ContactController;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\ProductSchemaController;
 use App\Http\Controllers\TestController;
@@ -38,6 +39,7 @@ Route::get('/callback', [ShopifyController::class, 'callback'])->name('shopify.c
 Route::view('/about', 'about')->name('about');
 Route::view('/pricing', 'pricing')->name('pricing');
 Route::view('/contact', 'contact')->name('contact');
+Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
 Route::view('/terms', 'terms')->name('terms');
 Route::view('/privacy', 'privacy')->name('privacy');
 Route::middleware([

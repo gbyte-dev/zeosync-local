@@ -53,23 +53,41 @@
             <div class="card mt-5">
                 <div class="card-body">
                     <h6 class="card-title mb-4">Send Us a Message</h6>
-                    <form>
+
+                    @if(session('success'))
+                    <div class="alert alert-success">
+                        {{ session('success') }}
+                    </div>
+                    @endif
+
+                    @if($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
+
+                    <form action="{{ route('contact.store') }}" method="POST">
+                        @csrf
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label for="name" class="form-label">Full Name</label>
-                                <input type="text" class="form-control" id="name" placeholder="John Doe" required>
+                                <input type="text" name="name" class="form-control" id="name" placeholder="John Doe" value="{{ old('name') }}" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="email" class="form-label">Email Address</label>
-                                <input type="email" class="form-control" id="email" placeholder="john@example.com" required>
+                                <input type="email" name="email" class="form-control" id="email" placeholder="john@example.com" value="{{ old('email') }}" required>
                             </div>
                             <div class="col-12">
                                 <label for="subject" class="form-label">Subject</label>
-                                <input type="text" class="form-control" id="subject" placeholder="How can we help?" required>
+                                <input type="text" name="subject" class="form-control" id="subject" placeholder="How can we help?" value="{{ old('subject') }}" required>
                             </div>
                             <div class="col-12">
                                 <label for="message" class="form-label">Message</label>
-                                <textarea class="form-control" id="message" rows="5" placeholder="Tell us more about your inquiry..." required></textarea>
+                                <textarea name="message" class="form-control" id="message" rows="5" placeholder="Tell us more about your inquiry..." required>{{ old('message') }}</textarea>
                             </div>
                             <div class="col-12 text-center">
                                 <button type="submit" class="btn btn-primary px-5">Send Message</button>
