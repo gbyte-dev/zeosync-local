@@ -132,6 +132,10 @@
             border-radius: 6px;
         }
 
+        #sidebar .nav-link:hover { background: #f8fafc; }
+        #sidebar .nav-link.active { background: #eef2ff; font-weight: 600; }
+        #sidebar .nav-icon { width: 28px; display: inline-block; text-align: center }
+
         #siteFooter {
             background: #0f172a;
             color: #94a3b8;
@@ -199,12 +203,52 @@
             </div>
 
             <nav>
-                <a class="nav-link" href="/">Home</a>
-                <a class="nav-link" href="/about">About</a>
-                <a class="nav-link" href="/pricing">Pricing</a>
-                <a class="nav-link" href="/contact">Contact Us</a>
-                <a class="nav-link" href="/terms">Terms</a>
-                <a class="nav-link" href="/privacy">Privacy Policy</a>
+                <div class="mb-2">
+                    <a class="nav-link d-flex align-items-center justify-content-start mb-1 {{ request()->is('/') ? 'active' : '' }}" href="/">
+                        <span class="nav-icon me-2">🏠</span>
+                        <span>Home</span>
+                    </a>
+
+                    <a class="nav-link d-flex align-items-center justify-content-start mb-1 {{ request()->is('about') ? 'active' : '' }}" href="/about">
+                        <span class="nav-icon me-2">ℹ️</span>
+                        <span>About</span>
+                    </a>
+
+                    <a class="nav-link d-flex align-items-center justify-content-start mb-1 {{ request()->is('pricing') ? 'active' : '' }}" href="/pricing">
+                        <span class="nav-icon me-2">💳</span>
+                        <span>Pricing</span>
+                    </a>
+
+                    <a class="nav-link d-flex align-items-center justify-content-start mb-1 {{ request()->is('contact') ? 'active' : '' }}" href="/contact">
+                        <span class="nav-icon me-2">✉️</span>
+                        <span>Contact</span>
+                    </a>
+                </div>
+
+                <div class="mt-3">
+                    <a class="nav-link d-flex align-items-center justify-content-start mb-1 {{ request()->is('terms') ? 'active' : '' }}" href="/terms">
+                        <span class="nav-icon me-2">📄</span>
+                        <span>Terms</span>
+                    </a>
+
+                    <a class="nav-link d-flex align-items-center justify-content-start mb-1 {{ request()->is('privacy') ? 'active' : '' }}" href="/privacy">
+                        <span class="nav-icon me-2">🔒</span>
+                        <span>Privacy</span>
+                    </a>
+                </div>
+
+                <div class="mt-4">
+                    <a class="btn btn-primary w-100 mb-2" href="/install">Connect Store</a>
+                    <a class="btn btn-outline-secondary w-100" href="/support">Help & Support</a>
+                </div>
+
+                <hr>
+
+                <div class="small text-muted">Follow us</div>
+                <div class="d-flex gap-2 mt-2">
+                    <a class="nav-link" href="#">Twitter</a>
+                    <a class="nav-link" href="#">LinkedIn</a>
+                </div>
             </nav>
         </aside>
 

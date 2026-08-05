@@ -33,6 +33,13 @@ Route::get('/', [ShopifyController::class, 'entry'])->name('crm.entry');
 Route::get('/install', [ShopifyController::class, 'install'])->name('shopify.install');
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/callback', [ShopifyController::class, 'callback'])->name('shopify.callback');
+
+// Public simple pages
+Route::view('/about', 'about')->name('about');
+Route::view('/pricing', 'pricing')->name('pricing');
+Route::view('/contact', 'contact')->name('contact');
+Route::view('/terms', 'terms')->name('terms');
+Route::view('/privacy', 'privacy')->name('privacy');
 Route::middleware([
     ResolveActiveShop::class,
     \App\Http\Middleware\CheckSubscription::class
