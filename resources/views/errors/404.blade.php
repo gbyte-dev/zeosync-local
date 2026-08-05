@@ -5,7 +5,6 @@
     } else {
         $layout = $isAdmin ? 'admin.layout.app' : 'layouts.app';
     }
-    $layout = $isAdmin ? 'admin.layout.app' : 'layouts.app';
     
     try {
         $dashboardUrl = $isAdmin ? route('admin.dashboard') : route('dashboard', ['shop' => request('shop') ?? session('active_shop')]);
