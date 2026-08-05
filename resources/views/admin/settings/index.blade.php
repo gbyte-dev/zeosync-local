@@ -31,6 +31,7 @@ $groups = [
 'openai_model',
 'openai_temperature',
 'openai_endpoint',
+'openai_max_tokens',
 ],
 ];
 @endphp
@@ -92,6 +93,11 @@ $groups = [
                                         <option value="tls" {{ old($key, $value ?: 'tls') == 'tls' ? 'selected' : '' }}>TLS</option>
                                         <option value="ssl" {{ old($key, $value) == 'ssl' ? 'selected' : '' }}>SSL</option>
                                     </select>
+
+                                    @elseif($key === 'openai_max_tokens')
+
+                                    <input type="number" name="{{ $key }}" class="form-control" min="1"
+                                        value="{{ old($key, $value) }}">
 
                                     @elseif(in_array($key, ['app_maintenance','install_info']))
 

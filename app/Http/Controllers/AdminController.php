@@ -11,7 +11,8 @@ use App\Models\AdminSetting;
 use App\Models\AdminNotification;
 use App\Models\NotificationSetting;
 use App\Models\MailTemplate;
-use App\Services\EmailService;
+use App.Services\EmailService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use App\Models\ShopSubscription;
 use App\Models\ProductMarketplaceMapping;
@@ -236,21 +237,16 @@ class AdminController extends Controller
             'openai_model',
             'openai_temperature',
             'openai_endpoint',
+            'openai_max_tokens',
         ];
 
         foreach ($keys as $key) {
-
             if ($key === 'app_logo' || $key === 'app_favicon') {
-
                 if ($request->hasFile($key)) {
-
                     $file = $request->file($key);
-
                     $filename = time() . '_' . $file->getClientOriginalName();
-
                     // Delete old file if exists
                     $old = AdminSetting::where('option_key', $key)->value('option_value');
-
                     if ($old && Storage::disk('public')->exists($old)) {
                         Storage::disk('public')->delete($old);
                     }
@@ -281,6 +277,8 @@ class AdminController extends Controller
                 ]
             );
         }
+
+        Cache::forget('ai_configuration');
 
         $credentialsChanged =
             $oldProductionClientId !== trim((string) $request->production_client_id) ||

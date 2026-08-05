@@ -23,6 +23,7 @@ class AIConfigurationService
                 'openai_model',
                 'openai_temperature',
                 'openai_endpoint',
+                'openai_max_tokens',
             ])->pluck('option_value', 'option_key');
 
             return [
@@ -33,6 +34,8 @@ class AIConfigurationService
                 'model' => $settings['openai_model'] ?? 'gpt-4.1-mini',
 
                 'temperature' => (float) ($settings['openai_temperature'] ?? 0.1),
+
+                'max_tokens' => (int) ($settings['openai_max_tokens'] ?? 1024),
 
                 'endpoint' => $settings['openai_endpoint']
                     ?? 'https://api.openai.com/v1/chat/completions',
