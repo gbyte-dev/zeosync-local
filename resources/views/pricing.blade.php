@@ -27,7 +27,7 @@
                             </ul>
                         </div>
                         <div class="card-footer bg-white border-top-0">
-                            <a href="{{ route('register') }}" class="btn btn-outline-primary w-100">Get Started</a>
+                            <a href="{{ route('crm.entry') }}" class="btn btn-outline-primary w-100">Get Started</a>
                         </div>
                     </div>
                 </div>
@@ -53,7 +53,7 @@
                             </ul>
                         </div>
                         <div class="card-footer bg-white border-top-0">
-                            <a href="{{ route('register') }}" class="btn btn-primary w-100">Get Started</a>
+                            <a href="{{ route('crm.entry') }}" class="btn btn-primary w-100">Get Started</a>
                         </div>
                     </div>
                 </div>
