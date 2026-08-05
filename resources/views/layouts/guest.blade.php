@@ -131,8 +131,8 @@
 <body>
     <!-- Topbar (mobile) -->
     <div class="topbar">
-        <button id="menuToggle">☰</button>
         <span><img src="{{ getLogo() }}" alt="Logo" class="topbar__logo">amazonSync</span>
+         <button id="menuToggle" class="float-right">☰</button>
     </div>
 
     <div class="app-layout">
