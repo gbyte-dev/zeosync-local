@@ -30,17 +30,18 @@
 
     .ai-chat-grid {
         display: grid;
-        grid-template-columns: 1.5fr 1fr;
-        gap: 20px;
+        grid-template-columns: 1fr 1.4fr;
+        gap: 18px;
+        align-items: start;
     }
 
     .ai-chat-card,
     .ai-chat-form {
         background: #ffffff;
         border: 1px solid #E5E7EB;
-        border-radius: 16px;
-        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
-        padding: 22px;
+        border-radius: 18px;
+        box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+        padding: 24px;
     }
 
     .ai-chat-card-header,
@@ -61,17 +62,18 @@
     .ai-chat-log {
         display: flex;
         flex-direction: column;
-        gap: 16px;
-        max-height: 68vh;
+        gap: 10px;
+        max-height: 72vh;
         overflow-y: auto;
         padding-right: 4px;
+        min-height: 420px;
     }
 
     .ai-chat-message {
-        padding: 16px 18px;
-        border-radius: 16px;
+        padding: 14px 16px;
+        border-radius: 18px;
         border: 1px solid transparent;
-        line-height: 1.6;
+        line-height: 1.55;
         white-space: pre-line;
     }
 
@@ -150,31 +152,50 @@
     }
 
     .ai-chat-form textarea {
-        min-height: 170px;
+        min-height: 180px;
         resize: vertical;
-        border-radius: 12px;
+        border-radius: 16px;
         border: 1px solid #D1D5DB;
-        padding: 14px;
-        font-size: 0.95rem;
+        padding: 16px;
+        font-size: 0.96rem;
         color: #111827;
+        transition: border-color 0.2s ease;
+    }
+
+    .ai-chat-form textarea:focus {
+        border-color: #2563EB;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
     }
 
     .ai-chat-form .form-text {
         color: #6B7280;
         font-size: 0.9rem;
-        margin-top: 8px;
+        margin-top: 10px;
     }
 
     .ai-chat-footer {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 14px;
         margin-top: 18px;
     }
 
     .ai-chat-footer .btn {
         min-width: 140px;
+    }
+
+    .ai-chat-status {
+        color: #6B7280;
+        font-size: 0.92rem;
+        text-align: left;
+    }
+
+    .ai-chat-error {
+        margin-top: 12px;
+        display: none;
+        color: #b91c1c;
+        font-size: 0.9rem;
     }
 
     .ai-chat-empty {
@@ -188,6 +209,10 @@
 
     @media (max-width: 991.98px) {
         .ai-chat-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .ai-chat-footer {
             grid-template-columns: 1fr;
         }
     }
@@ -208,58 +233,12 @@
     </div>
 
     <div class="ai-chat-grid">
-        <div class="ai-chat-card">
-            <div class="ai-chat-card-header">
-                <h2>Conversation</h2>
-                <span class="text-muted">AI history stored in this browser session</span>
-            </div>
-            <div class="ai-chat-log">
-                @if(count($chatHistory) === 0)
-                    <div class="ai-chat-empty">
-                        Start by asking how your products are performing, which product is selling best, or for a Shopify/Amazon price comparison.
-                    </div>
-                @endif
-
-                @foreach($chatHistory as $message)
-                    @php
-                        $escapedMessage = e($message['message']);
-                        $linkedMessage = preg_replace(
-                            '/(https?:\/\/[^\s]+)/',
-                            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>',
-                            nl2br($escapedMessage)
-                        );
-
-                        preg_match_all('/https?:\/\/[^\s]+/', $message['message'], $matches);
-                        $detectedLinks = array_unique($matches[0] ?? []);
-                    @endphp
-
-                    <div class="ai-chat-message {{ $message['role'] === 'user' ? 'user' : 'assistant' }}">
-                        <span class="message-label">{{ ucfirst($message['role']) }}</span>
-                        {!! $linkedMessage !!}
-
-                        @if($message['role'] === 'assistant' && count($detectedLinks))
-                            <div class="message-links">
-                                <strong>Product details</strong>
-                                <ul>
-                                    @foreach($detectedLinks as $link)
-                                        <li>
-                                            <a href="{{ $link }}" target="_blank" rel="noopener noreferrer">{{ $link }}</a>
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            </div>
-                        @endif
-                    </div>
-                @endforeach
-            </div>
-        </div>
-
-        <div class="ai-chat-form">
+        <div class="ai-chat-form" id="ai-chat-form-card">
             <div class="ai-chat-form-header">
                 <h2>Ask the AI</h2>
             </div>
 
-            <form method="POST" action="{{ route('shopify.ai.chat.ask', ['shop' => $currentShop]) }}">
+            <form id="ai-chat-form" method="POST" action="{{ route('shopify.ai.chat.ask', ['shop' => $currentShop]) }}">
                 @csrf
 
                 <div class="mb-3">
@@ -276,11 +255,158 @@
                 </div>
 
                 <div class="ai-chat-footer">
-                    <button type="submit" class="btn btn-primary">Send question</button>
-                    <a href="{{ route('shopify.ai.chat', ['shop' => $currentShop]) }}" class="btn btn-outline-secondary">Refresh page</a>
+                    <div class="ai-chat-status" id="ai-chat-status">
+                        {{ count($chatHistory) > 0 ? 'Last activity: ' . now()->format('g:i A') : 'No messages yet' }}
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="ai-chat-submit">Send question</button>
                 </div>
+
+                <div id="ai-chat-error" class="ai-chat-error"></div>
             </form>
+        </div>
+
+        <div class="ai-chat-card" id="ai-chat-history-card">
+            <div class="ai-chat-card-header">
+                <div>
+                    <h2>Conversation</h2>
+                    <p class="text-muted mb-0">AI history stored in this browser session</p>
+                </div>
+                <span class="text-muted" id="ai-chat-updated">
+                    {{ count($chatHistory) > 0 ? 'Last updated: ' . now()->format('g:i A') : 'No messages yet' }}
+                </span>
+            </div>
+            <div class="ai-chat-log" id="ai-chat-log">
+                @if(count($chatHistory) === 0)
+                    <div class="ai-chat-empty">
+                        Start by asking how your products are performing, which product is selling best, or for a Shopify/Amazon price comparison.
+                    </div>
+                @endif
+
+                @foreach($chatHistory as $message)
+                    @php
+                        $escapedMessage = e($message['message']);
+                        $linkedMessage = preg_replace(
+                            '/(https?:\/\/[^\s]+)/',
+                            '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>',
+                            nl2br($escapedMessage)
+                        );
+                    @endphp
+
+                    <div class="ai-chat-message {{ $message['role'] === 'user' ? 'user' : 'assistant' }}">
+                        <span class="message-label">{{ ucfirst($message['role']) }}</span>
+                        {!! $linkedMessage !!}
+                    </div>
+                @endforeach
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('ai-chat-form');
+        const log = document.getElementById('ai-chat-log');
+        const status = document.getElementById('ai-chat-status');
+        const updated = document.getElementById('ai-chat-updated');
+        const errorBox = document.getElementById('ai-chat-error');
+        const submitButton = document.getElementById('ai-chat-submit');
+        const promptField = document.getElementById('prompt');
+
+        const escapeHtml = (text) => {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        };
+
+        const linkify = (text) => {
+            const escaped = escapeHtml(text);
+            return escaped
+                .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+                .replace(/\n/g, '<br>');
+        };
+
+        const createMessageElement = (role, message) => {
+            const item = document.createElement('div');
+            item.className = 'ai-chat-message ' + (role === 'user' ? 'user' : 'assistant');
+            item.innerHTML = '<span class="message-label">' + (role === 'user' ? 'User' : 'Assistant') + '</span>' + linkify(message);
+            return item;
+        };
+
+        const scrollToBottom = () => {
+            if (!log) return;
+            log.scrollTop = log.scrollHeight;
+        };
+
+        const formatTime = (date) => {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        };
+
+        if (log) {
+            scrollToBottom();
+        }
+
+        if (!form) {
+            return;
+        }
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            const prompt = promptField.value.trim();
+            if (!prompt) {
+                errorBox.textContent = 'Please enter your question.';
+                errorBox.style.display = 'block';
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Sending...';
+            errorBox.style.display = 'none';
+
+            const formData = new FormData(form);
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                },
+                body: formData,
+            })
+                .then(async (response) => {
+                    const data = await response.json();
+
+                    if (!response.ok || data.success === false) {
+                        const message = data.error || (data.errors && data.errors.prompt && data.errors.prompt[0]) || 'Unable to send your question.';
+                        throw new Error(message);
+                    }
+
+                    const userMessage = createMessageElement('user', prompt);
+                    const assistantMessage = createMessageElement('assistant', data.message);
+
+                    if (log.querySelector('.ai-chat-empty')) {
+                        log.innerHTML = '';
+                    }
+
+                    log.appendChild(userMessage);
+                    log.appendChild(assistantMessage);
+                    scrollToBottom();
+                    promptField.value = '';
+                    const now = new Date();
+                    status.textContent = 'Last activity: ' + formatTime(now);
+                    updated.textContent = 'Last updated: ' + formatTime(now);
+                })
+                .catch((error) => {
+                    errorBox.textContent = error.message || 'Unable to send your question.';
+                    errorBox.style.display = 'block';
+                })
+                .finally(() => {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Send question';
+                });
+        });
+    });
+</script>
 @endsection
