@@ -3,7 +3,7 @@
 @section('content')
 <div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-lg-10">
+        <div class="col-lg-12">
             <div class="text-center mb-5">
                 <h5 class="mb-3">Pricing Plans</h5>
                 <p class="text-muted">Simple, transparent pricing to fit your business needs. All plans include core synchronization features.</p>
