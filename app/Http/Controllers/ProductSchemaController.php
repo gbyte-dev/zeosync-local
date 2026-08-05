@@ -372,67 +372,14 @@ class ProductSchemaController extends Controller
         $requiredFields = collect($fields)->where('required', true)->values();
         $canUseAiAutoFill = $this->aiFeatureService->canUseAutoFill($this->shop->id);
         $canUseAiSingleField = $this->aiFeatureService->canUseSingleField($this->shop->id);
-        return view(
-            'schema.products.create',
-            compact(
-                'tabs',
-                'schema',
-                'fields',
-                'requiredFields',
-                'productshow',
-                'prodAttri',
-                'canUseAiAutoFill',
-                'canUseAiSingleField'
+        
+        return view('schema.products.create',
+            compact(  'tabs', 'schema',  'fields',  'requiredFields', 'productshow',
+                'prodAttri',  'canUseAiAutoFill', 'canUseAiSingleField'
             )
         );
     }
-    // public function productstore(Request $request, $product_id = null)
-    // {
-    //     $product_id = DB::transaction(function() use ($request,$product_id){
-    //     $shop = new Shop();
-    //     $shop_id = $shop->getidByshop(session('active_shop'));
-    //     if(!isset($product_id)){
-    //         if($request->parent_id){
-    //             $product = Product::create([
-    //                 'parent_id' => $request->parent_id,
-    //                 'user_id' => $shop_id,
-    //                 'schema_id' => $request->schema_id,
-    //                 'sku' => strtoupper(Str::random(12))
-    //             ]);
-    //         }else{
-    //             $product = Product::create([
-    //                 'user_id' => $shop_id,
-    //                 'schema_id' => $request->schema_id,
-    //                 'sku' => strtoupper(Str::random(12))
-    //             ]);
-    //        }
-    //         $product_id = $product->id;
-    //     }
-    //     foreach( $request['attributes'] as $key => $value){
-    //         if(($key == 'country_of_origin') && $value==''){
-    //             $value = 'US';
-    //         }
-    //         if($value === null || $value === 'null' || $value === '') {
-    //             continue;
-    //         }
-    //         ProductAttribute::updateOrCreate(
-    //             [
-    //                 'product_id' => $product_id,
-    //                 'attribute_name' => $key,
-    //             ],
-    //             [
-    //                 'attribute_value' => $value,
-    //             ]
-    //         );
-    //     }
-    //     return $product_id;
-    //     });
-    //     if($request->save_draft){
-    //         return redirect()->route('admin.product.productEdit', ['product' => $product_id])->with('success','Product Saved as Draft');
-    //     }
-    //     return redirect()->route('admin.product.generatePayload',['product' => $product_id]);
-    //  //   return back();
-    // }
+  
     public function productstore(
         Request $request,
         ProductLimitService $productLimitService,
