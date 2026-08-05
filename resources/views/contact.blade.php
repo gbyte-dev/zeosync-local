@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container py-5">
-    <h1>Contact Us</h1>
+    <h5>Contact Us</h5>
     <p class="text-muted">Email: support@zeosync.example (replace with real address)</p>
 </div>
 @endsection
