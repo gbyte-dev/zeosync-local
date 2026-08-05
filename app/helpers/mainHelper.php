@@ -213,7 +213,7 @@ if (!function_exists('getAppName')) {
            return $settings->app_name;
         }
 
-        return ZeoSync;
+        return 'ZeoSync';
     }
 }
 
