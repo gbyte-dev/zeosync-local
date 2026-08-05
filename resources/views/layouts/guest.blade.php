@@ -54,7 +54,6 @@
         /* Minimal SaaS Topbar */
         .topbar {
             background-color: #FFFFFF;
-            height: 48px;
             border-bottom: 1px solid #E5E7EB;
             display: flex;
             align-items: center;
@@ -69,7 +68,6 @@
         .topbar__logo{
             height: 70px;
             width: 200px;
-            margin-top: 30px;
         }
 
         #menuToggle {
@@ -136,9 +134,9 @@
 
 <body>
     <!-- Topbar (mobile) -->
-    <div class="topbar">
-        <span><img src="{{ getLogo() }}" alt="Logo" class="topbar__logo"></span>
-         <button id="menuToggle" class="float-right">☰</button>
+    <div class="topbar row">
+        <span class="col-11 col-sm-11"><img src="{{ getLogo() }}" alt="Logo" class="topbar__logo"></span>
+         <button id="menuToggle" class="col-1 col-sm-1">☰</button>
     </div>
 
     <div class="app-layout">
