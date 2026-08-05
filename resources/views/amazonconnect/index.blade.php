@@ -670,33 +670,20 @@
         );
 
         modal.show();
-
         const btn = document.getElementById("amazonEmailModalClose");
-
         btn.innerHTML = `Close (${countdown}s)`;
 
         emailModalTimer = setInterval(function() {
-
             countdown--;
-
             btn.innerHTML = `Close (${countdown}s)`;
-
             if (countdown <= 0) {
-
                 clearInterval(emailModalTimer);
-
                 modal.hide();
-
             }
-
         }, 1000);
-
         btn.onclick = function() {
-
             clearInterval(emailModalTimer);
-
             modal.hide();
-
         };
 
     }
@@ -759,6 +746,7 @@
 
         if (!popup) {
             alert('Popup blocked. Please allow popups for this site and try again.');
+            startIframeAuthorization();
             return;
         }
 

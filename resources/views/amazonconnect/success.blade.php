@@ -218,6 +218,6 @@
         // Close window after short delay as a fallback
         setTimeout(function(){
             try { window.close(); } catch(e) {}
-        }, 800);
+        }, 2000);
     })();
 </script>
