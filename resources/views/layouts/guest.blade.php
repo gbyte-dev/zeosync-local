@@ -260,20 +260,20 @@
         <!-- Footer -->
         <footer id="siteFooter">
             <div class="container d-md-flex justify-content-between">
-                <div class="mb-3 mb-md-0">
-                    <h5 class="text-white">Zeosync</h5>
-                    <div class="small">Sync Amazon & Shopify effortlessly</div>
-                </div>
+               <div class="row">
+                    <div class="mb-3 col-sm-6">
+                        <h5 class="text-white">Zeosync</h5>
+                        <div class="small">Sync Amazon & Shopify effortlessly</div>
+                    </div>
 
-                <div class="d-flex gap-4 small">
-                    <div>
+                    <div class="mb-3 col-sm-3">
                         <div class="fw-bold text-white">Company</div>
                         <div><a href="/about">About</a></div>
                         <div><a href="/pricing">Pricing</a></div>
                         <div><a href="/contact">Contact Us</a></div>
                     </div>
-
-                    <div>
+                    
+                    <div class="mb-3 col-sm-3">
                         <div class="fw-bold text-white">Legal</div>
                         <div><a href="/terms">Terms</a></div>
                         <div><a href="/privacy">Privacy</a></div>
