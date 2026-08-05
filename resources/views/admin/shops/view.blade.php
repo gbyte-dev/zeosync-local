@@ -234,10 +234,10 @@
                 </div>
             @endif
 
-            <div class="p-4 border-top">
+            <div class="">
                 <form action="{{ route('admin.shops.update', $shop->id) }}" method="POST">
                     @csrf
-                    <div class="row g-3">
+                    <div class="row">
                         <div class="col-md-12">
                              <div class="info-row">
                                 <div class="info-label"><label for="shop_name" class="form-label">Shop Name</label></div>
