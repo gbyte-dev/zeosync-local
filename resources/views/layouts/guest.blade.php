@@ -66,7 +66,7 @@
         }
 
         .topbar__logo{
-                height: 56px;
+                height: 70px;
                 width: auto;
                 max-width: 220px;
             }
@@ -259,7 +259,7 @@
 
         <!-- Footer -->
         <footer id="siteFooter">
-            <div class="container d-md-flex justify-content-between">
+            <div class="container">
                <div class="row">
                     <div class="mb-3 col-sm-6">
                         <h5 class="text-white">Zeosync</h5>
