@@ -204,3 +204,16 @@ if (!function_exists('getFavicon')) {
         return asset('logo/favamzsync.png');
     }
 }
+
+if (!function_exists('getAppName')) {
+    function getAppName(){
+        $settings = DB::table('admin_settings')->where('option_key', 'app_name')->first();
+
+        if ($settings && !empty($settings->app_name)) {
+           return $settings->app_name;
+        }
+
+        return ZeoSync;
+    }
+}
+
