@@ -77,35 +77,35 @@ class AmazonConnect extends ShopifyController
             'amazon_is_iframe' => $request->boolean('is_iframe')
         ]);
 
-        if (isset($request->is_iframe) && $request->is_iframe == 1) {
+        // if (isset($request->is_iframe) && $request->is_iframe == 1) {
 
-            $encryptedShop = Crypt::encryptString($shop->shop);
-            $requrl = url('amzon/authorize/shopify/' . $encryptedShop);
-            $template = MailTemplate::where('slug', 'amazon-connect')->first();
+        //     $encryptedShop = Crypt::encryptString($shop->shop);
+        //     $requrl = url('amzon/authorize/shopify/' . $encryptedShop);
+        //     $template = MailTemplate::where('slug', 'amazon-connect')->first();
 
-            if ($template) {
-                $shop->amazon_connect_url = $requrl;
-                app(EmailService::class)->sendDynamicEmail(
-                    $template,
-                    $shop
-                );
+        //     if ($template) {
+        //         $shop->amazon_connect_url = $requrl;
+        //         app(EmailService::class)->sendDynamicEmail(
+        //             $template,
+        //             $shop
+        //         );
 
-                cache()->put(
-                    "amazon_connect_progress_{$shop->id}",
-                    [
-                        'percent' => 20,
-                        'message' => 'Authorization email sent.',
-                        'completed' => false,
-                    ],
-                    now()->addMinutes(10)
-                );
-            }
+        //         cache()->put(
+        //             "amazon_connect_progress_{$shop->id}",
+        //             [
+        //                 'percent' => 20,
+        //                 'message' => 'Authorization email sent.',
+        //                 'completed' => false,
+        //             ],
+        //             now()->addMinutes(10)
+        //         );
+        //     }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Authorization email sent.'
-            ]);
-        }
+        //     return response()->json([
+        //         'success' => true,
+        //         'message' => 'Authorization email sent.'
+        //     ]);
+        // }
 
         // Normal (non-iframe) flow
         return redirect()->away("{$authUrl}/apps/authorize/consent?{$query}");
