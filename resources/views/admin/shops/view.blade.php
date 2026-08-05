@@ -238,13 +238,21 @@
                 <form action="{{ route('admin.shops.update', $shop->id) }}" method="POST">
                     @csrf
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="shop_name" class="form-label">Shop Name</label>
-                            <input type="text" class="form-control" id="shop_name" name="shop_name" value="{{ old('shop_name', $shop->shop_name) }}" required>
+                        <div class="col-md-12">
+                             <div class="info-row">
+                                <div class="info-label"><label for="shop_name" class="form-label">Shop Name</label></div>
+                                <div class="info-value">
+                                    <input type="text" class="form-control" id="shop_name" name="shop_name" value="{{ old('shop_name', $shop->shop_name) }}" required>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <label for="email" class="form-label">Email Address</label>
-                            <input type="email" class="form-control" id="email" name="email" value="{{ old('email', $shop->email) }}" required>
+                        <div class="col-md-12">
+                            <div class="info-row">
+                                <div class="info-label"><label for="email" class="form-label">Email Address</label></div>
+                                <div class="info-value">
+                                    <input type="email" class="form-control" id="email" name="email" value="{{ old('email', $shop->email) }}" required>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="mt-3 d-none">
