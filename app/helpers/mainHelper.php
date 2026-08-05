@@ -167,7 +167,7 @@ if (!function_exists('checkAmazonConnected')) {
 if (!function_exists('getLogo')) {
     function getLogo(){
      
-        $settings = DB::table('admin_settings')->where('shop', $shop)->first();
+        $settings = DB::table('admin_settings')->where('option_key', 'app_logo')->first();
         if($settings && ($settings->app_logo != null && !empty($settings->app_logo) ) ){
             $path = public_path($settings->app_logo);
             $exists = \Illuminate\Support\Facades\Storage::disk('public')->exists($settings->app_logo);
@@ -184,7 +184,7 @@ if (!function_exists('getLogo')) {
 if (!function_exists('getFavicon')) {
     function getFavicon(){
      
-        $settings = DB::table('admin_settings')->where('shop', $shop)->first();
+        $settings = DB::table('admin_settings')->where('option_key', 'app_favicon')->first();
         if($settings && ($settings->app_favicon != null && !empty($settings->app_favicon) ) ){
             $path = public_path($settings->app_favicon);
             $exists = \Illuminate\Support\Facades\Storage::disk('public')->exists($settings->app_favicon);
