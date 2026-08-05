@@ -241,11 +241,13 @@ class AmazonConnect extends ShopifyController
                 ]);
             }
 
-            return redirect()
-                ->route('dashboard', [
-                    'shop' => $shop->shop,
-                ])
-                ->with('success', 'Amazon Connected!');
+            return redirect()->route('amazon.connect.success', [
+                'shop' => $shop->shop,
+            ])->with('success', 'Amazon Connected!');
+
+            // return redirect()->route('dashboard', [
+            //         'shop' => $shop->shop,
+            //     ])->with('success', 'Amazon Connected!');
         }
 
         return redirect()->route('dashboard')->with('error', 'Failed to connect Amazon.');
