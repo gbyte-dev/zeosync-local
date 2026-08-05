@@ -464,7 +464,7 @@
 
                             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2">
                                 <span class="text-muted" style="font-size: 12px;">
-                                    You will be redirected to Amazon for secure authorization.
+                                    A popup window will open for Amazon authorization.
                                 </span>
 
                                 <button type="button" onclick="showAmazonAcknowledgeModal()" class="saas-btn saas-btn-primary">
@@ -718,10 +718,71 @@
         if (document.getElementById('is_iframe').value == '1') {
             startIframeAuthorization();
         } else {
-            document.getElementById('amazonConnectForm').submit();
+            openPopupAuthorization();
         }
 
     });
+
+    // Listen for messages from popup (success signal)
+    window.addEventListener('message', function(event) {
+        try {
+            // Ensure message is from same origin
+            if (event.origin !== window.location.origin) return;
+        } catch (e) {
+            // ignore
+        }
+
+        const data = event.data || {};
+        if (data && data.type === 'amazon_connected') {
+            // Stop any polling and refresh status
+            authorizationPending = false;
+            if (amazonProgressInterval) clearInterval(amazonProgressInterval);
+            // Briefly show success then reload
+            document.getElementById("amazonCurrentStatus").innerHTML = 'Amazon account connected successfully.';
+            setTimeout(function() { location.reload(); }, 900);
+        }
+    }, false);
+
+    // Open a popup window for non-iframe authorization
+    function openPopupAuthorization() {
+        const form = document.getElementById("amazonConnectForm");
+        const url = form.action + "?" + new URLSearchParams(new FormData(form));
+
+        const width = 1000;
+        const height = 700;
+        const left = (screen.width / 2) - (width / 2);
+        const top = (screen.height / 2) - (height / 2);
+
+        const features = `toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=${width},height=${height},top=${top},left=${left}`;
+
+        const popup = window.open(url, 'amazonAuth', features);
+
+        if (!popup) {
+            alert('Popup blocked. Please allow popups for this site and try again.');
+            return;
+        }
+
+        // Focus popup
+        popup.focus();
+
+        // Show status card and start polling
+        document.getElementById("amazonStatusCard").classList.remove('d-none');
+        document.getElementById("amazonCurrentStatus").innerHTML = 'Waiting for authorization...';
+        authorizationPending = true;
+        startAmazonProgressPolling();
+
+        // Detect popup closed without completing
+        const popupChecker = setInterval(function() {
+            if (popup.closed) {
+                clearInterval(popupChecker);
+                if (authorizationPending) {
+                    // If still pending, switch to email flow message
+                    document.getElementById("amazonCurrentStatus").innerHTML = 'Popup closed. If you completed authorization, please wait a moment. Otherwise try again.';
+                    // continue polling for a short period
+                }
+            }
+        }, 800);
+    }
 
     function confirmDisconnect() {
         if (confirm('Are you sure you want to disconnect Amazon?')) {

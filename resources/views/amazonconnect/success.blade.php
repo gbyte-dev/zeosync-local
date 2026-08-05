@@ -201,3 +201,23 @@
 
 </body>
 </html>
+<script>
+    (function(){
+        try {
+            var shop = {!! json_encode($shop ?? null) !!};
+            var payload = { type: 'amazon_connected', shop: shop };
+            if (window.opener && !window.opener.closed) {
+                try {
+                    window.opener.postMessage(payload, window.location.origin);
+                } catch (e) {
+                    // ignore
+                }
+            }
+        } catch (e) {}
+
+        // Close window after short delay as a fallback
+        setTimeout(function(){
+            try { window.close(); } catch(e) {}
+        }, 800);
+    })();
+</script>
