@@ -212,6 +212,8 @@ class AIController extends Controller
 
     private function buildPayload(string $systemPrompt, string $userPrompt, array $config): array
     {
+        $maxTokens = max(1, (int) ($config['max_tokens'] ?? 1024));
+
         if (($config['provider'] ?? 'openai') === 'gemini') {
             return [
                 'contents' => [
@@ -223,6 +225,7 @@ class AIController extends Controller
                 ],
                 'generationConfig' => [
                     'temperature' => (float) $config['temperature'],
+                    'maxOutputTokens' => $maxTokens,
                 ],
             ];
         }
@@ -234,6 +237,7 @@ class AIController extends Controller
                 ['role' => 'user', 'content' => $userPrompt],
             ],
             'temperature' => (float) $config['temperature'],
+            'max_tokens' => $maxTokens,
         ];
     }
 
