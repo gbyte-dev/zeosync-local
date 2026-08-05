@@ -11,7 +11,7 @@ use App\Models\AdminSetting;
 use App\Models\AdminNotification;
 use App\Models\NotificationSetting;
 use App\Models\MailTemplate;
-use App.Services\EmailService;
+use App\Services\EmailService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use App\Models\ShopSubscription;
