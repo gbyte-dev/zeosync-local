@@ -66,6 +66,12 @@
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
         }
 
+        .topbar__logo{
+            height: 70px;
+            width: 200px;
+            margin-top: 30px;
+        }
+
         #menuToggle {
             background: transparent;
             border: none;
@@ -131,7 +137,7 @@
 <body>
     <!-- Topbar (mobile) -->
     <div class="topbar">
-        <span><img src="{{ getLogo() }}" alt="Logo" class="topbar__logo">amazonSync</span>
+        <span><img src="{{ getLogo() }}" alt="Logo" class="topbar__logo"></span>
          <button id="menuToggle" class="float-right">☰</button>
     </div>
 
