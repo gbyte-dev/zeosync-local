@@ -40,11 +40,7 @@ $groups = [
     ], -->
 <div class="container-fluid">
 
-    <div class="card shadow-sm">
-        <div class="card-header">
-            <h5 class="mb-0">Settings</h5>
-        </div>
-
+    <div class="">
         <div class="card-body">
 
             <form method="POST" action="{{ route('admin.settings.update') }}" enctype="multipart/form-data">
