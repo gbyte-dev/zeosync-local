@@ -183,17 +183,20 @@ if (!function_exists('getLogo')) {
 
 if (!function_exists('getFavicon')) {
     function getFavicon(){
-     
         $settings = DB::table('admin_settings')->where('option_key', 'app_favicon')->first();
-        if($settings && ($settings->app_favicon != null && !empty($settings->app_favicon) ) ){
-            $path = public_path($settings->app_favicon);
-            $exists = \Illuminate\Support\Facades\Storage::disk('public')->exists($settings->app_favicon);
+
+        if ($settings && !empty($settings->option_value)) {
+            $faviconPath = $settings->option_value;
+            $path = public_path($faviconPath);
+            $exists = \Illuminate\Support\Facades\Storage::disk('public')->exists($faviconPath);
+
             if (file_exists($path)) {
-                return asset($settings->app_favicon);
-            }elseif($exists){
-                return asset('storage/' . $settings->app_favicon);
+                return asset($faviconPath);
+            } elseif ($exists) {
+                return asset('storage/' . $faviconPath);
             }
         }
+
         return asset('logo/favamzsync.png');
     }
 }
