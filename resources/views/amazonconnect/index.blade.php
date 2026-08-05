@@ -715,11 +715,11 @@
 
     document.getElementById('confirmConnectBtn')?.addEventListener('click', function() {
 
-        if (document.getElementById('is_iframe').value == '1') {
-            startIframeAuthorization();
-        } else {
+        // if (document.getElementById('is_iframe').value == '1') {
+        //     startIframeAuthorization();
+        // } else {
             openPopupAuthorization();
-        }
+        // }
 
     });
 
