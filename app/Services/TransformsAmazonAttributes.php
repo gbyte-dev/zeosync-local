@@ -485,6 +485,39 @@ class TransformsAmazonAttributes
             return [['neck_style' => [['value' => $value, 'language_tag' => 'en_US']]]];
         }
 
+        if ($name === 'deck') {
+            if (!preg_match(
+                '/^\s*([\d]+(?:\.\d+)?)\s*L\s*(?:\*|x|×)\s*([\d]+(?:\.\d+)?)\s*W\s*(mm|millimeter|millimeters|cm|centimeter|centimeters|m|meter|meters|in|inch|inches|ft|foot|feet)\s*$/i',
+                trim($value),  $m )) {   return null; }
+
+            $unit = $unitMap[strtolower($m[3])] ?? strtolower($m[3]);
+
+            return [[
+                'length' => [[
+                    'value' => (float) $m[1],
+                    'unit'  => $unit,
+                ]],
+                'width' => [[
+                    'value' => (float) $m[2],
+                    'unit'  => $unit,
+                ]]
+            ]];
+        }
+
+        if ($name === 'wheel') {
+
+            if (!preg_match( '/^\s*([\d]+(?:\.\d+)?)\s*(mm|millimeter|millimeters|cm|centimeter|centimeters|m|meter|meters|in|inch|inches|ft|foot|feet)\s*$/i',
+                trim($value),   $m )) {    return null; }
+            $unit = $unitMap[strtolower($m[2])] ?? strtolower($m[2]);
+            return [[
+                'size' => [[
+                    'value' => (float) $m[1],
+                    'unit'  => $unit,
+                ]]
+            ]];
+        }
+
+
         if ($name === 'package_level') {
             $map = ['unit'=>'each','each'=>'each','pack'=>'pack','set'=>'set'];
             return [['value' => $map[strtolower($value)] ?? 'each']];
@@ -1020,7 +1053,6 @@ class TransformsAmazonAttributes
             'item_depth_width',
             'item_height_depth',
             'item_depth_height',
-            'deck'
         ];
     }
 }
