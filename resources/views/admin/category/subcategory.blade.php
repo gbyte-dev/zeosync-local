@@ -61,10 +61,26 @@
         <div class="card-body p-0">
 
             {{-- Desktop Table --}}
+            <div class="p-3">
+                <form id="move-subcategories-form" method="post" action="{{ route('admin.subcategories.move') }}">
+                    @csrf
+                    <div class="d-flex gap-2 align-items-center mb-3">
+                        <label class="mb-0 small text-muted">Move selected to</label>
+                        <select class="form-select form-select-sm w-auto" name="target_parent_id">
+                            <option value="">Top Level</option>
+                            @foreach($parentCategories as $pc)
+                                <option value="{{ $pc->id }}">{{ $pc->name }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-primary">Move Selected</button>
+                    </div>
+                </form>
+            </div>
             <div class="table-responsive">
                 <table id="subcategory-table" class="table table-hover align-middle mb-0 w-100">
                     <thead class="table-light">
                         <tr>
+                            <th class="ps-4 text-uppercase small text-muted"><input id="select-all-subcats" type="checkbox"></th>
                             <th class="ps-4 text-uppercase small text-muted">Sr No.</th>
                             <th class="text-uppercase small text-muted">Subcategory</th>
                             <th class="text-end pe-4 text-uppercase small text-muted">Status</th>
@@ -74,6 +90,9 @@
                     <tbody>
                         @forelse($children as $key => $child)
                             <tr>
+                                <td class="ps-4">
+                                    <input form="move-subcategories-form" type="checkbox" name="subcategory_ids[]" value="{{ $child->id }}">
+                                </td>
                                 <td class="ps-4 text-muted fw-semibold">
                                     #{{ $key + 1 }}
                                 </td>
@@ -237,6 +256,35 @@
         //         }
         //     });
         // }
+    });
+</script>
+
+<script>
+    // Select all checkbox handler
+    document.addEventListener('DOMContentLoaded', function () {
+        const selectAll = document.getElementById('select-all-subcats');
+        if (selectAll) {
+            selectAll.addEventListener('change', function () {
+                const checks = document.querySelectorAll('input[name="subcategory_ids[]"]');
+                checks.forEach(cb => cb.checked = selectAll.checked);
+            });
+        }
+
+        const form = document.getElementById('move-subcategories-form');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                const selected = Array.from(document.querySelectorAll('input[name="subcategory_ids[]"]:checked'));
+                if (selected.length === 0) {
+                    e.preventDefault();
+                    alert('Please select at least one subcategory to move.');
+                    return;
+                }
+                if (!confirm('Move ' + selected.length + ' subcategory(ies) to the selected parent?')) {
+                    e.preventDefault();
+                    return;
+                }
+            });
+        }
     });
 </script>
 @endsection
