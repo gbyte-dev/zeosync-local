@@ -10,7 +10,7 @@
                 <div class="card-body">
                     <h6 class="card-title">Acceptance of Terms</h6>
                     <p class="card-text text-muted">
-                        By accessing or using Zeosync's services, you agree to be bound by these Terms & Conditions. 
+                        By accessing or using {{getAppName()}}'s services, you agree to be bound by these Terms & Conditions. 
                         If you do not agree to these terms, please do not use our services. We reserve the right to 
                         modify these terms at any time, and your continued use of the service constitutes acceptance of any changes.
                     </p>
@@ -21,7 +21,7 @@
                 <div class="card-body">
                     <h6 class="card-title">Service Description</h6>
                     <p class="card-text text-muted">
-                        Zeosync provides a synchronization platform that integrates Amazon and Shopify stores. Our services 
+                        {{getAppName()}} provides a synchronization platform that integrates Amazon and Shopify stores. Our services 
                         include product listing synchronization, inventory management, order processing, and related features. 
                         We strive to maintain high service availability but do not guarantee uninterrupted access to our platform.
                     </p>
@@ -49,7 +49,7 @@
                 <div class="card-body">
                     <h6 class="card-title">Limitation of Liability</h6>
                     <p class="card-text text-muted">
-                        Zeosync shall not be liable for any indirect, incidental, special, consequential, or punitive damages 
+                        {{getAppName()}} shall not be liable for any indirect, incidental, special, consequential, or punitive damages 
                         resulting from your use or inability to use the service. We are not responsible for any data loss, 
                         business interruption, or lost profits arising from the use of our platform.
                     </p>
