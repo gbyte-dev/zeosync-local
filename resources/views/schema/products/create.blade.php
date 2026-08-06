@@ -92,7 +92,7 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                 @if(is_array(session('errors_amazon')))
                 @foreach(session('errors_amazon') as $error)
                 <li>
-                 <strong>{{ implode(', ', $error['attributeNames'] ?? []) }}</strong>: 
+                 <strong style="display:none">{{ implode(', ', $error['attributeNames'] ?? []) }} : </strong>
                     {{ $error['message'] }}
                 </li>
                 @endforeach

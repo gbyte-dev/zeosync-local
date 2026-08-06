@@ -52,7 +52,7 @@ if($field['name'] == 'deck'){
     $extramsg = 'Please use in format 39L x 17.5W  Inches';
 }
 
-if($field['name'] == 'deck'){
+if($field['name'] == 'wheel'){
     $extramsg = 'Please use Wheel Size for this in format 60 Millimetres';
 }
 
