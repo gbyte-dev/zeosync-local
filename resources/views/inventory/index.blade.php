@@ -970,15 +970,7 @@
                 language: {
                     emptyTable: "No matching records found"
                 },
-                columns: [{
-                        data: 'sku',
-                        render: function(data, type, row) {
-                            let sku = row.sku || '-';
-                            if (type === 'sort' || type === 'filter') return sku;
-                            let url = "{{ route('user.product.amazonView', ['sku' => '__SKU__']) }}".replace('__SKU__', encodeURIComponent(sku));
-                            return `<a class="text-dark" href="${url}">${sku}</a>`;
-                        }
-                    },
+                columns: [
                     {
                         data: 'title',
                         render: function(data, type, row) {
@@ -986,6 +978,15 @@
                             if (type === 'sort' || type === 'filter') return title;
                             let display = title.length > 20 ? title.substring(0, 20) + '...' : title;
                             return `<span class="product-title-clamp" title="${title}" data-bs-toggle="tooltip" data-bs-container="body" data-bs-placement="top" style="cursor:pointer;">${display}</span>`;
+                        }
+                    },
+                    {
+                        data: 'sku',
+                        render: function(data, type, row) {
+                            let sku = row.sku || '-';
+                            if (type === 'sort' || type === 'filter') return sku;
+                            let url = "{{ route('user.product.amazonView', ['sku' => '__SKU__']) }}".replace('__SKU__', encodeURIComponent(sku));
+                            return `<a class="text-dark" href="${url}">${sku}</a>`;
                         }
                     },
                     {
