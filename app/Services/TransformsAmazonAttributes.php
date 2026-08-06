@@ -85,7 +85,7 @@ class TransformsAmazonAttributes
         }
 
          // ── length like  50mm , 50 mm ─────────────────────────────────────────────────────────
-        if (in_array($name, ['min_focal_length','deck'])) {
+        if (in_array($name, ['min_focal_length'])) {
             if (!preg_match('/^\s*([\d]+(?:\.\d+)?)\s*(mm|millimeter|millimeters|cm|centimeter|centimeters|m|meter|meters|in|inch|inches|ft|foot|feet)\s*$/i',
             $value,  $m )) {
                 return null;
@@ -97,6 +97,44 @@ class TransformsAmazonAttributes
                 'unit'  => $unit,
             ]];
         }
+
+        if ($name === 'deck') {
+
+            if (!preg_match(
+                '/^\s*([\d]+(?:\.\d+)?)\s*L\s*\*\s*([\d]+(?:\.\d+)?)\s*W\s*(mm|millimeter|millimeters|cm|centimeter|centimeters|m|meter|meters|in|inch|inches|ft|foot|feet)\s*$/i',
+                trim($value), $m
+            )) {
+                return null;
+            }
+
+            $unit = $unitMap[strtolower($m[3])] ?? strtolower($m[3]);
+
+            return [
+                'deck_length' => [[
+                    'value' => (float) $m[1],
+                    'unit'  => $unit,
+                ]],
+                'deck_width' => [[
+                    'value' => (float) $m[2],
+                    'unit'  => $unit,
+                ]],
+            ];
+        }
+
+         // ── length like  50mm , 50 mm ─────────────────────────────────────────────────────────
+        if (in_array($name, ['wheel'])) {
+            if (!preg_match('/^\s*([\d]+(?:\.\d+)?)\s*(mm|millimeter|millimeters|cm|centimeter|centimeters|m|meter|meters|in|inch|inches|ft|foot|feet)\s*$/i',
+            $value,  $m )) {
+                return null;
+            }
+
+            $unit = $unitMap[strtolower($m[2])] ?? strtolower($m[2]);
+            return [[
+                'wheel_size' => ['value' => (float) $m[1], 'unit' => $unit]
+            ]];
+        }
+
+
         
         // ── length like  50mm , 50 mm ───
         if ($name === 'objective_lens') {
@@ -981,8 +1019,7 @@ class TransformsAmazonAttributes
             'item_width_depth',
             'item_depth_width',
             'item_height_depth',
-            'item_depth_height',
-            'deck'
+            'item_depth_height'
         ];
     }
 }
