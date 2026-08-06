@@ -20,7 +20,7 @@
 
                     <input type="text" name="shop" class="form-control" placeholder="your-store-name" required>
 
-                    <span class="input-group-text">.myshopify.com</span>
+                    <span class="input-group-text d-none d-md-inline-flex">.myshopify.com</span>
 
                     <button class="btn btn-primary px-4">
                         Connect Store
