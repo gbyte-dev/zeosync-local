@@ -14,6 +14,7 @@ class ContactInquiry extends Model
         'email',
         'subject',
         'message',
+        'enquiry_type',
         'is_read',
     ];
 }

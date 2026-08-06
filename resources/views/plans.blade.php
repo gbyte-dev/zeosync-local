@@ -4,6 +4,7 @@
 
 @php
 $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
+$shop = \App\Models\Shop::where('shop', $currentShop)->first();
 $shopLabel = $currentShop ?: 'your connected store';
 
 $currentPlan = $subscription?->plan;
@@ -942,6 +943,114 @@ $subscriptionStatus = 'Trialing';
 
 </div>
 
+<!-- Enterprise Enquiry Modal -->
+<div class="modal fade saas-modal" id="enterpriseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+
+            <form method="POST" action="{{ route('contact.store') }}">
+                @csrf
+
+                <input type="hidden"
+                    name="enquiry_type"
+                    value="enterprise_plan_enquiry">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Contact Admin for Enterprise Plan
+                    </h5>
+
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row">
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                Full Name
+                            </label>
+
+                            <input
+                                type="text"
+                                name="name"
+                                class="form-control"
+                                value="{{ old('name', $shop->shop_name ?? '') }}"
+                                required>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                Email Address
+                            </label>
+
+                            <input
+                                type="email"
+                                name="email"
+                                class="form-control"
+                                value="{{ old('email', $shop->email ?? '') }}"
+                                required>
+                        </div>
+
+                        <div class="col-12 mb-3">
+                            <label class="form-label">
+                                Subject
+                            </label>
+
+                            <input
+                                type="text"
+                                name="subject"
+                                class="form-control"
+                                value="{{ old('subject') }}"
+                                placeholder="Example: Need higher product and sync limits"
+                                required>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">
+                                Describe Your Requirements
+                            </label>
+
+                            <textarea
+                                name="message"
+                                rows="5"
+                                class="form-control"
+                                placeholder="Describe your enterprise requirements, such as higher product limits, sync limits, mapping limits, dedicated support, custom integrations, or any other business requirements."
+                                required>{{ old('message') }}</textarea>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button
+                        type="button"
+                        class="saas-btn saas-btn-outline"
+                        data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="saas-btn saas-btn-primary">
+                        Send Request
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
 {{-- Cancel Modal --}}
 <div class="modal fade saas-modal" id="cancelModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -1004,6 +1113,22 @@ $subscriptionStatus = 'Trialing';
                     console.error('Polling error:', err);
                 });
         }, 3000);
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+
+        document.querySelectorAll('[data-bs-target="#enterpriseModal"]')
+            .forEach(function(button) {
+
+                button.addEventListener('click', function() {
+
+                    document.getElementById('enterprise_plan_id').value =
+                        this.dataset.planId;
+
+                });
+
+            });
+
     });
 </script>
 @endif

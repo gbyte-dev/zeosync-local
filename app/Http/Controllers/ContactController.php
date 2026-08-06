@@ -13,11 +13,17 @@ class ContactController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'subject' => 'required|string|max:255',
-            'message' => 'required|string|max:2000',
+            'name'          => 'required|string|max:255',
+            'email'         => 'required|email|max:255',
+            'subject'       => 'required|string|max:255',
+            'message'       => 'required|string|max:2000',
+            'enquiry_type'  => 'nullable|string|max:50',
         ]);
+
+        $data['enquiry_type'] = $request->input(
+            'enquiry_type',
+            'general_enquiry'
+        );
 
         $contact = ContactInquiry::create($data);
 
@@ -31,9 +37,16 @@ class ContactController extends Controller
         return redirect()->back()->with('success', 'Thank you for your message. Our team will connect with you shortly.');
     }
 
-    public function adminIndex()
+    public function adminIndex(Request $request)
     {
-        $contacts = ContactInquiry::latest()->paginate(20);
+        $query = ContactInquiry::query();
+
+        if ($request->filled('enquiry_type')) {
+            $query->where('enquiry_type', $request->enquiry_type);
+        }
+
+        $contacts = $query->latest()->paginate(20);
+
         return view('admin.contact_inquiries.index', compact('contacts'));
     }
 
