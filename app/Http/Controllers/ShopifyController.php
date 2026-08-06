@@ -3008,7 +3008,6 @@ class ShopifyController extends Controller
             $mapper = new ShopifyAmazonMapper();
             $mappedproduct = $mapper->map($product);
             $mappedproduct['shopify_inventory_item_id'] = $product['variants'][0]['inventory_item_id'] ?? '';
-dd($product, $mappedproduct);
             if (isset($dbProduct) && ($dbProduct->sub_category_id != null)) {
                 $category = Category::where('id', $dbProduct->sub_category_id)->first();
 
