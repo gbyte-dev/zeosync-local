@@ -263,6 +263,7 @@ class TransformsAmazonAttributes
             ];
         }
         
+        
         if ($name === 'title_differentiation') {
             $values = array_filter(array_map('trim', explode(',', $value)));
 
@@ -439,7 +440,7 @@ class TransformsAmazonAttributes
             return [['value' => $map[strtolower($value)] ?? 'contains_battery']];
         }
 
-        if ($name === 'sleeve') {
+        if ($name === 'sleeve' || $name === 'tire') {
             return [['type' => [['value' => $value, 'language_tag' => 'en_US']]]];
         }
 
