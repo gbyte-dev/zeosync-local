@@ -151,14 +151,11 @@
         }
 
         #siteFooter a {
-            color: #dbe4ff;
+            color: #94a3b8;
             text-decoration: none;
             transition: color 0.2s ease;
         }
 
-        #siteFooter a:hover {
-            color: #ffffff;
-        }
 
         #siteFooter .footer-brand {
             color: #ffffff;
@@ -298,7 +295,9 @@
             <div class="container">
                 <div class="row gy-4">
                     <div class="col-md-5 footer-section">
-                        <h5 class="footer-brand">{{ getAppName() }}</h5>
+                        <a href="/" style="text-decoration: none;">
+                            <h5 class="footer-brand">{{ getAppName() }}</h5>
+                        </a>
                         <p class="small footer-note mt-2">
                             Sync Amazon and Shopify effortlessly with a fast, reliable integration designed for modern merchants.
                         </p>
