@@ -85,7 +85,7 @@ class TransformsAmazonAttributes
         }
 
          // ── length like  50mm , 50 mm ─────────────────────────────────────────────────────────
-        if (in_array($name, ['min_focal_length'])) {
+        if (in_array($name, ['min_focal_length','deck'])) {
             if (!preg_match('/^\s*([\d]+(?:\.\d+)?)\s*(mm|millimeter|millimeters|cm|centimeter|centimeters|m|meter|meters|in|inch|inches|ft|foot|feet)\s*$/i',
             $value,  $m )) {
                 return null;
@@ -982,6 +982,7 @@ class TransformsAmazonAttributes
             'item_depth_width',
             'item_height_depth',
             'item_depth_height',
+            'deck'
         ];
     }
 }

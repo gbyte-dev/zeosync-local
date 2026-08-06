@@ -48,6 +48,16 @@ if($field['name'] == 'ring'){
     $extramsg = 'Please use only numbers like 6.5 , 7 , 8.5 etc';
 }
 
+if($field['name'] == 'deck'){
+    $extramsg = 'Please use in format 39L x 17.5W  Inches';
+}
+
+if($field['name'] == 'deck'){
+    $extramsg = 'Please use Wheel Size for this in format 60 Millimetres';
+}
+
+
+
 
 $idreq = $field['required'] ? 'required' : '';
 
