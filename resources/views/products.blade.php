@@ -601,6 +601,11 @@
                 }
             });
         }
+        
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.click();
+        }
     });
 
     document.addEventListener('click', function(e) {
