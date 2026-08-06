@@ -7,6 +7,12 @@ use App\Mail\ContactThankYouMail;
 use App\Models\ContactInquiry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use App\Models\Admin;
+use App\Models\MailTemplate;
+use App\Services\EmailService;
+use App\Services\NotificationService;
+use App\Services\UserNotificationService;
+use App\Models\Shop;
 
 class ContactController extends Controller
 {
@@ -26,6 +32,42 @@ class ContactController extends Controller
         );
 
         $contact = ContactInquiry::create($data);
+        try {
+
+            $admin = Admin::where('role', 'admin')->first();
+
+            if ($admin) {
+
+                $template = MailTemplate::where(
+                    'slug',
+                    'admin-contact-enquiry'
+                )->first();
+
+                if ($template) {
+
+                    app(EmailService::class)->sendDynamicEmailTo(
+
+                        $template,
+
+                        [
+                            'name'          => $contact->name,
+                            'email'         => $contact->email,
+                            'subject'       => $contact->subject,
+                            'message'       => $contact->message,
+                            'enquiry_type'  => ucwords(str_replace('_', ' ', $contact->enquiry_type)),
+                        ],
+
+                        $admin->email
+
+                    );
+                }
+            }
+        } catch (\Exception $e) {
+
+            logger()->error('Admin contact enquiry email failed', [
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         try {
             Mail::to($contact->email)->send(new ContactThankYouMail($contact));
@@ -34,6 +76,36 @@ class ContactController extends Controller
             logger()->error('Contact thank-you email failed: ' . $e->getMessage());
         }
 
+        NotificationService::send(
+
+            'contact_enquiry',
+
+            $contact->enquiry_type == 'enterprise_plan_enquiry'
+                ? 'New Enterprise Plan Enquiry'
+                : 'New Contact Enquiry',
+
+            "{$contact->name} submitted a new enquiry."
+
+        );
+
+        $shop = Shop::where('email', $contact->email)->first();
+
+        if ($shop) {
+
+            UserNotificationService::send(
+
+                $shop->id,
+
+                'contact_enquiry',
+
+                $contact->enquiry_type === 'enterprise_plan_enquiry'
+                    ? 'Enterprise Plan Enquiry Submitted'
+                    : 'Contact Enquiry Submitted',
+
+                'Your enquiry has been submitted successfully. Our team will contact you shortly.'
+
+            );
+        }
         return redirect()->back()->with('success', 'Thank you for your message. Our team will connect with you shortly.');
     }
 

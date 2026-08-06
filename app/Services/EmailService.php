@@ -55,6 +55,41 @@ class EmailService
         }
     }
 
+    public function sendDynamicEmailTo($template, array $variables, string $email): void
+    {
+        try {
+
+            // Existing helper variables
+            $data = EmailDataHelper::build($variables);
+
+            // Merge custom variables
+            $data = array_merge($data, $variables);
+
+            // Replace variables
+            $subject = $this->replaceVariables($template->subject ?? '', $data);
+
+            $body = $this->replaceVariables($template->body ?? '', $data);
+
+            $finalBody = $this->replaceVariables(
+                $this->wrapWithLayout($body),
+                $data
+            );
+
+            Mail::send([], [], function ($message) use ($email, $subject, $finalBody) {
+
+                $message->to($email)
+                    ->subject($subject)
+                    ->html($finalBody);
+            });
+        } catch (\Exception $e) {
+
+            \Log::error('Dynamic email failed', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
     // Replace {{variables}}
     private function replaceVariables(string $content, array $data): string
     {

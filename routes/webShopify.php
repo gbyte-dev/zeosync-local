@@ -20,7 +20,6 @@ use App\Http\Controllers\AmazonSmartFormController;
 use App\Http\Controllers\ProductSchemaController;
 use App\Http\Controllers\InventoryMappingController;
 use App\Http\Controllers\AmazonWebhookController;
-use App\Http\Controllers\EnterpriseRequestController;
 use App\Models\Shop;
 use App\Services\AmazonService;
 use Illuminate\Http\Request;
@@ -209,16 +208,6 @@ Route::prefix('admin')->group(function () {
         Route::get('/mailtemplates/{mailtemplate}/edit', [MailTemplateController::class, 'edit'])->name('admin.mailtemplates.edit');
         Route::put('/mailtemplates/{mailtemplate}', [MailTemplateController::class, 'update'])->name('admin.mailtemplates.update');
         Route::post('/mailtemplates/{mailtemplate}', [MailTemplateController::class, 'destroy'])->name('admin.mailtemplates.delete');
-
-        Route::get(
-            '/enterprise-requests',
-            [EnterpriseRequestController::class, 'index']
-        )->name('admin.enterprise.requests');
-
-        Route::get(
-            '/enterprise-requests/{enterpriseRequest}',
-            [EnterpriseRequestController::class, 'show']
-        )->name('admin.enterprise.requests.show');
 
         Route::get('/cat_update/{category}', [ProductSchemaController::class, 'downloadScema'])->name('admin.downloadScema');
         Route::get('/categories_p', [ProductSchemaController::class, 'index'])->name('admin.categories');

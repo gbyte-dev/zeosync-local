@@ -39,6 +39,11 @@ class UserNotificationSettingSeeder extends Seeder
                 'title' => 'Stock Difference Amazon and Shopify',
                 'description' => 'Notify when Amazon and Shopify stock mismatch is found.',
             ],
+            [
+                'notification_key' => 'contact_enquiry',
+                'title' => 'Contact Enquiry Submitted',
+                'description' => 'Notify when a contact enquiry is submitted.',
+            ],
         ];
 
         foreach ($notifications as $item) {
