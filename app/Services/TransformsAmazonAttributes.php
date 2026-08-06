@@ -263,6 +263,7 @@ class TransformsAmazonAttributes
             ];
         }
         
+        
         if ($name === 'title_differentiation') {
             $values = array_filter(array_map('trim', explode(',', $value)));
 
@@ -441,6 +442,15 @@ class TransformsAmazonAttributes
 
         if ($name === 'sleeve') {
             return [['type' => [['value' => $value, 'language_tag' => 'en_US']]]];
+        }
+
+        if ($name === 'tire') {
+            return [[
+                'tire_type' => [[
+                    'value' => trim($value),
+                    'language_tag' => 'en_US',
+                ]]
+            ]];
         }
 
         if ($name === 'neck') {
