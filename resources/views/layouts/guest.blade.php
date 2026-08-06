@@ -305,15 +305,15 @@
 
                     <div class="col-6 col-md-2 footer-section">
                         <div class="footer-title">Company</div>
-                        <div><a href="/about">About</a></div>
-                        <div><a href="/pricing">Pricing</a></div>
-                        <div><a href="/contact">Contact</a></div>
+                        <div><a href="{{ route('about') }}">About</a></div>
+                        <div><a href="{{ route('pricing') }}">Pricing</a></div>
+                        <div><a href="{{ route('contact') }}">Contact</a></div>
                     </div>
 
                     <div class="col-6 col-md-2 footer-section">
                         <div class="footer-title">Legal</div>
-                        <div><a href="/terms">Terms</a></div>
-                        <div><a href="/privacy">Privacy</a></div>
+                        <div><a href="{{ route('terms') }}">Terms</a></div>
+                        <div><a href="{{ route('privacy') }}">Privacy</a></div>
                     </div>
 
                     <div class="col-md-3 footer-section">
@@ -321,7 +321,7 @@
                         <p class="small footer-note mb-3">
                             Reach out anytime and our team will help you get the most from your store sync.
                         </p>
-                        <a href="/contact" class="btn btn-sm btn-outline-light rounded-pill">Contact support</a>
+                        <a href="{{ route('contact') }}" class="btn btn-sm btn-outline-light rounded-pill">Contact support</a>
                     </div>
                 </div>
 
