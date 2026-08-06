@@ -98,21 +98,6 @@ class TransformsAmazonAttributes
             ]];
         }
 
-         // ── length like  50mm , 50 mm ─────────────────────────────────────────────────────────
-        if (in_array($name, ['size'])) {
-            if (!preg_match('/^\s*([\d]+(?:\.\d+)?)\s*(mm|millimeter|millimeters|cm|centimeter|centimeters|m|meter|meters|in|inch|inches|ft|foot|feet)\s*$/i',
-            $value,  $m )) {
-                return null;
-            }
-
-            $unit = $unitMap[strtolower($m[2])] ?? strtolower($m[2]);
-            return [[
-                'wheel_size' => ['value' => (float) $m[1], 'unit' => $unit]
-            ]];
-        }
-
-
-        
         // ── length like  50mm , 50 mm ───
         if ($name === 'objective_lens') {
             preg_match('/[\d.]+/', $value, $match);
