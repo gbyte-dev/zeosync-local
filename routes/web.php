@@ -133,7 +133,8 @@ Route::get('/amazonView/{sku}', [TestController::class, 'amazonView'])->name('us
 
 // Route::get('/check-mail-test', [TestController::class, 'checkMailTest'])->name('check.mail.test');
 Route::get('/support_front', function () {  return view('support_front'); })->name('shopify.support_front');
-
+Route::get('/test/{type}', [TestController::class, 'test'])->name('test.by.productype');
+ 
 Route::get('/logout', [SettingsController::class, 'logout'])->name('site.logout');
 Route::prefix('admin')->group(function () {
     Route::middleware('auth:admin')->group(function () {
