@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zeosync — Amazon & Shopify Sync</title>
+    <title>{{getAppName()}} — Amazon & Shopify Sync</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
@@ -228,7 +228,7 @@
     <div class="topbar container-fluid">
         <div class="d-flex align-items-center justify-content-between w-100">
             <div class="d-flex align-items-center">
-                <a href="/" class="d-inline-block me-3"><img src="{{ getLogo() }}" alt="Zeosync" class="topbar__logo"></a>
+                <a href="/" class="d-inline-block me-3"><img src="{{ getLogo() }}" alt="{{getAppName()}}" class="topbar__logo"></a>
             </div>
 
             <div class="d-flex align-items-center">
