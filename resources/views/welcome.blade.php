@@ -124,15 +124,14 @@
         <div class="container text-center" style="max-width: 960px;">
             <h3 class="fw-bold mb-3">Quick Tutorial</h3>
             <p class="text-muted mb-4">Watch this short video to get started in minutes.</p>
-
             <div class="ratio ratio-16x9 mb-3">
                 <iframe src="https://www.youtube-nocookie.com/embed/Mhp-LZlHv8k?si=9oT33WJYoC1KBLpr" title="Zeosync tutorial" allowfullscreen></iframe>
             </div>
 
-            <p class="small text-muted">Prefer a guided walkthrough? Visit our <a href="/help">Help Center</a>.</p>
+            <p class="small text-muted">Prefer a guided walkthrough? Visit our <a href="{{route('contact')}}">Help Center</a>.</p>
         </div>
     </section>
-    
+
 <!-- 
     {{-- CTA --}}
     <section class="py-5 text-center">

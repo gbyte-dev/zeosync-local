@@ -99,16 +99,20 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::delete('/notification/user/all', [NotificationController::class, 'removeAllUserNotifications'])->name('user.notification.delete.all');
     Route::delete('/notification/user/{id}', [NotificationController::class, 'removeUserNotification'])->name('user.notification.delete');
     Route::post('/notification/user/mark-all-read', [NotificationController::class, 'markAllUserNotificationsRead'])->name('user.notification.markAllRead');
-});
 
-Route::post('/sync-to-amazon/{id}', [ShopifyController::class, 'syncToAmazon'])->name('shopify.sync.amazon');
-Route::get('/admin/shops/{id}', [ShopifyController::class, 'show'])->name('admin.shops.show');
-Route::post('/cancel-plan', [PlanController::class, 'cancel'])->name('plans.cancel');
+    // Update new routes for syncing products between Shopify and Amazon
+    Route::post('/sync-to-amazon/{id}', [ShopifyController::class, 'syncToAmazon'])->name('shopify.sync.amazon');
+    Route::get('/admin/shops/{id}', [ShopifyController::class, 'show'])->name('admin.shops.show');
+    Route::post('/cancel-plan', [PlanController::class, 'cancel'])->name('plans.cancel');
+    Route::get('/showProducts/{parent_id}', [ProductSchemaController::class, 'showProducts'])->name('user.product.showProducts.child');
+    Route::get('/sync-amazon-to-shopify/{sku}', [ProductSchemaController::class, 'SyncAmazonProductToShopify'])->name('user.product.syncAmazonToShopify');
+    Route::get('/sync-shopify-to-amazon/{id}', [ShopifyController::class, 'syncShopifyToAmazon'])->name('user.product.syncShopifyToAmazon');
+    Route::post('/remove_drafts/{product}', [ProductSchemaController::class, 'removeDrafts'])->name('user.product.removeDraft');
+    Route::get('/amazonView/{sku}', [TestController::class, 'amazonView'])->name('user.product.amazonView');
+
+});
 Route::get('/test-amazon', [ShopifyController::class, 'testAmazon']);
-// Route::get('/clear', function () {
-//     Artisan::call('optimize:clear');
-//     return 'cleared';
-// });
+
 Route::get('/get-seller-id', [ShopifyController::class, 'getSellerIdFull']);
 Route::get('/amazon/orders', [ShopifyController::class, 'getAmazonOrders']);
 Route::prefix('amazon/sandbox')->group(function () {
@@ -125,13 +129,6 @@ Route::post('/inventory/amazon/sync', [InventoryController::class, 'syncAmazonIn
 Route::post('/webhooks/app-uninstalled', [ShopifyController::class, 'handleAppUninstalledWebhook'])
     ->name('shopify.webhooks.app.uninstalled');
 
-Route::get('/showProducts/{parent_id}', [ProductSchemaController::class, 'showProducts'])->name('user.product.showProducts.child');
-Route::get('/sync-amazon-to-shopify/{sku}', [ProductSchemaController::class, 'SyncAmazonProductToShopify'])->name('user.product.syncAmazonToShopify');
-Route::get('/sync-shopify-to-amazon/{id}', [ShopifyController::class, 'syncShopifyToAmazon'])->name('user.product.syncShopifyToAmazon');
-Route::post('/remove_drafts/{product}', [ProductSchemaController::class, 'removeDrafts'])->name('user.product.removeDraft');
-Route::get('/amazonView/{sku}', [TestController::class, 'amazonView'])->name('user.product.amazonView');
-
-// Route::get('/check-mail-test', [TestController::class, 'checkMailTest'])->name('check.mail.test');
 Route::get('/support_front', function () {  return view('support_front'); })->name('shopify.support_front');
 Route::get('/test/{type}', [TestController::class, 'test'])->name('test.by.productype');
  
@@ -151,3 +148,9 @@ Route::prefix('admin')->group(function () {
         Route::get('/search-categories', [AdminController::class, 'categoryserchedChildren'])->name('admin.search.categories');
     });
 });
+
+// Route::get('/check-mail-test', [TestController::class, 'checkMailTest'])->name('check.mail.test');
+// Route::get('/clear', function () {
+//     Artisan::call('optimize:clear');
+//     return 'cleared';
+// });
