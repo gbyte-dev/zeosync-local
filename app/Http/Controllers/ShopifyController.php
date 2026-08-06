@@ -76,15 +76,9 @@ class ShopifyController extends Controller
         if (!$shop) {
             return view('welcome'); // landing page
         }
-        // =========================
-        // DB CHECK
-        // =========================
+
         $shopModel = \App\Models\Shop::where('shop', $shop)->first();
-        LOG::info('DB CHECK', [
-            'found' => $shopModel ? true : false,
-            'token' => $shopModel->access_token ?? null
-        ]);
-        // ✅ Already installed
+
         if ( $shopModel &&  $shopModel->is_active == 1 && !empty($shopModel->access_token)
         ) {
             if (!$this->isShopActive($shopModel)) {
@@ -99,7 +93,6 @@ class ShopifyController extends Controller
                 ]);
 
                 session()->forget('active_shop');
-
                 return redirect()->route('shopify.install', [
                     'shop' => $shopModel->shop,
                 ]);
@@ -3015,6 +3008,8 @@ class ShopifyController extends Controller
             $mapper = new ShopifyAmazonMapper();
             $mappedproduct = $mapper->map($product);
             $mappedproduct['shopify_inventory_item_id'] = $product['variants'][0]['inventory_item_id'] ?? '';
+
+            dd($mappedproduct);
             if (isset($dbProduct) && ($dbProduct->sub_category_id != null)) {
                 $category = Category::where('id', $dbProduct->sub_category_id)->first();
 
