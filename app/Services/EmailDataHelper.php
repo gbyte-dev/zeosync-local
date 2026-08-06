@@ -35,6 +35,15 @@ class EmailDataHelper
             'support_email' => 'brijeshverma7814@gmail.com',
 
             'logo_url' => asset('public/images/AmazonSync_logo.png'),
+            'name' => $context['name'] ?? '',
+
+            'email' => $context['email'] ?? '',
+
+            'subject' => $context['subject'] ?? '',
+
+            'message' => $context['message'] ?? '',
+
+            'enquiry_type' => $context['enquiry_type'] ?? '',
 
         ];
     }

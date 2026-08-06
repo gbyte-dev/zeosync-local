@@ -44,6 +44,12 @@ class NotificationSettingSeeder extends Seeder
                 'title' => 'New User Registered',
                 'description' => 'Send a notification when a new user registers.',
             ],
+
+            [
+                'notification_key' => 'contact_enquiry',
+                'title' => 'New Contact Enquiry',
+                'description' => 'Send a notification when a user submits a contact or enterprise enquiry.',
+            ],
         ];
 
         foreach ($notifications as $item) {
