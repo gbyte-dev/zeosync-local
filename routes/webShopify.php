@@ -20,6 +20,7 @@ use App\Http\Controllers\AmazonSmartFormController;
 use App\Http\Controllers\ProductSchemaController;
 use App\Http\Controllers\InventoryMappingController;
 use App\Http\Controllers\AmazonWebhookController;
+use App\Http\Controllers\EnterpriseRequestController;
 use App\Models\Shop;
 use App\Services\AmazonService;
 use Illuminate\Http\Request;
@@ -27,13 +28,16 @@ use Illuminate\Support\Facades\Artisan;
 use App\Jobs\SyncAmazonInventoryJob;
 
 Route::get('verify', [DashboardController::class, 'install'])->name('i.dashboard');
-Route::get('verify', function () { return view('welcome'); })->name('crm.verify');
+Route::get('verify', function () {
+    return view('welcome');
+})->name('crm.verify');
 Route::get('subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
 Route::get('planview', [SubscriptionController::class, 'plans'])->name('shopify.plans');
 // THIS IS JUST TETSING WILL BE REMOVED IN FUTURE
 Route::POST('plans/subscribe', [SubscriptionController::class, 'subscribeToPlan'])->name('plans.subscribe');
 Route::get('connect', [AmazonConnect::class, 'connect'])->name('amazon.connect');
-Route::get('amzon/authorize/shopify/{ens}',
+Route::get(
+    'amzon/authorize/shopify/{ens}',
     [AmazonConnect::class, 'authorizeAmazonIframe']
 )->name('amazon.authorize.iframe');
 Route::get('amazon/callback', [AmazonConnect::class, 'handleCallback'])->name('amazon.callback');
@@ -205,6 +209,16 @@ Route::prefix('admin')->group(function () {
         Route::get('/mailtemplates/{mailtemplate}/edit', [MailTemplateController::class, 'edit'])->name('admin.mailtemplates.edit');
         Route::put('/mailtemplates/{mailtemplate}', [MailTemplateController::class, 'update'])->name('admin.mailtemplates.update');
         Route::post('/mailtemplates/{mailtemplate}', [MailTemplateController::class, 'destroy'])->name('admin.mailtemplates.delete');
+
+        Route::get(
+            '/enterprise-requests',
+            [EnterpriseRequestController::class, 'index']
+        )->name('admin.enterprise.requests');
+
+        Route::get(
+            '/enterprise-requests/{enterpriseRequest}',
+            [EnterpriseRequestController::class, 'show']
+        )->name('admin.enterprise.requests.show');
 
         Route::get('/cat_update/{category}', [ProductSchemaController::class, 'downloadScema'])->name('admin.downloadScema');
         Route::get('/categories_p', [ProductSchemaController::class, 'index'])->name('admin.categories');
@@ -518,3 +532,7 @@ Route::get('/test-command', function () {
 
     return nl2br(Artisan::output());
 });
+
+
+Route::post('/enterprise/request', [EnterpriseRequestController::class, 'store'])
+    ->name('enterprise.request');
