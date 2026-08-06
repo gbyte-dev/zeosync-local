@@ -395,14 +395,6 @@
         padding-top: 0 !important;
     }
 
-    .paginate_button {
-        /* padding: 4px 10px !important;  */
-        border-radius: 6px !important;
-        font-size: 12px !important;
-        font-weight: 600 !important;
-        margin: 0 2px !important;
-    }
-
     /* Loader */
     .amazon-loader {
         position: fixed;
@@ -476,6 +468,9 @@
             text-align: center;
             justify-content: center;
         }
+    }
+    a{
+        text-decoration:none !important;
     }
 </style>
 
@@ -632,7 +627,7 @@
             @if($shop->amazon_refresh_token)
             <div class="saas-toolbar">
                 <div class="row g-2 align-items-end">
-                    <div class="col-md-5">
+                    <div class="col-md-4">
                         <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Search Product</label>
                         <input type="text" id="dtSearchAmazon" class="saas-input" placeholder="Search SKU / Product...">
                     </div>
@@ -645,7 +640,7 @@
                             <option value="error">Error</option>
                         </select>
                     </div>
-                    <div class="col-md-2 col-6">
+                    <div class="col-md-3 col-6">
                         <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Rows Per Page</label>
                         <select id="dtLengthAmazon" class="saas-select">
                             <option value="10">10 Rows</option>
@@ -674,8 +669,8 @@
                 <table class="saas-table" id="amazonTable" style="width: 100%;">
                     <thead>
                         <tr>
-                            <th class="text-nowrap">SKU</th>
                             <th>Product</th>
+                            <th class="text-nowrap">SKU</th>
                             <th class="text-nowrap">Mapped To</th>
                             <th class="text-nowrap">Qty</th>
                             <th class="text-nowrap">Status</th>
