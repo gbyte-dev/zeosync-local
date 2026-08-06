@@ -145,12 +145,51 @@
         #sidebar .nav-icon { width: 28px; display: inline-block; text-align: center }
 
         #siteFooter {
-            background: #0f172a;
-            color: #94a3b8;
-            padding: 28px 18px;
+            background: linear-gradient(180deg, #07141f 0%, #0f172a 100%);
+            color: #cbd5e1;
+            padding: 42px 18px 32px;
         }
 
-        #siteFooter a { color: #cbd5e1; text-decoration: none }
+        #siteFooter a {
+            color: #dbe4ff;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        #siteFooter a:hover {
+            color: #ffffff;
+        }
+
+        #siteFooter .footer-brand {
+            color: #ffffff;
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        #siteFooter .footer-title {
+            color: #f8fafc;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 0.75rem;
+        }
+
+        #siteFooter .footer-note {
+            color: #94a3b8;
+            line-height: 1.8;
+        }
+
+        #siteFooter .footer-section {
+            margin-bottom: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            #siteFooter .footer-section {
+                margin-bottom: 0;
+            }
+        }
 
         /* Apple-inspired Blur Overlay */
         .overlay {
@@ -257,28 +296,43 @@
         <!-- Footer -->
         <footer id="siteFooter">
             <div class="container">
-               <div class="row">
-                    <div class="mb-3 col-sm-6">
-                        <h5 class="text-white">{{getAppName()}}</h5>
-                        <div class="small">Sync Amazon & Shopify effortlessly</div>
+                <div class="row gy-4">
+                    <div class="col-md-5 footer-section">
+                        <h5 class="footer-brand">{{ getAppName() }}</h5>
+                        <p class="small footer-note mt-2">
+                            Sync Amazon and Shopify effortlessly with a fast, reliable integration designed for modern merchants.
+                        </p>
                     </div>
 
-                    <div class="mb-3 col-sm-3">
-                        <div class="fw-bold text-white">Company</div>
+                    <div class="col-6 col-md-2 footer-section">
+                        <div class="footer-title">Company</div>
                         <div><a href="/about">About</a></div>
                         <div><a href="/pricing">Pricing</a></div>
-                        <div><a href="/contact">Contact Us</a></div>
+                        <div><a href="/contact">Contact</a></div>
                     </div>
-                    
-                    <div class="mb-3 col-sm-3">
-                        <div class="fw-bold text-white">Legal</div>
+
+                    <div class="col-6 col-md-2 footer-section">
+                        <div class="footer-title">Legal</div>
                         <div><a href="/terms">Terms</a></div>
                         <div><a href="/privacy">Privacy</a></div>
                     </div>
+
+                    <div class="col-md-3 footer-section">
+                        <div class="footer-title">Need help?</div>
+                        <p class="small footer-note mb-3">
+                            Reach out anytime and our team will help you get the most from your store sync.
+                        </p>
+                        <a href="/contact" class="btn btn-sm btn-outline-light rounded-pill">Contact support</a>
+                    </div>
                 </div>
 
-                <div class="text-md-end small text-muted">
-                    &copy; {{ date('Y') }} Zeosync. All rights reserved.
+                <div class="row mt-4 pt-3 border-top border-white-10">
+                    <div class="col-md-6 small footer-note">
+                        &copy; {{ date('Y') }} {{ getAppName() }}. All rights reserved.
+                    </div>
+                    <div class="col-md-6 text-md-end small footer-note">
+                        Built for seamless Amazon-Shopify synchronization.
+                    </div>
                 </div>
             </div>
         </footer>
