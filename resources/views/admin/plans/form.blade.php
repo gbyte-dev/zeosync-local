@@ -194,6 +194,43 @@
 
             </div>
 
+            {{-- Enterprises --}}
+
+            <div class="mb-4">
+                <div class="section-title">Enterprise Settings</div>
+
+                <div class="switch-box">
+                    <div>
+                        <strong class="text-primary">Enterprise Plan</strong>
+                        <p class="text-muted small mb-0">
+                            Enable this if this plan requires users to contact the admin instead of subscribing directly.
+                        </p>
+                    </div>
+
+                    <div class="form-check form-switch">
+                        <input
+                            type="checkbox"
+                            id="is_enterprise"
+                            name="is_enterprise"
+                            value="1"
+                            class="form-check-input"
+                            onchange="toggleEnterprise()"
+                            {{ old('is_enterprise', $plan->is_enterprise ?? false) ? 'checked' : '' }}>
+                    </div>
+                </div>
+
+                <div class="mt-3" id="enterprise_button_section">
+                    <label class="form-label">Contact Button Text</label>
+
+                    <input
+                        type="text"
+                        name="contact_button_text"
+                        class="form-control"
+                        value="{{ old('contact_button_text', $plan->contact_button_text ?? 'Contact Admin') }}"
+                        placeholder="Contact Admin">
+                </div>
+            </div>
+
             {{-- Recurring Fields --}}
             <div class="mb-4">
 
@@ -489,9 +526,46 @@
                 }
             }
 
+            function toggleEnterprise() {
+
+                const isEnterprise = document.getElementById('is_enterprise').checked;
+
+                const billingSection = document.getElementById('billing_section');
+                const buttonSection = document.getElementById('enterprise_button_section');
+
+                const monthlyCheck = document.getElementById('monthly_check');
+                const yearlyCheck = document.getElementById('yearly_check');
+
+                if (isEnterprise) {
+
+                    // Uncheck billing options
+                    monthlyCheck.checked = false;
+                    yearlyCheck.checked = false;
+
+                    // Clear & disable billing inputs
+                    togglePrice('monthly');
+                    togglePrice('yearly');
+
+                    // Hide billing section
+                    billingSection.style.display = 'none';
+
+                } else {
+
+                    // Show billing section again
+                    billingSection.style.display = 'block';
+
+                    // Keep inputs in correct state
+                    togglePrice('monthly');
+                    togglePrice('yearly');
+                }
+
+                buttonSection.style.display = isEnterprise ? 'block' : 'none';
+            }
+
             document.addEventListener('DOMContentLoaded', function() {
                 togglePrice('monthly');
                 togglePrice('yearly');
                 toggleTrial();
+                toggleEnterprise();
             });
         </script>

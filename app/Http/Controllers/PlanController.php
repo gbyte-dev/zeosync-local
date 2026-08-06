@@ -51,25 +51,34 @@ class PlanController extends Controller
             'is_trial' => 'nullable|boolean',
             'ai_autofill' => 'nullable|boolean',
             'ai_single_field' => 'nullable|boolean',
+            'is_enterprise' => 'nullable|boolean',
+            'contact_button_text' => 'nullable|string|max:255',
         ]);
 
         $data['ai_autofill'] = $request->boolean('ai_autofill');
         $data['ai_single_field'] = $request->boolean('ai_single_field');
+        $data['is_enterprise'] = $request->boolean('is_enterprise');
+        $data['contact_button_text'] = $request->input('contact_button_text');
 
-        //  HANDLE TRIAL PLAN
-        if ($request->boolean('is_trial')) {
+        if ($request->boolean('is_enterprise')) {
+
+            $data['prices'] = [];
+            $data['stripe_price_ids'] = [];
+            $data['is_trial'] = 0;
+        } elseif ($request->boolean('is_trial')) {
+
             $data['prices'] = [];
             $data['stripe_price_ids'] = [];
             $data['is_trial'] = 1;
         } else {
+
             $data['prices'] = array_filter($request->prices ?? [], function ($value) {
                 return $value !== null && $value !== '';
             });
 
-            //  ensure at least one price exists
             if (empty($data['prices'])) {
                 return back()->withErrors([
-                    'prices' => 'At least one pricing option is required'
+                    'prices' => 'At least one pricing option is required.'
                 ])->withInput();
             }
 
@@ -111,10 +120,14 @@ class PlanController extends Controller
             'is_trial' => 'nullable|boolean',
             'ai_autofill' => 'nullable|boolean',
             'ai_single_field' => 'nullable|boolean',
+            'is_enterprise' => 'nullable|boolean',
+            'contact_button_text' => 'nullable|string|max:255',
         ]);
 
         $data['ai_autofill'] = $request->boolean('ai_autofill');
         $data['ai_single_field'] = $request->boolean('ai_single_field');
+        $data['is_enterprise'] = $request->boolean('is_enterprise');
+        $data['contact_button_text'] = $request->input('contact_button_text');
 
         //  HANDLE TRIAL PLAN
         if ($request->boolean('is_trial')) {
@@ -126,10 +139,10 @@ class PlanController extends Controller
                 return $value !== null && $value !== '';
             });
 
-            //  at least one price required
-            if (empty($data['prices'])) {
+            // At least one pricing option is required for non-enterprise plans
+            if (!$request->boolean('is_enterprise') && empty($data['prices'])) {
                 return back()->withErrors([
-                    'prices' => 'At least one pricing option is required'
+                    'prices' => 'At least one pricing option is required.'
                 ])->withInput();
             }
 

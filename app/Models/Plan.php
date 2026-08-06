@@ -27,6 +27,8 @@ class Plan extends Model
         'product_limit',
         'ai_autofill',
         'ai_single_field',
+        'is_enterprise',
+        'contact_button_text',
     ];
 
     protected $casts = [
@@ -39,6 +41,7 @@ class Plan extends Model
         'prices' => 'array',
         'ai_autofill'     => 'boolean',
         'ai_single_field' => 'boolean',
+        'is_enterprise' => 'boolean',
     ];
 
 

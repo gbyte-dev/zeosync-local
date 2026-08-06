@@ -774,20 +774,34 @@ $subscriptionStatus = 'Trialing';
             @endphp
 
             <div class="saas-plan-price">
-                @if($plan->is_trial)
+
+                @if($plan->is_enterprise)
+
+                <span class="saas-plan-price-amount">Custom</span>
+                <span class="saas-plan-price-interval">Contact our team</span>
+
+                @elseif($plan->is_trial)
+
                 <span class="saas-plan-price-amount text-success">Free</span>
+
                 @else
+
                 @if($month_price != 0)
                 <span class="saas-plan-price-amount">${{ number_format((float) $month_price, 0) }}</span>
                 <span class="saas-plan-price-interval">/ month</span>
                 @endif
+
                 @if($yearly_price != 0 && $month_price != 0)
-                <div class="saas-plan-price-interval mt-1">${{ number_format((float) $yearly_price , 0) }} / year</div>
+                <div class="saas-plan-price-interval mt-1">
+                    ${{ number_format((float) $yearly_price, 0) }} / year
+                </div>
                 @elseif($yearly_price != 0)
-                <span class="saas-plan-price-amount">${{ number_format((float) $yearly_price , 0) }}</span>
+                <span class="saas-plan-price-amount">${{ number_format((float) $yearly_price, 0) }}</span>
                 <span class="saas-plan-price-interval">/ year</span>
                 @endif
+
                 @endif
+
             </div>
 
             <ul class="saas-plan-list">
@@ -806,17 +820,35 @@ $subscriptionStatus = 'Trialing';
                     @endif
 
                     @if($plan->is_trial)
+
                     <div class="mb-3">
                         <label class="saas-label">Plan Type</label>
                         <div class="saas-banner saas-banner-info m-0 fw-bold" style="padding: 8px 10px;">
                             Trial Plan (Free)
                         </div>
                     </div>
-                    @else
+
+                    @elseif($plan->is_enterprise)
+
                     <div class="mb-3">
-                        <label class="saas-label">Billing interval</label>
-                        <select name="billing_interval" id="billing_interval_{{ $plan->id }}" class="saas-select">
+                        <label class="saas-label">Plan Type</label>
+                        <div class="saas-banner saas-banner-info m-0 fw-bold" style="padding: 8px 10px;">
+                            Enterprise Plan
+                        </div>
+                    </div>
+
+                    @else
+
+                    <div class="mb-3">
+                        <label class="saas-label">Billing Interval</label>
+
+                        <select
+                            name="billing_interval"
+                            id="billing_interval_{{ $plan->id }}"
+                            class="saas-select">
+
                             @foreach($plan->prices as $interval => $price)
+
                             @php
                             if($interval == 'EVERY_30_DAYS'){
                             $months = 1;
@@ -828,12 +860,19 @@ $subscriptionStatus = 'Trialing';
                             $description = 'Billed every 365 days';
                             }
                             @endphp
-                            <option value="{{ $months }}" {{ $isCurrentPlan && (int)$selectedInterval === (int)$months ? 'selected' : '' }}>
+
+                            <option
+                                value="{{ $months }}"
+                                {{ $isCurrentPlan && (int)$selectedInterval === (int)$months ? 'selected' : '' }}>
                                 {{ $label }} · {{ $description }}
                             </option>
+
                             @endforeach
+
                         </select>
+
                     </div>
+
                     @endif
 
                     @php
@@ -846,19 +885,44 @@ $subscriptionStatus = 'Trialing';
                     @endphp
 
                     @if($plan->is_trial)
+
                     @if($isTrialActive)
-                    <button type="button" class="saas-btn saas-btn-primary" disabled>Trial Active</button>
+                    <button type="button" class="saas-btn saas-btn-primary" disabled>
+                        Trial Active
+                    </button>
+
                     @elseif($hasUsedTrial)
-                    <button type="button" class="saas-btn saas-btn-outline" disabled>Trial Expired</button>
+                    <button type="button" class="saas-btn saas-btn-outline" disabled>
+                        Trial Expired
+                    </button>
+
                     @else
-                    <button type="submit" class="saas-btn saas-btn-primary">Claim Free Trial</button>
+                    <button type="submit" class="saas-btn saas-btn-primary">
+                        Claim Free Trial
+                    </button>
                     @endif
+
+                    @elseif($plan->is_enterprise)
+
+                    <button
+                        type="button"
+                        class="saas-btn saas-btn-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#enterpriseModal"
+                        data-plan-id="{{ $plan->id }}"
+                        data-plan-name="{{ $plan->name }}">
+                        {{ $plan->contact_button_text ?: 'Contact Admin' }}
+                    </button>
+
                     @else
-                    <button type="submit"
+
+                    <button
+                        type="submit"
                         class="saas-btn {{ $isCurrentPlan ? 'saas-btn-outline' : 'saas-btn-primary' }}"
                         {{ $isCurrentPlan ? 'disabled' : '' }}>
                         {{ $buttonText }}
                     </button>
+
                     @endif
                 </form>
             </div>
