@@ -426,6 +426,10 @@
             <a href="{{ route('admin.mailtemplates') }}" class="sidebar-link">
                 <i class="bi bi-envelope"></i> Mail Templates
             </a>
+            <a href="{{ route('admin.contact-requests') }}"
+                class="sidebar-link {{ request()->routeIs('admin.contact-requests*') ? 'active' : '' }}">
+                <i class="bi bi-chat-left-text"></i> Contact Requests
+            </a>
             <a href="{{ route('admin.plans') }}" class="sidebar-link">
                 <i class="bi bi-credit-card"></i> Plans
             </a>
