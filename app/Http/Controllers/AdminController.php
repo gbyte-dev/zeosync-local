@@ -117,6 +117,30 @@ class AdminController extends Controller
         return view('admin.category.subcategory', compact('category', 'children', 'parentCategories'));
     }
 
+    public function moveSubcategories(Request $request)
+    {
+        // Normalize empty selection for top-level
+        $request->merge(['target_parent_id' => $request->input('target_parent_id') ?: null]);
+
+        $data = $request->validate([
+            'subcategory_ids' => 'required|array',
+            'subcategory_ids.*' => 'integer|exists:categories,id',
+            'target_parent_id' => 'nullable|exists:categories,id',
+        ]);
+
+        $ids = $data['subcategory_ids'];
+        $target = $data['target_parent_id'] ?? null;
+
+        if ($target && in_array($target, $ids)) {
+            return redirect()->back()->with('error', 'Cannot move a category under itself. Please choose a different parent.');
+        }
+
+        // Update parent_id for selected subcategories
+        Category::whereIn('id', $ids)->update(['parent_id' => $target]);
+
+        return redirect()->back()->with('success', 'Selected subcategories moved successfully.');
+    }
+
 
     public function categoryCreate(Request $request)
     {

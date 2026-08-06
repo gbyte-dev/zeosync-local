@@ -145,6 +145,7 @@ Route::prefix('admin')->group(function () {
         Route::post('/create-category', [AdminController::class, 'categoryCreate'])->name('admin.category.create');
         Route::post('/update-category/{category}', [AdminController::class, 'categoryEdit'])->name('admin.category.update');
         Route::post('/delete-category/{category}', [AdminController::class, 'deleteCategory'])->name('admin.category.delete');
+        Route::post('/move-subcategories', [AdminController::class, 'moveSubcategories'])->name('admin.subcategories.move');
         Route::get('/import-categories', [CategoryController::class, 'importCategories'])->name('admin.import.categories');
         Route::get('/search-categories', [AdminController::class, 'categoryserchedChildren'])->name('admin.search.categories');
     });
