@@ -353,7 +353,7 @@
     <div class="sp-header-section">
         <div>
             <h1 class="sp-title">Shopify Products</h1>
-            <p class="sp-subtitle">Manage and sync your products across channels (If Products not available Click refresh button)</p>
+            <p class="sp-subtitle">If Products not available Click refresh button</p>
         </div>
         <div class="sp-actions">
             <button id="refreshBtn" class="sp-btn sp-btn-secondary" data-url="{{ route('shopify.products', ['shop' => $activeShop]) }}">

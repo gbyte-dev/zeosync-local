@@ -113,6 +113,10 @@ $subscriptionStatus = 'Trialing';
         justify-content: space-between;
     }
 
+    textarea , input[type="text"] {
+        font-size: small !important;
+    }
+
     .saas-kicker {
         font-size: 11px;
         font-weight: 700;
@@ -1177,85 +1181,50 @@ $subscriptionStatus = 'Trialing';
                 </div>
 
                 <div class="modal-body">
-
                     <div class="row">
-
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">
-                                Full Name
-                            </label>
+                            <label class="form-label">  Full Name </label>
 
-                            <input
-                                type="text"
-                                name="name"
-                                class="form-control"
+                            <input type="text" name="name" class="form-control"
                                 value="{{ old('name', $shop->shop_name ?? '') }}"
                                 required>
                         </div>
 
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">
-                                Email Address
-                            </label>
+                            <label class="form-label">  Email Address </label>
 
-                            <input
-                                type="email"
-                                name="email"
-                                class="form-control"
+                            <input  type="email" name="email" class="form-control"
                                 value="{{ old('email', $shop->email ?? '') }}"
                                 required>
                         </div>
 
                         <div class="col-12 mb-3">
-                            <label class="form-label">
-                                Subject
-                            </label>
-
-                            <input
-                                type="text"
-                                name="subject"
-                                class="form-control"
+                            <label class="form-label">  Subject </label>
+                            <input type="text"  name="subject" class="form-control"
                                 value="{{ old('subject') }}"
                                 placeholder="Example: Need higher product and sync limits"
                                 required>
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label">
-                                Describe Your Requirements
-                            </label>
-
-                            <textarea
-                                name="message"
-                                rows="5"
-                                class="form-control"
+                            <label class="form-label">  Describe Your Requirements </label>
+                            <textarea  name="message" rows="5" class="form-control"
                                 placeholder="Describe your enterprise requirements, such as higher product limits, sync limits, mapping limits, dedicated support, custom integrations, or any other business requirements."
                                 required>{{ old('message') }}</textarea>
                         </div>
-
                     </div>
-
                 </div>
 
                 <div class="modal-footer">
+                    <button type="button" class="saas-btn saas-btn-outline"
+                        data-bs-dismiss="modal">  Cancel </button>
 
-                    <button
-                        type="button"
-                        class="saas-btn saas-btn-outline"
-                        data-bs-dismiss="modal">
-                        Cancel
-                    </button>
-
-                    <button
-                        type="submit"
-                        class="saas-btn saas-btn-primary">
+                    <button  type="submit"  class="saas-btn saas-btn-primary">
                         Send Request
                     </button>
 
                 </div>
-
             </form>
-
         </div>
     </div>
 </div>
