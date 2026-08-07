@@ -366,6 +366,21 @@ class ShopifyController extends Controller
             'redirectUrl' => $setupUrl,
         ]);
     }
+    public function checkShopStatus(Request $request)
+    {
+        $shop = $request->query('shop');
+        if (!$shop) {
+            return response()->json(['error' => 'Shop parameter required'], 400);
+        }
+        $shopModel = Shop::where('shop', $shop)->first();
+        if (!$shopModel) {
+            return response()->json(['shop_name' => null, 'email' => null], 200);
+        }
+        return response()->json([
+            'shop_name' => $shopModel->shop_name,
+            'email' => $shopModel->email,
+        ], 200);
+    }
     public function plans(Request $request)
     {
         $shopModel = $this->getActiveShop($request);
