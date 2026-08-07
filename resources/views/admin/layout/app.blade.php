@@ -409,7 +409,6 @@
         <div class="offcanvas-header border-bottom border-secondary">
             <div>
                 <h5 class="mb-0">Amazon Sync</h5>
-                <small class="text-secondary">Admin Menu</small>
             </div>
             <button type="button" class="btn-close btn-close-white d-none" data-bs-dismiss="offcanvas"></button>
         </div>
