@@ -28,7 +28,6 @@
 
     /* Layout Spacing */
     .sp-header-section {
-        display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 12px;
@@ -367,10 +366,11 @@ table.dataTable.dtr-inline.collapsed>tbody>tr>td.dtr-control:before, table.dataT
 
     <!-- Header Section -->
     <div class="sp-header-section">
-        <div>
+        <div class="saas-page-header row">
+        <div class="col-md-7 col-sm-12">
             <h1 class="sp-title">Amazon Products Under Progress</h1>
         </div>
-        <div class="sp-actions">
+        <div class="sp-actions col-md-5 col-sm-12">
             <button id="refreshBtn" class="sp-btn sp-btn-secondary" data-url="{{ route('shopify.products', ['shop' => $activeShop]) }}">
                 <i class="bi bi-arrow-clockwise"></i> Refresh
             </button>
@@ -384,6 +384,7 @@ table.dataTable.dtr-inline.collapsed>tbody>tr>td.dtr-control:before, table.dataT
                 <i class="bi bi-send"></i> Add To Amazon
             </a>
             @endif
+        </div>
         </div>
     </div>
 
