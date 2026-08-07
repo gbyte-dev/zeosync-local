@@ -78,31 +78,41 @@
 
 <div class="container-fluid px-0">
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="p-3 text-dark shadow header mb-4" style="width:100%;">
 
-        <div>
-            <h4 class="page-title">
-                Contact Request Details
-            </h4>
+        <div class="row align-items-center">
 
-            <div class="page-subtitle">
-                Submitted on {{ $contact->created_at->format('d M Y, h:i A') }}
+            <div class="col-md-8">
+
+                <h5 class="mb-1">
+                    Contact Request Details
+                </h5>
+
+                <p class="mb-0 opacity-75">
+                    View complete information submitted by the customer.
+                </p>
+
             </div>
+
+            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+
+                <a href="{{ route('admin.contact-requests') }}"
+                    class="btn btn-outline-secondary">
+
+                    <i class="bi bi-arrow-left me-1"></i>
+                    Back to Requests
+
+                </a>
+
+            </div>
+
         </div>
-
-        <a href="{{ route('admin.contact-requests') }}"
-            class="btn btn-outline-secondary btn-sm">
-
-            <i class="bi bi-arrow-left"></i>
-            Back
-
-        </a>
 
     </div>
 
     <div class="row g-3">
 
-        <div class="col-lg-4">
+        <div class="col-lg-6">
 
             <div class="card detail-card">
 
@@ -189,23 +199,17 @@
 
         </div>
 
-        <div class="col-lg-8">
+        <div class="card detail-card col-lg-6">
 
-            <div class="card detail-card">
+            <div class="card-header">
+                Message
+            </div>
 
-                <div class="card-header">
-                    Message
-                </div>
+            <div class="card-body">
 
-                <div class="card-body">
-
-                    <div class="message-box">
-
-                        {!! nl2br(e($contact->message)) !!}
-
-                    </div>
-
-                </div>
+                <p class="mb-0 text-start lh-lg">
+                    {{ $contact->message }}
+                </p>
 
             </div>
 

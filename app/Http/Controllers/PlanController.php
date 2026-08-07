@@ -20,9 +20,14 @@ class PlanController extends Controller
 
     public function index()
     {
-        $plans = Plan::orderBy('sort_order')->get();
+        $plans = Plan::whereNull('shop_id')
+            ->orderBy('sort_order')
+            ->get();
+
         return view('admin.plans.index', compact('plans'));
     }
+
+
 
     public function create()
     {
