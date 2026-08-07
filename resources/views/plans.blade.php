@@ -725,7 +725,7 @@ $subscriptionStatus = 'Trialing';
     {{-- Plans Grid --}}
     <div class="saas-plans-grid">
 
-        @if($customPlan)
+        @if(isset($customPlan))
         @php
         $plan = $customPlan;
 
