@@ -6,41 +6,35 @@
 <div class="p-4">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
 
-        <div>
-            <h2 class="mb-1">Contact Requests</h2>
-            <p class="text-muted mb-0">
-                View and manage user inquiries from the contact form.
-            </p>
+        <div class="p-3 text-dark shadow header">
+            <div class="row">
+                <div class="col-sm-7">
+                    <h5 class="mb-1">Contact Requests</h5>
+                    <p class="mb-0 opacity-75">
+                        Manage contact requests and inquiries
+                    </p>
+                </div>
+                <div class="col-sm-5">
+                 <form method="GET" action="{{ route('admin.contact-requests') }}" class="d-flex align-items-center gap-2">
+                    <label for="enquiry_type" class="fw-semibold mb-0"> Filter: </label>
+                    <select id="enquiry_type" name="enquiry_type" class="form-select"
+                        onchange="this.form.submit()" style="width:250px;">
+                        <option value="">All Enquiries</option>
+                        <option value="general_enquiry"
+                            {{ request('enquiry_type') == 'general_enquiry' ? 'selected' : '' }}>
+                            General Enquiries
+                        </option>
+                        <option value="enterprise_plan_enquiry"
+                            {{ request('enquiry_type') == 'enterprise_plan_enquiry' ? 'selected' : '' }}>
+                            Enterprise Plan Enquiries
+                        </option>
+                    </select>
+                </form>
+                </div>
+            </div>
         </div>
 
-        <form method="GET" action="{{ route('admin.contact-requests') }}" class="d-flex align-items-center gap-2">
 
-            <label for="enquiry_type" class="fw-semibold mb-0">
-                Filter:
-            </label>
-
-            <select
-                id="enquiry_type"
-                name="enquiry_type"
-                class="form-select"
-                onchange="this.form.submit()"
-                style="width:250px;">
-
-                <option value="">All Enquiries</option>
-
-                <option value="general_enquiry"
-                    {{ request('enquiry_type') == 'general_enquiry' ? 'selected' : '' }}>
-                    General Enquiries
-                </option>
-
-                <option value="enterprise_plan_enquiry"
-                    {{ request('enquiry_type') == 'enterprise_plan_enquiry' ? 'selected' : '' }}>
-                    Enterprise Plan Enquiries
-                </option>
-
-            </select>
-
-        </form>
 
     </div>
 
