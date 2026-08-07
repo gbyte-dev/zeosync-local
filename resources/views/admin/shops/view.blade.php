@@ -1,13 +1,9 @@
 @extends('admin.layout.app')
-
 @section('title', 'Shop Dashboard')
-
 @section('content')
-
 <style>
     .shop-dashboard {
         max-width: 1400px;
-
     }
 
     .hero-box {
@@ -162,12 +158,9 @@
         }
     }
 </style>
-
 <div class="shop-dashboard">
-
     {{-- Stats --}}
     <div class="stats-grid">
-
         <div class="stat-card">
             <div class="stat-icon bg-primary bg-opacity-10 text-primary">📦</div>
             <div>
@@ -175,7 +168,6 @@
                 <div class="stat-value">{{ $productCount }}</div>
             </div>
         </div>
-
         <div class="stat-card">
             <div class="stat-icon bg-success bg-opacity-10 text-success">🛒</div>
             <div>
@@ -183,7 +175,6 @@
                 <div class="stat-value">{{ $orderCount }}</div>
             </div>
         </div>
-
         <div class="stat-card">
             <div class="stat-icon bg-warning bg-opacity-10 text-warning">🔄</div>
             <div>
@@ -191,7 +182,6 @@
                 <div class="stat-value">{{ $logCount }}</div>
             </div>
         </div>
-
         <div class="stat-card">
             <div class="stat-icon bg-info bg-opacity-10 text-info">🔌</div>
             <div>
@@ -201,29 +191,22 @@
                 </div>
             </div>
         </div>
-
     </div>
-
     {{-- Details --}}
     <div class="content-grid">
-
         {{-- Shop Info --}}
         <div class="pro-card">
             <div class="pro-card-header row">
                 <h5 class="col-md-8"> Shop Information</h5>
                 <button type="submit" class="btn btn-primary btn-sm col-md-4" onclick="document.getElementById('saveChangesBtn').click()">Save Changes</button>
-
             </div>
-
             <div class="info-row">
                 <div class="info-label">Shop URL</div>
                 <div class="info-value">{{ $shop->shop }}</div>
             </div>
-
             @if(session('error'))
             <div class="alert alert-danger m-3 mb-0">{{ session('error') }}</div>
             @endif
-
             @if($errors->any())
             <div class="alert alert-danger m-3 mb-0">
                 <ul class="mb-0">
@@ -233,7 +216,6 @@
                 </ul>
             </div>
             @endif
-
             <div class="">
                 <form action="{{ route('admin.shops.update', $shop->id) }}" method="POST">
                     @csrf
@@ -260,7 +242,6 @@
                     </div>
                 </form>
             </div>
-
             <div class="info-row">
                 <div class="info-label">Status</div>
                 <div class="info-value">
@@ -271,73 +252,51 @@
                     @endif
                 </div>
             </div>
-
             <div class="info-row">
                 <div class="info-label">Amazon Seller ID</div>
                 <div class="info-value">{{ $shop->amazon_seller_id ?? '—' }}</div>
             </div>
         </div>
-
         {{-- Subscription --}}
         <div class="pro-card">
             <div class="pro-card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"> Subscription Details</h5>
-
                 <div class="d-flex align-items-center gap-2">
-
                     <button
                         type="button"
                         class="btn btn-dark btn-sm"
                         data-bs-toggle="modal"
                         data-bs-target="#customEnterpriseModal">
-
                         Add Custom Plan
-
                     </button>
-
                     @if($shop->subscription && $shop->subscription->status !== 'cancelled')
-
                     <form
                         action="{{ route('admin.shops.cancel', $shop->id) }}"
                         method="POST"
                         onsubmit="return confirm('Are you sure you want to cancel this subscription?')">
-
                         @csrf
-
                         <button
                             type="submit"
                             class="btn btn-danger btn-sm">
-
                             Cancel Subscription
-
                         </button>
-
                     </form>
-
                     @else
-
                     <button
                         type="button"
                         class="btn btn-primary btn-sm"
                         data-bs-toggle="modal"
                         data-bs-target="#addPlanToShopModal">
-
                         Add Plan
-
                     </button>
-
                     @endif
-
                 </div>
-
             </div>
-
             @if($shop->subscription)
             <div class="info-row">
                 <div class="info-label">Plan ID</div>
                 <div class="info-value">{{ $shop->subscription->plan_id?getPlanName($shop->subscription->plan_id) : 'N/A' }}</div>
             </div>
-
             <div class="info-row">
                 <div class="info-label">Status</div>
                 <div class="info-value">
@@ -346,28 +305,24 @@
                     </span>
                 </div>
             </div>
-
             <div class="info-row">
                 <div class="info-label">Price</div>
                 <div class="info-value">
                     ${{ number_format($shop->subscription->price, 2) }}
                 </div>
             </div>
-
             <div class="info-row">
                 <div class="info-label">Billing Cycle</div>
                 <div class="info-value">
                     {{ $shop->subscription->billing_cycle_months }} months
                 </div>
             </div>
-
             <div class="info-row">
                 <div class="info-label">Started At</div>
                 <div class="info-value">
                     {{ optional($shop->subscription->started_at)->format('M d, Y') }}
                 </div>
             </div>
-
             <div class="info-row">
                 <div class="info-label">Ends At</div>
                 <div class="info-value">
@@ -380,23 +335,83 @@
             </div>
             @endif
         </div>
-
     </div>
-
     {{-- System Info --}}
     <!-- <div class="pro-card mt-4">
         <div class="pro-card-header">
             <h5>🔐 System Information</h5>
         </div>
-
         <div class="info-row">
             <div class="info-label">Shop ID</div>
             <div class="info-value">#{{ $shop->id }}</div>
         </div>
     </div> -->
+    <h5 class="mt-3 fw-bold" style="padding-left: 8px; padding-right: 8px;">
+        Custom Plan Overview
+    </h5>
+    <div class="card mt-4">
 
+        <div class="card-body p-0">
+
+            <table class="table table-hover mb-0">
+
+                <thead>
+                    <tr>
+                        <th>Plan Name</th>
+                        <th>Billing</th>
+                        <th>Price</th>
+                        <th>Limits</th>
+                        <th>Status</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    <tr>
+
+                        <td>{{ $customPlan->name }}</td>
+
+                        <td>Yearly</td>
+
+                        <td>$999 / Year</td>
+
+                        <td>
+                            Products: Unlimited<br>
+                            Sync: Unlimited
+                        </td>
+
+                        <td>
+                            <span class="badge bg-success">
+                                Assigned
+                            </span>
+                        </td>
+
+                        <td class="text-center">
+
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-primary"
+                                data-bs-toggle="modal"
+                                data-bs-target="#customPlanDetailsModal">
+
+                                <i class="bi bi-eye me-1"></i>
+                                View Details
+
+                            </button>
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
 </div>
-
 <!-- Add Plan to Shop Modal -->
 <div class="modal fade" id="addPlanToShopModal" tabindex="-1" aria-labelledby="addPlanToShopModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -405,12 +420,9 @@
                 <h5 class="modal-title" id="addPlanToShopModalLabel">Assign Plan to Shop</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-
             <form id="assignPlanForm">
                 <div class="modal-body">
-
                     <input type="hidden" name="shop_id" value="{{$shop->id}}">
-
                     <!-- Select Created Plan -->
                     <div class="mb-3">
                         <label for="planSelect" class="form-label font-weight-bold">Select Created Plan</label>
@@ -421,7 +433,6 @@
                             @endforeach
                         </select>
                     </div>
-
                     <!-- Test Mode Checkbox (Optional) -->
                     <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" id="testMode" checked />
@@ -429,9 +440,7 @@
                             Enable Test Charge (Sandbox)
                         </label>
                     </div>
-
                 </div>
-
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="assignBtn">Assign Plan</button>
@@ -441,5 +450,5 @@
     </div>
 </div>
 @include('admin.plans.custom-enterprise-modal')
-
+@include('admin.plans.custom-plan-details-modal')
 @endsection

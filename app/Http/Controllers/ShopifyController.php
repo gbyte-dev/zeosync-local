@@ -79,7 +79,8 @@ class ShopifyController extends Controller
 
         $shopModel = \App\Models\Shop::where('shop', $shop)->first();
 
-        if ( $shopModel &&  $shopModel->is_active == 1 && !empty($shopModel->access_token)
+        if (
+            $shopModel &&  $shopModel->is_active == 1 && !empty($shopModel->access_token)
         ) {
             if (!$this->isShopActive($shopModel)) {
 
@@ -2480,15 +2481,34 @@ class ShopifyController extends Controller
         }
         return Carbon::parse($value);
     }
+    // public function show($id)
+    // {
+    //     $shop = \App\Models\Shop::with('subscription.plan')->findOrFail($id);
+    //     //   extra data
+    //     $productCount = $shop->products()->count();
+    //     $logCount = \App\Models\Log::where('shop_id', $shop->id)->count();
+    //     $orderCount = $shop->orders()->count();
+    //     return view('admin.shops.view', compact(
+    //         'shop',
+    //         'productCount',
+    //         'logCount',
+    //         'orderCount'
+    //     ));
+    // }
+
     public function show($id)
     {
-        $shop = \App\Models\Shop::with('subscription.plan')->findOrFail($id);
-        //   extra data
+        $shop = Shop::with('subscription.plan')->findOrFail($id);
+
+        $customPlan = Plan::where('shop_id', $shop->id)->first();
+
         $productCount = $shop->products()->count();
-        $logCount = \App\Models\Log::where('shop_id', $shop->id)->count();
+        $logCount = ProductSyncLog::where('shop_id', $shop->id)->count();
         $orderCount = $shop->orders()->count();
+
         return view('admin.shops.view', compact(
             'shop',
+            'customPlan',
             'productCount',
             'logCount',
             'orderCount'

@@ -116,7 +116,7 @@ Route::post(
 
 Route::get('/clear-cache-temp', function () {
     Artisan::call('optimize:clear');
-    
+
     return response()->json([
         'success' => true,
         'message' => Artisan::output(),
