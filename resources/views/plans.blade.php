@@ -50,7 +50,7 @@ $subscriptionStatus = 'Trialing';
     }
 
     .saas-wrapper {
-        max-width: 1180px;
+        /* max-width: 1180px; */
         /* margin: 0 auto; */
         padding: 12px 16px;
     }
