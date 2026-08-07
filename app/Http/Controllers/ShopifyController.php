@@ -240,12 +240,11 @@ class ShopifyController extends Controller
         ]);
         //   IMPORTANT (iframe fix)
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
-        // return redirect()->away($redirectUrl);
-        return response("
-            <script>
-                window.top.location.href = '{$redirectUrl}';
-            </script>
-        ");
+
+        return response()->view('shopify.auth-popup', [
+            'redirectUrl' => $redirectUrl,
+            'shop' => $shop,
+        ]);
     }
     public function callback(Request $request)
     {
@@ -361,7 +360,26 @@ class ShopifyController extends Controller
             $shopModel->shop . ' connected successfully.'
         );
 
-        return redirect()->route('setup.form', ['shop' => $shop]);
+        $setupUrl = route('setup.form', ['shop' => $shop]);
+        return response()->view('shopify.auth-callback', [
+            'shop' => $shopModel->shop,
+            'redirectUrl' => $setupUrl,
+        ]);
+    }
+    public function checkShopStatus(Request $request)
+    {
+        $shop = $request->query('shop');
+        if (!$shop) {
+            return response()->json(['error' => 'Shop parameter required'], 400);
+        }
+        $shopModel = Shop::where('shop', $shop)->first();
+        if (!$shopModel) {
+            return response()->json(['shop_name' => null, 'email' => null], 200);
+        }
+        return response()->json([
+            'shop_name' => $shopModel->shop_name,
+            'email' => $shopModel->email,
+        ], 200);
     }
     public function plans(Request $request)
     {
