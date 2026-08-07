@@ -240,12 +240,11 @@ class ShopifyController extends Controller
         ]);
         //   IMPORTANT (iframe fix)
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
-        // return redirect()->away($redirectUrl);
-        return response("
-            <script>
-                window.top.location.href = '{$redirectUrl}';
-            </script>
-        ");
+
+        return response()->view('shopify.auth-popup', [
+            'redirectUrl' => $redirectUrl,
+            'shop' => $shop,
+        ]);
     }
     public function callback(Request $request)
     {
@@ -361,7 +360,11 @@ class ShopifyController extends Controller
             $shopModel->shop . ' connected successfully.'
         );
 
-        return redirect()->route('setup.form', ['shop' => $shop]);
+        $setupUrl = route('setup.form', ['shop' => $shop]);
+        return response()->view('shopify.auth-callback', [
+            'shop' => $shopModel->shop,
+            'redirectUrl' => $setupUrl,
+        ]);
     }
     public function plans(Request $request)
     {
