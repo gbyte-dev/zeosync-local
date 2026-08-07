@@ -55,7 +55,7 @@
             Enter your store details to activate the app
         </div>
 
-        <form method="POST" action="{{ route('setup.store') }}">
+        <form method="POST" action="{{ route('setup.store') }}" id="activateForm">
             @csrf
 
             <!-- Shopify URL -->
@@ -96,3 +96,22 @@
 </div>
 
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('activateForm');
+        if (!form) return;
+
+        form.addEventListener('submit', function () {
+            setTimeout(function () {
+                try {
+                    window.close();
+                } catch (e) {
+                    // ignore
+                }
+            }, 300);
+        });
+    });
+</script>
+@endpush

@@ -71,17 +71,16 @@
             }, 500);
 
             window.addEventListener('message', function(event) {
-                if (event.origin !== window.location.origin) {
-                    return;
-                }
                 const data = event.data || {};
                 if (data.type === 'shopify_authenticated') {
                     statusEl.textContent = 'Authorization successful. Redirecting...';
-                    if (data.redirect_url) {
-                        window.location.href = data.redirect_url;
-                    } else {
-                        window.location.reload();
-                    }
+                    setTimeout(function() {
+                        if (data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                        } else {
+                            window.location.reload();
+                        }
+                    }, 300);
                 }
             }, false);
         })();
