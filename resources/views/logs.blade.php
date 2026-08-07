@@ -14,7 +14,7 @@
     }
 
     .saas-wrapper {
-        max-width: 1180px;
+        /* max-width: 1180px; */
         padding: 12px 16px;
     }
 
