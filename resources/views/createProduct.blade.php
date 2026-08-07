@@ -74,7 +74,7 @@
 
     .section-desc {
         font-size: 12px;
-        color: #6B7280;
+        /* color: #6B7280; */
         margin: 2px 0 0 0;
         font-weight: 400;
     }
@@ -83,7 +83,7 @@
     .form-label {
         font-size: 12px;
         font-weight: 500;
-        color: #374151;
+        /* color: #374151; */
         margin-bottom: 4px;
     }
 
