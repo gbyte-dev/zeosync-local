@@ -194,28 +194,19 @@
 
                 <div class="saas-modal-body">
 
-                    <!-- 1. Shop Selection -->
                     <div class="saas-card">
 
-                        <div class="section-title">
-                            Shop
-                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
 
-                        <div class="d-flex align-items-center justify-content-between">
-
-                            <div>
-
-                                <div class="fw-semibold">
-                                    {{ $shop->shop_name }}
-                                </div>
-
-                                <small class="text-muted">
-                                    {{ $shop->shop }}
-                                </small>
-
+                            <div class="section-title mb-0 text-truncate pe-3 text-dark"
+                                title="{{ $shop->shop_name }} ({{ $shop->shop }})">
+                                {{ $shop->shop_name }}
+                                <span class="text-muted fw-normal text-dark">
+                                    ({{ $shop->shop }})
+                                </span>
                             </div>
 
-                            <span class="badge bg-success-subtle text-success border">
+                            <span class="badge bg-success-subtle text-success border flex-shrink-0">
                                 Selected
                             </span>
 
@@ -229,82 +220,51 @@
                     </div>
 
                     <!-- 2. Billing -->
-                    <div class="row g-3">
+                    <div class="form-check form-switch mb-3">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            id="yearly_check"
+                            onchange="toggleBillingType()">
 
-                        <!-- Monthly -->
-                        <div class="col-md-6">
-                            <div class="billing-option h-100">
-                                <div class="form-check m-0 d-flex align-items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        id="monthly_check"
-                                        class="form-check-input m-0"
-                                        onchange="togglePrice('monthly')">
+                        <label class="form-check-label fw-semibold" for="yearly_check">
+                            Enable Yearly Billing
+                        </label>
+                    </div>
 
-                                    <label
-                                        class="form-check-label fw-bold text-dark m-0"
-                                        for="monthly_check"
-                                        style="cursor:pointer;">
-                                        Monthly Billing
-                                    </label>
-                                </div>
+                    <!-- Monthly -->
+                    <div id="monthly_section">
+                        <label class="form-label">Monthly Price</label>
 
-                                <div class="mt-3 d-none" id="monthly_inputs">
-                                    <label class="form-label">Monthly Price</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            name="prices[EVERY_30_DAYS]"
+                            id="monthly_price"
+                            class="form-control"
+                            placeholder="0.00">
 
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        id="monthly_price"
-                                        name="prices[EVERY_30_DAYS]"
-                                        class="form-control"
-                                        placeholder="0.00"
-                                        disabled>
+                        <small class="text-muted">
+                            Stripe Price ID will be generated automatically.
+                        </small>
+                    </div>
 
-                                    <small class="text-muted d-block mt-2">
-                                        Stripe Price ID will be generated automatically.
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- Yearly -->
+                    <div id="yearly_section" class="d-none">
+                        <label class="form-label">Yearly Price</label>
 
-                        <!-- Yearly -->
-                        <div class="col-md-6">
-                            <div class="billing-option h-100">
-                                <div class="form-check m-0 d-flex align-items-center gap-2">
-                                    <input
-                                        type="checkbox"
-                                        id="yearly_check"
-                                        class="form-check-input m-0"
-                                        onchange="togglePrice('yearly')">
+                        <input
+                            type="number"
+                            step="0.01"
+                            name="prices[ANNUAL]"
+                            id="yearly_price"
+                            class="form-control"
+                            placeholder="0.00"
+                            disabled>
 
-                                    <label
-                                        class="form-check-label fw-bold text-dark m-0"
-                                        for="yearly_check"
-                                        style="cursor:pointer;">
-                                        Yearly Billing
-                                    </label>
-                                </div>
-
-                                <div class="mt-3 d-none" id="yearly_inputs">
-                                    <label class="form-label">Yearly Price</label>
-
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        id="yearly_price"
-                                        name="prices[ANNUAL]"
-                                        class="form-control"
-                                        placeholder="0.00"
-                                        disabled>
-
-                                    <small class="text-muted d-block mt-2">
-                                        Stripe Price ID will be generated automatically.
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-
+                        <small class="text-muted">
+                            Stripe Price ID will be generated automatically.
+                        </small>
                     </div>
 
                     <!-- 3. Plan Limits & 4. AI Features -->
@@ -380,37 +340,21 @@
     });
 
     // Toggle disabled state and dynamically hide/show inputs
-    function togglePrice(type) {
-        if (type === 'monthly') {
-            let check = document.getElementById('monthly_check');
-            let input = document.getElementById('monthly_price');
-            let wrapper = document.getElementById('monthly_inputs');
+    function toggleBillingType() {
+        const yearly = document.getElementById('yearly_check').checked;
 
-            if (check && input && wrapper) {
-                input.disabled = !check.checked;
+        document.getElementById('monthly_section').classList.toggle('d-none', yearly);
+        document.getElementById('yearly_section').classList.toggle('d-none', !yearly);
 
-                wrapper.classList.toggle('d-none', !check.checked);
+        document.getElementById('monthly_price').disabled = yearly;
+        document.getElementById('yearly_price').disabled = !yearly;
 
-                if (!check.checked) {
-                    input.value = '';
-                }
-            }
-        }
-
-        if (type === 'yearly') {
-            let check = document.getElementById('yearly_check');
-            let input = document.getElementById('yearly_price');
-            let wrapper = document.getElementById('yearly_inputs');
-
-            if (check && input && wrapper) {
-                input.disabled = !check.checked;
-
-                wrapper.classList.toggle('d-none', !check.checked);
-
-                if (!check.checked) {
-                    input.value = '';
-                }
-            }
+        if (yearly) {
+            document.getElementById('monthly_price').value = '';
+        } else {
+            document.getElementById('yearly_price').value = '';
         }
     }
+
+    document.addEventListener('DOMContentLoaded', toggleBillingType);
 </script>

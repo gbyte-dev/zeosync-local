@@ -725,7 +725,7 @@ $subscriptionStatus = 'Trialing';
     {{-- Plans Grid --}}
     <div class="saas-plans-grid">
 
-        @if($customPlan)
+        @if(!empty($customPlan))
         @php
         $plan = $customPlan;
 
@@ -733,26 +733,16 @@ $subscriptionStatus = 'Trialing';
         && $subscription->plan_id === $plan->id
         && in_array($statusValue, ['active', 'accepted'], true);
 
-        $currentLevel = $planOrder[$currentPlanName] ?? 0;
-        $planLevel = $planOrder[$plan->name] ?? 0;
         $hasNoPlan = !$subscription || $subscription->plan_id == 0 || !in_array($statusValue, ['active', 'accepted']);
 
         if ($plan->is_trial) {
             $buttonText = 'Claim Free Trial';
         } else {
-            $buttonText = 'Choose ' . $plan->name;
+            $buttonText = 'Subscribe';
         }
 
-        if (!$hasNoPlan) {
-            if ($isCurrentPlan) {
-                $buttonText = 'Active';
-            } else {
-                if ($planLevel > $currentLevel) {
-                    $buttonText = 'Upgrade';
-                } elseif ($planLevel < $currentLevel) {
-                    $buttonText = 'Downgrade';
-                }
-            }
+        if (!$hasNoPlan && $isCurrentPlan) {
+            $buttonText = 'Active';
         }
         @endphp
 
@@ -779,7 +769,7 @@ $subscriptionStatus = 'Trialing';
 
             <div class="saas-plan-price">
 
-                @if($plan->is_enterprise)
+                @if($plan->is_enterprise && empty($plan->is_custom))
 
                 <span class="saas-plan-price-amount">Custom</span>
                 <span class="saas-plan-price-interval">Contact our team</span>
@@ -832,7 +822,7 @@ $subscriptionStatus = 'Trialing';
                         </div>
                     </div>
 
-                    @elseif($plan->is_enterprise)
+                    @elseif($plan->is_enterprise && empty($plan->is_custom))
 
                     <div class="mb-3">
                         <label class="saas-label">Plan Type</label>
@@ -906,7 +896,7 @@ $subscriptionStatus = 'Trialing';
                     </button>
                     @endif
 
-                    @elseif($plan->is_enterprise)
+                    @elseif($plan->is_enterprise && empty($plan->is_custom))
 
                     <button
                         type="button"
@@ -989,7 +979,7 @@ $subscriptionStatus = 'Trialing';
 
             <div class="saas-plan-price">
 
-                @if($plan->is_enterprise)
+                @if($plan->is_enterprise && empty($plan->is_custom))
 
                 <span class="saas-plan-price-amount">Custom</span>
                 <span class="saas-plan-price-interval">Contact our team</span>
@@ -1042,7 +1032,7 @@ $subscriptionStatus = 'Trialing';
                         </div>
                     </div>
 
-                    @elseif($plan->is_enterprise)
+                    @elseif($plan->is_enterprise && empty($plan->is_custom))
 
                     <div class="mb-3">
                         <label class="saas-label">Plan Type</label>
@@ -1116,7 +1106,7 @@ $subscriptionStatus = 'Trialing';
                     </button>
                     @endif
 
-                    @elseif($plan->is_enterprise)
+                    @elseif($plan->is_enterprise && empty($plan->is_custom))
 
                     <button
                         type="button"
