@@ -54,6 +54,8 @@
 
     .in-iframe .saas-usage-box {
         padding: 0px 0px;
+        border: 0px solid #E5E7EB;
+        background: none
     }
 
     .saas-usage-header {
