@@ -3,10 +3,10 @@
 @section('title', 'Contact Requests')
 
 @section('content')
-<div class="p-4">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+<div class="">
+    <div class="justify-content-between align-items-center flex-wrap gap-3 mb-4">
 
-        <div class="p-3 text-dark shadow header">
+        <div class="p-2 text-dark shadow header">
             <div class="row">
                 <div class="col-sm-7">
                     <h5 class="mb-1">Contact Requests</h5>
