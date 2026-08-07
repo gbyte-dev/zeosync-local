@@ -121,7 +121,7 @@
             border: 0;
             border-radius: 18px;
             box-shadow: 0 18px 45px rgba(15, 23, 42, .15);
-            overflow: hidden;
+            overflow: scroll;
         }
 
         .notification-item {
