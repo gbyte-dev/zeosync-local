@@ -33,13 +33,17 @@
             function notifyOpener() {
                 if (window.opener && !window.opener.closed) {
                     try {
-                        window.opener.postMessage(payload, window.location.origin);
+                        window.opener.postMessage(payload, '*');
                     } catch (e) {
-                        // ignore cross-origin or other issues
+                        console.error('Failed to post message:', e);
                     }
-                    try { window.close(); } catch (e) {}
+                    // Delay before closing to ensure message is received
+                    setTimeout(function() {
+                        try { window.close(); } catch (e) {}
+                    }, 1000);
                 } else {
-                    window.top.location.href = payload.redirect_url;
+                    // Fallback: redirect in this window if no opener
+                    window.location.href = payload.redirect_url;
                 }
             }
 
@@ -49,12 +53,8 @@
 
             window.handleClose = handleClose;
 
-            // Notify opener immediately if present.
+            // Notify opener immediately if present
             notifyOpener();
-
-            setTimeout(function() {
-                try { window.close(); } catch (e) {}
-            }, 2000);
         })();
     </script>
 </body>
