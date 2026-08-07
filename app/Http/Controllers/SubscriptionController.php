@@ -25,12 +25,33 @@ class SubscriptionController extends ShopifyController
         $activeShop = $shopModel?->shop;
         if (!$shopModel) {
             return redirect(
-                $this->shopAwareUrl( '/',  $request->query('shop') ?? $request->input('shop')
+                $this->shopAwareUrl(
+                    '/',
+                    $request->query('shop') ?? $request->input('shop')
                 )
             )->with('error', 'No shop connected.');
         }
-        $plans = Plan::query()->where('is_active', true)->orderBy('sort_order')
-            ->orderBy('id')->get();
+        $plans = Plan::query()
+            ->where('is_active', true)
+            ->whereNull('shop_id')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        $customPlan = Plan::query()
+            ->where('shop_id', $shopModel->id)
+            ->where('is_custom', true)
+            ->where('is_active', true)
+            ->first();
+
+        // dd([
+        //     'shop_id' => $shopModel->id,
+        //     'shop' => $shopModel->shop,
+
+        //     'plans' => $plans->pluck('id'),
+
+        //     'custom_plan' => $customPlan,
+        // ]);
 
         $subscription = ShopSubscription::with('plan')
             ->where('shop_id', $shopModel->id)
@@ -84,8 +105,13 @@ class SubscriptionController extends ShopifyController
                 'description' => 'Billed every 365 days'
             ],
         ];
-        return view('plans', compact( 'plans', 'subscription','activeShop', 'billingOptions'));
-
+        return view('plans', compact(
+            'plans',
+            'customPlan',
+            'subscription',
+            'activeShop',
+            'billingOptions'
+        ));
     }
 
     public function subscribeToPlan(Request $request)
@@ -117,7 +143,8 @@ class SubscriptionController extends ShopifyController
         $existingSubscription = ShopSubscription::where('shop_id', $shopModel->id)->first();
         // If user is currently on trial and selects a paid plan,
         // end the trial immediately.
-        if ( !$plan->is_trial && $existingSubscription &&
+        if (
+            !$plan->is_trial && $existingSubscription &&
             $existingSubscription->status === 'trialing'
         ) {
             $existingSubscription->update([

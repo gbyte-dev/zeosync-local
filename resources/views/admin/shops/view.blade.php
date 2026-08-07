@@ -42,7 +42,7 @@
         background: #fff;
         border-radius: 20px;
         padding: 22px;
-        border: 1px solid  #c2c2c2;
+        border: 1px solid #c2c2c2;
         box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
         display: flex;
         align-items: center;
@@ -221,17 +221,17 @@
             </div>
 
             @if(session('error'))
-                <div class="alert alert-danger m-3 mb-0">{{ session('error') }}</div>
+            <div class="alert alert-danger m-3 mb-0">{{ session('error') }}</div>
             @endif
 
             @if($errors->any())
-                <div class="alert alert-danger m-3 mb-0">
-                    <ul class="mb-0">
-                        @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
+            <div class="alert alert-danger m-3 mb-0">
+                <ul class="mb-0">
+                    @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
             @endif
 
             <div class="">
@@ -239,7 +239,7 @@
                     @csrf
                     <div class="row">
                         <div class="col-md-12">
-                             <div class="info-row">
+                            <div class="info-row">
                                 <div class="info-label"><label for="shop_name" class="form-label">Shop Name</label></div>
                                 <div class="info-value">
                                     <input type="text" class="form-control" id="shop_name" name="shop_name" value="{{ old('shop_name', $shop->shop_name) }}" required>
@@ -283,17 +283,52 @@
             <div class="pro-card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"> Subscription Details</h5>
 
-                @if($shop->subscription && $shop->subscription->status !== 'cancelled')
-                    <form action="{{ route('admin.shops.cancel', $shop->id) }}"
-                        method="POST"  onsubmit="return confirm('Are you sure you want to cancel this subscription?')">
+                <div class="d-flex align-items-center gap-2">
+
+                    <button
+                        type="button"
+                        class="btn btn-dark btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#customEnterpriseModal">
+
+                        Add Custom Plan
+
+                    </button>
+
+                    @if($shop->subscription && $shop->subscription->status !== 'cancelled')
+
+                    <form
+                        action="{{ route('admin.shops.cancel', $shop->id) }}"
+                        method="POST"
+                        onsubmit="return confirm('Are you sure you want to cancel this subscription?')">
+
                         @csrf
-                        <button type="submit" class="btn btn-danger btn-sm">
+
+                        <button
+                            type="submit"
+                            class="btn btn-danger btn-sm">
+
                             Cancel Subscription
+
                         </button>
+
                     </form>
-                @else
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addPlanToShopModal">  Add Plan </button>               
-                @endif
+
+                    @else
+
+                    <button
+                        type="button"
+                        class="btn btn-primary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#addPlanToShopModal">
+
+                        Add Plan
+
+                    </button>
+
+                    @endif
+
+                </div>
 
             </div>
 
@@ -364,46 +399,47 @@
 
 <!-- Add Plan to Shop Modal -->
 <div class="modal fade" id="addPlanToShopModal" tabindex="-1" aria-labelledby="addPlanToShopModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="addPlanToShopModalLabel">Assign Plan to Shop</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      
-      <form id="assignPlanForm">
-        <div class="modal-body">
-          
-        <input type="hidden" name="shop_id" value="{{$shop->id}}">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addPlanToShopModalLabel">Assign Plan to Shop</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
 
-          <!-- Select Created Plan -->
-          <div class="mb-3">
-            <label for="planSelect" class="form-label font-weight-bold">Select Created Plan</label>
-            <select class="form-select" id="planSelect" required>
-              <option value="" selected disabled>Choose a plan...</option>
-              @foreach(getAllPlan() as $plandata)
-                <option value="{{$plandata->id}}">{{$plandata->name}} (${{$plandata->price}} / mo)</option>
-              @endforeach
-            </select>
-          </div>
+            <form id="assignPlanForm">
+                <div class="modal-body">
 
-          <!-- Test Mode Checkbox (Optional) -->
-          <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" id="testMode" checked />
-            <label class="form-check-label" for="testMode">
-              Enable Test Charge (Sandbox)
-            </label>
-          </div>
+                    <input type="hidden" name="shop_id" value="{{$shop->id}}">
 
+                    <!-- Select Created Plan -->
+                    <div class="mb-3">
+                        <label for="planSelect" class="form-label font-weight-bold">Select Created Plan</label>
+                        <select class="form-select" id="planSelect" required>
+                            <option value="" selected disabled>Choose a plan...</option>
+                            @foreach(getAllPlan() as $plandata)
+                            <option value="{{$plandata->id}}">{{$plandata->name}} (${{$plandata->price}} / mo)</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Test Mode Checkbox (Optional) -->
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="testMode" checked />
+                        <label class="form-check-label" for="testMode">
+                            Enable Test Charge (Sandbox)
+                        </label>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="assignBtn">Assign Plan</button>
+                </div>
+            </form>
         </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="assignBtn">Assign Plan</button>
-        </div>
-      </form>
     </div>
-  </div>
 </div>
+@include('admin.plans.custom-enterprise-modal')
 
 @endsection

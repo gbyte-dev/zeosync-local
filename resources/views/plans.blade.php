@@ -720,6 +720,215 @@ $subscriptionStatus = 'Trialing';
 
     {{-- Plans Grid --}}
     <div class="saas-plans-grid">
+
+        @if($customPlan)
+        @php
+        $plan = $customPlan;
+
+        $isCurrentPlan = $subscription
+        && $subscription->plan_id === $plan->id
+        && in_array($statusValue, ['active', 'accepted'], true);
+
+        $currentLevel = $planOrder[$currentPlanName] ?? 0;
+        $planLevel = $planOrder[$plan->name] ?? 0;
+        $hasNoPlan = !$subscription || $subscription->plan_id == 0 || !in_array($statusValue, ['active', 'accepted']);
+
+        if ($plan->is_trial) {
+            $buttonText = 'Claim Free Trial';
+        } else {
+            $buttonText = 'Choose ' . $plan->name;
+        }
+
+        if (!$hasNoPlan) {
+            if ($isCurrentPlan) {
+                $buttonText = 'Active';
+            } else {
+                if ($planLevel > $currentLevel) {
+                    $buttonText = 'Upgrade';
+                } elseif ($planLevel < $currentLevel) {
+                    $buttonText = 'Downgrade';
+                }
+            }
+        }
+        @endphp
+
+        {{-- CUSTOM PLAN CARD START --}}
+        <div class="saas-plan-card {{ $isCurrentPlan ? 'is-current' : '' }}">
+
+            @if($isCurrentPlan)
+            <span class="saas-plan-badge-active">Active Plan</span>
+            @endif
+
+            <h2 class="saas-plan-name">
+                {{ $plan->name }}
+                @if ($plan->badge)
+                <span class="saas-plan-badge">{{ $plan->badge }}</span>
+                @endif
+            </h2>
+
+            <p class="saas-plan-desc">{{ $plan->description }}</p>
+
+            @php
+            $month_price = $plan->prices['EVERY_30_DAYS'] ?? 0;
+            $yearly_price = $plan->prices['ANNUAL'] ?? 0;
+            @endphp
+
+            <div class="saas-plan-price">
+
+                @if($plan->is_enterprise)
+
+                <span class="saas-plan-price-amount">Custom</span>
+                <span class="saas-plan-price-interval">Contact our team</span>
+
+                @elseif($plan->is_trial)
+
+                <span class="saas-plan-price-amount text-success">Free</span>
+
+                @else
+
+                @if($month_price != 0)
+                <span class="saas-plan-price-amount">${{ number_format((float) $month_price, 0) }}</span>
+                <span class="saas-plan-price-interval">/ month</span>
+                @endif
+
+                @if($yearly_price != 0 && $month_price != 0)
+                <div class="saas-plan-price-interval mt-1">
+                    ${{ number_format((float) $yearly_price, 0) }} / year
+                </div>
+                @elseif($yearly_price != 0)
+                <span class="saas-plan-price-amount">${{ number_format((float) $yearly_price, 0) }}</span>
+                <span class="saas-plan-price-interval">/ year</span>
+                @endif
+
+                @endif
+
+            </div>
+
+            <ul class="saas-plan-list">
+                @foreach (($plan->features ?? []) as $feature)
+                <li>{{ $feature }}</li>
+                @endforeach
+            </ul>
+
+            <div class="saas-plan-footer mt-auto pt-3 border-top" style="border-color: #E5E7EB;">
+                <form method="POST" action="{{ route('plans.subscribe', $currentShop ? ['shop' => $currentShop] : []) }}">
+                    @csrf
+                    <input type="hidden" name="plan_id" value="{{ $plan->id }}">
+
+                    @if ($currentShop)
+                    <input type="hidden" name="shop" value="{{ $currentShop }}">
+                    @endif
+
+                    @if($plan->is_trial)
+
+                    <div class="mb-3">
+                        <label class="saas-label">Plan Type</label>
+                        <div class="saas-banner saas-banner-info m-0 fw-bold" style="padding: 8px 10px;">
+                            Trial Plan (Free)
+                        </div>
+                    </div>
+
+                    @elseif($plan->is_enterprise)
+
+                    <div class="mb-3">
+                        <label class="saas-label">Plan Type</label>
+                        <div class="saas-banner saas-banner-info m-0 fw-bold" style="padding: 8px 10px;">
+                            Enterprise Plan
+                        </div>
+                    </div>
+
+                    @else
+
+                    <div class="mb-3">
+                        <label class="saas-label">Billing Interval</label>
+
+                        <select
+                            name="billing_interval"
+                            id="billing_interval_{{ $plan->id }}"
+                            class="saas-select">
+
+                            @foreach($plan->prices as $interval => $price)
+
+                            @php
+                            if($interval == 'EVERY_30_DAYS'){
+                            $months = 1;
+                            $label = 'Monthly';
+                            $description = 'Billed every 30 days';
+                            } else {
+                            $months = 12;
+                            $label = 'Annual';
+                            $description = 'Billed every 365 days';
+                            }
+                            @endphp
+
+                            <option
+                                value="{{ $months }}"
+                                {{ $isCurrentPlan && (int)$selectedInterval === (int)$months ? 'selected' : '' }}>
+                                {{ $label }} · {{ $description }}
+                            </option>
+
+                            @endforeach
+
+                        </select>
+
+                    </div>
+
+                    @endif
+
+                    @php
+                    $hasUsedTrial = $subscription && $subscription->trial_used == 1;
+                    $isTrialActive = $subscription
+                    && $subscription->is_trial == 1
+                    && $subscription->status === 'trialing'
+                    && $subscription->trial_ends_at
+                    && now()->lt($subscription->trial_ends_at);
+                    @endphp
+
+                    @if($plan->is_trial)
+
+                    @if($isTrialActive)
+                    <button type="button" class="saas-btn saas-btn-primary" disabled>
+                        Trial Active
+                    </button>
+
+                    @elseif($hasUsedTrial)
+                    <button type="button" class="saas-btn saas-btn-outline" disabled>
+                        Trial Expired
+                    </button>
+
+                    @else
+                    <button type="submit" class="saas-btn saas-btn-primary">
+                        Claim Free Trial
+                    </button>
+                    @endif
+
+                    @elseif($plan->is_enterprise)
+
+                    <button
+                        type="button"
+                        class="saas-btn saas-btn-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#enterpriseModal"
+                        data-plan-id="{{ $plan->id }}"
+                        data-plan-name="{{ $plan->name }}">
+                        {{ $plan->contact_button_text ?: 'Contact Admin' }}
+                    </button>
+
+                    @else
+
+                    <button
+                        type="submit"
+                        class="saas-btn {{ $isCurrentPlan ? 'saas-btn-outline' : 'saas-btn-primary' }}"
+                        {{ $isCurrentPlan ? 'disabled' : '' }}>
+                        {{ $buttonText }}
+                    </button>
+
+                    @endif
+                </form>
+            </div>
+        </div>
+        @endif
+
         @forelse ($displayPlans as $plan)
 
         @if($plan->is_trial && $subscription && $subscription->trial_used == 1)
@@ -927,19 +1136,19 @@ $subscriptionStatus = 'Trialing';
                     @endif
                 </form>
             </div>
+        </div>
+        @empty
+        <div class="saas-card p-4 text-center w-100">
+            <h2 class="saas-plan-name justify-content-center">No plans found</h2>
+            <p class="saas-plan-desc m-0">Run the latest migrations so the plans table can be created and populated.</p>
+        </div>
+        @endforelse
     </div>
-    @empty
-    <div class="saas-card p-4 text-center w-100">
-        <h2 class="saas-plan-name justify-content-center">No plans found</h2>
-        <p class="saas-plan-desc m-0">Run the latest migrations so the plans table can be created and populated.</p>
-    </div>
-    @endforelse
-</div>
 
-{{-- Footnote --}}
-<div class="saas-footnote mb-3">
-    <strong class="text-dark">Billing note:</strong> By subscribing, you agree to recurring charges based on the selected plan. Charges are processed securely through Shopify. Your subscription will automatically renew unless canceled before the billing cycle ends. You can manage or cancel your subscription anytime from your Shopify admin dashboard. No refunds will be issued for partial billing periods.
-</div>
+    {{-- Footnote --}}
+    <div class="saas-footnote mb-3">
+        <strong class="text-dark">Billing note:</strong> By subscribing, you agree to recurring charges based on the selected plan. Charges are processed securely through Shopify. Your subscription will automatically renew unless canceled before the billing cycle ends. You can manage or cancel your subscription anytime from your Shopify admin dashboard. No refunds will be issued for partial billing periods.
+    </div>
 
 </div>
 

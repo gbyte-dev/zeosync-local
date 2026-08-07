@@ -759,4 +759,64 @@ class StripeService
             return false;
         }
     }
+
+
+    public function createProduct(array $data): ?object
+    {
+        try {
+
+            $productData = [
+                'name' => $data['name'],
+                'metadata' => [
+                    'shop_id' => $data['shop_id'] ?? null,
+                    'type' => 'custom_plan',
+                ],
+            ];
+
+            if (!empty($data['description'])) {
+                $productData['description'] = $data['description'];
+            }
+
+            return $this->stripe->products->create($productData);
+        } catch (\Throwable $e) {
+
+            Log::error('Stripe Product Creation Failed', [
+                'message' => $e->getMessage(),
+                'data' => $data,
+            ]);
+
+            return null;
+        }
+    }
+
+    public function createPrice(
+        string $productId,
+        float $amount,
+        string $interval
+    ): ?object {
+
+        try {
+
+            return $this->stripe->prices->create([
+                'unit_amount' => (int) round($amount * 100),
+                'currency' => 'usd',
+
+                'recurring' => [
+                    'interval' => $interval,
+                ],
+
+                'product' => $productId,
+            ]);
+        } catch (\Throwable $e) {
+
+            Log::error('Stripe Price Creation Failed', [
+                'message' => $e->getMessage(),
+                'product' => $productId,
+                'amount' => $amount,
+                'interval' => $interval,
+            ]);
+
+            return null;
+        }
+    }
 }
