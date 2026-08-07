@@ -27,6 +27,35 @@
     </div>
 
     <script>
+        const shop = {!! json_encode($shop ?? null) !!};
+        let setupCheckInterval;
+        let hasRedirected = false;
+
+        // Poll shop setup status
+        function checkShopSetup() {
+            if (!shop) return;
+
+            fetch('/api/shop-status?shop=' + encodeURIComponent(shop), {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.shop_name && data.email && !hasRedirected) {
+                    hasRedirected = true;
+                    const statusEl = document.getElementById('status');
+                    if (statusEl) statusEl.textContent = 'Setup complete. Redirecting to dashboard...';
+                    setTimeout(function() {
+                        window.location.href = '{{ route("dashboard", ["shop" => "SHOP_PLACEHOLDER"]) }}'.replace('SHOP_PLACEHOLDER', shop);
+                    }, 500);
+                    if (setupCheckInterval) clearInterval(setupCheckInterval);
+                }
+            })
+            .catch(err => console.log('Status check failed:', err));
+        }
+
         (function() {
             const redirectUrl = {!! json_encode($redirectUrl) !!};
             const statusEl = document.getElementById('status');
@@ -66,21 +95,22 @@
             const popupChecker = setInterval(function() {
                 if (popup && popup.closed) {
                     clearInterval(popupChecker);
-                    statusEl.textContent = 'Authorization window closed. If you completed authentication, this page will update automatically.';
+                    statusEl.textContent = 'Authorization window closed. Waiting for setup completion...';
+                    // Start polling for shop setup when popup closes
+                    if (!setupCheckInterval) {
+                        setupCheckInterval = setInterval(checkShopSetup, 1000);
+                    }
                 }
             }, 500);
 
             window.addEventListener('message', function(event) {
                 const data = event.data || {};
                 if (data.type === 'shopify_authenticated') {
-                    statusEl.textContent = 'Authorization successful. Redirecting...';
-                    setTimeout(function() {
-                        if (data.redirect_url) {
-                            window.location.href = data.redirect_url;
-                        } else {
-                            window.location.reload();
-                        }
-                    }, 300);
+                    statusEl.textContent = 'Authorization successful. Waiting for setup completion...';
+                    // Start polling for shop setup
+                    if (!setupCheckInterval) {
+                        setupCheckInterval = setInterval(checkShopSetup, 1000);
+                    }
                 }
             }, false);
         })();

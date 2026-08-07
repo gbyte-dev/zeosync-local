@@ -34,6 +34,7 @@ Route::get('/', [ShopifyController::class, 'entry'])->name('crm.entry');
 Route::get('/install', [ShopifyController::class, 'install'])->name('shopify.install');
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/callback', [ShopifyController::class, 'callback'])->name('shopify.callback');
+Route::get('/api/shop-status', [ShopifyController::class, 'checkShopStatus'])->name('api.shop.status');
 
 // Public simple pages
 Route::view('/about', 'about')->name('about');
