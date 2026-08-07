@@ -376,7 +376,11 @@ class ShopifyBillingService
                 'headers' => $response->headers(),
                 'body' => $response->body(),
             ]);
-            return false;
+            return [    
+                'errors' => [
+                    'message' => 'Shopify billing request failed with HTTP ' . $response->status() . '.',
+                ],
+            ];
           //  throw new RuntimeException('Shopify billing request failed with HTTP ' . $response->status() . '.');
         }
         $payload = $response->json();
@@ -389,7 +393,11 @@ class ShopifyBillingService
                     return (string) $error;
                 })
                 ->implode(' ');
-            throw new RuntimeException($message !== '' ? $message : 'Shopify billing request failed.');
+            return [    
+                'errors' => [
+                    'message' => $message !== '' ? $message : 'Shopify billing request failed.',
+                ],
+            ];
         }
         return $payload;
     }
