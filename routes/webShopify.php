@@ -16,6 +16,7 @@ use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\AmazonSchemaController;
 use App\Http\Controllers\ShopifyController;
 use App\Http\Controllers\TestController;
+use App\Http\Controllers\CustomPlanController;
 use App\Http\Controllers\AmazonSmartFormController;
 use App\Http\Controllers\ProductSchemaController;
 use App\Http\Controllers\InventoryMappingController;
@@ -523,5 +524,5 @@ Route::get('/test-command', function () {
 });
 
 
-Route::post('/enterprise/request', [EnterpriseRequestController::class, 'store'])
-    ->name('enterprise.request');
+Route::post('/custom-plans', [CustomPlanController::class, 'store'])
+    ->name('custom-plans.store');
