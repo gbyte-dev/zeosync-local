@@ -10,6 +10,8 @@ class Plan extends Model
     protected $table = 'plans';
 
     protected $fillable = [
+        'shop_id',
+
         'name',
         'slug',
         'price',
@@ -28,6 +30,7 @@ class Plan extends Model
         'ai_autofill',
         'ai_single_field',
         'is_enterprise',
+        'is_custom',
         'contact_button_text',
     ];
 
@@ -39,14 +42,21 @@ class Plan extends Model
         'sort_order' => 'integer',
         'stripe_price_ids' => 'array',
         'prices' => 'array',
-        'ai_autofill'     => 'boolean',
+        'ai_autofill' => 'boolean',
         'ai_single_field' => 'boolean',
         'is_enterprise' => 'boolean',
+        'is_custom' => 'boolean',
+        'shop_id' => 'integer',
     ];
 
 
     public function subscriptions(): HasMany
     {
         return $this->hasMany(ShopSubscription::class);
+    }
+
+    public function shop()
+    {
+        return $this->belongsTo(Shop::class);
     }
 }
