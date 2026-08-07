@@ -367,6 +367,7 @@ table.dataTable.dtr-inline.collapsed>tbody>tr>td.dtr-control:before, table.dataT
 
     <!-- Header Section -->
     <div class="sp-header-section">
+        <div class="saas-page-header">
         <div>
             <h1 class="sp-title">Amazon Products Under Progress</h1>
         </div>
@@ -384,6 +385,7 @@ table.dataTable.dtr-inline.collapsed>tbody>tr>td.dtr-control:before, table.dataT
                 <i class="bi bi-send"></i> Add To Amazon
             </a>
             @endif
+        </div>
         </div>
     </div>
 
