@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shopify Authentication</title>
+    <style>
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f8fb; color: #202124; margin: 0; }
+        .page { max-width: 640px; margin: 0 auto; padding: 48px 24px; text-align: center; }
+        .card { background: #fff; border-radius: 16px; box-shadow: 0 16px 40px rgba(16,24,40,.08); padding: 32px; }
+        .button { appearance: none; border: none; background: #1d72f3; color: #fff; padding: 12px 24px; border-radius: 10px; font-size: 1rem; cursor: pointer; margin-top: 20px; }
+        .button:hover { background: #1558d0; }
+        .muted { color: #556074; }
+        .status { margin-top: 16px; font-size: 0.95rem; }
+        a { color: #1d72f3; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="card">
+            <h1>Shopify authorization</h1>
+            <p class="muted">A new window is being opened for Shopify authentication. If the popup is blocked, allow popups for this site and click the button below.</p>
+            <button id="openPopup" class="button">Open Shopify authorization</button>
+            <p class="status" id="status">Opening Shopify auth window...</p>
+            <p class="muted">When authorization completes, this page will redirect automatically.</p>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const redirectUrl = {!! json_encode($redirectUrl) !!};
+            const statusEl = document.getElementById('status');
+            const openButton = document.getElementById('openPopup');
+            const features = [
+                'toolbar=no',
+                'location=no',
+                'status=no',
+                'menubar=no',
+                'scrollbars=yes',
+                'resizable=yes',
+                'width=1000',
+                'height=700',
+                'top=' + Math.round((screen.height - 700) / 2),
+                'left=' + Math.round((screen.width - 1000) / 2)
+            ].join(',');
+
+            let popup = window.open(redirectUrl, 'shopifyAuth', features);
+
+            if (popup) {
+                popup.focus();
+                statusEl.textContent = 'Shopify auth window opened. Complete the authorization there.';
+            } else {
+                statusEl.textContent = 'Popup blocked. Please allow popups and click the button below.';
+            }
+
+            openButton.addEventListener('click', function() {
+                popup = window.open(redirectUrl, 'shopifyAuth', features);
+                if (popup) {
+                    popup.focus();
+                    statusEl.textContent = 'Shopify auth window opened. Complete the authorization there.';
+                } else {
+                    statusEl.textContent = 'Popup blocked again. Please allow popups for this site.';
+                }
+            });
+
+            const popupChecker = setInterval(function() {
+                if (popup && popup.closed) {
+                    clearInterval(popupChecker);
+                    statusEl.textContent = 'Authorization window closed. If you completed authentication, this page will update automatically.';
+                }
+            }, 500);
+
+            window.addEventListener('message', function(event) {
+                if (event.origin !== window.location.origin) {
+                    return;
+                }
+                const data = event.data || {};
+                if (data.type === 'shopify_authenticated') {
+                    statusEl.textContent = 'Authorization successful. Redirecting...';
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    } else {
+                        window.location.reload();
+                    }
+                }
+            }, false);
+        })();
+    </script>
+</body>
+</html>
