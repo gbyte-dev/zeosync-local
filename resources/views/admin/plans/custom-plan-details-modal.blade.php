@@ -97,10 +97,7 @@
                                             @endif
                                         </td>
                                     </tr>
-                                    <tr>
-                                        <th class="text-muted fw-semibold ps-4">Contact Button</th>
-                                        <td>{{ $customPlan->contact_button_text ?: '<span class="text-muted">—</span>' }}</td>
-                                    </tr>
+                           
                                 </table>
                             </div>
                         </div>
