@@ -46,11 +46,26 @@
                 if (data.shop_name && data.email && !hasRedirected) {
                     hasRedirected = true;
                     const statusEl = document.getElementById('status');
-                    if (statusEl) statusEl.textContent = 'Setup complete. Redirecting to dashboard...';
-                    setTimeout(function() {
-                        window.location.href = '{{ route("dashboard", ["shop" => "SHOP_PLACEHOLDER"]) }}'.replace('SHOP_PLACEHOLDER', shop);
-                    }, 500);
+                    if (statusEl) statusEl.textContent = 'Setup complete. Closing auth window...';
+
                     if (setupCheckInterval) clearInterval(setupCheckInterval);
+
+                    const dashboardUrl = '{{ route("dashboard", ["shop" => "SHOP_PLACEHOLDER"]) }}'.replace('SHOP_PLACEHOLDER', shop);
+
+                    if (window.opener && !window.opener.closed) {
+                        try {
+                            window.opener.location.href = dashboardUrl;
+                            window.opener.focus();
+                        } catch (e) {
+                            console.warn('Unable to redirect opener:', e);
+                            window.opener.postMessage({ type: 'shopify_installed', shop, redirect_url: dashboardUrl }, '*');
+                        }
+                        setTimeout(() => {
+                            window.close();
+                        }, 200);
+                    } else {
+                        window.location.href = dashboardUrl;
+                    }
                 }
             })
             .catch(err => console.log('Status check failed:', err));
