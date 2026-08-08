@@ -311,6 +311,7 @@ class ShopifyController extends Controller
                 config('services.shopify.api_secret')
             ),
             'code' => $code,
+            'expiring' => 1,
         ]);
         if (!$response->successful()) {
             Log::error('TOKEN FAILED', [
@@ -326,18 +327,34 @@ class ShopifyController extends Controller
         }
         $accessToken = $data['access_token'];
         Log::info('TOKEN RECEIVED');
+        $refreshToken      = $data['refresh_token'] ?? null;
+        $expiresIn         = $data['expires_in'] ?? 3600;                 // access token, ~60 min
+        $refreshExpiresIn  = $data['refresh_token_expires_in'] ?? (90 * 86400); // refresh token, ~90 days
+
         // =========================
-        // STEP 5: SAVE SHOP
-        // =========================
+        // $shopModel = \App\Models\Shop::updateOrCreate(
+        //     ['shop' => $shop],
+        //     [
+        //         'access_token' => $accessToken,
+        //         'installed_at' => now(),
+        //         'hmac' => $request->hmac,
+        //         'is_active' => 1
+        //     ]
+        // );
+
         $shopModel = \App\Models\Shop::updateOrCreate(
             ['shop' => $shop],
             [
                 'access_token' => $accessToken,
+                'refresh_token' => $refreshToken,
+                'access_token_expires_at' => now()->addSeconds($expiresIn),
+                'refresh_token_expires_at' => now()->addSeconds($refreshExpiresIn),
                 'installed_at' => now(),
                 'hmac' => $request->hmac,
                 'is_active' => 1
             ]
         );
+        
         // optional session
         session(['active_shop' => $shop]);
         // =========================
@@ -3112,4 +3129,105 @@ class ShopifyController extends Controller
             return back()->with('error', $e->getMessage());
         }
     }
+
+    /**
+     * Ensures the shop has a valid access token, refreshing if needed.
+     * Returns an array: ['success' => bool, 'access_token' => ?string, 'message' => string]
+     */
+    public function ensureFreshAccessToken(Shop $shopModel): array
+    {
+        try {
+            // still valid — nothing to do
+            if ($shopModel->access_token_expires_at && $shopModel->access_token_expires_at->isFuture()) {
+                return [
+                    'success' => true,
+                    'access_token' => $shopModel->access_token,
+                    'message' => 'Token still valid.',
+                ];
+            }
+
+            // refresh token expired — merchant must relaunch the app to re-auth
+            if (!$shopModel->refresh_token_expires_at || $shopModel->refresh_token_expires_at->isPast()) {
+                Log::warning('REFRESH TOKEN EXPIRED', ['shop' => $shopModel->shop]);
+
+                $shopModel->update(['is_active' => 0]);
+
+                return [
+                    'success' => false,
+                    'access_token' => null,
+                    'message' => 'Refresh token expired. App must be relaunched to reauthorize.',
+                ];
+            }
+
+            $response = Http::asJson()->post("https://{$shopModel->shop}/admin/oauth/access_token", [
+                'client_id'     => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
+                'client_secret' => AdminSetting::get('SHOPIFY_API_SECRET', config('services.shopify.api_secret')),
+                'grant_type'    => 'refresh_token',
+                'refresh_token' => $shopModel->refresh_token,
+            ]);
+
+            if (!$response->successful()) {
+                Log::error('TOKEN REFRESH FAILED', [
+                    'shop' => $shopModel->shop,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
+                // Shopify signals a dead refresh token with 401 invalid_request
+                if ($response->status() === 401) {
+                    $shopModel->update(['is_active' => 0]);
+                    return [
+                        'success' => false,
+                        'access_token' => null,
+                        'message' => 'Refresh token is no longer valid. App must be relaunched to reauthorize.',
+                    ];
+                }
+
+                return [
+                    'success' => false,
+                    'access_token' => null,
+                    'message' => 'Failed to refresh Shopify access token. Status: ' . $response->status(),
+                ];
+            }
+
+            $data = $response->json();
+
+            if (!isset($data['access_token'])) {
+                Log::error('REFRESH RESPONSE MISSING TOKEN', ['shop' => $shopModel->shop, 'body' => $data]);
+                return [
+                    'success' => false,
+                    'access_token' => null,
+                    'message' => 'Refresh response did not include an access token.',
+                ];
+            }
+
+            $shopModel->update([
+                'access_token' => $data['access_token'],
+                'refresh_token' => $data['refresh_token'] ?? $shopModel->refresh_token,
+                'access_token_expires_at' => now()->addSeconds($data['expires_in'] ?? 3600),
+                'refresh_token_expires_at' => now()->addSeconds($data['refresh_token_expires_in'] ?? 90 * 86400),
+            ]);
+
+            Log::info('TOKEN REFRESHED', ['shop' => $shopModel->shop]);
+
+            return [
+                'success' => true,
+                'access_token' => $data['access_token'],
+                'message' => 'Token refreshed successfully.',
+            ];
+
+        } catch (\Throwable $e) {
+            Log::error('TOKEN REFRESH EXCEPTION', [
+                'shop' => $shopModel->shop ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'access_token' => null,
+                'message' => 'Unexpected error while refreshing token: ' . $e->getMessage(),
+            ];
+        }
+    }
+
 }
