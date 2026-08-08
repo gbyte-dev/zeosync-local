@@ -372,14 +372,22 @@ class ProductSchemaController extends Controller
         $requiredFields = collect($fields)->where('required', true)->values();
         $canUseAiAutoFill = $this->aiFeatureService->canUseAutoFill($this->shop->id);
         $canUseAiSingleField = $this->aiFeatureService->canUseSingleField($this->shop->id);
-        
-        return view('schema.products.create',
-            compact(  'tabs', 'schema',  'fields',  'requiredFields', 'productshow',
-                'prodAttri',  'canUseAiAutoFill', 'canUseAiSingleField'
+
+        return view(
+            'schema.products.create',
+            compact(
+                'tabs',
+                'schema',
+                'fields',
+                'requiredFields',
+                'productshow',
+                'prodAttri',
+                'canUseAiAutoFill',
+                'canUseAiSingleField'
             )
         );
     }
-  
+
     public function productstore(
         Request $request,
         ProductLimitService $productLimitService,
@@ -491,7 +499,7 @@ class ProductSchemaController extends Controller
                 default => $name,
             };
 
-            
+
             $transformed = $transformer->transformAttribute($canonicalName, $value);
             if ($transformed === null) {
                 continue;
@@ -1680,13 +1688,6 @@ class ProductSchemaController extends Controller
             ->where('shopify_product_id', $shopifyid)
             ->update($data);
         if (!$updated) {
-            $this->updatelog(
-                $productid,
-                'amazon',
-                'sync_failed',
-                false,
-                'No marketplace mapping row matched shop_id and shopify_product_id; nothing was updated.'
-            );
             return;
         }
         $this->updatelog($productid, 'amazon', 'sync', false);

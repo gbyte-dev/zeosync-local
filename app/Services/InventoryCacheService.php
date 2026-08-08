@@ -40,17 +40,18 @@ class InventoryCacheService
         $cacheKey = $this->getInventoryCacheKey($shop, $marketplaceId);
         if (!Cache::has($cacheKey)) {
 
-            Log::warning('Amazon inventory cache not found. Refreshing immediately.', [
-                'shop_id' => $shop->id,
-            ]);
+            $status = $this->getStatus($shop, $marketplaceId);
 
-            $inventory = $this->refreshAmazonInventory(
-                $shop,
-                $marketplaceId
-            );
+            if (!($status['refreshing'] ?? false)) {
+                $this->updateStatus($shop, $marketplaceId, [
+                    'refreshing' => true,
+                ]);
+
+                SyncAmazonInventoryJob::dispatch($shop->id);
+            }
 
             return [
-                'products' => $inventory,
+                'products' => [],
                 'status' => $this->getStatus($shop, $marketplaceId),
             ];
         }
