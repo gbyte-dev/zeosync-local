@@ -10,7 +10,7 @@
                 <div class="card-body">
                     <h6 class="card-title">Information We Collect</h6>
                     <p class="card-text text-muted">
-                        Zeosync collects information necessary to provide our synchronization services, including:
+                        {{getAppName()}} collects information necessary to provide our synchronization services, including:
                     </p>
                     <ul class="text-muted">
                         <li>Store credentials and API keys for Amazon and Shopify integrations</li>
@@ -53,7 +53,7 @@
                     <p class="card-text text-muted">
                         You have the right to access, update, or delete your data at any time. You can also request a copy of 
                         your data or revoke API access through your account settings. For privacy-related inquiries, please 
-                        contact us at privacy@zeosync.example.
+                        contact us at privacy@zeosync.app.
                     </p>
                 </div>
             </div>
