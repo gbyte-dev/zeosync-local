@@ -218,12 +218,6 @@
                 </p>
             </div>
             <div class="col-6 col-md-6 text-end" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px;">
-                <form id="notificationForm" action="{{ route('user.notification.markAllRead') }}?shop={{ $request->shop ?? session('active_shop') }}" method="POST">
-                    @csrf
-                    <button type="button" id="saveChangesBtn" class="btn btn-link btn-sm">
-                        Mark All as Read
-                    </button>
-                </form>
                 <form id="deleteAllForm" action="{{ route('user.notification.delete.all') }}?shop={{ $request->shop ?? session('active_shop') }}" method="POST" class="d-inline">
                     @csrf
                     @method('DELETE')
@@ -299,10 +293,5 @@
     </div>
 </div>
 
-<script>
-    document.getElementById('saveChangesBtn').addEventListener('click', function() {
-        document.getElementById('notificationForm').submit();
-    });
-</script>
 
 @endsection
