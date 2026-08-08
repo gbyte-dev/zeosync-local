@@ -53,6 +53,7 @@
     .in-iframe .sp-card-grid {
         grid-template-columns: repeat(4, minmax(180px, 1fr));
     }
+
     /* Buttons */
     .sp-actions {
         display: flex;
@@ -159,6 +160,26 @@
         text-transform: uppercase;
         letter-spacing: 0.02em;
         margin: 0;
+    }
+
+
+
+    .shopify-products-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: rgba(255, 255, 255, 0.85);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .shopify-products-loader-text {
+        font-size: 13px;
+        color: #374151;
+        font-weight: 500;
     }
 
     .sp-stat-value {
@@ -347,35 +368,45 @@
     }
 </style>
 
+<div id="shopifyProductsPageLoader" class="shopify-products-loader">
+    <div class="spinner-border" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+
+    <div class="shopify-products-loader-text">
+        Loading Shopify products...
+    </div>
+</div>
+
 <div class="sp-page">
 
     <!-- Header Section -->
     <div class="sp-header-section">
         <div class="saas-page-header row">
-        <div class="col-md-7 col-sm-12">
-            <h1 class="sp-title">Shopify Products</h1>
-            <p class="sp-subtitle">If Products not available Click refresh button</p>
-        </div>
-        <div class="sp-actions col-md-5 col-sm-12">
-            <button id="refreshBtn" class="sp-btn sp-btn-secondary" data-url="{{ route('shopify.products', ['shop' => $activeShop]) }}">
-                <i class="bi bi-arrow-clockwise"></i> Refresh
-            </button>
-            <a href="{{ route('shopify.product.create', ['shop' => request('shop')]) }}" class="sp-btn sp-btn-secondary">
-                <i class="bi bi-plus-lg"></i> Add to Shopify
-            </a>
-            @if(!$productLimitReached)
-            <!-- <a href="{{ route('user.addProductCategory', ['shop' => request('shop')]) }}" class="sp-btn sp-btn-primary">
+            <div class="col-md-7 col-sm-12">
+                <h1 class="sp-title">Shopify Products</h1>
+                <p class="sp-subtitle">If Products not available Click refresh button</p>
+            </div>
+            <div class="sp-actions col-md-5 col-sm-12">
+                <button id="refreshBtn" class="sp-btn sp-btn-secondary" data-url="{{ route('shopify.products', ['shop' => $activeShop]) }}">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+                <a href="{{ route('shopify.product.create', ['shop' => request('shop')]) }}" class="sp-btn sp-btn-secondary">
+                    <i class="bi bi-plus-lg"></i> Add to Shopify
+                </a>
+                @if(!$productLimitReached)
+                <!-- <a href="{{ route('user.addProductCategory', ['shop' => request('shop')]) }}" class="sp-btn sp-btn-primary">
                 <i class="bi bi-send"></i> Add To Amazon
             </a> -->
-            @else
-            <!-- <a href="javascript:void(0)" onclick="showProductLimitAlert()" class="sp-btn sp-btn-primary">
+                @else
+                <!-- <a href="javascript:void(0)" onclick="showProductLimitAlert()" class="sp-btn sp-btn-primary">
                 <i class="bi bi-send"></i> Add To Amazon
             </a> -->
-            @endif
+                @endif
+            </div>
         </div>
-       </div>
     </div>
-    
+
 
     <!-- Stat Pills -->
     <div class="sp-card-grid">
