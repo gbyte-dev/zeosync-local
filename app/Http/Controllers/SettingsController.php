@@ -157,25 +157,12 @@ class SettingsController extends ShopifyController
             strtolower($request->shop_url)
         ])->first();
 
-        \Log::info('SHOP FETCH RESULT', [
-            'input_shop' => $request->shop_url,
-            'found' => $shop ? true : false,
-            'shop_data' => $shop
-        ]);
-
+   
         if (!$shop) {
             \Log::error('SHOP NOT FOUND');
             return back()->with('error', 'Shop not found');
         }
-
-        // =========================
-        // STEP 3: BEFORE UPDATE
-        // =========================
-        \Log::info('BEFORE UPDATE', $shop->toArray());
-
-        // =========================
-        // STEP 4: UPDATE
-        // =========================
+dd($shop);
         try {
             $updated = $shop->update([
                 'shop_name' => $request->shop_name,
