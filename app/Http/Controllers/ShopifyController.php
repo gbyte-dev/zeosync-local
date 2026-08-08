@@ -305,8 +305,8 @@ class ShopifyController extends Controller
         // =========================
         // STEP 4: TOKEN EXCHANGE
         // =========================
-        $sessionToken = $request->input('session_token');
-        $shopifyRedirectUri = AdminSetting::get(
+        $sessionToken = $request->input('session_token', $request->input('sessionToken'));
+        $redirectUri = AdminSetting::get(
             'SHOPIFY_REDIRECT_URI',
             config('services.shopify.redirect_uri')
         );
@@ -334,9 +334,15 @@ class ShopifyController extends Controller
             $tokenPayload = array_merge($tokenPayload, [
                 'grant_type' => 'authorization_code',
                 'code' => $code,
-                'redirect_uri' => $shopifyRedirectUri,
+                'redirect_uri' => $redirectUri,
             ]);
         }
+
+        Log::info('SHOPIFY TOKEN EXCHANGE PAYLOAD', [
+            'shop' => $shop,
+            'using_session_token' => !empty($sessionToken),
+            'payload' => $tokenPayload,
+        ]);
 
         $response = Http::asForm()
             ->acceptJson()
@@ -344,17 +350,13 @@ class ShopifyController extends Controller
         if (!$response->successful()) {
             Log::error('TOKEN FAILED', [
                 'status' => $response->status(),
-                'body' => $response->body(),
-                'request' => $tokenPayload,
+                'body' => $response->body()
             ]);
             return redirect('/')->with('error', 'Shopify connection failed.');
         }
         $data = $response->json();
         if (!isset($data['access_token'])) {
-            Log::error('NO ACCESS TOKEN', [
-                'response' => $data,
-                'request' => $tokenPayload,
-            ]);
+            Log::error('NO ACCESS TOKEN', $data);
             return redirect('/')->with('error', 'Shopify connection failed.');
         }
         $accessToken = $data['access_token'];
@@ -372,10 +374,10 @@ class ShopifyController extends Controller
             'is_active' => 1,
         ];
 
-        if (isset($data['refresh_token'])) {
+        if (!empty($data['refresh_token'] ?? null)) {
             $shopData['refresh_token'] = $data['refresh_token'];
         }
-        if (isset($data['refresh_token_expires_in'])) {
+        if (isset($data['refresh_token_expires_in']) && !empty($data['refresh_token_expires_in'])) {
             $shopData['refresh_token_expires_at'] = now()->addSeconds(intval($data['refresh_token_expires_in']));
         }
 
