@@ -94,7 +94,7 @@
 
                                 <select
                                     id="shopifyProduct"
-                                    class="form-select form-select-lg">
+                                    class="form-select form-select">
 
                                     <option value="">
                                         Select Shopify Product
@@ -132,7 +132,7 @@
 
                                 <select
                                     id="shopifyVariant"
-                                    class="form-select form-select-lg"
+                                    class="form-select form-select"
                                     disabled>
 
                                     <option value="">

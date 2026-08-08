@@ -116,7 +116,7 @@
 
                                 <select
                                     id="amazonProduct"
-                                    class="form-select form-select-lg">
+                                    class="form-select form-select">
 
                                     <option value="">
                                         Select Amazon Product
