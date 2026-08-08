@@ -555,6 +555,26 @@
         }
     </script>
 
+    <script>
+        document.addEventListener('click', function(e) {
+
+            const link = e.target.closest('a');
+
+            if (!link) {
+                return;
+            }
+
+            const url = new URL(link.href, window.location.origin);
+
+            // Only Shopify Products page
+            if (url.pathname !== '/products') {
+                return;
+            }
+
+            showLoader('Loading Shopify products...');
+        });
+    </script>
+
     <div id="dynamicToastContainer"
         class="position-fixed top-0 end-0 p-3"
         style="z-index:999999; margin-top: 56px;">
