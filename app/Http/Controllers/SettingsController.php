@@ -221,10 +221,9 @@ class SettingsController extends ShopifyController
         // STEP 8: REDIRECT
         // =========================
         \Log::info('REDIRECT TO DASHBOARD');
-        sleep(2); // Optional: Add a small delay to ensure logs are written before redirecting
-        return redirect()->route('dashboard', [
-            'shop' => $shop->shop
-        ])->with('success', 'App activated successfully!');
+        return view('setup.activate-complete', [
+            'shop' => $shop->shop,
+        ]);
     }
 
     public function logout(Request $request)
