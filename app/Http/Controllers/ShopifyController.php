@@ -2353,12 +2353,18 @@ class ShopifyController extends Controller
         }
 
         try {
-            $response = Http::asForm()->post("https://{$shop->shop}/admin/oauth/access_token", [
-                'client_id' => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
-                'client_secret' => AdminSetting::get('SHOPIFY_API_SECRET', config('services.shopify.api_secret')),
-                'grant_type' => 'refresh_token',
-                'refresh_token' => $shop->refresh_token,
+            Log::info('Refreshing Shopify access token using stored refresh token.', [
+                'shop' => $shop->shop,
             ]);
+
+            $response = Http::asForm()
+                ->acceptJson()
+                ->post("https://{$shop->shop}/admin/oauth/access_token", [
+                    'client_id' => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
+                    'client_secret' => AdminSetting::get('SHOPIFY_API_SECRET', config('services.shopify.api_secret')),
+                    'grant_type' => 'refresh_token',
+                    'refresh_token' => $shop->refresh_token,
+                ]);
 
             if (!$response->successful()) {
                 Log::error('Shopify refresh token request failed.', [
