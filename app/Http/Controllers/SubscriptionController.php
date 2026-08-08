@@ -33,6 +33,7 @@ class SubscriptionController extends ShopifyController
         }
         $plans = Plan::query()
             ->where('is_active', true)
+            ->where('is_custom', false)
             ->whereNull('shop_id')
             ->orderBy('sort_order')
             ->orderBy('id')
