@@ -20,6 +20,10 @@ class Shop extends Model
     protected $fillable = [
         'shop',
         'access_token',
+        'access_token_expires_at',
+        'refresh_token',
+        'refresh_token_expires_at',
+        'shopify_connection_status',
         'shop_name',
         'email',
         'domain',
@@ -40,10 +44,9 @@ class Shop extends Model
     ];
 
     protected $casts = [
-
-
+        'access_token_expires_at' => 'datetime',
+        'refresh_token_expires_at' => 'datetime',
         'last_status_check_at' => 'datetime',
-
     ];
 
     /**
