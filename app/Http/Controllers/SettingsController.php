@@ -221,7 +221,7 @@ dd($shop);
         // STEP 8: REDIRECT
         // =========================
         \Log::info('REDIRECT TO DASHBOARD');
-
+        sleep(2); // Optional: Add a small delay to ensure logs are written before redirecting
         return redirect()->route('dashboard', [
             'shop' => $shop->shop
         ])->with('success', 'App activated successfully!');
