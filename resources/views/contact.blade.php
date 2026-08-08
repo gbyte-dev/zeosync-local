@@ -18,7 +18,7 @@
                             </div>
                             <h6 class="card-title">Email Support</h6>
                             <p class="card-text text-muted small">For general inquiries and support</p>
-                            <a href="mailto:support@zeosync.example" class="text-decoration-none">support@zeosync.example</a>
+                            <a href="mailto:support@zeosync.app" class="text-decoration-none">support@zeosync.app</a>
                         </div>
                     </div>
                 </div>
