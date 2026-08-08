@@ -26,5 +26,5 @@ Route::prefix('admin')->group(function () {
 Route::post('/user/notification/{id}/read', [NotificationController::class, 'markUserNotificationRead'])
     ->name('user.notification.read');
 
-Route::post('/user/notification/mark-all-read', [NotificationController::class, 'markAllUserNotificationsRead'])
-    ->name('user.notification.markAllRead');
+/* Route::post('/user/notification/mark-all-read', [NotificationController::class, 'markAllUserNotificationsRead'])
+    ->name('user.notification.markAllRead'); */
