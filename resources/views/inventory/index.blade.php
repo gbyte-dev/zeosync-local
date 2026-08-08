@@ -399,32 +399,40 @@
 
     /* Loader */
     .amazon-loader {
-        position: fixed;
-        inset: 0;
-        background: rgba(32, 34, 35, 0.7);
-        backdrop-filter: blur(3px);
+        width: 100%;
         display: flex;
-        flex-direction: column;
-        justify-content: center;
         align-items: center;
-        z-index: 999999;
+        justify-content: center;
+        gap: 12px;
+        padding: 14px 18px;
+        margin-bottom: 12px;
+        background: #f8f9fa;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
     }
 
     .amazon-loader.d-none {
         display: none;
     }
 
-    .progress-percent {
-        font-size: 28px;
-        font-weight: 700;
-        color: #FFFFFF;
-        margin-top: 16px;
+    .amazon-loader .loader {
+        transform: scale(0.55);
+        transform-origin: center;
+        flex-shrink: 0;
     }
 
-    .progress-message {
-        font-size: 14px;
-        color: #E3E5E7;
+    .amazon-loader .progress-percent {
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+        margin: 0 !important;
+    }
+
+    .amazon-loader .progress-message {
+        font-size: 13px;
+        color: #6b7280;
         font-weight: 500;
+        margin: 0 !important;
     }
 
     .no-data-msg {
@@ -471,8 +479,9 @@
             justify-content: center;
         }
     }
-    a{
-        text-decoration:none !important;
+
+    a {
+        text-decoration: none !important;
     }
 </style>
 
@@ -551,12 +560,18 @@
     <div class="saas-tabs-container">
         <ul class="nav nav-tabs saas-tabs">
             <li class="nav-item">
-                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#shopifyTab" onclick="activeTab='shopify'; loadShopify();">
+                <button class="nav-link active"
+                    data-bs-toggle="tab"
+                    data-bs-target="#shopifyTab"
+                    onclick="switchToShopifyTab();">
                     Shopify
                 </button>
             </li>
             <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#amazonTab" onclick="activeTab='amazon'; loadAmazon();">
+                <button class="nav-link"
+                    data-bs-toggle="tab"
+                    data-bs-target="#amazonTab"
+                    onclick="switchToAmazonTab();">
                     Amazon
                 </button>
             </li>
@@ -667,6 +682,28 @@
                 <p>It looks like there are no Amazon products available to display.</p>
             </div>
 
+            <div id="amazonLoader" class="amazon-loader d-none">
+                <div class="loader">
+                    <div class="loader-square"></div>
+                    <div class="loader-square"></div>
+                    <div class="loader-square"></div>
+                    <div class="loader-square"></div>
+                    <div class="loader-square"></div>
+                    <div class="loader-square"></div>
+                    <div class="loader-square"></div>
+                </div>
+
+                <div class="progress-percent">
+                    <span id="amazonProgressPercent">0%</span>
+                </div>
+
+                <div class="progress-message">
+                    <span id="amazonProgressMessage">
+                        Calling Amazon, you can continue working...
+                    </span>
+                </div>
+            </div>
+
             <div class="table-responsive" id="amazonTableWrapper">
                 <table class="saas-table" id="amazonTable" style="width: 100%;">
                     <thead>
@@ -696,7 +733,7 @@
 </div>
 </div>
 
-{{-- Global Full Screen Loader --}}
+<!-- {{-- Global Full Screen Loader --}}
 <div id="amazonLoader" class="amazon-loader d-none">
     <div class="loader">
         <div class="loader-square"></div>
@@ -713,7 +750,7 @@
     <div class="progress-message mt-1">
         <span id="amazonProgressMessage">Preparing...</span>
     </div>
-</div>
+</div> -->
 
 @endsection
 
@@ -809,7 +846,15 @@
 
     function loadAmazon() {
         if (!amazonConnected) return;
+
         activeTab = 'amazon';
+
+        // Show loader only when no Amazon products are currently visible
+        const hasProducts = $('#amazonTable tbody tr').length > 0;
+
+        if (!hasProducts) {
+            showAmazonLoader();
+        }
 
         const shop = new URLSearchParams(window.location.search).get('shop');
 
@@ -819,22 +864,69 @@
             data: {
                 shop: shop
             },
-            success: function(response) {
-                let items = response.products ?? [];
-                renderAmazonTable(items);
 
-                if (response.status?.refreshing) {
-                    showAmazonLoader();
+            success: function(response) {
+
+                console.log('AMAZON RESPONSE:', response);
+                console.log('REFRESHING:', response.status?.refreshing);
+
+                let items = response.products ?? [];
+                let isRefreshing = response.status?.refreshing === true;
+
+                // While refresh is running, don't show "No Inventory Found"
+                renderAmazonTable(items, isRefreshing);
+
+                if (isRefreshing) {
+
+                    // No products yet → keep loader visible
+                    if (items.length === 0) {
+                        showAmazonLoader();
+                    } else {
+                        // Existing products are already visible
+                        hideAmazonLoader();
+                    }
+
                     startProgress();
+
                 } else {
+
+                    // Final response received
                     hideAmazonLoader();
-                    if (progressTimer) clearInterval(progressTimer);
+
+                    if (progressTimer) {
+                        clearInterval(progressTimer);
+                        progressTimer = null;
+                    }
                 }
             },
+
             error: function(xhr) {
-                renderAmazonTable([]);
+
+                renderAmazonTable([], false);
+
+                hideAmazonLoader();
+
+                if (progressTimer) {
+                    clearInterval(progressTimer);
+                    progressTimer = null;
+                }
             }
         });
+    }
+
+    function switchToAmazonTab() {
+        activeTab = 'amazon';
+        loadAmazon();
+    }
+
+    function switchToShopifyTab() {
+        activeTab = 'shopify';
+
+        // Hide Amazon loader when user leaves Amazon tab
+        hideAmazonLoader();
+
+        // Do NOT stop background request/progress
+        loadShopify();
     }
 
     function renderShopifyTable(data) {
@@ -942,20 +1034,28 @@
         }
     }
 
-    function renderAmazonTable(data) {
-        // Destroy & show message if NO data is loaded from the backend
+    function renderAmazonTable(data, isLoading = false) {
+
         if (!data || data.length === 0) {
+
             $('#amazonTableWrapper').hide();
-            $('#amazonNoDataMsg').show();
+
+            if (isLoading) {
+                $('#amazonNoDataMsg').hide();
+            } else {
+                $('#amazonNoDataMsg').show();
+            }
+
             if ($.fn.DataTable.isDataTable('#amazonTable')) {
                 dtAmazon.destroy();
                 dtAmazon = null;
             }
+
             $('#totalCount, #syncedCount, #pendingCount, #errorCount').text('0');
+
             return;
         }
 
-        // Show table wrapper, hide message
         $('#amazonNoDataMsg').hide();
         $('#amazonTableWrapper').show();
 
@@ -972,8 +1072,7 @@
                 language: {
                     emptyTable: "No matching records found"
                 },
-                columns: [
-                    {
+                columns: [{
                         data: 'title',
                         render: function(data, type, row) {
                             let title = row.title || '-';
@@ -1110,7 +1209,9 @@
     function showAmazonLoader() {
         $('#amazonLoader').removeClass('d-none');
         $('#amazonProgressPercent').text('0%');
-        $('#amazonProgressMessage').text('Preparing...');
+        $('#amazonProgressMessage').text(
+            'Calling Amazon... You can continue working while this is running.'
+        );
     }
 
     function hideAmazonLoader() {
@@ -1118,7 +1219,11 @@
     }
 
     function startProgress() {
-        if (progressTimer) clearInterval(progressTimer);
+        if (progressTimer) {
+            clearInterval(progressTimer);
+            progressTimer = null;
+        }
+
         progressTimer = setInterval(function() {
             $.ajax({
                 url: "{{ route('inventory.amazon.progress') }}",
@@ -1128,15 +1233,22 @@
                 },
                 success: function(res) {
                     const percent = res.percent ?? 0;
+
                     $("#amazonProgressPercent").text(percent + "%");
-                    $("#amazonProgressMessage").text(res.message ?? "Preparing...");
+                    $("#amazonProgressMessage").text(
+                        res.message ?? "Preparing..."
+                    );
 
                     if (percent >= 100) {
                         clearInterval(progressTimer);
+                        progressTimer = null;
+
                         hideAmazonLoader();
+
+                        // Final cached data load - only once
                         loadAmazon();
                     }
-                },
+                }
             });
         }, 1000);
     }
