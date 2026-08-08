@@ -61,6 +61,15 @@ class NotificationController extends Controller
         $shop = $request->shop ?? session('active_shop');
         $shopModel = \App\Models\Shop::where('shop', $shop)->first();
         $shopId = $shopModel?->id;
+
+        // Mark all unread notifications as read when viewing the page
+        UserNotification::where('shop_id', $shopId)
+            ->where('is_read', 0)
+            ->update([
+                'is_read' => 1,
+                'read_at' => now(),
+            ]);
+
         $latestNotifications = UserNotification::where('shop_id', $shopId)
             ->latest()
             ->paginate(10);
