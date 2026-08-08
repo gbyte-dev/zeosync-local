@@ -15,13 +15,11 @@
     }
 
     #customPlanDetailsModal .modal-header {
-        padding: 22px 28px;
         border-bottom: 1px solid #eef2f7;
         background: #fff;
     }
 
     #customPlanDetailsModal .modal-title {
-        font-size: 1.45rem;
         font-weight: 700;
         color: #1f2937;
     }
@@ -84,14 +82,12 @@
         width: 42%;
         font-weight: 600;
         color: #6b7280;
-        padding: 14px 8px;
         border-bottom: 1px solid #f1f5f9;
     }
 
     #customPlanDetailsModal table td {
         color: #111827;
         font-weight: 600;
-        padding: 14px 8px;
         border-bottom: 1px solid #f1f5f9;
     }
 
@@ -180,7 +176,6 @@
         #customPlanDetailsModal table td {
             display: block;
             width: 100%;
-            padding: 8px 0;
         }
 
         #customPlanDetailsModal table tr {
@@ -205,9 +200,9 @@
             <div class="modal-header">
 
                 <div>
-                    <h4 class="modal-title mb-1" id="customPlanDetailsModalLabel">
+                    <h5 class="modal-title mb-1" id="customPlanDetailsModalLabel">
                         {{ $customPlan->name }}
-                    </h4>
+                    </h5>
 
                     <small class="text-muted">
                         Complete Custom Enterprise Plan Details
