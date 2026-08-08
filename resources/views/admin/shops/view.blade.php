@@ -346,15 +346,15 @@
             <div class="info-value">#{{ $shop->id }}</div>
         </div>
     </div> -->
+    @if($customPlan)
+
     <h5 class="mt-3 fw-bold" style="padding-left: 8px; padding-right: 8px;">
         Custom Plan Overview
     </h5>
+
     <div class="card mt-4">
-
         <div class="card-body p-0">
-
             <table class="table table-hover mb-0">
-
                 <thead>
                     <tr>
                         <th>Plan Name</th>
@@ -367,50 +367,46 @@
                 </thead>
 
                 <tbody>
-
                     <tr>
-
                         <td>{{ $customPlan->name }}</td>
-
                         <td>Yearly</td>
-
                         <td>$999 / Year</td>
-
                         <td>
                             Products: Unlimited<br>
                             Sync: Unlimited
                         </td>
-
                         <td>
-                            <span class="badge bg-success">
-                                Assigned
-                            </span>
+                            <span class="badge bg-success">Assigned</span>
                         </td>
-
                         <td class="text-center">
-
                             <button
                                 type="button"
                                 class="btn btn-sm btn-outline-primary"
                                 data-bs-toggle="modal"
                                 data-bs-target="#customPlanDetailsModal">
-
                                 <i class="bi bi-eye me-1"></i>
                                 View Details
-
                             </button>
-
                         </td>
-
                     </tr>
-
                 </tbody>
-
             </table>
-
         </div>
-
     </div>
+
+    @else
+
+    <h5 class="mt-3 fw-bold" style="padding-left: 8px; padding-right: 8px;">
+        Custom Plan Overview
+    </h5>
+
+    <div class="card mt-4">
+        <div class="card-body text-center text-muted py-4">
+            No custom plan assigned to this shop.
+        </div>
+    </div>
+
+    @endif
 </div>
 <!-- Add Plan to Shop Modal -->
 <div class="modal fade" id="addPlanToShopModal" tabindex="-1" aria-labelledby="addPlanToShopModalLabel" aria-hidden="true">
@@ -450,5 +446,8 @@
     </div>
 </div>
 @include('admin.plans.custom-enterprise-modal')
+
+@if($customPlan)
 @include('admin.plans.custom-plan-details-modal')
+@endif
 @endsection
