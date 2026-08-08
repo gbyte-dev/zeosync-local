@@ -1119,10 +1119,26 @@ class ShopifyController extends Controller
             $cacheKey,
             now()->addMinutes(15),
             function () use ($shopModel) {
-                Log::info('CACHE MISS → DB ONLY');
-                return Product::where('shop_id', $shopModel->id)
+
+                Log::info('PRODUCT CACHE MISS → SYNCING FROM SHOPIFY', [
+                    'shop_id' => $shopModel->id,
+                    'shop' => $shopModel->shop,
+                ]);
+
+                // Fetch latest products from Shopify and update DB
+                $this->syncProductsToDB($shopModel);
+
+                // Load freshly synced products
+                $products = Product::where('shop_id', $shopModel->id)
                     ->latest()
                     ->get();
+
+                Log::info('PRODUCT CACHE REBUILT AFTER SHOPIFY SYNC', [
+                    'shop_id' => $shopModel->id,
+                    'products_count' => $products->count(),
+                ]);
+
+                return $products;
             }
         );
         //   PAGINATION
