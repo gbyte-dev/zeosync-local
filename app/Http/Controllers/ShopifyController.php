@@ -419,12 +419,14 @@ class ShopifyController extends Controller
             return response()->json(['error' => 'Shop parameter required'], 400);
         }
         $shopModel = Shop::where('shop', $shop)->first();
+        
         if (!$shopModel) {
             return response()->json(['shop_name' => null, 'email' => null], 200);
         }
         return response()->json([
             'shop_name' => $shopModel->shop_name,
             'email' => $shopModel->email,
+            'status' => $shopModel->access_token ? 1 : 0,
         ], 200);
     }
     public function plans(Request $request)
