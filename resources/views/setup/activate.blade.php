@@ -97,3 +97,21 @@
 
 @endsection
 
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('activateForm');
+        if (!form) return;
+
+        form.addEventListener('submit', function () {
+            setTimeout(function () {
+                try {
+                    window.close();
+                } catch (e) {
+                    // ignore
+                }
+            }, 300);
+        });
+    });
+</script>
+@endpush
