@@ -395,13 +395,13 @@
                     <i class="bi bi-plus-lg"></i> Add to Shopify
                 </a>
                 @if(!$productLimitReached)
-                <!-- <a href="{{ route('user.addProductCategory', ['shop' => request('shop')]) }}" class="sp-btn sp-btn-primary">
+                <a href="{{ route('user.addProductCategory', ['shop' => request('shop')]) }}" class="sp-btn sp-btn-primary">
                 <i class="bi bi-send"></i> Add To Amazon
-            </a> -->
+            </a>
                 @else
-                <!-- <a href="javascript:void(0)" onclick="showProductLimitAlert()" class="sp-btn sp-btn-primary">
+                <a href="javascript:void(0)" onclick="showProductLimitAlert()" class="sp-btn sp-btn-primary">
                 <i class="bi bi-send"></i> Add To Amazon
-            </a> -->
+            </a>
                 @endif
             </div>
         </div>

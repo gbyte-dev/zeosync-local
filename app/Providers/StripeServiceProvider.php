@@ -51,7 +51,7 @@ class StripeServiceProvider extends ServiceProvider
         try {
             $setting = AdminSetting::where('option_key', 'stripe_secret_key')->first();
             if ($setting && !empty($setting->option_value)) {
-                \Log::info('Stripe key loaded from AdminSettings');
+              
                 return $setting->option_value;
             }
         } catch (\Exception $e) {
@@ -61,7 +61,6 @@ class StripeServiceProvider extends ServiceProvider
         // Fallback to env variable
         $envKey = env('STRIPE_SECRET_KEY', '');
         if (!empty($envKey)) {
-            \Log::info('Stripe key loaded from environment');
             return $envKey;
         }
 
