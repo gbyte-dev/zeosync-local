@@ -234,7 +234,7 @@ class ShopifyController extends Controller
             'scope'        => $this->oauthScopes(),
             'redirect_uri' => $shopifyRedirectUri,
             'state'        => $state,
-        ]);
+        ]); 
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
         Log::info('STEP 4: REDIRECT URL', [
             'url' => $redirectUrl
