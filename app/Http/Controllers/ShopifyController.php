@@ -142,9 +142,6 @@ class ShopifyController extends Controller
 
             // Token revoked / invalid
             if (in_array($response->status(), [401, 402], true)) {
-                if ($this->refreshShopifyToken($shop)) {
-                    return true;
-                }
                 return false;
             }
 
@@ -237,7 +234,6 @@ class ShopifyController extends Controller
             'scope'        => $this->oauthScopes(),
             'redirect_uri' => $shopifyRedirectUri,
             'state'        => $state,
-            'access_mode'  => 'offline',
         ]);
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
         Log::info('STEP 4: REDIRECT URL', [
@@ -305,13 +301,7 @@ class ShopifyController extends Controller
         // =========================
         // STEP 4: TOKEN EXCHANGE
         // =========================
-        $sessionToken = $request->input('session_token', $request->input('sessionToken'));
-        $redirectUri = AdminSetting::get(
-            'SHOPIFY_REDIRECT_URI',
-            config('services.shopify.redirect_uri')
-        );
-
-        $tokenPayload = [
+        $response = Http::asJson()->post("https://{$shop}/admin/oauth/access_token", [
             'client_id' => AdminSetting::get(
                 'SHOPIFY_API_KEY',
                 config('services.shopify.api_key')
@@ -320,33 +310,8 @@ class ShopifyController extends Controller
                 'SHOPIFY_API_SECRET',
                 config('services.shopify.api_secret')
             ),
-        ];
-
-        if (!empty($sessionToken)) {
-            $tokenPayload = array_merge($tokenPayload, [
-                'grant_type' => 'urn:ietf:params:oauth:grant-type:token-exchange',
-                'subject_token' => $sessionToken,
-                'subject_token_type' => 'urn:ietf:params:oauth:token-type:id_token',
-                'requested_token_type' => 'urn:shopify:params:oauth:token-type:offline-access-token',
-                'expiring' => '1',
-            ]);
-        } else {
-            $tokenPayload = array_merge($tokenPayload, [
-                'grant_type' => 'authorization_code',
-                'code' => $code,
-                'redirect_uri' => $redirectUri,
-            ]);
-        }
-
-        Log::info('SHOPIFY TOKEN EXCHANGE PAYLOAD', [
-            'shop' => $shop,
-            'using_session_token' => !empty($sessionToken),
-            'payload' => $tokenPayload,
+            'code' => $code,
         ]);
-
-        $response = Http::asForm()
-            ->acceptJson()
-            ->post("https://{$shop}/admin/oauth/access_token", $tokenPayload);
         if (!$response->successful()) {
             Log::error('TOKEN FAILED', [
                 'status' => $response->status(),
@@ -360,30 +325,18 @@ class ShopifyController extends Controller
             return redirect('/')->with('error', 'Shopify connection failed.');
         }
         $accessToken = $data['access_token'];
-        Log::info('TOKEN RECEIVED', ['response' => $data]);
+        Log::info('TOKEN RECEIVED');
         // =========================
         // STEP 5: SAVE SHOP
         // =========================
-        $accessTokenExpiresAt = isset($data['expires_in']) ? now()->addSeconds(intval($data['expires_in'])) : null;
-        $shopData = [
-            'access_token' => $accessToken,
-            'access_token_expires_at' => $accessTokenExpiresAt,
-            'shopify_connection_status' => 'active',
-            'installed_at' => now(),
-            'hmac' => $request->hmac,
-            'is_active' => 1,
-        ];
-
-        if (!empty($data['refresh_token'] ?? null)) {
-            $shopData['refresh_token'] = $data['refresh_token'];
-        }
-        if (isset($data['refresh_token_expires_in']) && !empty($data['refresh_token_expires_in'])) {
-            $shopData['refresh_token_expires_at'] = now()->addSeconds(intval($data['refresh_token_expires_in']));
-        }
-
         $shopModel = \App\Models\Shop::updateOrCreate(
             ['shop' => $shop],
-            $shopData
+            [
+                'access_token' => $accessToken,
+                'installed_at' => now(),
+                'hmac' => $request->hmac,
+                'is_active' => 1
+            ]
         );
         // optional session
         session(['active_shop' => $shop]);
@@ -421,14 +374,12 @@ class ShopifyController extends Controller
             return response()->json(['error' => 'Shop parameter required'], 400);
         }
         $shopModel = Shop::where('shop', $shop)->first();
-        
         if (!$shopModel) {
             return response()->json(['shop_name' => null, 'email' => null], 200);
         }
         return response()->json([
             'shop_name' => $shopModel->shop_name,
             'email' => $shopModel->email,
-            'status' => $shopModel->access_token ? 1 : 0,
         ], 200);
     }
     public function plans(Request $request)
@@ -2306,7 +2257,7 @@ class ShopifyController extends Controller
         }
         return $path . '?shop=' . urlencode($shopDomain);
     }
-    protected function shopifyRest(Shop $shop, string $method, string $endpoint, array $payload = [], bool $hasRetried = false): array
+    protected function shopifyRest(Shop $shop, string $method, string $endpoint, array $payload = []): array
     {
         $method = strtolower($method);
         $url = sprintf(
@@ -2330,10 +2281,6 @@ class ShopifyController extends Controller
                 ])
                 ->send(strtoupper($method), $url, $options);
             if (!$response->successful()) {
-                if (!$hasRetried && in_array($response->status(), [401, 402], true) && $this->refreshShopifyToken($shop)) {
-                    return $this->shopifyRest($shop, $method, $endpoint, $payload, true);
-                }
-
                 $body = $response->body();
                 $json = $response->json();
                 Log::error('Shopify API Error', [
@@ -2362,76 +2309,6 @@ class ShopifyController extends Controller
             ];
         }
     }
-
-    private function refreshShopifyToken(Shop $shop): bool
-    {
-        if (empty($shop->refresh_token)) {
-            Log::warning('Cannot refresh Shopify token because refresh_token is missing.', [
-                'shop' => $shop->shop,
-            ]);
-            $shop->update(['shopify_connection_status' => 'refresh_missing']);
-            return false;
-        }
-
-        try {
-            Log::info('Refreshing Shopify access token using stored refresh token.', [
-                'shop' => $shop->shop,
-            ]);
-
-            $response = Http::asForm()
-                ->acceptJson()
-                ->post("https://{$shop->shop}/admin/oauth/access_token", [
-                    'client_id' => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
-                    'client_secret' => AdminSetting::get('SHOPIFY_API_SECRET', config('services.shopify.api_secret')),
-                    'grant_type' => 'refresh_token',
-                    'refresh_token' => $shop->refresh_token,
-                ]);
-
-            if (!$response->successful()) {
-                Log::error('Shopify refresh token request failed.', [
-                    'shop' => $shop->shop,
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
-                $shop->update(['shopify_connection_status' => 'refresh_failed']);
-                return false;
-            }
-
-            $data = $response->json();
-            if (!isset($data['access_token'])) {
-                Log::error('Shopify refresh response missing access_token.', [
-                    'shop' => $shop->shop,
-                    'response' => $data,
-                ]);
-                $shop->update(['shopify_connection_status' => 'refresh_failed']);
-                return false;
-            }
-
-            $shop->fill([
-                'access_token' => $data['access_token'],
-                'access_token_expires_at' => isset($data['expires_in']) ? now()->addSeconds(intval($data['expires_in'])) : $shop->access_token_expires_at,
-                'refresh_token' => $data['refresh_token'] ?? $shop->refresh_token,
-                'refresh_token_expires_at' => isset($data['refresh_token_expires_in']) ? now()->addSeconds(intval($data['refresh_token_expires_in'])) : $shop->refresh_token_expires_at,
-                'shopify_connection_status' => 'active',
-            ])->save();
-
-            Log::info('Shopify token refreshed successfully.', [
-                'shop' => $shop->shop,
-                'access_token_expires_at' => $shop->access_token_expires_at,
-                'refresh_token_expires_at' => $shop->refresh_token_expires_at,
-            ]);
-
-            return true;
-        } catch (\Exception $e) {
-            Log::error('Shopify refresh token exception.', [
-                'shop' => $shop->shop,
-                'error' => $e->getMessage(),
-            ]);
-            $shop->update(['shopify_connection_status' => 'refresh_failed']);
-            return false;
-        }
-    }
-
     private function formatDescription($text): string
     {
         if (empty($text)) {
