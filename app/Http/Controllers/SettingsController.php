@@ -162,7 +162,7 @@ class SettingsController extends ShopifyController
             \Log::error('SHOP NOT FOUND');
             return back()->with('error', 'Shop not found');
         }
-dd($shop);
+
         try {
             $updated = $shop->update([
                 'shop_name' => $request->shop_name,
