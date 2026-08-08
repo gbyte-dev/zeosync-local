@@ -349,10 +349,18 @@ class ShopifyController extends Controller
         // =========================
         // STEP 5: SAVE SHOP
         // =========================
+        $accessTokenExpiresAt = isset($data['expires_in']) ? now()->addSeconds(intval($data['expires_in'])) : null;
+        $refreshToken = $data['refresh_token'] ?? null;
+        $refreshTokenExpiresAt = isset($data['refresh_token_expires_in']) ? now()->addSeconds(intval($data['refresh_token_expires_in'])) : null;
+
         $shopModel = \App\Models\Shop::updateOrCreate(
             ['shop' => $shop],
             [
                 'access_token' => $accessToken,
+                'access_token_expires_at' => $accessTokenExpiresAt,
+                'refresh_token' => $refreshToken,
+                'refresh_token_expires_at' => $refreshTokenExpiresAt,
+                'shopify_connection_status' => 'active',
                 'installed_at' => now(),
                 'hmac' => $request->hmac,
                 'is_active' => 1
