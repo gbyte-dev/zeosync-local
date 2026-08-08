@@ -816,4 +816,9 @@
             });
         });
     </script>
+    <script>
+        if (window.opener) {
+            window.close();
+        }
+    </script>
     @endsection
