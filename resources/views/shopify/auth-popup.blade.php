@@ -66,6 +66,9 @@
                     } else {
                         window.location.href = dashboardUrl;
                     }
+                }elseif(data.status == 1){
+                  const redirectroute = '{{ route("setup.form", ["shop" => "SHOP_PLACEHOLDER"]) }}'.replace('SHOP_PLACEHOLDER', shop);
+                  window.location.href = redirectroute;
                 }
             })
             .catch(err => console.log('Status check failed:', err));
