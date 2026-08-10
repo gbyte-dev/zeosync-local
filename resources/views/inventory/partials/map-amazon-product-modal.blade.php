@@ -1,5 +1,5 @@
 <div class="modal fade" id="amazonProductActionModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-sm">
             <div class="modal-header border-bottom-0">
                 <div>
