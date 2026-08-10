@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class InventoryCacheService
 {
-    private const CACHE_TTL = 15;
+    private const CACHE_TTL = 25;
 
     private const INVENTORY_CACHE_PREFIX = 'amazon_inventory';
 
@@ -26,12 +26,14 @@ class InventoryCacheService
 
     /**
      * Get inventory from cache.
-     * If cache is expired, trigger background refresh.
+     * If cache is expired (>25 mins), trigger background refresh while returning cached data immediately.
      */
     public function getAmazonInventory(
         Shop $shop,
-        string $marketplaceId = 'ATVPDKIKX0DER'
+        ?string $marketplaceId = null
     ): array {
+        $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
+
 
         Log::info('getAmazonInventory START', [
             'shop_id' => $shop->id,
@@ -92,8 +94,11 @@ class InventoryCacheService
      */
     public function refreshAmazonInventory(
         Shop $shop,
-        string $marketplaceId = 'ATVPDKIKX0DER'
+        ?string $marketplaceId = null
+
     ): array {
+        $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
+
 
         $lock = Cache::lock(
             $this->getLockCacheKey($shop, $marketplaceId),
@@ -155,8 +160,10 @@ class InventoryCacheService
      */
     public function dispatchRefresh(
         Shop $shop,
-        string $marketplaceId = 'ATVPDKIKX0DER'
+        ?string $marketplaceId = null
+
     ): void {
+        $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
 
         Log::info('dispatchRefresh ENTERED', [
             'shop_id' => $shop->id,
@@ -186,8 +193,10 @@ class InventoryCacheService
      */
     public function isExpired(
         Shop $shop,
-        string $marketplaceId = 'ATVPDKIKX0DER'
+        ?string $marketplaceId = null
+
     ): bool {
+        $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
 
         $status = $this->getStatus($shop, $marketplaceId);
 
@@ -214,9 +223,11 @@ class InventoryCacheService
      */
     public function getStatus(
         Shop $shop,
-        string $marketplaceId = 'ATVPDKIKX0DER'
+        ?string $marketplaceId = null
+
     ): array {
 
+        $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
         return Cache::get(
             $this->getStatusCacheKey($shop, $marketplaceId),
             [

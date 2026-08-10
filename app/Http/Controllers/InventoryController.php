@@ -61,10 +61,12 @@ class InventoryController extends ShopifyController
         }
 
         $data = $shopifyInventoryService->getInventory($shopModel);
+        $marketplaceId = $shopModel->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
+        $amazonData = Cache::get("amazon_inventory_{$shopModel->id}_{$marketplaceId}", []);
         app(AutoSkuMappingService::class)->handle(
             $shopModel,
             $data,
-            Cache::get("amazon_inventory_{$shopModel->id}_ATVPDKIKX0DER", [])
+            $amazonData
         );
 
         return response()->json($data);
@@ -108,11 +110,13 @@ class InventoryController extends ShopifyController
         );
 
         $data = $response['products'];
+        $shopifyData = Cache::get("shopify_inventory_{$shop->shop}", []);
+
 
         app(AutoSkuMappingService::class)
             ->handle(
                 $shop,
-                Cache::get("shopify_inventory_{$shop->shop}", []),
+                $shopifyData,
                 $data
             );
 
@@ -130,7 +134,7 @@ class InventoryController extends ShopifyController
             ? Shop::findOrFail($activeShop)
             : Shop::where('shop', $activeShop)->firstOrFail();
 
-        $marketplaceId = 'ATVPDKIKX0DER';
+        $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
         \Log::info('Amazon Inventory Sync Started', [
             'shop_id' => $shop->id,
@@ -143,21 +147,15 @@ class InventoryController extends ShopifyController
 
             $result = $reportService->syncInventory(
                 shop: $shop,
-                region: $region,
                 marketplaceId: $marketplaceId
             );
 
             \Log::info('Amazon Inventory Sync Completed', [
                 'shop_id' => $shop->id,
                 'result_count' => is_array($result) ? count($result) : null,
-                'result' => $result,
             ]);
 
-            Cache::forget("amazon_inventory_{$shop->id}_{$marketplaceId}");
 
-            \Log::info('Amazon Inventory Cache Cleared', [
-                'cache_key' => "amazon_inventory_{$shop->id}_{$marketplaceId}",
-            ]);
 
             return response()->json([
                 'success' => true,
@@ -193,12 +191,10 @@ class InventoryController extends ShopifyController
 
         if ($type === 'shopify') {
 
-            Cache::forget("shopify_inventory_{$shop->shop}");
+            app(ShopifyInventoryService::class)->dispatchRefresh($shop);
         } elseif ($type === 'amazon') {
 
-            $marketplaceId = 'ATVPDKIKX0DER';
-
-            Cache::forget("amazon_inventory_{$shop->id}_{$marketplaceId}");
+            app(InventoryCacheService::class)->dispatchRefresh($shop);
         }
 
         return response()->json([

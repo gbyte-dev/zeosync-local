@@ -20,3 +20,13 @@ Schedule::command('shops:refresh-access-token')
     ->everyMinute()
     ->withoutOverlapping()
     ->runInBackground();
+
+Schedule::command('amazon:refresh-inventory-cache')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();
+
+Schedule::command('shopify:refresh-inventory-cache')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();
