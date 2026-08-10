@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class AutoSkuMappingService
 {
-    public function handle(Shop $shop): void
+    public function handle(Shop $shop, ?array $shopifyInventory = null, ?array $amazonInventory = null): void
     {
         $setting = Setting::where('shop_id', $shop->id)->first();
 
@@ -22,8 +22,8 @@ class AutoSkuMappingService
 
         Log::info('AUTO SKU MAPPING STARTED', ['shop' => $shop->shop]);
 
-        $shopifyInventory = $this->loadShopifyInventory($shop);
-        $amazonInventory = $this->loadAmazonInventory($shop);
+        $shopifyInventory = $shopifyInventory ?? $this->loadShopifyInventory($shop);
+        $amazonInventory = $amazonInventory ?? $this->loadAmazonInventory($shop);
 
         if (empty($shopifyInventory) || empty($amazonInventory)) {
             Log::info('AUTO SKU MAPPING SKIPPED - Missing inventory data in cache', ['shop' => $shop->shop]);
@@ -79,7 +79,7 @@ class AutoSkuMappingService
 
     private function loadAmazonInventory(Shop $shop): array
     {
-        $marketplaceId = 'ATVPDKIKX0DER';
+        $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
         return Cache::get("amazon_inventory_{$shop->id}_{$marketplaceId}", []);
     }

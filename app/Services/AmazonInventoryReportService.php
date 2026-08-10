@@ -187,8 +187,10 @@ class AmazonInventoryReportService
     /**
      * Step 5
      */
-    public function syncInventory($shop, string $marketplaceId)
+    public function syncInventory($shop, ?string $marketplaceId = null)
     {
+
+        $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
 
         $this->updateProgress($shop, 0, 'Preparing...');
         $this->updateProgress($shop, 10, 'Creating Report...');

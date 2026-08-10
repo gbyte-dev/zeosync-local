@@ -840,7 +840,9 @@
                 renderShopifyTable(items);
             })
             .catch(() => {
-                renderShopifyTable([]);
+                if ($('#shopifyTable tbody tr').length === 0) {
+                    renderShopifyTable([]);
+                }
             });
     }
 
@@ -901,8 +903,9 @@
             },
 
             error: function(xhr) {
-
-                renderAmazonTable([], false);
+                if ($('#amazonTable tbody tr').length === 0) {
+                    renderAmazonTable([], false);
+                }
 
                 hideAmazonLoader();
 
