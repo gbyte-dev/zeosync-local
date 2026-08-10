@@ -9,75 +9,146 @@ use Illuminate\Support\Facades\Cache;
 
 class ShopifyInventoryService
 {
+    private const CACHE_TTL = 25;
+
     public function getInventory(Shop $shop): array
     {
         $cacheKey = "shopify_inventory_{$shop->shop}";
 
-        return Cache::remember(
-            $cacheKey,
-            now()->addMinutes(10),
-            function () use ($shop) {
+        if (!Cache::has($cacheKey)) {
+            // First time sync for shop: refresh directly to populate initial cache
+            return $this->refreshShopifyInventory($shop);
+        }
 
-                $shopify = new ShopifyService(
-                    $shop->shop,
-                    $shop->access_token
-                );
+        $inventory = Cache::get($cacheKey, []);
 
-                // GraphQL Structure
-                $structure = [
-                    'id',
-                    'title',
-                    'featuredImage' => [
-                        'url'
-                    ],
-                    'variants(first: 50)' => [
-                        'nodes' => [
+        if ($this->isExpired($shop)) {
+            $this->dispatchRefresh($shop);
+        }
+
+        return $inventory;
+    }
+
+    public function refreshShopifyInventory(Shop $shop): array
+    {
+        $lock = Cache::lock("shopify_inventory_lock_{$shop->id}", 300);
+
+        if (!$lock->get()) {
+            return Cache::get("shopify_inventory_{$shop->shop}", []);
+        }
+
+        try {
+            $this->updateStatus($shop, ['refreshing' => true]);
+
+            $shopify = new ShopifyService(
+                $shop->shop,
+                $shop->access_token
+            );
+
+            // GraphQL Structure
+            $structure = [
+                'id',
+                'title',
+                'featuredImage' => [
+                    'url'
+                ],
+                'variants(first: 50)' => [
+                    'nodes' => [
+                        'id',
+                        'title',
+                        'sku',
+                        'image' => ['url'],
+                        'inventoryQuantity',
+                        'inventoryItem' => [
                             'id',
-                            'title',
-                            'sku',
-                            'image' => ['url'],
-                            'inventoryQuantity',
-                            'inventoryItem' => [
-                                'id',
-                                'inventoryLevels(first: 1)' => [
-                                    'nodes' => [
-                                        'quantities(names: ["available", "committed", "incoming", "on_hand"])' => [
-                                            'name',
-                                            'quantity'
-                                        ]
+                            'inventoryLevels(first: 1)' => [
+                                'nodes' => [
+                                    'quantities(names: ["available", "committed", "incoming", "on_hand"])' => [
+                                        'name',
+                                        'quantity'
                                     ]
                                 ]
                             ]
                         ]
                     ]
-                ];
+                ]
+            ];
 
-                // Fetch Shopify Products
-                $allProducts = [];
-                $cursor = null;
+            // Fetch Shopify Products
+            $allProducts = [];
+            $cursor = null;
 
-                do {
-                    $response = $shopify->paginate(
-                        $structure,
-                        50,
-                        $cursor
-                    );
-
-                    $allProducts = array_merge(
-                        $allProducts,
-                        $response['data']
-                    );
-
-                    $cursor = $response['next_cursor'];
-                } while ($response['has_next']);
-
-                // Convert Product → Variant Inventory
-                return $this->flattenVariants(
-                    $allProducts,
-                    $shop
+            do {
+                $response = $shopify->paginate(
+                    $structure,
+                    50,
+                    $cursor
                 );
-            }
-        );
+
+                $allProducts = array_merge(
+                    $allProducts,
+                    $response['data'] ?? []
+                );
+
+                $cursor = $response['next_cursor'] ?? null;
+            } while (!empty($response['has_next']));
+
+            // Convert Product → Variant Inventory
+            $result = $this->flattenVariants(
+                $allProducts,
+                $shop
+            );
+
+            Cache::forever("shopify_inventory_{$shop->shop}", $result);
+
+            $this->updateStatus($shop, [
+                'refreshing' => false,
+                'last_synced_at' => now()->toDateTimeString(),
+            ]);
+
+            return $result;
+        } catch (\Throwable $e) {
+            $this->updateStatus($shop, ['refreshing' => false]);
+            throw $e;
+        } finally {
+            $lock->release();
+        }
+    }
+
+    public function dispatchRefresh(Shop $shop): void
+    {
+        $status = $this->getStatus($shop);
+        if ($status['refreshing'] ?? false) {
+            return;
+        }
+
+        $this->updateStatus($shop, ['refreshing' => true]);
+        \App\Jobs\SyncShopifyInventoryJob::dispatch($shop->id);
+    }
+
+    public function isExpired(Shop $shop): bool
+    {
+        $status = $this->getStatus($shop);
+        if (empty($status['last_synced_at'])) {
+            return true;
+        }
+
+        $lastSynced = \Carbon\Carbon::parse($status['last_synced_at']);
+        return $lastSynced->diffInMinutes(now()) >= self::CACHE_TTL;
+    }
+
+    public function getStatus(Shop $shop): array
+    {
+        return Cache::get("shopify_inventory_status_{$shop->shop}", [
+            'refreshing' => false,
+            'last_synced_at' => null,
+        ]);
+    }
+
+    public function updateStatus(Shop $shop, array $data): void
+    {
+        $status = array_merge($this->getStatus($shop), $data);
+        Cache::forever("shopify_inventory_status_{$shop->shop}", $status);
     }
 
     private function flattenVariants(
