@@ -348,7 +348,7 @@
     </div> -->
     @if($customPlan)
 
-    <h5 class="mt-3 fw-bold" style="padding-left: 8px; padding-right: 8px;">
+    <h5 class="mt-3" style="padding-left: 8px; padding-right: 8px;">
         Custom Plan Overview
     </h5>
 
@@ -385,7 +385,7 @@
                                 data-bs-toggle="modal"
                                 data-bs-target="#customPlanDetailsModal">
                                 <i class="bi bi-eye me-1"></i>
-                                View Details
+                                 Details
                             </button>
 
                             <form
@@ -400,7 +400,7 @@
                                     type="submit"
                                     class="btn btn-sm btn-outline-danger">
                                     <i class="bi bi-trash me-1"></i>
-                                    Delete Plan
+                                    Delete
                                 </button>
                             </form>
                         </td>
@@ -412,7 +412,7 @@
 
     @else
 
-    <h5 class="mt-3 fw-bold" style="padding-left: 8px; padding-right: 8px;">
+    <h5 class="mt-3 " style="padding-left: 8px; padding-right: 8px;">
         Custom Plan Overview
     </h5>
 
