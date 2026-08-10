@@ -88,13 +88,6 @@
         color: #DC2626;
     }
 
-    /* Buttons */
-    .sp-actions {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-    }
-
     .sp-btn {
         display: inline-flex;
         align-items: center;
@@ -371,16 +364,16 @@ table.dataTable.dtr-inline.collapsed>tbody>tr>td.dtr-control:before, table.dataT
             <h1 class="sp-title">Amazon Products Under Progress</h1>
         </div>
         <div class="sp-actions col-md-5 col-sm-12">
-            <button id="refreshBtn" class="sp-btn sp-btn-secondary" data-url="{{ route('shopify.products', ['shop' => $activeShop]) }}">
+            <button id="refreshBtn" style="float: right;" class="sp-btn sp-btn-secondary" data-url="{{ route('shopify.products', ['shop' => $activeShop]) }}">
                 <i class="bi bi-arrow-clockwise"></i> Refresh
             </button>
 
             @if(!$productLimitReached)
-            <a href="{{ route('user.addProductCategory', ['shop' => session('active_shop')]) }}" class="sp-btn sp-btn-primary">
+            <a style="float: right;" href="{{ route('user.addProductCategory', ['shop' => session('active_shop')]) }}" class="sp-btn sp-btn-primary">
                 <i class="bi bi-send"></i> Add To Amazon
             </a>
             @else
-            <a href="javascript:void(0)" onclick="showProductLimitAlert()" class="sp-btn sp-btn-primary">
+            <a style="float: right;" href="javascript:void(0)" onclick="showProductLimitAlert()" class="sp-btn sp-btn-primary">
                 <i class="bi bi-send"></i> Add To Amazon
             </a>
             @endif

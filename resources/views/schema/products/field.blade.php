@@ -89,124 +89,121 @@ $showAiButton = $canUseAiSingleField && in_array($field['type'], ['text','textar
 $showImagePickerButton = $isImageField;
 @endphp
 
-<div class="field-card {{ $field['required'] ? 'required-missing' : '' }}" data-field-name="{{ $field['name'] }}">
-    <div class="card-body p-2 row">
+<div class="card-body p-2 row">
 
-        <div class="col-sm-2">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <div class="flex-grow-1">
-                    <div class="d-flex align-items-center flex-wrap gap-2">
+    <div class="col-sm-2">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center flex-wrap gap-2">
 
-                        <label class="form-label mb-0 small">
-                            {{ $field['title'] }}
-                            @if($field['required'])
-                            <span class="text-danger">*</span>
-                            @endif
-                        </label>
-
-                        {{-- Mobile AI / Image Picker Button --}}
-                        @if($showAiButton)
-
-                        <button type="button"
-                            class="btn btn-sm btn-outline-primary ai-field-btn d-inline-block d-md-none"
-                            data-field="{{ $field['name'] }}"
-                            data-title="{{ $field['title'] }}"
-                            data-description="{{ $field['description'] ?? '' }}"
-                            data-hint="{{ $fieldHint['example'] ?? '' }}">
-                            <img src="{{ asset('images/ai-icon.png') }}" width="18" height="18">
-                            Auto Fill
-                        </button>
-
-                        @elseif($showImagePickerButton)
-
-                        <button type="button"
-                            class="btn btn-sm btn-outline-success image-picker-btn d-inline-block d-md-none"
-                            data-field="{{ $field['name'] }}"
-                            data-picker-url="{{ route('shopify.image-picker-images') }}">
-                            <i class="bi bi-images"></i>
-                            Select Image
-                        </button>
-
+                    <label class="form-label mb-0 small">
+                        {{ $field['title'] }}
+                        @if($field['required'])
+                        <span class="text-danger">*</span>
                         @endif
+                    </label>
 
-                        {{-- Mobile Error Info --}}
-                        @if(!empty($php_errormsg))
-                        <span class="ms-2 d-inline-block d-md-none"
-                            style="cursor:pointer; font-size:18px;"
-                            data-bs-toggle="popover"
-                            data-bs-trigger="hover focus"
-                            data-bs-placement="top"
-                            data-bs-content="{{ $php_errormsg }}"
-                            data-bs-template='<div class="popover bg-dark border-secondary shadow" role="tooltip"><div class="popover-arrow"></div><div class="popover-body text-white"></div></div>'>
-                            <i class="bi bi-info-circle-fill text-danger"></i>
-                        </span>
-                        @endif
+                    {{-- Mobile AI / Image Picker Button --}}
+                    @if($showAiButton)
 
-                    </div>
+                    <button type="button"
+                        class="btn btn-sm btn-outline-primary ai-field-btn d-inline-block d-md-none"
+                        data-field="{{ $field['name'] }}"
+                        data-title="{{ $field['title'] }}"
+                        data-description="{{ $field['description'] ?? '' }}"
+                        data-hint="{{ $fieldHint['example'] ?? '' }}">
+                        <img src="{{ asset('images/ai-icon.png') }}" width="18" height="18">
+                        Auto Fill
+                    </button>
+
+                    @elseif($showImagePickerButton)
+
+                    <button type="button"
+                        class="btn btn-sm btn-outline-success image-picker-btn d-inline-block d-md-none"
+                        data-field="{{ $field['name'] }}"
+                        data-picker-url="{{ route('shopify.image-picker-images') }}">
+                        <i class="bi bi-images"></i>
+                        Select Image
+                    </button>
+
+                    @endif
+
+                    {{-- Mobile Error Info --}}
+                    @if(!empty($php_errormsg))
+                    <span class="ms-2 d-inline-block d-md-none"
+                        style="cursor:pointer; font-size:18px;"
+                        data-bs-toggle="popover"
+                        data-bs-trigger="hover focus"
+                        data-bs-placement="top"
+                        data-bs-content="{{ $php_errormsg }}"
+                        data-bs-template='<div class="popover bg-dark border-secondary shadow" role="tooltip"><div class="popover-arrow"></div><div class="popover-body text-white"></div></div>'>
+                        <i class="bi bi-info-circle-fill text-danger"></i>
+                    </span>
+                    @endif
+
                 </div>
             </div>
         </div>
+    </div>
 
-    @if($showAiButton || $showImagePickerButton)
+@if($showAiButton || $showImagePickerButton)
+    <div class="col-sm-8">
+        @else
         <div class="col-sm-8">
-            @else
-            <div class="col-sm-8">
-                @endif
+            @endif
 
-                @switch($field['type'])
-                @case('select')
-                @include('schema.products.fields.select')
-                @break
+            @switch($field['type'])
+            @case('select')
+            @include('schema.products.fields.select')
+            @break
 
-                @case('textarea')
-                @include('schema.products.fields.textarea')
-                @break
+            @case('textarea')
+            @include('schema.products.fields.textarea')
+            @break
 
-                @case('boolean')
-                @include('schema.products.fields.boolean')
-                @break
+            @case('boolean')
+            @include('schema.products.fields.boolean')
+            @break
 
-                @default
-                @include('schema.products.fields.text')
-                @endswitch
+            @default
+            @include('schema.products.fields.text')
+            @endswitch
 
-            </div>
+        </div>
 
-            <div class="col-sm-2 field-inline-actions">
+        <div class="col-sm-2 d-flex align-items-center" style="margin-top: -29px;">
 
-                @if($showAiButton)
-                <button type="button"
-                    class="btn btn-sm btn-outline-primary ai-field-btn d-none d-md-inline-block"
-                    data-field="{{ $field['name'] }}"
-                    data-title="{{ $field['title'] }}"
-                    data-description="{{ $field['description'] ?? '' }}"
-                    data-hint="{{ $fieldHint['example'] ?? '' }}">
-                    <img src="{{ asset('images/ai-icon.png') }}" width="18" height="18">
-                    Auto Fill
-                </button>
-                @elseif($showImagePickerButton)
-                <button type="button"
-                    class="btn btn-sm btn-outline-success image-picker-btn d-none d-md-inline-block"
-                    data-field="{{ $field['name'] }}"
-                    data-picker-url="{{ route('shopify.image-picker-images') }}">
-                    <i class="bi bi-images"></i>
-                    Select Image
-                </button>
-                @endif
+            @if($showAiButton)
+            <button type="button"
+                class="btn btn-sm btn-outline-primary ai-field-btn d-none d-md-inline-block"
+                data-field="{{ $field['name'] }}"
+                data-title="{{ $field['title'] }}"
+                data-description="{{ $field['description'] ?? '' }}"
+                data-hint="{{ $fieldHint['example'] ?? '' }}">
+                <img src="{{ asset('images/ai-icon.png') }}" width="18" height="18">
+                Auto Fill
+            </button>
+            @elseif($showImagePickerButton)
+            <button type="button"
+                class="btn btn-sm btn-outline-success image-picker-btn d-none d-md-inline-block"
+                data-field="{{ $field['name'] }}"
+                data-picker-url="{{ route('shopify.image-picker-images') }}">
+                <i class="bi bi-images"></i>
+                Select Image
+            </button>
+            @endif
 
-                @if(!empty($php_errormsg))
-                <span class="ms-2 d-none d-md-inline-block"
-                    style="cursor:pointer;font-size:18px;"
-                    data-bs-toggle="popover"
-                    data-bs-trigger="hover focus"
-                    data-bs-placement="left"
-                    data-bs-content="{{ $php_errormsg }}"
-                    data-bs-template='<div class="popover bg-dark border-secondary shadow" role="tooltip"><div class="popover-arrow"></div><div class="popover-body text-white"></div></div>'>
-                    <i class="bi bi-info-circle-fill text-danger"></i>
-                </span>
-                @endif
+            @if(!empty($php_errormsg))
+            <span class="ms-2 d-none d-md-inline-block"
+                style="cursor:pointer;font-size:18px;"
+                data-bs-toggle="popover"
+                data-bs-trigger="hover focus"
+                data-bs-placement="left"
+                data-bs-content="{{ $php_errormsg }}"
+                data-bs-template='<div class="popover bg-dark border-secondary shadow" role="tooltip"><div class="popover-arrow"></div><div class="popover-body text-white"></div></div>'>
+                <i class="bi bi-info-circle-fill text-danger"></i>
+            </span>
+            @endif
 
-            </div>
         </div>
     </div>
-</div>
