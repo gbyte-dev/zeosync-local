@@ -164,24 +164,11 @@ class PlanController extends Controller
 
     public function cancel(Request $request)
     {
-        Log::info('PLAN CANCEL REQUEST', [
-            'shop' => $request->input('shop'),
-        ]);
-
         $shop = Shop::where('shop', $request->input('shop'))->first();
 
         if (!$shop) {
-            Log::error('Shop not found', [
-                'shop' => $request->input('shop'),
-            ]);
-
             return back()->with('error', 'Shop not found.');
         }
-
-        Log::info('SHOP FOUND', [
-            'shop_id' => $shop->id,
-            'shop' => $shop->shop,
-        ]);
 
         $shopifySubscription = ShopifySubscription::where('shop_id', $shop->id)
             ->where('status', 'active')
