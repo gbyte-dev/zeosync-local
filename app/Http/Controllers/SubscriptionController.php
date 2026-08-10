@@ -45,14 +45,14 @@ class SubscriptionController extends ShopifyController
             ->where('is_active', true)
             ->first();
 
-        dd([
-            'request_shop' => $request->query('shop') ?? $request->input('shop'),
-            'active_shop_id' => $shopModel->id,
-            'active_shop_domain' => $shopModel->shop,
-            'custom_plan_id' => $customPlan?->id,
-            'custom_plan_shop_id' => $customPlan?->shop_id,
-            'custom_plan_name' => $customPlan?->name,
-        ]);
+        // dd([
+        //     'request_shop' => $request->query('shop') ?? $request->input('shop'),
+        //     'active_shop_id' => $shopModel->id,
+        //     'active_shop_domain' => $shopModel->shop,
+        //     'custom_plan_id' => $customPlan?->id,
+        //     'custom_plan_shop_id' => $customPlan?->shop_id,
+        //     'custom_plan_name' => $customPlan?->name,
+        // ]);
 
        
 
