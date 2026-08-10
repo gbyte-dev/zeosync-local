@@ -458,6 +458,7 @@ class TransformsAmazonAttributes
         }
 
         if ($name === 'deck') {
+            $value = strtolower(trim($value));
             if (!preg_match(
                 '/^\s*([\d]+(?:\.\d+)?)\s*L\s*(?:\*|x|×)\s*([\d]+(?:\.\d+)?)\s*W\s*(mm|millimeter|millimeters|cm|centimeter|centimeters|m|meter|meters|in|inch|inches|ft|foot|feet)\s*$/i',
                 trim($value),  $m )) {   return null; }
@@ -477,14 +478,14 @@ class TransformsAmazonAttributes
         }
 
         if ($name === 'wheel') {
-
-            if (!preg_match( '/^\s*([\d]+(?:\.\d+)?)\s*(mm|millimeter|millimeters|cm|centimeter|centimeters|m|meter|meters|in|inch|inches|ft|foot|feet)\s*$/i',
+            $value = strtolower(trim($value));
+            if (!preg_match( '/^\s*([\d]+(?:\.\d+)?)\s*(mm|millimeter|Millimetres|millimetres|millimeters|cm|centimeter|centimeters|m|meter|meters|in|inch|inches|ft|foot|feet)\s*$/i',
                 trim($value),   $m )) {    return null; }
             $unit = $unitMap[strtolower($m[2])] ?? strtolower($m[2]);
             return [[
                 'size' => [[
                     'value' => (float) $m[1],
-                    'unit'  => $unit,
+                    'unit'  => $unit??'millimeters',
                 ]]
             ]];
         }
