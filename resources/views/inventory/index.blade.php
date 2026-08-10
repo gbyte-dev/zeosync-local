@@ -1484,7 +1484,7 @@
 
     $(document).on('click', '#existingAmazonProductBtn', function() {
         const shop = new URLSearchParams(window.location.search).get('shop');
-        $.get('{{ route('inventory.amazon') }}', {
+        $.get('{{ route('shopify.inventory.amazon') }}', {
             shop: shop
         }, function(response) {
             let options = '<option value="">Select Amazon Product</option>';
