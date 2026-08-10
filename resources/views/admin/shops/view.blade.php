@@ -250,7 +250,7 @@
             <div class="pro-card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"> Subscription Details</h5>
                 <div class="d-flex align-items-center gap-2">
-                @if(!$customPlan)
+                    @if(!$customPlan)
                     <button
                         type="button"
                         class="btn btn-dark btn-sm"
@@ -258,7 +258,7 @@
                         data-bs-target="#customEnterpriseModal">
                         Add Custom Plan
                     </button>
-                @endif
+                    @endif
                     @if($shop->subscription && $shop->subscription->status !== 'cancelled')
                     <form
                         action="{{ route('admin.shops.cancel', $shop->id) }}"
@@ -359,11 +359,34 @@
                 <tbody>
                     <tr>
                         <td>{{ $customPlan->name }}</td>
-                        <td>Yearly</td>
-                        <td>$999 / Year</td>
+
                         <td>
-                            Products: Unlimited<br>
-                            Sync: Unlimited
+                            @if(isset($customPlan->prices['ANNUAL']))
+                            Yearly
+                            @elseif(isset($customPlan->prices['EVERY_30_DAYS']))
+                            Monthly
+                            @else
+                            N/A
+                            @endif
+                        </td>
+
+                        <td>
+                            @if(isset($customPlan->prices['ANNUAL']))
+                            ${{ number_format($customPlan->prices['ANNUAL'], 2) }}
+                            @elseif(isset($customPlan->prices['EVERY_30_DAYS']))
+                            ${{ number_format($customPlan->prices['EVERY_30_DAYS'], 2) }}
+                            @else
+                            N/A
+                            @endif
+                        </td>
+
+                        <td>
+                            Products:
+                            {{ $customPlan->product_limit == 0 ? 'Unlimited' : number_format($customPlan->product_limit) }}
+                            <br>
+
+                            Sync:
+                            {{ $customPlan->sync_limit == 0 ? 'Unlimited' : number_format($customPlan->sync_limit) }}
                         </td>
                         <td>
                             <span class="badge bg-success">Assigned</span>
@@ -375,7 +398,7 @@
                                 data-bs-toggle="modal"
                                 data-bs-target="#customPlanDetailsModal">
                                 <i class="bi bi-eye me-1"></i>
-                                 Details
+                                Details
                             </button>
 
                             <form
