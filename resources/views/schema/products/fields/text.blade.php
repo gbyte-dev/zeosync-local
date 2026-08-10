@@ -56,6 +56,10 @@ if($field['name'] == 'wheel'){
     $extramsg = 'Please use Wheel Size for this in format 60 Millimetres';
 }
 
+if($field['name'] == 'lens'){
+    $extramsg = 'Please use in format '{"lens_width":20,"lens_material":"polycarbonate","lens_color":"black"}'';
+}
+
 
 
 
