@@ -1484,21 +1484,37 @@
 
     $(document).on('click', '#existingAmazonProductBtn', function() {
         const shop = new URLSearchParams(window.location.search).get('shop');
-        $.get('/zeosync/inventory/amazon', {
+
+        $.get("{{ route('shopify.inventory.amazon') }}", {
             shop: shop
         }, function(response) {
+
+            let items = response.products ?? [];
+
             let options = '<option value="">Select Amazon Product</option>';
-            response.filter(item => !item.is_mapped).forEach(item => {
-                let title = item.title || '';
-                if (title.length > 40) title = title.substring(0, 40) + '...';
-                options += `<option value="${item.sku}">${title} (${item.sku})</option>`;
-            });
+
+            items
+                .filter(item => !item.is_mapped)
+                .forEach(item => {
+                    let title = item.title || '';
+
+                    if (title.length > 40) {
+                        title = title.substring(0, 40) + '...';
+                    }
+
+                    options += `<option value="${item.sku}">
+                    ${title} (${item.sku})
+                </option>`;
+                });
+
             $('#amazonProduct').html(options);
+
             $('#amazonProductActionModal').modal('hide');
             $('#mapAmazonProductModal').modal('show');
+        }).fail(function(xhr) {
+            console.error('Failed to load Amazon products:', xhr.responseText);
         });
     });
-
     // Boot execution
     // document.addEventListener('DOMContentLoaded', function() {
     //     loadShopify();
