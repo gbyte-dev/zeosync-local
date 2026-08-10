@@ -387,6 +387,22 @@
                                 <i class="bi bi-eye me-1"></i>
                                 View Details
                             </button>
+
+                            <form
+                                action="{{ route('admin.plans.delete', $customPlan->id) }}"
+                                method="POST"
+                                class="d-inline"
+                                onsubmit="return confirm('Are you sure you want to delete this custom plan?')">
+                                @csrf
+                                @method('DELETE')
+
+                                <button
+                                    type="submit"
+                                    class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash me-1"></i>
+                                    Delete Plan
+                                </button>
+                            </form>
                         </td>
                     </tr>
                 </tbody>

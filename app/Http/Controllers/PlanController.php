@@ -245,4 +245,45 @@ class PlanController extends Controller
             'Subscription cancellation initiated successfully.'
         );
     }
+
+    public function destroy(Plan $plan)
+    {
+        Log::info('PLAN DELETE REQUEST', [
+            'plan_id' => $plan->id,
+            'plan_name' => $plan->name,
+            'is_custom' => $plan->is_custom,
+            'shop_id' => $plan->shop_id,
+        ]);
+
+        $activeSubscriptionExists = ShopSubscription::where('plan_id', $plan->id)
+            ->where('status', 'active')
+            ->exists();
+
+        if ($activeSubscriptionExists) {
+            Log::warning('PLAN DELETE BLOCKED - ACTIVE SUBSCRIPTION EXISTS', [
+                'plan_id' => $plan->id,
+                'plan_name' => $plan->name,
+            ]);
+
+            return back()->with(
+                'error',
+                'This plan cannot be deleted because it is currently active for a customer.'
+            );
+        }
+
+        $planId = $plan->id;
+        $planName = $plan->name;
+
+        $plan->delete();
+
+        Log::info('PLAN DELETED SUCCESSFULLY', [
+            'plan_id' => $planId,
+            'plan_name' => $planName,
+        ]);
+
+        return back()->with(
+            'success',
+            'Plan deleted successfully.'
+        );
+    }
 }

@@ -69,7 +69,7 @@ Route::post('activate', [SettingsController::class, 'store'])->name('setup.store
 //inventory
 // Route::get('/inventory', [InventoryController::class, 'index'])->name('shopify.inventory.index');
 Route::get('inventory/shopify', [InventoryController::class, 'shopify'])->name('shopify.inventory.shopify');
-Route::get('/inventory/amazon', [InventoryController::class, 'amazon'])
+Route::get('inventory/amazon', [InventoryController::class, 'amazon'])
     ->name('shopify.inventory.amazon');
 Route::get('inventory/refresh', [InventoryController::class, 'refresh'])->name('shopify.inventory.refresh');
 Route::get('inventory/product/{id}', [InventoryController::class, 'productDetails'])->name('shopify.inventory.details');
@@ -203,6 +203,8 @@ Route::prefix('admin')->group(function () {
         Route::post('/admin/shops/{shop}/cancel', [AdminController::class, 'cancel'])
             ->name('admin.shops.cancel');
         Route::put('/plans/{plan}', [PlanController::class, 'update'])->name('admin.plans.update');
+        Route::delete('/plans/{plan}', [PlanController::class, 'destroy'])
+            ->name('admin.plans.delete');
         Route::get('/mailtemplates', [MailTemplateController::class, 'index'])->name('admin.mailtemplates');
         Route::get('/mailtemplates/create', [MailTemplateController::class, 'create'])->name('admin.mailtemplates.create');
         Route::post('/mailtemplates/create', [MailTemplateController::class, 'store'])->name('admin.mailtemplates.store');
