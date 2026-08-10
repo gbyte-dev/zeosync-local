@@ -1337,9 +1337,11 @@ class ShopifyController extends Controller
             return redirect($this->shopAwareUrl('/products', $request->query('shop') ?? $request->input('shop')))
                 ->with('error', 'No shop connected.');
         }
+$this->ensureFreshAccessToken($shopModel);
         try {
             $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
-            if (!empty($response['error'])) {
+       //  dd($response); 
+	   if (!empty($response['error'])) {
                 return redirect($this->shopAwareUrl('/products', $shopModel->shop))
                     ->with('error', 'Product not found.');
             }
@@ -1389,12 +1391,13 @@ class ShopifyController extends Controller
     {
         $shopModel = $this->getActiveShop($request);
         $activeShop = $shopModel?->shop;
+	$this->ensureFreshAccessToken($shopModel);
         if (!$shopModel) {
             return redirect('/products')->with('error', 'No shop connected.');
         }
         try {
             $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
-            if (!empty($response['error'])) {
+	if (!empty($response['error'])) {
                 return back()->with('error', 'Product not found');
             }
             $product = $response['product'] ?? null;
