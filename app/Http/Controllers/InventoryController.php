@@ -61,12 +61,10 @@ class InventoryController extends ShopifyController
         }
 
         $data = $shopifyInventoryService->getInventory($shopModel);
-        $marketplaceId = $shopModel->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
-        $amazonData = Cache::get("amazon_inventory_{$shopModel->id}_{$marketplaceId}", []);
         app(AutoSkuMappingService::class)->handle(
             $shopModel,
             $data,
-            $amazonData
+            Cache::get("amazon_inventory_{$shopModel->id}_ATVPDKIKX0DER", [])
         );
 
         return response()->json($data);
@@ -110,13 +108,11 @@ class InventoryController extends ShopifyController
         );
 
         $data = $response['products'];
-        $shopifyData = Cache::get("shopify_inventory_{$shop->shop}", []);
-
 
         app(AutoSkuMappingService::class)
             ->handle(
                 $shop,
-                $shopifyData,
+                Cache::get("shopify_inventory_{$shop->shop}", []),
                 $data
             );
 
@@ -134,9 +130,9 @@ class InventoryController extends ShopifyController
             ? Shop::findOrFail($activeShop)
             : Shop::where('shop', $activeShop)->firstOrFail();
 
-        $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
+        $marketplaceId = 'ATVPDKIKX0DER';
 
-        Log::info('Amazon Inventory Sync Started', [
+        \Log::info('Amazon Inventory Sync Started', [
             'shop_id' => $shop->id,
             'shop' => $shop->shop,
             'region' => $region,
@@ -147,15 +143,21 @@ class InventoryController extends ShopifyController
 
             $result = $reportService->syncInventory(
                 shop: $shop,
+                region: $region,
                 marketplaceId: $marketplaceId
             );
 
-            Log::info('Amazon Inventory Sync Completed', [
+            \Log::info('Amazon Inventory Sync Completed', [
                 'shop_id' => $shop->id,
                 'result_count' => is_array($result) ? count($result) : null,
+                'result' => $result,
             ]);
 
+            Cache::forget("amazon_inventory_{$shop->id}_{$marketplaceId}");
 
+            \Log::info('Amazon Inventory Cache Cleared', [
+                'cache_key' => "amazon_inventory_{$shop->id}_{$marketplaceId}",
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -164,7 +166,7 @@ class InventoryController extends ShopifyController
             ]);
         } catch (\Throwable $e) {
 
-            Log::error('Amazon Inventory Sync Failed', [
+            \Log::error('Amazon Inventory Sync Failed', [
                 'shop_id' => $shop->id,
                 'shop' => $shop->shop,
                 'region' => $region,
@@ -191,10 +193,12 @@ class InventoryController extends ShopifyController
 
         if ($type === 'shopify') {
 
-            app(ShopifyInventoryService::class)->dispatchRefresh($shop);
+            Cache::forget("shopify_inventory_{$shop->shop}");
         } elseif ($type === 'amazon') {
 
-            app(InventoryCacheService::class)->dispatchRefresh($shop);
+            $marketplaceId = 'ATVPDKIKX0DER';
+
+            Cache::forget("amazon_inventory_{$shop->id}_{$marketplaceId}");
         }
 
         return response()->json([
@@ -211,13 +215,8 @@ class InventoryController extends ShopifyController
             return redirect()->route('dashboard')->with('error', 'Shop not found.');
         }
 
-        $tokenResult = app(\App\Services\StoreStatusService::class)->ensureFreshAccessToken($shop);
-        if (!$tokenResult['success']) {
-            return back()->with('error', 'Shopify connection failed: ' . ($tokenResult['message'] ?? 'Expired token'));
-        }
-
         // Decode the product ID from Shopify format
-        $shopify = new ShopifyService($activeShop, $tokenResult['access_token']);
+        $shopify = new ShopifyService($activeShop, $shop->access_token);
         $product = $shopify->getProductById($productId);
         if (!$product) {
             return back()->with('error', 'Product not found');

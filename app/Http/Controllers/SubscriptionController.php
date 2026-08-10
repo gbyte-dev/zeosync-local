@@ -302,7 +302,7 @@ class SubscriptionController extends ShopifyController
                         'email' => $shopModel->email
                     ]);
             } else {
-                Log::warning('Payment cancel template not found', [
+                \Log::warning('Payment cancel template not found', [
                     'shop' => $shopModel->shop
                 ]);
             }
@@ -334,7 +334,7 @@ class SubscriptionController extends ShopifyController
                         'email' => $shopModel->email
                     ]);
             } else {
-                Log::warning('Payment success template not found', [
+                \Log::warning('Payment success template not found', [
                     'shop' => $shopModel->shop
                 ]);
             }

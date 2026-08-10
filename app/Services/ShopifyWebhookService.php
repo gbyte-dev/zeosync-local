@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Shop;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class ShopifyWebhookService
@@ -20,7 +19,7 @@ class ShopifyWebhookService
         $url = rtrim($this->publicAppUrl(), '/')
             . route('shopify.webhooks.app.uninstalled', [], false);
 
-        Log::info('FINAL UNINSTALL URL', [
+        \Log::info('FINAL UNINSTALL URL', [
             'public_app_url' => $this->publicAppUrl(),
             'route' => route('shopify.webhooks.app.uninstalled', [], false),
             'final_url' => $url,
@@ -31,7 +30,7 @@ class ShopifyWebhookService
 
     public function ensureOrdersCreateWebhook(Shop $shop): void
     {
-        Log::info('INSIDE ORDERS WEBHOOK FUNCTION');
+        \Log::info('INSIDE ORDERS WEBHOOK FUNCTION');
         $targetUrl = $this->buildOrdersCreateWebhookUrl();
         $existingWebhook = $this->findOrdersCreateWebhook($shop, $targetUrl);
 
@@ -73,10 +72,10 @@ GRAPHQL,
 
     public function ensureAppUninstalledWebhook(Shop $shop): void
     {
-        Log::info('INSIDE UNINSTALL WEBHOOK FUNCTION');
+        \Log::info('INSIDE UNINSTALL WEBHOOK FUNCTION');
         $targetUrl = $this->buildAppUninstalledWebhookUrl();
 
-        Log::info('UNINSTALL WEBHOOK URL', ['url' => $targetUrl]);
+        \Log::info('UNINSTALL WEBHOOK URL', ['url' => $targetUrl]);
 
         $response = $this->graphQl(
             $shop,
@@ -154,15 +153,10 @@ GRAPHQL
         if (!empty($variables)) {
             $payload['variables'] = (object) $variables;
         }
-        $tokenResult = app(StoreStatusService::class)->ensureFreshAccessToken($shop);
-        if (!$tokenResult['success']) {
-            throw new RuntimeException('Token refresh failed: ' . ($tokenResult['message'] ?? 'Unknown error'));
-        }
-        $accessToken = $tokenResult['access_token'];
 
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
-            'X-Shopify-Access-Token' => $accessToken,
+            'X-Shopify-Access-Token' => $shop->access_token,
         ])->post(
             sprintf(
                 'https://%s/admin/api/%s/graphql.json',
@@ -173,7 +167,7 @@ GRAPHQL
         );
 
         //  LOG RAW RESPONSE
-        Log::info('SHOPIFY GRAPHQL RAW RESPONSE', [
+        \Log::info('SHOPIFY GRAPHQL RAW RESPONSE', [
             'body' => $response->body()
         ]);
 
@@ -196,7 +190,7 @@ GRAPHQL
         $userErrors = data_get($payload, 'data.webhookSubscriptionCreate.userErrors', []);
 
         if (!empty($userErrors)) {
-            Log::error('SHOPIFY USER ERRORS', $userErrors);
+            \Log::error('SHOPIFY USER ERRORS', $userErrors);
 
             $message = collect($userErrors)
                 ->pluck('message')
