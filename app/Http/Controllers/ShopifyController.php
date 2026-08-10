@@ -1514,6 +1514,7 @@ class ShopifyController extends Controller
         ]);
 
         $shopModel = $this->getActiveShop($request);
+        $this->ensureFreshAccessToken($shopModel);
         if (!$shopModel) {
             return redirect()->back()->withInput()->with('error', 'No shop connected. Please install the app first.');
         }
