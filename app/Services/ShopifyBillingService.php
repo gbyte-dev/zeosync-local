@@ -344,15 +344,28 @@ class ShopifyBillingService
         if (!empty($variables)) {
             $payload['variables'] = (object) $variables;
         }
-        \Log::info('Shopify Token Debug', [
+        $tokenResult = app(StoreStatusService::class)->ensureFreshAccessToken($shop);
+        if (!$tokenResult['success']) {
+            Log::error('SHOPIFY BILLING TOKEN REFRESH FAILED', [
+                'shop' => $shop->shop,
+                'message' => $tokenResult['message'] ?? null,
+            ]);
+            return [
+                'errors' => [
+                    'message' => $tokenResult['message'] ?? 'Shopify billing access token refresh failed.',
+                ],
+            ];
+        }
+        $accessToken = $tokenResult['access_token'];
+        Log::info('Shopify Token Debug', [
             'shop' => $shop->shop,
-            'token' => $shop->access_token,
-            'is_null' => is_null($shop->access_token),
-            'is_empty' => empty($shop->access_token),
+            'token' => $accessToken,
+            'is_null' => is_null($accessToken),
+            'is_empty' => empty($accessToken),
         ]);
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
-            'X-Shopify-Access-Token' => $shop->access_token,
+            'X-Shopify-Access-Token' => $accessToken,
         ])->post(
             sprintf(
                 'https://%s/admin/api/%s/graphql.json',
@@ -376,12 +389,12 @@ class ShopifyBillingService
                 'headers' => $response->headers(),
                 'body' => $response->body(),
             ]);
-            return [    
+            return [
                 'errors' => [
                     'message' => 'Shopify billing request failed with HTTP ' . $response->status() . '.',
                 ],
             ];
-          //  throw new RuntimeException('Shopify billing request failed with HTTP ' . $response->status() . '.');
+            //  throw new RuntimeException('Shopify billing request failed with HTTP ' . $response->status() . '.');
         }
         $payload = $response->json();
         if (!empty($payload['errors'])) {
@@ -393,7 +406,7 @@ class ShopifyBillingService
                     return (string) $error;
                 })
                 ->implode(' ');
-            return [    
+            return [
                 'errors' => [
                     'message' => $message !== '' ? $message : 'Shopify billing request failed.',
                 ],

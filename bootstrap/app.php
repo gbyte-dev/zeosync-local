@@ -17,16 +17,6 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->group(base_path('routes/ai.php'));
         },
     )
-    ->withSchedule(function (Schedule $schedule): void {
-
-        $schedule->command('stores:check-status')
-            ->everyMinute();
-
-        $schedule->command('amazon:refresh-inventory-cache')
-            ->everyFiveMinutes()
-            ->withoutOverlapping()
-            ->runInBackground();
-    })
     ->withMiddleware(function (Middleware $middleware): void {
 
         $middleware->redirectGuestsTo(function (Request $request) {

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Services\ShopifyService;
 use App\Models\Shop;
 use App\Models\ProductMarketplaceMapping;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 
 class ShopifyInventoryService
@@ -39,10 +40,20 @@ class ShopifyInventoryService
 
         try {
             $this->updateStatus($shop, ['refreshing' => true]);
+            $tokenResult = app(StoreStatusService::class)->ensureFreshAccessToken($shop);
+            if (!$tokenResult['success']) {
+                Log::error('Shopify inventory refresh failed: Invalid/Expired Token', [
+                    'shop' => $shop->shop,
+                    'message' => $tokenResult['message'],
+                ]);
+                $this->updateStatus($shop, ['refreshing' => false]);
+                return [];
+            }
+
 
             $shopify = new ShopifyService(
                 $shop->shop,
-                $shop->access_token
+                $tokenResult['access_token']
             );
 
             // GraphQL Structure
