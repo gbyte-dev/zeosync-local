@@ -117,43 +117,6 @@
         cursor: pointer;
     }
 
-    .btn {
-        height: 38px; /* Matched with input height */
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 0.875rem;
-        padding: 0 16px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s ease;
-    }
-
-    .btn-light {
-        background-color: #f1f5f9;
-        border: 1px solid #e2e8f0;
-        color: #475569;
-    }
-
-    .btn-light:hover {
-        background-color: #e2e8f0;
-        color: #1e293b;
-    }
-
-    .btn-primary {
-        background-color: #0d6efd;
-        border-color: #0d6efd;
-    }
-
-    .btn-primary:hover {
-        background-color: #0b5ed7;
-        border-color: #0a58ca;
-    }
-
-    .btn-danger {
-        padding: 0 12px;
-    }
-
     .saas-card {
         background: #ffffff;
         border-radius: 12px;
