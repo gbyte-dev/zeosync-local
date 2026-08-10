@@ -1283,6 +1283,8 @@ $subscriptionStatus = 'Trialing';
         }, 3000);
     });
 
+    // this is for test
+
     document.addEventListener('DOMContentLoaded', function() {
 
         document.querySelectorAll('[data-bs-target="#enterpriseModal"]')
