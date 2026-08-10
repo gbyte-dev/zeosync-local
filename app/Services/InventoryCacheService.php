@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class InventoryCacheService
 {
-    private const CACHE_TTL = 25;
+    private const CACHE_TTL = 15;
 
     private const INVENTORY_CACHE_PREFIX = 'amazon_inventory';
 
