@@ -26,8 +26,6 @@ use Illuminate\Support\Facades\Storage;
 use App\Services\AI\AIAutoFillService;
 use App\Services\AIFeatureService;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\LOG;
-use Illuminate\Support\Facades\DB;
 
 class ProductSchemaController extends Controller
 {
