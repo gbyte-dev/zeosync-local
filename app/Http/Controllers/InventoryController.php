@@ -75,7 +75,6 @@ class InventoryController extends ShopifyController
      */
     public function amazon(Request $request)
     {
-        Log::info('AMAZON INVENTORY API HIT');
         $shop = $request->attributes->get('active_shop_model');
 
         if (!$shop) {
@@ -131,13 +130,6 @@ class InventoryController extends ShopifyController
             : Shop::where('shop', $activeShop)->firstOrFail();
 
         $marketplaceId = 'ATVPDKIKX0DER';
-
-        \Log::info('Amazon Inventory Sync Started', [
-            'shop_id' => $shop->id,
-            'shop' => $shop->shop,
-            'region' => $region,
-            'marketplace_id' => $marketplaceId,
-        ]);
 
         try {
 

@@ -250,7 +250,7 @@
             <div class="pro-card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"> Subscription Details</h5>
                 <div class="d-flex align-items-center gap-2">
-                @if($customPlan->count() > 0)
+                @if(isset($customPlan) && $customPlan->count() > 0)
                     <button
                         type="button"
                         class="btn btn-dark btn-sm"
