@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Services\AI\AIAutoFillService;
 use App\Services\AIFeatureService;
+use Illuminate\Support\Facades\Http;
 
 class ProductSchemaController extends Controller
 {
@@ -398,6 +399,8 @@ class ProductSchemaController extends Controller
             return back()->with('error', 'Active shop not found.');
         }
         $shop_id = $activeShop->id;
+        $shopModel = Shop::where('id', $shop_id)->first();
+        $this->ensureFreshAccessToken($shopModel);
         // Check product limit only for new product creation
         if (!isset($product_id)) {
             $limitStatus = $productLimitService->canCreateProduct($shop_id);
@@ -647,557 +650,7 @@ class ProductSchemaController extends Controller
         $payload3 = $testcontroller->createOnlyputListing($payload2, $newsku);
         return ['payload' => $attributes, 'payload2' => $payload2, 'payload3' => $payload3, 'sku' => $newsku ?? ''];
     }
-    /* private function transformAttribute(string $name, mixed $value): ?array
-    {
-        $weightUnitMap = [
-            'grams'=>'grams','gram'=>'grams','g'=>'grams','gr'=>'grams','gm'=>'grams','gms'=>'grams',
-            'kilograms'=>'kilograms','kilogram'=>'kilograms','kilo'=>'kilograms','kilos'=>'kilograms','kg'=>'kilograms','kgs'=>'kilograms',
-            'pounds'=>'pounds','pound'=>'pounds','lb'=>'pounds','lbs'=>'pounds','lb.'=>'pounds','lbs.'=>'pounds',
-            'ounces'=>'ounces','ounce'=>'ounces','oz'=>'ounces','oz.'=>'ounces','ozs'=>'ounces',
-            'milligrams'=>'milligrams','milligram'=>'milligrams','mg'=>'milligrams','mgs'=>'milligrams',
-            'micrograms'=>'micrograms','microgram'=>'micrograms','mcg'=>'micrograms','ug'=>'micrograms',
-            'metric tons'=>'metric_tons','metric ton'=>'metric_tons','tonnes'=>'metric_tons','tonne'=>'metric_tons','t'=>'metric_tons',
-        ];
-        $unitMap = [
-            'centimeters'=>'centimeters','centimeter'=>'centimeters','centimetre'=>'centimeters','centimetres'=>'centimeters','cm'=>'centimeters','cms'=>'centimeters','cm.'=>'centimeters',
-            'inches'=>'inches','inch'=>'inches','in'=>'inches','in.'=>'inches','"'=>'inches',
-            'feet'=>'feet','foot'=>'feet','ft'=>'feet','ft.'=>'feet',"'"=>'feet',
-            'meters'=>'meters','meter'=>'meters','metres'=>'meters','metre'=>'meters','m'=>'meters','m.'=>'meters',
-            'millimeters'=>'millimeters','millimeter'=>'millimeters','millimetres'=>'millimeters','millimetre'=>'millimeters','mm'=>'millimeters','mm.'=>'millimeters',
-            'yards'=>'yards','yard'=>'yards','yd'=>'yards','yds'=>'yards',
-        ];
-        $shop = Shop::where('shop', session('active_shop'))->first();
-        $marketplaceId = $shop?->amazon_marketplace_id;
-        // ── Boolean fields — must be actual booleans, not strings ─────────────
-        $booleanFields = [
-            'supplier_declared_has_product_identifier_exemption',
-            'batteries_required',
-            'batteries_included',
-            'is_refurbished',
-            'has_replaceable_battery',
-            'is_battery_non_spillable',
-            'battery_contains_free_unabsorbed_liquid',
-            'has_multiple_battery_powered_components',
-            'ships_globally',
-            'gpsr_safety_attestation',
-            'is_oem_sourced_product',
-            'is_this_product_subject_to_buyer_age_restrictions',
-            'is_green_purchasing_law_compliant',
-            'has_less_than_30_percent_state_of_charge',
-        ];
-        if (in_array($name, $booleanFields)) {
-            return [['value' => filter_var($value, FILTER_VALIDATE_BOOLEAN)]];
-        }
-        // ── Image locators — skip if null ─────────────────────────────────────
-        if (str_contains($name, 'image_locator')) {
-            return [['media_location' => $value]];
-        }
-        // ── item_package_dimensions ───────────────────────────────────────────
-        // Stored as "39L x 17.5W x 3H Centimeters"
-        if ($name === 'item_package_dimensions' ) {
-            if (preg_match('/^([\d.]+)L\s*x\s*([\d.]+)W\s*x\s*([\d.]+)H\s*(\w+)/i', $value, $m)) {
-                // Normalize unit to what Amazon accepts
-                $rawUnit = strtolower(trim($m[4]));
-                $unit    = $unitMap[$rawUnit] ?? $rawUnit;
-                return [[
-                    'length' => ['value' => (float)$m[1], 'unit' => $unit],
-                    'width'  => ['value' => (float)$m[2], 'unit' => $unit],
-                    'height' => ['value' => (float)$m[3], 'unit' => $unit],
-                ]];
-            }
-            return null;
-        }
-                // 40 x 20 x 30 inches
-        if ($name === 'item_depth_width_height') {
-            if (!preg_match('/([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)\s*([a-zA-Z"\']*)/i', $value, $m)) {
-                return null;
-            }
-            $rawUnit = strtolower(trim($m[4] ?: 'inches'));
-            // Convert to inches since schema only accepts "inches"
-            $toInches = [
-                'inches' => 1, 'inch' => 1, 'in' => 1,
-                'centimeters' => 0.393701, 'centimeter' => 0.393701, 'cm' => 0.393701,
-                'millimeters' => 0.0393701, 'mm' => 0.0393701,
-                'feet' => 12, 'ft' => 12,
-                'meters' => 39.3701, 'm' => 39.3701,
-            ];
-            if (!isset($toInches[$rawUnit])) {
-                return null; // Unknown unit, skip
-            }
-            $factor = $toInches[$rawUnit];
-            $depth  = round((float) $m[1] * $factor, 2);
-            $width  = round((float) $m[2] * $factor, 2);
-            $height = round((float) $m[3] * $factor, 2);
-            return [[
-                'depth'  => ['value' => $depth,  'unit' => 'inches'],
-                'width'  => ['value' => $width,  'unit' => 'inches'],
-                'height' => ['value' => $height, 'unit' => 'inches'],
-                'marketplace_id' => 'ATVPDKIKX0DER'
-            ]];
-        }
-        // ── item_length_width_height (product dimensions, same pattern) ───────
-        if ($name === 'item_length_width_height') {
-            if (preg_match('/^([\d.]+)L\s*x\s*([\d.]+)W\s*x\s*([\d.]+)H\s*(\w+)/i', $value, $m)) {
-                $unit = strtolower($m[4]);
-                return [[
-                    'length' => ['value' => (float)$m[1], 'unit' => $unit],
-                    'width'  => ['value' => (float)$m[2], 'unit' => $unit],
-                    'height' => ['value' => (float)$m[3], 'unit' => $unit],
-                ]];
-            }
-            return null;
-        }
-        if (preg_match('/\b(dimension|item_dimensions|dimensions|height|breadth|width|length|l|w|h)\b/i', $name)) {
-                $length = $width = $height = null;
-                $unit = null;
-                // Match Length
-                if (preg_match('/(?:length|l)\s*[:=]?\s*([\d.]+)/i', $value, $m)) {
-                    $length = (float) $m[1];
-                }
-                // Match Width/Breadth
-                if (preg_match('/(?:width|breadth|w|b)\s*[:=]?\s*([\d.]+)/i', $value, $m)) {
-                    $width = (float) $m[1];
-                }
-                // Match Height
-                if (preg_match('/(?:height|h)\s*[:=]?\s*([\d.]+)/i', $value, $m)) {
-                    $height = (float) $m[1];
-                }
-                // Match unit
-                if (preg_match('/\b(cm|centimeter|centimeters|mm|millimeter|millimeters|m|meter|meters|in|inch|inches|ft|foot|feet)\b/i', $value, $m)) {
-                    $rawUnit = strtolower($m[1]);
-                    $unit = $unitMap[$rawUnit] ?? $rawUnit;
-                }
-                // Also support format: 10L x 20W x 30H cm
-                if ($length === null || $width === null || $height === null) {
-                    if (preg_match('/([\d.]+)\s*L\s*x\s*([\d.]+)\s*W\s*x\s*([\d.]+)\s*H\s*(\w+)?/i', $value, $m)) {
-                        $length = (float)$m[1];
-                        $width  = (float)$m[2];
-                        $height = (float)$m[3];
-                        if (!empty($m[4])) {
-                            $rawUnit = strtolower($m[4]);
-                            $unit = $unitMap[$rawUnit] ?? $rawUnit;
-                        }
-                    }
-                }
-                if ($length !== null && $width !== null && $height !== null) {
-                    return [[
-                        'length' => [
-                            'value' => $length,
-                            'unit'  => $unit ?? 'centimeters'
-                        ],
-                        'width' => [
-                            'value' => $width,
-                            'unit'  => $unit ?? 'centimeters'
-                        ],
-                        'height' => [
-                            'value' => $height,
-                            'unit'  => $unit ?? 'centimeters'
-                        ],
-                    ]];
-                }
-                return null;
-        }
-        if ($name === 'package_contains_sku') {
-            $shop = Shop::where('shop', session('active_shop'))->first();
-            return [[
-                'child_id'       => $value,
-                'quantity'       => 1,
-                'marketplace_id' => $shop?->amazon_marketplace_id,
-            ]];
-        }
-        // For item_package_weight / item_weight stored as "813 Grams"
-        if (in_array($name, ['item_package_weight', 'item_weight', 'item_display_weight','maximum_weight_recommendation'])) {
-            if (preg_match('/^([\d.]+)\s*(\w+)$/i', $value, $m)) {
-                $rawUnit = strtolower(trim($m[2]));
-                $unit    = $weightUnitMap[$rawUnit] ?? $rawUnit;
-                return [[
-                    'value' => (float)$m[1],
-                    'unit'  => $unit,
-                ]];
-            }
-            return null;
-        }
-        // ── list_price ────────────────────────────────────────────────────────
-        if ($name === 'list_price') {
-            return [[
-                'value'    => (float)$value,
-                'currency' => 'USD',
-            ]];
-        }
-        // ── purchasable_offer ─────────────────────────────────────────────────
-        if ($name === 'purchasable_offer') {
-            return [[
-                'our_price' => [[
-                    'schedule' => [[
-                        'value_with_tax' => (float)$value,
-                    ]],
-                ]],
-                'currency' => 'USD',
-            ]];
-        }
-        if ($name === 'fulfillment_availability') {
-            $decoded = json_decode($value, true);
-            if ($decoded && is_array($decoded)) {
-                return [$decoded];
-            }
-            // Map to correct channel code
-            $channelMap = [
-                'amazon'    => 'AMAZON_NA',
-                'amazon_na' => 'AMAZON_NA',
-                'fba'       => 'AMAZON_NA',
-                'default'   => 'DEFAULT',
-                'defualt'   => 'DEFAULT',   // typo in source data
-                'mfn'       => 'DEFAULT',
-                'merchant'  => 'DEFAULT',
-            ];
-            $channel = $channelMap[strtolower(trim($value))] ?? 'DEFAULT';
-            // Amazon's exact schema for fulfillment_availability:
-            return [[
-                'fulfillment_channel_code' => $channel,
-                'quantity'                 => 0,
-                'lead_time_to_ship_max_days' => 30,  // required by some product types
-            ]];
-        }
-        if ($name == 'frame_material') {
-                return null;
-        }
-        if ($name == 'frame' ) {
-            $frameColorEnum = [
-                'beige','black','blue','brown','gold','green','grey',
-                'multicolor','orange','pink','purple','red','silver','white','yellow'
-            ];
-            $rawColor = trim((string) $value);
-            $matchedColor = null;
-            foreach ($frameColorEnum as $enumColor) {
-                if (strcasecmp($rawColor, $enumColor) === 0) {
-                    $matchedColor = ucfirst($enumColor);
-                    break;
-                }
-            }
-            if ($matchedColor === null) {
-                $matchedColor = 'Multicolor';
-            }
-            // Pull the material value from the same source used by frame_material
-            $rawMaterial = 'Wood'; 
-            $material = $rawMaterial !== '' ? substr($rawMaterial, 0, 50) : 'Wood'; // fallback if source has no material
-            return [[
-                'color' => [[
-                    'value' => $matchedColor,
-                    'language_tag' => 'en_US'
-                ]],
-                'material' => [[
-                    'value' => $material,
-                    'language_tag' => 'en_US'
-                ]],
-                'marketplace_id' => $this->shop->amazon_marketplace_id
-            ]];
-        }
-        if ($name == 'seat_depth' || $name == 'seat_width' || $name == 'seat_height'||$name == 'seat') {            
-            preg_match('/([\d.]+)\s*([a-zA-Z"\']*)/', trim($value), $m);
-            $depthValue = isset($m[1]) ? (float) $m[1] : (float) $value;
-            $rawUnit    = isset($m[2]) && $m[2] !== '' ? $m[2] : 'inches'; 
-            $unit = resolveUnit($rawUnit, $unitMap);
-            if ($unit == null) {   return null;   }
-            return [[
-                'depth' => [[
-                    'value' => $depthValue,
-                    'unit'  => $unit
-                ]],
-                'marketplace_id' => 'ATVPDKIKX0DER'
-            ]];
-        }
-        $flatDimensionAttributes = [
-            'item_length',
-            'item_width',
-            'item_height',
-            'adjustable_seat_depth_maximum',
-            'adjustable_seat_depth_minimum',
-            'adjustable_seat_width_maximum',
-            'adjustable_seat_width_minimum',
-            'adjustable_seat_height_maximum',
-            'adjustable_seat_height_minimum',
-        ];
-        if (in_array($name, $flatDimensionAttributes, true)) {
-            preg_match('/([\d.]+)\s*([a-zA-Z"\']*)/', trim($value), $m);
-            $numericValue = isset($m[1]) ? (float) $m[1] : (float) $value;
-            $rawUnit      = isset($m[2]) && $m[2] !== '' ? $m[2] : 'inches'; // default if no unit given
-            $unit = resolveUnit($rawUnit, $unitMap);
-            if ($unit === null) {
-                return null; 
-            }
-            return [[
-                'value' => $numericValue,
-                'unit'  => $unit,
-                'marketplace_id' => $this->shop->amazon_marketplace_id,
-            ]];
-        }
-        // Must have both type + value; skip if missing
-        if ($name === 'externally_assigned_product_identifier') {
-            $decoded = json_decode($value, true);
-            if ($decoded && isset($decoded['type'], $decoded['value'])) {
-                return [[
-                    'type'  => $decoded['type'],   // "ean", "upc", "isbn"
-                    'value' => $decoded['value'],
-                ]];
-            } else {
-                return [[
-                    'type'  => 'upc',   // "ean", "upc", "isbn"
-                    'value' => '09785512' . random_int(1000, 9999),
-                ]];
-            }
-        }
-        // ── parentage_level — needs 'value' but Amazon is strict ─────────────
-        // Only send "parent" or "child" — skip if neither
-        if ($name === 'parentage_level') {
-            if (in_array($value, ['parent', 'child'])) {
-                return [['value' => $value]];
-            }
-            return null;
-        }
-        if ($name === 'language') {
-            $code = 'en_US';
-            return [['type' => $code, 'value' => $code]];
-        }
-        // ── num_batteries — needs 'quantity' + 'type' ─────────────────────────
-        if ($name === 'num_batteries') {
-            $decoded = json_decode($value, true);
-            if ($decoded) return [[$decoded]];
-            return null;
-        }
-        if ($name === 'country_of_origin') {
-            $countryMap = [
-                'CN'     => 'China',
-                'cn'     => 'China',
-                'US'     => 'United States of America',
-                'IN'     => 'India',
-                'DE'     => 'Germany',
-                'JP'     => 'Japan',
-                'KR'     => 'Republic of Korea',
-                'TW'     => 'Taiwan',
-                'VN'     => 'Vietnam',
-                'TH'     => 'Thailand',
-                'MX'     => 'Mexico',
-                'GB'     => 'United Kingdom of Great Britain and Northern Ireland',
-                // Full names
-                'china'  => 'China',
-                'india'  => 'India',
-                'taiwan' => 'Taiwan',
-                'japan'  => 'Japan',
-                'usa'    => 'United States of America',
-                'united states' => 'United States of America',
-            ];
-            $lookup = 'US';
-            // If nothing matched, pass the value as-is (let Amazon reject with detail)
-            return [['value' => $lookup ?? $value]];
-        }
-        // ── water_resistance_level — valid values ─────────────────────────────
-        // "waterproof" is rejected — must use Amazon enum
-        if ($name === 'water_resistance_level') {
-            $validValues = [
-                'water_resistant',
-                'waterproof',
-                'ipx4',
-                'ipx5',
-                'ipx6',
-                'ipx7',
-                'ipx8',
-                'ip67',
-                'ip68',
-                'not_water_resistant',
-            ];
-            // Map common values to Amazon-accepted equivalents
-            $map = ['waterproof' => 'ipx8', 'water proof' => 'ipx8'];
-            $normalized = $map[$value] ?? $value;
-            if (!in_array($normalized, $validValues)) {
-                return null; // skip invalid
-            }
-            return [['value' => $normalized]];
-        }
-        // ── supplier_declared_dg_hz_regulation ───────────────────────────────
-        if ($name === 'supplier_declared_dg_hz_regulation') {
-            // Amazon valid values for electronics with no dangerous goods:
-            $valid = [
-                'not_applicable',
-                'un3480',
-                'un3481',
-                'un3090',
-                'un3091',
-                'iata_section_ii',
-                'iata_section_ib',
-            ];
-            // 'not_applicable' IS valid — previous code was wrongly rejecting it
-            return in_array(strtolower($value), $valid)
-                ? [['value' => strtolower($value)]]
-                : [['value' => 'not_applicable']]; // safe fallback, never return null
-        }
-        // ── contains_battery_or_cell ─────────────────────────────────────────
-        // "battery" is rejected — must use Amazon enum
-        if ($name === 'contains_battery_or_cell') {
-            $map = [
-                'battery'                  => 'contains_battery',
-                'contains_battery'         => 'contains_battery',
-                'lithium_ion'              => 'contains_lithium_ion_battery',
-                'lithium_metal'            => 'contains_lithium_metal_battery',
-                'no'                       => 'does_not_contain_a_battery',    // note: underscore 'a'
-                'false'                    => 'does_not_contain_a_battery',
-                'does_not_contain_battery' => 'does_not_contain_a_battery',
-                'none'                     => 'does_not_contain_a_battery',
-            ];
-            return [['value' => $map[strtolower($value)] ?? 'contains_battery']];
-        }
-        if ($name === 'sleeve') {
-            return   [[
-                'type' => [[
-                    'value' => $value,
-                    'language_tag' => 'en_US'
-                ]]
-            ]];
-        }
-        // ── package_level ─────────────────────────────────────────────────────
-        // "unit" is rejected — correct value is "each"
-        if ($name === 'package_level') {
-            $map = [
-                'unit'  => 'each',
-                'each'  => 'each',
-                'pack'  => 'pack',
-                'set'   => 'set',
-            ];
-            return [['value' => $map[strtolower($value)] ?? 'each']];
-        }
-        // ── map_policy — "policy_1" is invalid ───────────────────────────────
-        // Only send if it's a real valid policy; otherwise omit
-        if ($name === 'map_policy') {
-            $validValues = ['map_policy_1', 'map_policy_2', 'no_map_policy'];
-            if (!in_array($value, $validValues)) {
-                return null; // skip garbage values
-            }
-            return [['value' => $value]];
-        }
-        // ── skip_offer — must be boolean ──────────────────────────────────────
-        if ($name === 'skip_offer') {
-            return [['value' => filter_var($value, FILTER_VALIDATE_BOOLEAN)]];
-        }
-        if ($name === 'max_order_quantity') {
-            $int = (int)$value;
-            return $int >= 1 ? [['value' => $int]] : null; // skip if 0, let Amazon use default
-        }
-        // ── Integer fields ────────────────────────────────────────────────────
-        $integerFields = [
-            'number_of_items',
-            'item_package_quantity',
-            'button_quantity',
-            'number_of_batteries',
-            'number_of_lithium_metal_cells',
-            'number_of_lithium_ion_cells',
-            'number_of_packs',
-            'total_usb_2_0_ports',
-            'unit_count',
-        ];
-        if (in_array($name, $integerFields)) {
-            return [['value' => (int)$value]];
-        }
-        if ($name === 'item_package_quantity') {
-            $int = (int)$value;
-            return [['value' => max(0, $int)]]; // enforce minimum of 1
-        }
-        // ── generic_keyword — max 1 occurrence, no comma splitting ───────────
-        if ($name === 'generic_keyword') {
-            // Amazon allows only 1 generic_keyword entry for KEYBOARD type
-            return [['value' => $value, 'language_tag' => 'en_US']];
-        }
-        // ── bullet_point — multiple entries OK ───────────────────────────────
-        if ($name === 'bullet_point') {
-            $lines = array_filter(array_map('trim', preg_split('/\r\n|\n/', $value)));
-            return array_values(array_map(fn($line) => [
-                'value'        => $line,
-                'language_tag' => 'en_US',
-            ], $lines));
-        }
-        // ── Fields requiring language_tag ─────────────────────────────────────
-        $langTagFields = ['item_name', 'product_description', 'care_instructions'];
-        if (in_array($name, $langTagFields)) {
-            return [['value' => $value, 'language_tag' => 'en_US']];
-        }
-        // ── manufacturer — truncate to 100 chars ─────────────────────────────
-        if ($name === 'manufacturer') {
-            return [['value' => mb_substr($value, 0, 100)]];
-        }
-        // ── condition_type — must not be sent as null ─────────────────────────
-        if ($name === 'condition_type') {
-            $conditionMap = [
-                'new_new'           => 'new_new',
-                'new'               => 'new_new',
-                'used_good'         => 'used_good',
-                'used_very_good'    => 'used_very_good',
-                'used_acceptable'   => 'used_acceptable',
-                'collectible_good'  => 'collectible_good',
-            ];
-            return [['value' => $conditionMap[strtolower($value)] ?? 'new_new']];
-        }
-        if ($name === 'variation_theme') {
-            // Clean up escaped slashes just in case
-            // $value = str_replace('\\/', '/', $value);
-            $upper = strtoupper($value);
-            // Valid KEYBOARD variation themes (from Amazon Product Type Definitions)
-            $validThemes = [
-                'COLOR',
-                'COMPATIBLE_DEVICES',
-                'KEYBOARD_LAYOUT',
-                'COLOR/COMPATIBLE_DEVICES',
-                'COLOR/KEYBOARD_LAYOUT',
-                'COMPATIBLE_DEVICES/KEYBOARD_LAYOUT',
-            ];
-            if (in_array($upper, $validThemes)) {
-                return [['name' => $upper]];
-            }
-            // 'COLOR/COMPATIBLE_DEVICES/KEYBOARD_LAYOUT' is 3-way — not valid
-            // Map to closest valid 2-way combination
-            $fallbackMap = [
-                'COLOR/COMPATIBLE_DEVICES/KEYBOARD_LAYOUT' => 'COLOR/COMPATIBLE_DEVICES',
-                'COLOR/KEYBOARD_LAYOUT/COMPATIBLE_DEVICES' => 'COLOR/COMPATIBLE_DEVICES',
-            ];
-            $mapped = $fallbackMap[$upper] ?? 'COLOR';
-            return [['name' => $mapped]];
-        }
-        if ($name === 'country_of_origin') {
-            $countryMap = [
-                'CN' => 'China',
-                'US' => 'United States of America',
-                'IN' => 'India',
-                'DE' => 'Germany',
-                'JP' => 'Japan',
-                'KR' => 'Republic of Korea',
-                'TW' => 'Taiwan',
-                'VN' => 'Vietnam',
-                'TH' => 'Thailand',
-                'MX' => 'Mexico',
-                'GB' => 'United Kingdom of Great Britain and Northern Ireland',
-                'China'  => 'China',
-                'India'  => 'India',
-                'Taiwan' => 'Taiwan',
-            ];
-            return [['value' => $countryMap[$value] ?? $value]];
-        }
-        if ($name === 'shirt_size' || $name === 'apparel_size') {
-            return  [[
-                'size_system' => 'as1',
-                'size_class' => 'alpha',
-                'size' => 'm',
-                'height_type' => 'tall',
-                'body_type' => 'regular'
-            ]];
-        }
-        if ($name === 'neck') {
-            return [[
-                'neck_style' => [[
-                    'value' => $value,
-                    'language_tag' => 'en_US'
-                ]]
-            ]];
-        }
-        return [['value' => $value]];
-    }
-    */
+
     public function downloadScema($category = 'SHIRTS')
     {
         $testcontroller = new TestController();
@@ -1337,15 +790,16 @@ class ProductSchemaController extends Controller
             return redirect()->route('crm.entry')->with('error', 'Please select a shop first.');
         }
         $activeShop = $request->shop ?? session('active_shop');
+        $shopModel = Shop::where('shop', $activeShop)->first();
+        $this->ensureFreshAccessToken($shopModel);
         $testcontroller = new TestController();
         $productdata =  $testcontroller->getProductVariants($sku);
         if (!$productdata) {
             return redirect()->route('user.product.showProducts')->with('error', 'Product not found.');
         }
-        $product = Product::with('attributes', 'schema')
-            ->where('sku', $sku)
-            ->where('user_id', $shopId)
-            ->first();
+        $product = Product::with('attributes', 'schema')->where('sku', $sku)
+            ->where('user_id', $shopId)->first();
+
         if (!$product) {
             $product = $this->addProductToDbNotExists($productdata);
         }
@@ -1358,6 +812,7 @@ class ProductSchemaController extends Controller
         }
         return view('shopifySchema.create', compact('product', 'activeShop', 'syncid'));
     }
+
     public function addProductToDbNotExists($productdata)
     {
         $shopId = $this->getShopIdFromSession();
@@ -1447,18 +902,8 @@ class ProductSchemaController extends Controller
     private static function tags(array $attributes): string
     {
         $tags = [];
-        foreach (
-            [
-                'generic_keyword',
-                'style',
-                'pattern',
-                'material',
-                'department',
-                'target_gender',
-                'occasion_type',
-                'season',
-                'sport_type'
-            ] as $field
+        foreach ([ 'generic_keyword', 'style','pattern', 'material','department',
+                'target_gender','occasion_type', 'season', 'sport_type' ] as $field
         ) {
             if (!isset($attributes[$field][0])) {
                 continue;
@@ -1986,5 +1431,105 @@ class ProductSchemaController extends Controller
             'success',
             'Schema deactivated successfully for "' . $category . '".'
         );
+    }
+
+       /**
+     * Ensures the shop has a valid access token, refreshing if needed.
+     * Returns an array: ['success' => bool, 'access_token' => ?string, 'message' => string]
+     */
+    public function ensureFreshAccessToken(Shop $shopModel): array
+    {
+        try {
+            // still valid — nothing to do
+            if ($shopModel->access_token_expires_at && $shopModel->access_token_expires_at->isFuture()) {
+                return [
+                    'success' => true,
+                    'access_token' => $shopModel->access_token,
+                    'message' => 'Token still valid.',
+                ];
+            }
+
+            // refresh token expired — merchant must relaunch the app to re-auth
+            if (!$shopModel->refresh_token_expires_at || $shopModel->refresh_token_expires_at->isPast()) {
+                Log::warning('REFRESH TOKEN EXPIRED', ['shop' => $shopModel->shop]);
+
+                $shopModel->update(['is_active' => 0]);
+
+                return [
+                    'success' => false,
+                    'access_token' => null,
+                    'message' => 'Refresh token expired. App must be relaunched to reauthorize.',
+                ];
+            }
+
+            $response = Http::asJson()->post("https://{$shopModel->shop}/admin/oauth/access_token", [
+                'client_id'     => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
+                'client_secret' => AdminSetting::get('SHOPIFY_API_SECRET', config('services.shopify.api_secret')),
+                'grant_type'    => 'refresh_token',
+                'refresh_token' => $shopModel->refresh_token,
+            ]);
+
+            if (!$response->successful()) {
+                Log::error('TOKEN REFRESH FAILED', [
+                    'shop' => $shopModel->shop,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
+                // Shopify signals a dead refresh token with 401 invalid_request
+                if ($response->status() === 401) {
+                    $shopModel->update(['is_active' => 0]);
+                    return [
+                        'success' => false,
+                        'access_token' => null,
+                        'message' => 'Refresh token is no longer valid. App must be relaunched to reauthorize.',
+                    ];
+                }
+
+                return [
+                    'success' => false,
+                    'access_token' => null,
+                    'message' => 'Failed to refresh Shopify access token. Status: ' . $response->status(),
+                ];
+            }
+
+            $data = $response->json();
+
+            if (!isset($data['access_token'])) {
+                Log::error('REFRESH RESPONSE MISSING TOKEN', ['shop' => $shopModel->shop, 'body' => $data]);
+                return [
+                    'success' => false,
+                    'access_token' => null,
+                    'message' => 'Refresh response did not include an access token.',
+                ];
+            }
+
+            $shopModel->update([
+                'access_token' => $data['access_token'],
+                'refresh_token' => $data['refresh_token'] ?? $shopModel->refresh_token,
+                'access_token_expires_at' => now()->addSeconds($data['expires_in'] ?? 3600),
+                'refresh_token_expires_at' => now()->addSeconds($data['refresh_token_expires_in'] ?? 90 * 86400),
+            ]);
+
+            Log::info('TOKEN REFRESHED', ['shop' => $shopModel->shop]);
+
+            return [
+                'success' => true,
+                'access_token' => $data['access_token'],
+                'message' => 'Token refreshed successfully.',
+            ];
+
+        } catch (\Throwable $e) {
+            Log::error('TOKEN REFRESH EXCEPTION', [
+                'shop' => $shopModel->shop ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'access_token' => null,
+                'message' => 'Unexpected error while refreshing token: ' . $e->getMessage(),
+            ];
+        }
     }
 }
