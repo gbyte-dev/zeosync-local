@@ -1698,6 +1698,7 @@ class ShopifyController extends Controller
         Log::info("START: updateProduct called for Shopify Product ID: " . $id);
 
         $shopModel = $this->getActiveShop($request);
+        $this->ensureFreshAccessToken($shopModel);
         if (!$shopModel) {
             Log::warning("FAIL: No active shop found for request");
             return back()->with('error', 'No shop connected');
@@ -2004,6 +2005,7 @@ class ShopifyController extends Controller
     public function deleteProduct(Request $request, $id)
     {
         $shopModel = $this->getActiveShop($request);
+           $this->ensureFreshAccessToken($shopModel);
         if (!$shopModel) {
             return response()->json(['success' => false, 'message' => 'No shop connected'], 401);
         }
@@ -2080,50 +2082,15 @@ class ShopifyController extends Controller
         $decodedHost = base64_decode(strtr($host, '-_', '+/'), true);
         return $decodedHost !== false ? $decodedHost : $host;
     }
-    // public function extractShopIdentifier(?Request $request = null): ?string
-    // {
-    //     $request ??= request();
-    //     foreach (
-    //         [
-    //             $request?->query('shop'),
-    //             $request?->input('shop'),
-    //         ] as $candidate
-    //     ) {
-    //         $candidate = trim((string) $candidate);
-    //         if ($candidate !== '') {
-    //             return strtolower($candidate);
-    //         }
-    //     }
-    //     $hostValue = $this->decodeShopifyHost(
-    //         $request?->query('host') ?? $request?->input('host')
-    //     );
-    //     if (!empty($hostValue)) {
-    //         if (preg_match('#/store/([^/?]+)#i', $hostValue, $matches)) {
-    //             return strtolower($matches[1]);
-    //         }
-    //         if (preg_match('#^([a-z0-9-]+)\.myshopify\.com$#i', $hostValue, $matches)) {
-    //             return strtolower($matches[1] . '.myshopify.com');
-    //         }
-    //     }
-    //     $referer = $request?->headers->get('referer');
-    //     if (!empty($referer) && preg_match('#/store/([^/?]+)#i', $referer, $matches)) {
-    //         return strtolower($matches[1]);
-    //     }
-    //     return null; //  NO SESSION FALLBACK
-    // }
+    
 
     public function extractShopIdentifier(?Request $request = null): ?string
     {
         $request ??= request();
 
-        foreach (
-            [
-                $request?->query('shop'),
-                $request?->input('shop'),
-            ] as $candidate
+        foreach ( [ $request?->query('shop'), $request?->input('shop')  ] as $candidate
         ) {
             $candidate = trim((string) $candidate);
-
             if ($candidate !== '') {
                 return strtolower($candidate);
             }
