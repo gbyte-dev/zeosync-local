@@ -45,10 +45,6 @@ class ShopifyController extends Controller
     ) {}
     public function entry(Request $request)
     {
-        LOG::info('ENTRY HIT', [
-            'full_url' => $request->fullUrl(),
-            'query' => $request->all()
-        ]);
         $shop = null;
         //   PRIORITY 1: Shopify HOST (REAL SOURCE)
         if ($request->has('host')) {
@@ -68,9 +64,7 @@ class ShopifyController extends Controller
             if (!str_contains($shop, '.myshopify.com')) {
                 $shop .= '.myshopify.com';
             }
-            LOG::info('SHOP FROM QUERY', [
-                'shop' => $shop
-            ]);
+           
         }
 
         if (!$shop) {
@@ -79,15 +73,9 @@ class ShopifyController extends Controller
 
         $shopModel = \App\Models\Shop::where('shop', $shop)->first();
 
-        if (
-            $shopModel &&  $shopModel->is_active == 1 && !empty($shopModel->access_token)
+        if ( $shopModel &&  $shopModel->is_active == 1 && !empty($shopModel->access_token)
         ) {
             if (!$this->isShopActive($shopModel)) {
-
-                Log::warning('SHOP TOKEN INVALID OR SHOP INACTIVE', [
-                    'shop_id' => $shopModel->id,
-                    'shop' => $shopModel->shop,
-                ]);
 
                 $shopModel->update([
                     'is_active' => 0,
@@ -103,16 +91,13 @@ class ShopifyController extends Controller
                 'shop' => $shop
             ]);
         }
-        // ❌ Not installed → start OAuth
-        LOG::warning('REDIRECT → INSTALL', [
-            'shop' => $shop
-        ]);
+ 
         return redirect()->route('shopify.install', ['shop' => $shop]);
     }
     private function isShopActive(Shop $shop): bool
     {
         try {
-
+            $this->ensureFreshAccessToken($shop);
             $response = Http::timeout(15)
                 ->acceptJson()
                 ->withHeaders([
