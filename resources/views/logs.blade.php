@@ -316,11 +316,12 @@
                 </thead>
 
                 <tbody>
+                    @php $i =1; @endphp
                     @if($logs->count())
                     @foreach($logs as $log)
                     <tr>
                         <td class="ps-4 text-muted" style="font-size: 12px;">
-                            #{{ $log->id }}
+                            #{{ $i++ }}
                         </td>
 
                         <td>
