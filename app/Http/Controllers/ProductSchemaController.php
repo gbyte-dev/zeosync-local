@@ -1279,7 +1279,7 @@ class ProductSchemaController extends Controller
             // Removal was requested but there was nothing to remove.
             $status = 'no_action';
             $message = sprintf(
-                'Removal requested for %s product %s, but no matching mapping was found.',
+                'Removal requested for %s product %s, Error in product Sync.',
                 $platform,
                 $product_id
             );
