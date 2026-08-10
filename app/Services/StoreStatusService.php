@@ -16,20 +16,9 @@ class StoreStatusService
             'shop'    => $shop->shop,
         ]);
 
-        $tokenResult = $this->ensureFreshAccessToken($shop);
-        if (!$tokenResult['success']) {
-            Log::warning('STORE STATUS CHECK TOKEN REFRESH FAILED', [
-                'shop_id' => $shop->id,
-                'shop'    => $shop->shop,
-                'message' => $tokenResult['message'],
-            ]);
-            $this->updateStatus($shop, 'inactive');
-            return;
-        }
-
         $shopifyService = app(ShopifyService::class, [
             'shop'  => $shop->shop,
-            'token' => $tokenResult['access_token'],
+            'token' => $shop->access_token
         ]);
 
         $query = <<<GRAPHQL
@@ -132,7 +121,7 @@ class StoreStatusService
         ]);
     }
 
-    /**
+     /**
      * Ensures the shop has a valid access token, refreshing if needed.
      * Returns an array: ['success' => bool, 'access_token' => ?string, 'message' => string]
      */
@@ -152,7 +141,7 @@ class StoreStatusService
             if (!$shopModel->refresh_token_expires_at || $shopModel->refresh_token_expires_at->isPast()) {
                 Log::warning('REFRESH TOKEN EXPIRED', ['shop' => $shopModel->shop]);
 
-                // $shopModel->update(['is_active' => 0]);
+               // $shopModel->update(['is_active' => 0]);
                 $this->updateStatus($shopModel, 'inactive');
                 return [
                     'success' => false,
@@ -216,6 +205,7 @@ class StoreStatusService
                 'access_token' => $data['access_token'],
                 'message' => 'Token refreshed successfully.',
             ];
+
         } catch (\Throwable $e) {
             Log::error('TOKEN REFRESH EXCEPTION', [
                 'shop' => $shopModel->shop ?? null,
@@ -229,4 +219,5 @@ class StoreStatusService
             ];
         }
     }
+
 }
