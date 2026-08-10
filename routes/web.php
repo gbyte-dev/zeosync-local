@@ -103,7 +103,6 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
 
     // Update new routes for syncing products between Shopify and Amazon
     Route::post('/sync-to-amazon/{id}', [ShopifyController::class, 'syncToAmazon'])->name('shopify.sync.amazon');
-    Route::get('/admin/shops/{id}', [ShopifyController::class, 'show'])->name('admin.shops.show');
     Route::post('/cancel-plan', [PlanController::class, 'cancel'])->name('plans.cancel');
     Route::get('/showProducts/{parent_id}', [ProductSchemaController::class, 'showProducts'])->name('user.product.showProducts.child');
     Route::get('/sync-amazon-to-shopify/{sku}', [ProductSchemaController::class, 'SyncAmazonProductToShopify'])->name('user.product.syncAmazonToShopify');
@@ -147,6 +146,8 @@ Route::prefix('admin')->group(function () {
         Route::post('/move-subcategories', [AdminController::class, 'moveSubcategories'])->name('admin.subcategories.move');
         Route::get('/import-categories', [CategoryController::class, 'importCategories'])->name('admin.import.categories');
         Route::get('/search-categories', [AdminController::class, 'categoryserchedChildren'])->name('admin.search.categories');
+        Route::get('/shops/{id}', [ShopifyController::class, 'show'])->name('admin.shops.show');
+
     });
 });
 
