@@ -399,10 +399,8 @@ class ShopifyController extends Controller
         $plans = Plan::query()
             ->where('is_active', true)
             ->where(function ($query) use ($activeShopId) {
-                    ->orWhere(function ($query) use ($activeShopId) {
-                        $query->where('is_custom', true)
-                                ->where('shop_id', $activeShopId);
-                    });
+                $query->where('is_custom', 0)
+                    ->orWhere('shop_id', $activeShopId);
             })
             ->orderBy('sort_order')
             ->orderBy('id')
