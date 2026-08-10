@@ -401,6 +401,8 @@ class ProductSchemaController extends Controller
             return back()->with('error', 'Active shop not found.');
         }
         $shop_id = $activeShop->id;
+        $shopModel = Shop::where('id', $shop_id)->first();
+        $this->ensureFreshAccessToken($shopModel);
         // Check product limit only for new product creation
         if (!isset($product_id)) {
             $limitStatus = $productLimitService->canCreateProduct($shop_id);
@@ -1349,7 +1351,7 @@ class ProductSchemaController extends Controller
         }
         $product = Product::with('attributes', 'schema')->where('sku', $sku)
             ->where('user_id', $shopId)->first();
-            
+
         if (!$product) {
             $product = $this->addProductToDbNotExists($productdata);
         }
@@ -1452,18 +1454,8 @@ class ProductSchemaController extends Controller
     private static function tags(array $attributes): string
     {
         $tags = [];
-        foreach (
-            [
-                'generic_keyword',
-                'style',
-                'pattern',
-                'material',
-                'department',
-                'target_gender',
-                'occasion_type',
-                'season',
-                'sport_type'
-            ] as $field
+        foreach ([ 'generic_keyword', 'style','pattern', 'material','department',
+                'target_gender','occasion_type', 'season', 'sport_type' ] as $field
         ) {
             if (!isset($attributes[$field][0])) {
                 continue;
