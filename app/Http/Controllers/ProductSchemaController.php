@@ -1221,6 +1221,7 @@ class ProductSchemaController extends Controller
         $platform = str_contains(strtolower((string) $for), 'amazon') ? 'amazon' : 'shopify';
         $normalizedType = strtolower((string) $type) ?: 'product';
         $mappingQuery = ProductMarketplaceMapping::query();
+        $product_name = (string) $product_id;
         if ($platform === 'shopify') {
             $mappingQuery->where(function ($query) use ($product_id) {
                 $query->where('shopify_variant_id', (string) $product_id)
@@ -1231,6 +1232,9 @@ class ProductSchemaController extends Controller
                 $query->where('amazon_sku', (string) $product_id)
                     ->orWhere('amazon_parent_sku', (string) $product_id);
             });
+
+            $product = ProductAttribute::where(['product_id' => (string) $product_id ,'attribute_name' => 'item_name'])->first();
+            $product_name = $product ? $product->attribute_value : (string) $product_id;
         }
         // Use get() instead of first() so we don't silently ignore extra matches.
         $mappings = $mappingQuery->get();
@@ -1284,7 +1288,7 @@ class ProductSchemaController extends Controller
             $message = sprintf(
                 'Sync failed for %s product %s. %s%s',
                 ucfirst($platform),
-                $product_id,
+                $product_name,
                 $mappingDetails,
                 $error ?  '.' : ''
             );
@@ -1294,7 +1298,7 @@ class ProductSchemaController extends Controller
                     $message = sprintf(
                         'Product added to %s sync. Identifier: %s. %s',
                         ucfirst($platform),
-                        $product_id,
+                        $product_name,
                         $mappingDetails
                     );
                     break;
@@ -1303,7 +1307,7 @@ class ProductSchemaController extends Controller
                     $message = sprintf(
                         'Product deleted from %s sync mapping. Identifier: %s. %s',
                         ucfirst($platform),
-                        $product_id,
+                        $product_name,
                         $mappingDetails
                     );
                     break;
@@ -1312,7 +1316,7 @@ class ProductSchemaController extends Controller
                     $message = sprintf(
                         '%s sync removed for product %s. Mapping cleanup completed. %s',
                         ucfirst($platform),
-                        $product_id,
+                        $product_name,
                         $mappingDetails
                     );
                     break;
@@ -1320,7 +1324,7 @@ class ProductSchemaController extends Controller
                     $message = sprintf(
                         'Product synced successfully to %s. Identifier: %s. %s',
                         ucfirst($platform),
-                        $product_id,
+                        $product_name,
                         $mappingDetails
                     );
                     break;
@@ -1328,7 +1332,7 @@ class ProductSchemaController extends Controller
                     $message = sprintf(
                         '%s sync state updated for product %s. %s',
                         ucfirst($platform),
-                        $product_id,
+                        $product_name,
                         $mappingDetails
                     );
                     break;
