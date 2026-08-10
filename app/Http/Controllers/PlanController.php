@@ -164,24 +164,11 @@ class PlanController extends Controller
 
     public function cancel(Request $request)
     {
-        Log::info('PLAN CANCEL REQUEST', [
-            'shop' => $request->input('shop'),
-        ]);
-
         $shop = Shop::where('shop', $request->input('shop'))->first();
 
         if (!$shop) {
-            Log::error('Shop not found', [
-                'shop' => $request->input('shop'),
-            ]);
-
             return back()->with('error', 'Shop not found.');
         }
-
-        Log::info('SHOP FOUND', [
-            'shop_id' => $shop->id,
-            'shop' => $shop->shop,
-        ]);
 
         $shopifySubscription = ShopifySubscription::where('shop_id', $shop->id)
             ->where('status', 'active')
@@ -248,22 +235,11 @@ class PlanController extends Controller
 
     public function destroy(Plan $plan)
     {
-        Log::info('PLAN DELETE REQUEST', [
-            'plan_id' => $plan->id,
-            'plan_name' => $plan->name,
-            'is_custom' => $plan->is_custom,
-            'shop_id' => $plan->shop_id,
-        ]);
-
         $activeSubscriptionExists = ShopSubscription::where('plan_id', $plan->id)
             ->where('status', 'active')
             ->exists();
 
         if ($activeSubscriptionExists) {
-            Log::warning('PLAN DELETE BLOCKED - ACTIVE SUBSCRIPTION EXISTS', [
-                'plan_id' => $plan->id,
-                'plan_name' => $plan->name,
-            ]);
 
             return back()->with(
                 'error',
@@ -281,9 +257,6 @@ class PlanController extends Controller
             'plan_name' => $planName,
         ]);
 
-        return back()->with(
-            'success',
-            'Plan deleted successfully.'
-        );
+        return back()->with('success', 'Plan deleted successfully.' );
     }
 }

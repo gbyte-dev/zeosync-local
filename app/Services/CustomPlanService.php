@@ -16,43 +16,33 @@ class CustomPlanService
 
         $prices = $data['prices'] ?? [];
 
+        $features = collect($data['features'] ?? [])
+            ->map(fn ($feature) => trim((string) $feature))
+            ->filter(fn ($feature) => $feature !== '')
+            ->values()
+            ->all();
+
         $price = $prices['EVERY_30_DAYS']
             ?? $prices['ANNUAL']
             ?? 0;
 
         $planData = [
             'shop_id' => $shop->id,
-
             'name' => $shop->shop_name . ' Custom Plan',
-
             'slug' => Str::slug($shop->shop_name . '-custom-plan') . '-' . Str::lower(Str::random(6)),
-
             'price' => $price,
-
             'prices' => $prices,
-
             'stripe_price_ids' => [],
-
             'product_limit' => (int) ($data['product_limit'] ?? 0),
-
             'sync_limit' => (int) ($data['sync_limit'] ?? 0),
-
             'badge' => null,
-
             'description' => null,
-
-            'features' => null,
-
+            'features' => $features ?: null,
             'contact_button_text' => null,
-
             'is_active' => true,
-
             'is_enterprise' => true,
-
             'is_custom' => true,
-
             'ai_autofill' => !empty($data['ai_autofill']),
-
             'ai_single_field' => !empty($data['ai_single_field']),
         ];
 
@@ -61,12 +51,6 @@ class CustomPlanService
         try {
 
             $stripeService = app(StripeService::class);
-
-            /*
-            |--------------------------------------------------------------------------
-            | Create Stripe Product
-            |--------------------------------------------------------------------------
-            */
 
             $product = $stripeService->createProduct([
                 'name'        => $planData['name'],
@@ -79,12 +63,6 @@ class CustomPlanService
             }
 
             $stripePriceIds = [];
-
-            /*
-|--------------------------------------------------------------------------
-| Monthly Price
-|--------------------------------------------------------------------------
-*/
 
             if (!empty($prices['EVERY_30_DAYS'])) {
 
@@ -100,12 +78,6 @@ class CustomPlanService
 
                 $stripePriceIds['EVERY_30_DAYS'] = $monthlyPrice->id;
             }
-
-            /*
-|--------------------------------------------------------------------------
-| Yearly Price
-|--------------------------------------------------------------------------
-*/
 
             if (!empty($prices['ANNUAL'])) {
 
@@ -123,9 +95,7 @@ class CustomPlanService
             }
 
             $planData['stripe_price_ids'] = $stripePriceIds;
-
             $plan = Plan::create($planData);
-
             DB::commit();
 
             return $plan;

@@ -204,18 +204,6 @@
                 <div class="info-label">Shop URL</div>
                 <div class="info-value">{{ $shop->shop }}</div>
             </div>
-            @if(session('error'))
-            <div class="alert alert-danger m-3 mb-0">{{ session('error') }}</div>
-            @endif
-            @if($errors->any())
-            <div class="alert alert-danger m-3 mb-0">
-                <ul class="mb-0">
-                    @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-            @endif
             <div class="">
                 <form action="{{ route('admin.shops.update', $shop->id) }}" method="POST">
                     @csrf
@@ -262,6 +250,7 @@
             <div class="pro-card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"> Subscription Details</h5>
                 <div class="d-flex align-items-center gap-2">
+                @if($customPlan->count() > 0)
                     <button
                         type="button"
                         class="btn btn-dark btn-sm"
@@ -269,6 +258,7 @@
                         data-bs-target="#customEnterpriseModal">
                         Add Custom Plan
                     </button>
+                @endif
                     @if($shop->subscription && $shop->subscription->status !== 'cancelled')
                     <form
                         action="{{ route('admin.shops.cancel', $shop->id) }}"
@@ -348,7 +338,7 @@
     </div> -->
     @if($customPlan)
 
-    <h5 class="mt-3 fw-bold" style="padding-left: 8px; padding-right: 8px;">
+    <h5 class="mt-3" style="padding-left: 8px; padding-right: 8px;">
         Custom Plan Overview
     </h5>
 
@@ -385,7 +375,7 @@
                                 data-bs-toggle="modal"
                                 data-bs-target="#customPlanDetailsModal">
                                 <i class="bi bi-eye me-1"></i>
-                                View Details
+                                 Details
                             </button>
 
                             <form
@@ -400,7 +390,7 @@
                                     type="submit"
                                     class="btn btn-sm btn-outline-danger">
                                     <i class="bi bi-trash me-1"></i>
-                                    Delete Plan
+                                    Delete
                                 </button>
                             </form>
                         </td>
@@ -412,7 +402,7 @@
 
     @else
 
-    <h5 class="mt-3 fw-bold" style="padding-left: 8px; padding-right: 8px;">
+    <h5 class="mt-3 " style="padding-left: 8px; padding-right: 8px;">
         Custom Plan Overview
     </h5>
 
