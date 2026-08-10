@@ -57,7 +57,7 @@ if($field['name'] == 'wheel'){
 }
 
 if($field['name'] == 'lens'){
-    $extramsg = 'Please use in format '{"width":20,"material":"polycarbonate","color":"black"}'';
+    $extramsg = 'Please use in format {"width":20,"material":"polycarbonate","color":"black"}';
 }
 
 

@@ -381,7 +381,7 @@
                             {{ $log->type ?? 'order' }}
                         </div>
                         <div class="text-muted" style="font-size: 11px;">
-                            #{{ $log->id }}
+                            #{{ $i++ }}
                         </div>
                     </div>
                     @if($log->status == 'success')
