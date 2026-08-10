@@ -204,18 +204,6 @@
                 <div class="info-label">Shop URL</div>
                 <div class="info-value">{{ $shop->shop }}</div>
             </div>
-            @if(session('error'))
-            <div class="alert alert-danger m-3 mb-0">{{ session('error') }}</div>
-            @endif
-            @if($errors->any())
-            <div class="alert alert-danger m-3 mb-0">
-                <ul class="mb-0">
-                    @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-            @endif
             <div class="">
                 <form action="{{ route('admin.shops.update', $shop->id) }}" method="POST">
                     @csrf
