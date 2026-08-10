@@ -136,42 +136,21 @@ class SettingsController extends ShopifyController
 
     public function store(Request $request)
     {
-        \Log::info('ACTIVATE STORE HIT', [
-            'input' => $request->all(),
-            'url' => $request->fullUrl()
-        ]);
 
-        // =========================
-        // STEP 1: VALIDATION
-        // =========================
         $request->validate([
             'shop_url' => 'required',
             'shop_name' => 'required',
             'email' => 'required|email',
         ]);
 
-        // =========================
-        // STEP 2: SHOP FETCH
-        // =========================
         $shop = Shop::whereRaw('LOWER(shop) = ?', [
             strtolower($request->shop_url)
         ])->first();
-
-        \Log::info('SHOP FETCH RESULT', [
-            'input_shop' => $request->shop_url,
-            'found' => $shop ? true : false,
-            'shop_data' => $shop
-        ]);
 
         if (!$shop) {
             \Log::error('SHOP NOT FOUND');
             return back()->with('error', 'Shop not found');
         }
-
-        // =========================
-        // STEP 3: BEFORE UPDATE
-        // =========================
-        \Log::info('BEFORE UPDATE', $shop->toArray());
 
         // =========================
         // STEP 4: UPDATE
@@ -193,14 +172,6 @@ class SettingsController extends ShopifyController
             return back()->with('error', 'Update failed');
         }
 
-        // =========================
-        // STEP 5: AFTER UPDATE
-        // =========================
-        \Log::info('AFTER UPDATE', $shop->fresh()->toArray());
-
-        // =========================
-        // STEP 6: SESSION SET
-        // =========================
         session(['active_shop' => $shop->shop]);
 
         // =========================

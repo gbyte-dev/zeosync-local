@@ -63,12 +63,8 @@ class ResolveActiveShop
                 ->where('is_active', 1)
                 ->first();
 
-            if (
-                $shop &&
-                filled($shop->shop_name) &&
-                filled($shop->email) &&
+            if (  $shop && filled($shop->shop_name) && filled($shop->email) &&
                 (
-                    $request->routeIs('setup.form') ||
                     $request->routeIs('setup.store')
                 )
             ) {

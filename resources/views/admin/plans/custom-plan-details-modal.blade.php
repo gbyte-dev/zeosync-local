@@ -12,7 +12,7 @@
                 <div class="d-flex align-items-center gap-2">
                     @if($shop->subscription)
                         <span class="badge bg-{{ $shop->subscription->status === 'active' ? 'success' : ($shop->subscription->status === 'cancelled' ? 'danger' : 'warning') }}">
-                            {{ ucfirst($shop->subscription->status) }}
+                            {{ ucfirst($shop->subscription->status === 'active' ? 'Active' : ($shop->subscription->status === 'cancelled' ? 'Cancelled' : 'Pending')) }}
                         </span>
                     @else
                         <span class="badge bg-secondary">Not Assigned</span>
@@ -189,7 +189,7 @@
                     </div>
 
                     <!-- Description -->
-                    <div class="col-12">
+                    <!-- <div class="col-12">
                         <div class="card shadow-sm">
                             <div class="card-header bg-white fw-semibold">
                                 📝 Description
@@ -198,7 +198,7 @@
                                 {!! $customPlan->description ?: '<p class="text-muted fst-italic mb-0">No Description</p>' !!}
                             </div>
                         </div>
-                    </div>
+                    </div> -->
                 </div>
             </div>
 

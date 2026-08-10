@@ -167,24 +167,16 @@ class ShopifyController extends Controller
                 $shop = $matches[1] . '.myshopify.com';
             }
         }
-        LOG::info('FINAL SHOP IN INSTALL', [
-            'shop' => $shop
-        ]);
-        Log::info('STEP 1: RAW SHOP', [
-            'shop' => $shop
-        ]);
-        // ❌ missing shop
+      
         if (!$shop) {
             Log::error('SHOP MISSING');
             return response('Missing shop parameter', 400);
         }
-        // ✅ normalize
+        
         if (!str_contains($shop, '.myshopify.com')) {
             $shop .= '.myshopify.com';
         }
-        Log::info('STEP 2: NORMALIZED SHOP', [
-            'shop' => $shop
-        ]);
+      
         // ✅ strict validation
         if (!preg_match('/^[a-zA-Z0-9\-]+\.myshopify\.com$/', $shop)) {
             Log::error('INVALID SHOP FORMAT', [
@@ -316,17 +308,6 @@ class ShopifyController extends Controller
         $expiresIn         = $data['expires_in'] ?? 3600;                 // access token, ~60 min
         $refreshExpiresIn  = $data['refresh_token_expires_in'] ?? (90 * 86400); // refresh token, ~90 days
 
-        // =========================
-        // $shopModel = \App\Models\Shop::updateOrCreate(
-        //     ['shop' => $shop],
-        //     [
-        //         'access_token' => $accessToken,
-        //         'installed_at' => now(),
-        //         'hmac' => $request->hmac,
-        //         'is_active' => 1
-        //     ]
-        // );
-
         $shopModel = \App\Models\Shop::updateOrCreate(
             ['shop' => $shop],
             [
@@ -392,11 +373,21 @@ class ShopifyController extends Controller
             return redirect($this->shopAwareUrl('/', $request->query('shop') ?? $request->input('shop')))
                 ->with('error', 'No shop connected.');
         }
+        // $plans = Plan::query()->where(['is_active' => true])
+        //     ->orderBy('sort_order')
+        //     ->orderBy('id')
+        //     ->get();
+        $activeShopId = $shopModel->id;
         $plans = Plan::query()
             ->where('is_active', true)
+            ->where(function ($query) use ($activeShopId) {
+                $query->where('is_custom', 0)
+                    ->orWhere('shop_id', $activeShopId);
+            })
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+
         $subscription = ShopSubscription::with('plan')
             ->where('shop_id', $shopModel->id)
             ->first();
@@ -530,6 +521,7 @@ class ShopifyController extends Controller
     public function billingCallback(Request $request)
     {
         $shopModel = $this->getActiveShop($request);
+        $this->ensureFreshAccessToken($shopModel);
         if (!$shopModel) {
             return redirect('/')->with('error', 'No shop connected.');
         }
@@ -562,6 +554,7 @@ class ShopifyController extends Controller
     public function orders(Request $request)
     {
         $shopModel = $this->getActiveShop($request);
+        $this->ensureFreshAccessToken($shopModel);
         $activeShop = $shopModel?->shop;
         if (!$shopModel) {
             return redirect($this->shopAwareUrl('/', $request->query('shop') ?? $request->input('shop')))
@@ -660,7 +653,7 @@ class ShopifyController extends Controller
         }
 
         $shopModel = $this->getActiveShop($request);
-
+        $this->ensureFreshAccessToken($shopModel);
         if (!$shopModel) {
             return redirect(
                 $this->shopAwareUrl(
@@ -687,10 +680,7 @@ class ShopifyController extends Controller
                 'incoming_id' => $id
             ]);
             $shopModel = $this->getActiveShop($request);
-            Log::info('🟢 STEP 2 SHOP', [
-                'shop_found' => $shopModel ? true : false,
-                'shop_id' => $shopModel->id ?? null
-            ]);
+          $this->ensureFreshAccessToken($shopModel);
             if (!$shopModel) {
                 ProductSyncLog::create([
                     'product_id' => null,
@@ -939,6 +929,7 @@ class ShopifyController extends Controller
             return response('Invalid webhook signature', 401);
         }
         $shopModel = $this->findShopByIdentifier($shopDomain);
+        
         if (!$shopModel) {
             Log::warning('Rejected Shopify order webhook because shop was not found.', [
                 'shop' => $shopDomain,
@@ -1104,6 +1095,7 @@ class ShopifyController extends Controller
     {
         set_time_limit(120);
         $shopModel = $this->getActiveShop($request);
+        $this->ensureFreshAccessToken($shopModel);
         $activeShop = $shopModel?->shop;
         if (!$shopModel) {
             return redirect('/')->with('error', 'No store connected.');
@@ -1146,8 +1138,6 @@ class ShopifyController extends Controller
         //   PAGINATION
         $products = $allProducts;
 
-
-
         $shopSubscription = ShopSubscription::with('plan')
             ->where('shop_id', $shopModel->id)
             ->where('status', 'active')
@@ -1189,6 +1179,7 @@ class ShopifyController extends Controller
     }
     public function syncProductsToDB($shopModel)
     {
+        $this->ensureFreshAccessToken($shopModel);
         try {
             $response = $this->shopifyRest($shopModel, 'get', 'products.json', [
                 'limit' => 250
@@ -1218,7 +1209,6 @@ class ShopifyController extends Controller
                             'inventory_item_ids' => implode(',', $inventoryItemIds)
                         ]
                     );
-                    Log::info('INVENTORY API RESPONSE', $inventoryRes);
                     if (empty($inventoryRes['error'])) {
                         $inventoryMap = [];
                         foreach ($inventoryRes['inventory_levels'] ?? [] as $item) {
@@ -1246,34 +1236,6 @@ class ShopifyController extends Controller
                     'existing_synced' => $existingProduct?->synced_to_amazon,
                     'existing_resync' => $existingProduct?->needs_resync,
                 ]);
-                //  $productdata =  
-                // Product::updateOrCreate(
-                //     [
-                //         'shopify_id' => (string)$product['id'],
-                //         'shop_id' => $shopModel->id
-                //     ],
-                //     [
-                //         'title' => $product['title'],
-                //         'description' => $product['body_html'] ?? '',
-                //         'price' => $product['variants'][0]['price'] ?? 0,
-                //         'status' => $product['status'] ?? 'draft',
-                //         'product_type' => $product['product_type'] ?? null,
-                //         'vendor' => $product['vendor'] ?? null,
-                //         'tags' => $product['tags'] ?? null,
-                //         'images' => $product['images'] ?? [],
-                //         'variants' => $product['variants'] ?? [],
-                //         'options' => $product['options'] ?? [],
-                //         'metafields' => null,
-                //         //THIS IS THE REAL FIX
-                //         'synced_to_amazon' => $existingProduct
-                //             ? $existingProduct->synced_to_amazon
-                //             : 0,
-
-                //         'needs_resync' => $existingProduct
-                //             ? $existingProduct->needs_resync
-                //             : 0,
-                //     ]
-                // );
 
                 $productModel = Product::firstOrNew([
                     'shopify_id' => (string)$product['id'],
@@ -1327,9 +1289,11 @@ class ShopifyController extends Controller
             return redirect($this->shopAwareUrl('/products', $request->query('shop') ?? $request->input('shop')))
                 ->with('error', 'No shop connected.');
         }
+        $this->ensureFreshAccessToken($shopModel);
         try {
             $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
-            if (!empty($response['error'])) {
+       //  dd($response); 
+	   if (!empty($response['error'])) {
                 return redirect($this->shopAwareUrl('/products', $shopModel->shop))
                     ->with('error', 'Product not found.');
             }
@@ -1379,12 +1343,13 @@ class ShopifyController extends Controller
     {
         $shopModel = $this->getActiveShop($request);
         $activeShop = $shopModel?->shop;
+	$this->ensureFreshAccessToken($shopModel);
         if (!$shopModel) {
             return redirect('/products')->with('error', 'No shop connected.');
         }
         try {
             $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
-            if (!empty($response['error'])) {
+	if (!empty($response['error'])) {
                 return back()->with('error', 'Product not found');
             }
             $product = $response['product'] ?? null;
