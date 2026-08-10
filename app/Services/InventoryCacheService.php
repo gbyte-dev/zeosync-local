@@ -158,11 +158,7 @@ class InventoryCacheService
     /**
      * Dispatch background refresh.
      */
-    public function dispatchRefresh(
-        Shop $shop,
-        ?string $marketplaceId = null
-
-    ): void {
+    public function dispatchRefresh(Shop $shop, ?string $marketplaceId = null ): void {
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
 
         Log::info('dispatchRefresh ENTERED', [
@@ -191,41 +187,22 @@ class InventoryCacheService
     /**
      * Check whether cache is expired.
      */
-    public function isExpired(
-        Shop $shop,
-        ?string $marketplaceId = null
-
-    ): bool {
+    public function isExpired( Shop $shop,  ?string $marketplaceId = null ): bool {
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
-
         $status = $this->getStatus($shop, $marketplaceId);
-
         if (empty($status['last_synced_at'])) {
             return true;
         }
 
         $lastSynced = \Carbon\Carbon::parse($status['last_synced_at']);
         $minutes = $lastSynced->diffInMinutes(now());
-
-        Log::info('Expiry Debug', [
-            'last_synced_at' => $lastSynced->toDateTimeString(),
-            'now' => now()->toDateTimeString(),
-            'minutes' => $minutes,
-            'ttl' => self::CACHE_TTL,
-            'expired' => $minutes >= self::CACHE_TTL,
-        ]);
-
         return $minutes >= self::CACHE_TTL;
     }
 
     /**
      * Get cache metadata.
      */
-    public function getStatus(
-        Shop $shop,
-        ?string $marketplaceId = null
-
-    ): array {
+    public function getStatus( Shop $shop, ?string $marketplaceId = null ): array {
 
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
         return Cache::get(
@@ -241,10 +218,7 @@ class InventoryCacheService
     /**
      * Update cache metadata.
      */
-    public function updateStatus(
-        Shop $shop,
-        string $marketplaceId,
-        array $data
+    public function updateStatus(Shop $shop,  string $marketplaceId, array $data
     ): void {
 
         $status = array_merge(
@@ -261,23 +235,17 @@ class InventoryCacheService
     /**
      * Inventory cache key.
      */
-    protected function getInventoryCacheKey(
-        Shop $shop,
-        string $marketplaceId
+    protected function getInventoryCacheKey(Shop $shop, string $marketplaceId
     ): string {
         return self::INVENTORY_CACHE_PREFIX . "_{$shop->id}_{$marketplaceId}";
     }
 
-    protected function getStatusCacheKey(
-        Shop $shop,
-        string $marketplaceId
+    protected function getStatusCacheKey(  Shop $shop, string $marketplaceId
     ): string {
         return self::STATUS_CACHE_PREFIX . "_{$shop->id}_{$marketplaceId}";
     }
 
-    protected function getLockCacheKey(
-        Shop $shop,
-        string $marketplaceId
+    protected function getLockCacheKey(  Shop $shop,  string $marketplaceId
     ): string {
         return self::LOCK_CACHE_PREFIX . "_{$shop->id}_{$marketplaceId}";
     }
