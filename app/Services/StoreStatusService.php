@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\AdminSetting;
 use App\Models\Shop;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class StoreStatusService
@@ -182,7 +184,6 @@ class StoreStatusService
             $data = $response->json();
 
             if (!isset($data['access_token'])) {
-                Log::error('REFRESH RESPONSE MISSING TOKEN', ['shop' => $shopModel->shop, 'body' => $data]);
                 return [
                     'success' => false,
                     'access_token' => null,
