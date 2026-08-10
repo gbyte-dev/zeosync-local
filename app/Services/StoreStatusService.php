@@ -38,11 +38,12 @@ class StoreStatusService
 
             switch ($status) {
                 case 401:
-                    $this->updateStatus($shop, 'uninstalled');
+                    $this->ensureFreshAccessToken($shop,'uninstalled');
+                   // $this->updateStatus($shop, 'uninstalled');
                     break;
 
                 case 403:
-                    $this->ensureFreshAccessToken($shop);
+                    $this->ensureFreshAccessToken($shop,'banned');
                     break;
 
                 case 402: // Payment Required (Shopify standard for frozen stores)
@@ -125,7 +126,7 @@ class StoreStatusService
      * Ensures the shop has a valid access token, refreshing if needed.
      * Returns an array: ['success' => bool, 'access_token' => ?string, 'message' => string]
      */
-    public function ensureFreshAccessToken(Shop $shopModel): array
+    public function ensureFreshAccessToken(Shop $shopModel , string $status = 'inactive'): array
     {
         try {
             // still valid — nothing to do
@@ -142,7 +143,7 @@ class StoreStatusService
                 Log::warning('REFRESH TOKEN EXPIRED', ['shop' => $shopModel->shop]);
 
                // $shopModel->update(['is_active' => 0]);
-                $this->updateStatus($shopModel, 'inactive');
+                $this->updateStatus($shopModel, $status);
                 return [
                     'success' => false,
                     'access_token' => null,
@@ -166,7 +167,7 @@ class StoreStatusService
 
                 // Shopify signals a dead refresh token with 401 invalid_request
                 if ($response->status() === 401) {
-                    $shopModel->update(['is_active' => 0]);
+                    $this->updateStatus($shopModel, $status);
                     return [
                         'success' => false,
                         'access_token' => null,
