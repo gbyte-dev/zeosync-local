@@ -69,7 +69,7 @@ class ShopifyService
             ])->post("https://{$this->shop}/admin/api/{$this->version}/graphql.json", $payload);
 
             if (!$response->successful()) {
-                Log::error('Shopify GraphQL Error', [
+                \Log::error('Shopify GraphQL Error', [
                     'status' => $response->status(),
                     'body' => $response->body()
                 ]);
@@ -93,7 +93,7 @@ class ShopifyService
 
             return $json;
         } catch (\Exception $e) {
-            Log::error('Shopify GraphQL Exception', [
+            \Log::error('Shopify GraphQL Exception', [
                 'message' => $e->getMessage()
             ]);
             return [
@@ -106,20 +106,6 @@ class ShopifyService
 
     public function shopifyRest(Shop $shop, string $method, string $endpoint, array $payload = []): array
     {
-        $tokenResult = app(StoreStatusService::class)->ensureFreshAccessToken($shop);
-        if (!$tokenResult['success']) {
-            Log::error('Shopify REST API Token Refresh Failed', [
-                'shop' => $shop->shop,
-                'message' => $tokenResult['message'] ?? null,
-            ]);
-            return [
-                'error' => true,
-                'status' => 401,
-                'message' => $tokenResult['message'] ?? 'Token refresh failed',
-            ];
-        }
-        $accessToken = $tokenResult['access_token'];
-
         $method = strtolower($method);
         $url = sprintf(
             'https://%s/admin/api/%s/%s',
@@ -137,7 +123,7 @@ class ShopifyService
             $response = Http::timeout(120)
                 ->connectTimeout(120)
                 ->withHeaders([
-                    'X-Shopify-Access-Token' => $accessToken,
+                    'X-Shopify-Access-Token' => $shop->access_token,
                     'Content-Type' => 'application/json',
                 ])
                 ->send(strtoupper($method), $url, $options);
