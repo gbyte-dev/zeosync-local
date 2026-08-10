@@ -36,7 +36,7 @@ if($field['name'] == 'item_weight'){
     $extramsg = 'Please use in format 10 grams or any weight quantity';
 }
 
-if($field['name'] == 'item_dimensions'){
+if($field['name'] == 'item_dimensions' || $field['name'] == 'item_display_dimensions'){
     $extramsg = 'Please use in format 39L x 17.5W x 3H Centimeters';
 }
 
@@ -57,7 +57,7 @@ if($field['name'] == 'wheel'){
 }
 
 if($field['name'] == 'lens'){
-    $extramsg = 'Please use in format '{"lens_width":20,"lens_material":"polycarbonate","lens_color":"black"}'';
+    $extramsg = 'Please use in format '{"width":20,"material":"polycarbonate","color":"black"}'';
 }
 
 
