@@ -42,42 +42,10 @@
 
     .field-card {
         border: 1px solid #e5e7eb;
-        border-radius: 14px;
+        border-radius: 10px;
         margin-bottom: 15px;
-        padding: 12px 14px;
+        padding: 15px;
         background: #fff;
-        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
-        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-    }
-
-    .field-card:hover {
-        border-color: #d1d5db;
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
-    }
-
-    .field-card.required-missing {
-        border-color: rgba(220, 53, 69, 0.4);
-        background: linear-gradient(180deg, #fff9fa 0%, #ffffff 100%);
-    }
-
-    .field-card.required-filled {
-        border-color: rgba(40, 167, 69, 0.35);
-        background: linear-gradient(180deg, #f5fff8 0%, #ffffff 100%);
-    }
-
-    .amazon-summary {
-        background: linear-gradient(180deg, #ffffff 0%, #fffaf3 100%);
-    }
-
-    .summary-progress {
-        height: 8px;
-        border-radius: 999px;
-        overflow: hidden;
-        background: #f1f5f9;
-    }
-
-    .summary-progress .progress-bar {
-        background: linear-gradient(90deg, #ff9900 0%, #ffb347 100%);
     }
 
     .required-badge {
@@ -98,53 +66,13 @@
 
     #validationList ul {
         padding-left: 15px;
-        margin: 0;
     }
 
     #validationList li {
         margin-bottom: 8px;
         cursor: pointer;
-        border-radius: 8px;
-        padding: 4px 6px;
-        transition: background-color 0.2s ease;
     }
 
-    #validationList li:hover {
-        background: rgba(255, 153, 0, 0.08);
-    }
-
-    .quick-search {
-        border: 1px solid #e5e7eb;
-        background: #fff;
-        border-radius: 10px;
-        padding: 0.65rem 0.9rem;
-        font-size: 0.9rem;
-    }
-
-    .quick-search:focus {
-        border-color: #ff9900;
-        box-shadow: 0 0 0 0.2rem rgba(255, 153, 0, 0.15);
-    }
-
-    .amazon-header-actions .btn {
-        border-radius: 10px;
-        padding: 0.6rem 1rem;
-        font-weight: 600;
-    }
-
-    .field-inline-actions {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        min-height: 100%;
-    }
-
-    @media (max-width: 991.98px) {
-        .amazon-sidebar {
-            position: relative !important;
-            top: 0;
-        }
-    }
 
 </style>
 @endpush
@@ -265,393 +193,363 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                         type="hidden"
                         name="schema_id"
                         value="{{ $schema->id }}">
-                    <div class="row g-3 mt-3 align-items-start">
-                        <div class="col-lg-9">
-                            <div class="card shadow-sm">
-                                <div class="card-header bg-white p-3">
-                                    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
-                                        <div>
-                                            <h6 class="mb-1">Amazon Product Builder</h6>
-                                            <small class="text-muted">Fill the required fields in order, then sync to Amazon.</small>
-                                        </div>
-                                        <div class="d-flex align-items-center gap-2 amazon-header-actions">
-                                            <input id="fieldSearch" type="text" class="quick-search" placeholder="Search fields..." aria-label="Search fields">
-                                            <button id="jumpToMissing" type="button" class="btn btn-outline-primary btn-sm">
-                                                <i class="fas fa-location-crosshairs me-1"></i> Next missing
-                                            </button>
-                                        </div>
-                                    </div>
+                    <div class="card shadow-sm mt-3">
+                        <div class="card-header bg-white p-0">
+                            <ul class="nav nav-tabs amazon-tabs">
+                                @if(count($tabs['product']))
+                                <li class="nav-item">
+                                    <a class="nav-link active"
+                                        data-bs-toggle="tab"
+                                        href="#productTab">
+                                        Product Info
+                                    </a>
+                                </li>
+                                @endif
+                                @if(count($tabs['images']))
+                                <li class="nav-item">
+                                    <a class="nav-link"
+                                        data-bs-toggle="tab"
+                                        href="#imageTab">
+                                        Images
+                                    </a>
+                                </li>
+                                @endif
+                                @if(count($tabs['variations']))
+                                <li class="nav-item">
+                                    <a class="nav-link"
+                                        data-bs-toggle="tab"
+                                        href="#variationTab">
+                                        Variations
+                                    </a>
+                                </li>
+                                @endif
+                                @if(count($tabs['attributes']))
+                                <li class="nav-item">
+                                    <a class="nav-link"
+                                        data-bs-toggle="tab"
+                                        href="#attributeTab">
+                                        Attributes
+                                    </a>
+                                </li>
+                                @endif
+                                @if(count($tabs['product_rules']))
+                                <li class="nav-item">
+                                    <a class="nav-link"
+                                        data-bs-toggle="tab"
+                                        href="#productRulesTab">
+                                        Product Rules
+                                    </a>
+                                </li>
+                                @endif
+                                @if(count($tabs['battery_specs']))
+                                <li class="nav-item">
+                                    <a class="nav-link"
+                                        data-bs-toggle="tab"
+                                        href="#batterySpecsTab">
+                                        Battery Specs
+                                    </a>
+                                </li>
+                                @endif
+                                @if(count($tabs['other']))
+                                <li class="nav-item">
+                                    <a class="nav-link"
+                                        data-bs-toggle="tab"
+                                        href="#otherTab">
+                                        Other
+                                    </a>
+                                </li>
+                                @endif
+                            </ul>
+                        </div>
+                        <div class="card-body">
+                            <div class="tab-content">
+                                {{-- PRODUCT INFO --}}
+                                <div
+                                    class="tab-pane fade show active"
+                                    id="productTab">
+                                    @foreach($fields as $field)
+                                    @if(
+                                    in_array(
+                                    $field['name'],
+                                    [
+                                    'item_name',
+                                    'brand',
+                                    'product_description',
+                                    'bullet_point',
+                                    'item_type_keyword',
+                                    'externally_assigned_product_identifier',
+                                    'supplier_declared_has_product_identifier_exemption',
+                                    'merchant_suggested_asin',
+                                    'model_number',
+                                    'part_number',
+                                    'generic_keyword',
+                                    'department',
+                                    'target_gender',
+                                    'age_range_description',
+                                    'number_of_items',
+                                    'item_package_quantity',
+                                    'product_site_launch_date',
+                                    'merchant_release_date',
+                                    'title_differentiation',
+                                    ]
+                                    )
+                                    )
+                                    @include(
+                                    'schema.products.field',
+                                    ['field'=>$field]
+                                    )
+                                    @endif
+                                    @endforeach
                                 </div>
-                                <div class="card-body p-0">
-                                    <ul class="nav nav-tabs amazon-tabs">
-                                        @if(count($tabs['product']))
-                                        <li class="nav-item">
-                                            <a class="nav-link active"
-                                                data-bs-toggle="tab"
-                                                href="#productTab">
-                                                Product Info
-                                            </a>
-                                        </li>
-                                        @endif
-                                        @if(count($tabs['images']))
-                                        <li class="nav-item">
-                                            <a class="nav-link"
-                                                data-bs-toggle="tab"
-                                                href="#imageTab">
-                                                Images
-                                            </a>
-                                        </li>
-                                        @endif
-                                        @if(count($tabs['variations']))
-                                        <li class="nav-item">
-                                            <a class="nav-link"
-                                                data-bs-toggle="tab"
-                                                href="#variationTab">
-                                                Variations
-                                            </a>
-                                        </li>
-                                        @endif
-                                        @if(count($tabs['attributes']))
-                                        <li class="nav-item">
-                                            <a class="nav-link"
-                                                data-bs-toggle="tab"
-                                                href="#attributeTab">
-                                                Attributes
-                                            </a>
-                                        </li>
-                                        @endif
-                                        @if(count($tabs['product_rules']))
-                                        <li class="nav-item">
-                                            <a class="nav-link"
-                                                data-bs-toggle="tab"
-                                                href="#productRulesTab">
-                                                Product Rules
-                                            </a>
-                                        </li>
-                                        @endif
-                                        @if(count($tabs['battery_specs']))
-                                        <li class="nav-item">
-                                            <a class="nav-link"
-                                                data-bs-toggle="tab"
-                                                href="#batterySpecsTab">
-                                                Battery Specs
-                                            </a>
-                                        </li>
-                                        @endif
-                                        @if(count($tabs['other']))
-                                        <li class="nav-item">
-                                            <a class="nav-link"
-                                                data-bs-toggle="tab"
-                                                href="#otherTab">
-                                                Other
-                                            </a>
-                                        </li>
-                                        @endif
-                                    </ul>
-                                    <div class="tab-content p-3">
-                                        {{-- PRODUCT INFO --}}
-                                        <div
-                                            class="tab-pane fade show active"
-                                            id="productTab">
-                                            @foreach($fields as $field)
-                                            @if(
-                                            in_array(
-                                            $field['name'],
-                                            [
-                                            'item_name',
-                                            'brand',
-                                            'product_description',
-                                            'bullet_point',
-                                            'item_type_keyword',
-                                            'externally_assigned_product_identifier',
-                                            'supplier_declared_has_product_identifier_exemption',
-                                            'merchant_suggested_asin',
-                                            'model_number',
-                                            'part_number',
-                                            'generic_keyword',
-                                            'department',
-                                            'target_gender',
-                                            'age_range_description',
-                                            'number_of_items',
-                                            'item_package_quantity',
-                                            'product_site_launch_date',
-                                            'merchant_release_date',
-                                            'title_differentiation',
-                                            ]
-                                            )
-                                            )
-                                            @include(
-                                            'schema.products.field',
-                                            ['field'=>$field]
-                                            )
-                                            @endif
-                                            @endforeach
-                                        </div>
-                                        {{-- IMAGES --}}
-                                        <div
-                                            class="tab-pane fade"
-                                            id="imageTab">
-                                            @foreach($fields as $field)
-                                            @if(
-                                            str_contains(
-                                            strtolower($field['name']),
-                                            'image'
-                                            )
-                                            )
-                                            @include(
-                                            'schema.products.field',
-                                            ['field'=>$field]
-                                            )
-                                            @endif
-                                            @endforeach
-                                        </div>
-                                        {{-- VARIATIONS --}}
-                                        <div
-                                            class="tab-pane fade"
-                                            id="variationTab">
-                                            @foreach($fields as $field)
-                                            @if(
-                                            str_contains(
-                                            strtolower($field['name']),
-                                            'variation'
-                                            )
-                                            ||
-                                            str_contains(
-                                            strtolower($field['name']),
-                                            'parent'
-                                            )
-                                            )
-                                            @include(
-                                            'schema.products.field',
-                                            ['field'=>$field]
-                                            )
-                                            @endif
-                                            @endforeach
-                                        </div>
-                                        {{-- ATTRIBUTES --}}
-                                        <div
-                                            class="tab-pane fade"
-                                            id="attributeTab">
-                                            @foreach($fields as $field)
-                                            @if(
-                                            in_array(
-                                            strtolower($field['name']),
-                                            [
-                                            'color',
-                                            'size',
-                                            'material',
-                                            'style',
-                                            'pattern',
-                                            'flavor',
-                                            'manufacturer',
-                                            'model_name',
-                                            'item_weight',
-                                            'item_package_dimensions',
-                                            'item_package_weight',
-                                            'item_display_weight',
-                                            ]
-                                            )
-                                            )
-                                            @include(
-                                            'schema.products.field',
-                                            ['field'=>$field]
-                                            )
-                                            @endif
-                                            @endforeach
-                                        </div>
-                                        {{-- productRulesTab --}}
-                                        <div class="tab-pane fade" id="productRulesTab">
-                                            @foreach($fields as $field)
-                                            @if(
-                                            in_array(
-                                            strtolower($field['name']),
-                                            [
-                                            'country_of_origin',
-                                            'supplier_declared_dg_hz_regulation',
-                                            'ghs',
-                                            'hazmat',
-                                            'safety_data_sheet_url',
-                                            'is_this_product_subject_to_buyer_age_restrictions',
-                                            'california_proposition_65',
-                                            'pesticide_marking',
-                                            'fcc_radio_frequency_emission_compliance',
-                                            'regulatory_compliance_certification',
-                                            'dsa_responsible_party_address',
-                                            'compliance_media',
-                                            'gpsr_safety_attestation',
-                                            'gpsr_manufacturer_reference',
-                                            'contains_pfas',
-                                            'ships_globally',
-                                            'ghs_chemical_h_code',
-                                            'baa_taa_regulation_compliance',
-                                            'baa_taa_compliance_acknowledgement',
-                                            'taa_compliant_country',
-                                            'list_price',
-                                            'merchant_shipping_group',
-                                            'max_order_quantity',
-                                            'gift_options',
-                                            'condition_type',
-                                            'condition_note',
-                                            'product_tax_code',
-                                            'fulfillment_availability',
-                                            'purchasable_offer',
-                                            'import_designation',
-                                            ]
-                                            )
-                                            )
-                                            @include('schema.products.field', ['field' => $field])
-                                            @endif
-                                            @endforeach
-                                        </div>
-                                        {{-- batterySpecsTab --}}
-                                        <div class="tab-pane fade" id="batterySpecsTab">
-                                            @foreach($fields as $field)
-                                            @if(
-                                            in_array(
-                                            strtolower($field['name']),
-                                            [
-                                            'batteries_required',
-                                            'batteries_included',
-                                            'battery',
-                                            'num_batteries',
-                                            'number_of_lithium_metal_cells',
-                                            'number_of_lithium_ion_cells',
-                                            'lithium_battery',
-                                            'has_multiple_battery_powered_components',
-                                            'contains_battery_or_cell',
-                                            'battery_contains_free_unabsorbed_liquid',
-                                            'is_battery_non_spillable',
-                                            'non_lithium_battery_packaging',
-                                            'has_replaceable_battery',
-                                            'non_lithium_battery_energy_content',
-                                            'has_less_than_30_percent_state_of_charge',
-                                            'battery_installation_device_type',
-                                            ]
-                                            )
-                                            )
-                                            @include('schema.products.field', ['field' => $field])
-                                            @endif
-                                            @endforeach
-                                        </div>
-                                        {{-- OTHER --}}
-                                        <div
-                                            class="tab-pane fade"
-                                            id="otherTab">
-                                            @foreach($fields as $field)
-                                            @if(
-                                            !str_contains(strtolower($field['name']),'image')
-                                            &&
-                                            !str_contains(strtolower($field['name']),'variation')
-                                            &&
-                                            !str_contains(strtolower($field['name']),'parent')
-                                            &&
-                                            !in_array(
-                                            strtolower($field['name']),
-                                            [
-                                            'item_name',
-                                            'brand',
-                                            'product_description',
-                                            'bullet_point',
-                                            'item_type_keyword',
-                                            'color',
-                                            'size',
-                                            'material',
-                                            'style',
-                                            'pattern',
-                                            'flavor',
-                                            'manufacturer',
-                                            'model_name',
-                                            'country_of_origin',
-                                            'supplier_declared_dg_hz_regulation',
-                                            'ghs',
-                                            'hazmat',
-                                            'safety_data_sheet_url',
-                                            'is_this_product_subject_to_buyer_age_restrictions',
-                                            'california_proposition_65',
-                                            'pesticide_marking',
-                                            'fcc_radio_frequency_emission_compliance',
-                                            'regulatory_compliance_certification',
-                                            'dsa_responsible_party_address',
-                                            'compliance_media',
-                                            'gpsr_safety_attestation',
-                                            'gpsr_manufacturer_reference',
-                                            'contains_pfas',
-                                            'ships_globally',
-                                            'ghs_chemical_h_code',
-                                            'baa_taa_regulation_compliance',
-                                            'baa_taa_compliance_acknowledgement',
-                                            'taa_compliant_country',
-                                            'externally_assigned_product_identifier',
-                                            'supplier_declared_has_product_identifier_exemption',
-                                            'merchant_suggested_asin',
-                                            'model_number',
-                                            'part_number',
-                                            'generic_keyword',
-                                            'department',
-                                            'target_gender',
-                                            'age_range_description',
-                                            'number_of_items',
-                                            'item_package_quantity',
-                                            'product_site_launch_date',
-                                            'merchant_release_date',
-                                            'item_weight',
-                                            'item_package_dimensions',
-                                            'item_package_weight',
-                                            'item_display_weight',
-                                            'list_price',
-                                            'merchant_shipping_group',
-                                            'max_order_quantity',
-                                            'gift_options',
-                                            'condition_type',
-                                            'condition_note',
-                                            'product_tax_code',
-                                            'fulfillment_availability',
-                                            'purchasable_offer',
-                                            'import_designation',
-                                            'title_differentiation',
-                                            'batteries_required',
-                                            'batteries_included',
-                                            'battery',
-                                            'num_batteries',
-                                            'number_of_lithium_metal_cells',
-                                            'number_of_lithium_ion_cells',
-                                            'lithium_battery',
-                                            'has_multiple_battery_powered_components',
-                                            'contains_battery_or_cell',
-                                            'battery_contains_free_unabsorbed_liquid',
-                                            'is_battery_non_spillable',
-                                            'non_lithium_battery_packaging',
-                                            'has_replaceable_battery',
-                                            'non_lithium_battery_energy_content',
-                                            'has_less_than_30_percent_state_of_charge',
-                                            'battery_installation_device_type',
-                                            ]
-                                            )
-                                            )
-                                            @include(
-                                            'schema.products.field',
-                                            ['field'=>$field]
-                                            )
-                                            @endif
-                                            @endforeach
-                                        </div>
-                                    </div>
+                                {{-- IMAGES --}}
+                                <div
+                                    class="tab-pane fade"
+                                    id="imageTab">
+                                    @foreach($fields as $field)
+                                    @if(
+                                    str_contains(
+                                    strtolower($field['name']),
+                                    'image'
+                                    )
+                                    )
+                                    @include(
+                                    'schema.products.field',
+                                    ['field'=>$field]
+                                    )
+                                    @endif
+                                    @endforeach
+                                </div>
+                                {{-- VARIATIONS --}}
+                                <div
+                                    class="tab-pane fade"
+                                    id="variationTab">
+                                    @foreach($fields as $field)
+                                    @if(
+                                    str_contains(
+                                    strtolower($field['name']),
+                                    'variation'
+                                    )
+                                    ||
+                                    str_contains(
+                                    strtolower($field['name']),
+                                    'parent'
+                                    )
+                                    )
+                                    @include(
+                                    'schema.products.field',
+                                    ['field'=>$field]
+                                    )
+                                    @endif
+                                    @endforeach
+                                </div>
+                                {{-- ATTRIBUTES --}}
+                                <div
+                                    class="tab-pane fade"
+                                    id="attributeTab">
+                                    @foreach($fields as $field)
+                                    @if(
+                                    in_array(
+                                    strtolower($field['name']),
+                                    [
+                                    'color',
+                                    'size',
+                                    'material',
+                                    'style',
+                                    'pattern',
+                                    'flavor',
+                                    'manufacturer',
+                                    'model_name',
+                                    'item_weight',
+                                    'item_package_dimensions',
+                                    'item_package_weight',
+                                    'item_display_weight',
+                                    ]
+                                    )
+                                    )
+                                    @include(
+                                    'schema.products.field',
+                                    ['field'=>$field]
+                                    )
+                                    @endif
+                                    @endforeach
+                                </div>
+                                {{-- productRulesTab --}}
+                                <div class="tab-pane fade" id="productRulesTab">
+                                    @foreach($fields as $field)
+                                    @if(
+                                    in_array(
+                                    strtolower($field['name']),
+                                    [
+                                    'country_of_origin',
+                                    'supplier_declared_dg_hz_regulation',
+                                    'ghs',
+                                    'hazmat',
+                                    'safety_data_sheet_url',
+                                    'is_this_product_subject_to_buyer_age_restrictions',
+                                    'california_proposition_65',
+                                    'pesticide_marking',
+                                    'fcc_radio_frequency_emission_compliance',
+                                    'regulatory_compliance_certification',
+                                    'dsa_responsible_party_address',
+                                    'compliance_media',
+                                    'gpsr_safety_attestation',
+                                    'gpsr_manufacturer_reference',
+                                    'contains_pfas',
+                                    'ships_globally',
+                                    'ghs_chemical_h_code',
+                                    'baa_taa_regulation_compliance',
+                                    'baa_taa_compliance_acknowledgement',
+                                    'taa_compliant_country',
+                                    'list_price',
+                                    'merchant_shipping_group',
+                                    'max_order_quantity',
+                                    'gift_options',
+                                    'condition_type',
+                                    'condition_note',
+                                    'product_tax_code',
+                                    'fulfillment_availability',
+                                    'purchasable_offer',
+                                    'import_designation',
+                                    ]
+                                    )
+                                    )
+                                    @include('schema.products.field', ['field' => $field])
+                                    @endif
+                                    @endforeach
+                                </div>
+                                {{-- batterySpecsTab --}}
+                                <div class="tab-pane fade" id="batterySpecsTab">
+                                    @foreach($fields as $field)
+                                    @if(
+                                    in_array(
+                                    strtolower($field['name']),
+                                    [
+                                    'batteries_required',
+                                    'batteries_included',
+                                    'battery',
+                                    'num_batteries',
+                                    'number_of_lithium_metal_cells',
+                                    'number_of_lithium_ion_cells',
+                                    'lithium_battery',
+                                    'has_multiple_battery_powered_components',
+                                    'contains_battery_or_cell',
+                                    'battery_contains_free_unabsorbed_liquid',
+                                    'is_battery_non_spillable',
+                                    'non_lithium_battery_packaging',
+                                    'has_replaceable_battery',
+                                    'non_lithium_battery_energy_content',
+                                    'has_less_than_30_percent_state_of_charge',
+                                    'battery_installation_device_type',
+                                    ]
+                                    )
+                                    )
+                                    @include('schema.products.field', ['field' => $field])
+                                    @endif
+                                    @endforeach
+                                </div>
+                                {{-- OTHER --}}
+                                <div
+                                    class="tab-pane fade"
+                                    id="otherTab">
+                                    @foreach($fields as $field)
+                                    @if(
+                                    !str_contains(strtolower($field['name']),'image')
+                                    &&
+                                    !str_contains(strtolower($field['name']),'variation')
+                                    &&
+                                    !str_contains(strtolower($field['name']),'parent')
+                                    &&
+                                    !in_array(
+                                    strtolower($field['name']),
+                                    [
+                                    'item_name',
+                                    'brand',
+                                    'product_description',
+                                    'bullet_point',
+                                    'item_type_keyword',
+                                    'color',
+                                    'size',
+                                    'material',
+                                    'style',
+                                    'pattern',
+                                    'flavor',
+                                    'manufacturer',
+                                    'model_name',
+                                    'country_of_origin',
+                                    'supplier_declared_dg_hz_regulation',
+                                    'ghs',
+                                    'hazmat',
+                                    'safety_data_sheet_url',
+                                    'is_this_product_subject_to_buyer_age_restrictions',
+                                    'california_proposition_65',
+                                    'pesticide_marking',
+                                    'fcc_radio_frequency_emission_compliance',
+                                    'regulatory_compliance_certification',
+                                    'dsa_responsible_party_address',
+                                    'compliance_media',
+                                    'gpsr_safety_attestation',
+                                    'gpsr_manufacturer_reference',
+                                    'contains_pfas',
+                                    'ships_globally',
+                                    'ghs_chemical_h_code',
+                                    'baa_taa_regulation_compliance',
+                                    'baa_taa_compliance_acknowledgement',
+                                    'taa_compliant_country',
+                                    'externally_assigned_product_identifier',
+                                    'supplier_declared_has_product_identifier_exemption',
+                                    'merchant_suggested_asin',
+                                    'model_number',
+                                    'part_number',
+                                    'generic_keyword',
+                                    'department',
+                                    'target_gender',
+                                    'age_range_description',
+                                    'number_of_items',
+                                    'item_package_quantity',
+                                    'product_site_launch_date',
+                                    'merchant_release_date',
+                                    'item_weight',
+                                    'item_package_dimensions',
+                                    'item_package_weight',
+                                    'item_display_weight',
+                                    'list_price',
+                                    'merchant_shipping_group',
+                                    'max_order_quantity',
+                                    'gift_options',
+                                    'condition_type',
+                                    'condition_note',
+                                    'product_tax_code',
+                                    'fulfillment_availability',
+                                    'purchasable_offer',
+                                    'import_designation',
+                                    'title_differentiation',
+                                    'batteries_required',
+                                    'batteries_included',
+                                    'battery',
+                                    'num_batteries',
+                                    'number_of_lithium_metal_cells',
+                                    'number_of_lithium_ion_cells',
+                                    'lithium_battery',
+                                    'has_multiple_battery_powered_components',
+                                    'contains_battery_or_cell',
+                                    'battery_contains_free_unabsorbed_liquid',
+                                    'is_battery_non_spillable',
+                                    'non_lithium_battery_packaging',
+                                    'has_replaceable_battery',
+                                    'non_lithium_battery_energy_content',
+                                    'has_less_than_30_percent_state_of_charge',
+                                    'battery_installation_device_type',
+                                    ]
+                                    )
+                                    )
+                                    @include(
+                                    'schema.products.field',
+                                    ['field'=>$field]
+                                    )
+                                    @endif
+                                    @endforeach
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-lg-3">
-                            <aside class="card shadow-sm amazon-summary sticky-top amazon-sidebar">
-                                <div class="card-body p-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <strong class="small text-dark">Required checklist</strong>
-                                        <span id="requiredCount" class="badge bg-warning text-dark">0 / 0</span>
-                                    </div>
-                                    <div class="summary-progress mb-3">
-                                        <div id="requiredProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
-                                    </div>
-                                    <div id="validationList" class="small"></div>
-                                </div>
-                            </aside>
                         </div>
                     </div>
                 </form>
@@ -802,16 +700,6 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                 input &&
                 input.value &&
                 input.value.trim() !== '';
-
-            const card = document.querySelector(
-                `.field-card[data-field-name="${field}"]`
-            );
-
-            if (card) {
-                card.classList.remove('required-missing', 'required-filled');
-                card.classList.add(isFilled ? 'required-filled' : 'required-missing');
-            }
-
             if (isFilled) {
                 filledCount++;
                 html += `
@@ -1448,5 +1336,141 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
         }
     });
 
+    // $(document).on('click', '.ai-field-btn', function() {
+
+    //     console.log('================ AI FIELD START ================');
+
+    //     const button = $(this);
+    //     const originalHtml = button.html();
+
+    //     console.log('Button Found:', button);
+
+    //     const fieldName = button.data('field');
+    //     console.log('fieldName:', fieldName);
+
+    //     const fieldTitle = button.data('title');
+    //     console.log('fieldTitle:', fieldTitle);
+
+    //     const fieldDescription = button.data('description');
+    //     console.log('fieldDescription:', fieldDescription);
+
+    //     const fieldHint = button.data('hint') ?? '';
+    //     console.log('fieldHint:', fieldHint);
+
+    //     const productName = $('[name="attributes[item_name]"]').val().trim();
+    //     console.log('productName:', productName);
+
+    //     const category = "{{ $schema->product_type }}";
+    //     console.log('category:', category);
+
+    //     console.log('Route:', "{{ route('ai.generate-field') }}");
+
+    //     if (productName === '') {
+    //         console.error('Product name is empty.');
+    //         showAiError('Please enter Product Name first.');
+    //         return;
+    //     }
+
+    //     console.log('Before Disable Button');
+
+    //     button
+    //         .prop('disabled', true)
+    //         .html('<i class="fas fa-spinner fa-spin me-1"></i> Generating...');
+
+    //     console.log('Before AJAX');
+
+    //     $.ajax({
+
+    //         url: "{{ route('ai.generate-field') }}",
+
+    //         type: "POST",
+
+    //         dataType: "json",
+
+    //         data: {
+    //             _token: "{{ csrf_token() }}",
+    //             product_name: productName,
+    //             category: category,
+    //             field: fieldTitle,
+    //             field_description: fieldDescription,
+    //             field_hint: fieldHint,
+    //             shop: "{{ request('shop') }}"
+    //         },
+
+    //         beforeSend: function() {
+    //             console.log('AJAX beforeSend');
+    //         },
+
+    //         success: function(response) {
+
+    //             console.log('AJAX Success:', response);
+
+    //             if (!response.success) {
+
+    //                 console.error('AI returned success = false');
+
+    //                 showAiError(response.message ?? 'Unable to generate.');
+    //                 return;
+    //             }
+
+    //             clearAiError();
+
+    //             const field = $('[name="attributes[' + fieldName + ']"]');
+
+    //             console.log('Target Field:', field);
+
+    //             if (!field.length) {
+    //                 console.error('Target field not found');
+    //                 return;
+    //             }
+
+    //             if (String(field.val() ?? '').trim() !== '') {
+    //                 console.warn('Field already contains value');
+    //                 return;
+    //             }
+
+    //             if (Array.isArray(response.data)) {
+    //                 field.val(response.data.join("\n"));
+    //             } else {
+    //                 field.val(response.data);
+    //             }
+
+    //             field.trigger('input');
+    //             field.trigger('change');
+
+    //             console.log('Field Filled Successfully');
+
+    //         },
+
+    //         error: function(xhr, status, error) {
+
+    //             console.error('AJAX ERROR');
+    //             console.error('Status:', status);
+    //             console.error('Error:', error);
+    //             console.error('XHR:', xhr);
+    //             console.error('Response:', xhr.responseText);
+
+    //             showAiError(
+    //                 xhr.responseJSON?.message ??
+    //                 'Something went wrong.'
+    //             );
+
+    //         },
+
+    //         complete: function() {
+
+    //             console.log('AJAX Complete');
+
+    //             button
+    //                 .prop('disabled', false)
+    //                 .html(originalHtml);
+
+    //             console.log('================ AI FIELD END ================');
+
+    //         }
+
+    //     });
+
+    // });
 </script>
 @endpush
