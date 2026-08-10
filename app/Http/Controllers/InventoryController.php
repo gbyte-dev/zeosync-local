@@ -136,7 +136,7 @@ class InventoryController extends ShopifyController
 
         $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
-        \Log::info('Amazon Inventory Sync Started', [
+        Log::info('Amazon Inventory Sync Started', [
             'shop_id' => $shop->id,
             'shop' => $shop->shop,
             'region' => $region,
@@ -150,7 +150,7 @@ class InventoryController extends ShopifyController
                 marketplaceId: $marketplaceId
             );
 
-            \Log::info('Amazon Inventory Sync Completed', [
+            Log::info('Amazon Inventory Sync Completed', [
                 'shop_id' => $shop->id,
                 'result_count' => is_array($result) ? count($result) : null,
             ]);
@@ -164,7 +164,7 @@ class InventoryController extends ShopifyController
             ]);
         } catch (\Throwable $e) {
 
-            \Log::error('Amazon Inventory Sync Failed', [
+            Log::error('Amazon Inventory Sync Failed', [
                 'shop_id' => $shop->id,
                 'shop' => $shop->shop,
                 'region' => $region,
@@ -211,8 +211,13 @@ class InventoryController extends ShopifyController
             return redirect()->route('dashboard')->with('error', 'Shop not found.');
         }
 
+        $tokenResult = app(\App\Services\StoreStatusService::class)->ensureFreshAccessToken($shop);
+        if (!$tokenResult['success']) {
+            return back()->with('error', 'Shopify connection failed: ' . ($tokenResult['message'] ?? 'Expired token'));
+        }
+
         // Decode the product ID from Shopify format
-        $shopify = new ShopifyService($activeShop, $shop->access_token);
+        $shopify = new ShopifyService($activeShop, $tokenResult['access_token']);
         $product = $shopify->getProductById($productId);
         if (!$product) {
             return back()->with('error', 'Product not found');
