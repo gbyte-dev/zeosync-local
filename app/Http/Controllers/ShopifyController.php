@@ -392,10 +392,11 @@ class ShopifyController extends Controller
             return redirect($this->shopAwareUrl('/', $request->query('shop') ?? $request->input('shop')))
                 ->with('error', 'No shop connected.');
         }
-        // $plans = Plan::query()->where(['is_active' => true,'custom'])
+        // $plans = Plan::query()->where(['is_active' => true])
         //     ->orderBy('sort_order')
         //     ->orderBy('id')
         //     ->get();
+        $activeShopId = $shopModel->id;
         $plans = Plan::query()
             ->where('is_active', true)
             ->where(function ($query) use ($activeShopId) {
