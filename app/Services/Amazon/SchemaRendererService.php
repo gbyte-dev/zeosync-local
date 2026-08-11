@@ -29,24 +29,13 @@ class SchemaRendererService
         }
         return $fields;
     }
-protected function buildField(
-    string $name,
-    array $property,
-    array $required
-): array {
+
+protected function buildField(  string $name, array $property,  array $required): array {
     return [
         'name' => $name,
-        'title' =>
-            $property['title']
-            ?? ucfirst($name),
-        'description' =>
-            $property['description']
-            ?? '',
-        'required' =>
-            in_array(
-                $name,
-                $required
-            ),
+        'title' => $property['title'] ?? ucfirst($name),
+        'description' => $property['description']  ?? '',
+        'required' => in_array( $name, $required ),
         'group' =>
             $this->detectGroup(
                 $name
@@ -96,23 +85,16 @@ protected function buildField(
                 'description' => $child['description'] ?? '',
                 'required' => $required,
                 'type' =>  $this->detectType( $name,  $child ),
-                'multiple' => $this->isMultiple(
-                        $child
-                    ),
-                'options' =>  $this->extractOptions(
-                        $child
-                    ),
-                'default' => $this->extractDefault(
-                        $child
-                    ),
-                'children' => $this->extractChildren(
-                        $child
-                    ),
+                'multiple' => $this->isMultiple(  $child  ),
+                'options' =>  $this->extractOptions( $child  ),
+                'default' => $this->extractDefault( $child ),
+                'children' => $this->extractChildren( $child ),
                 'selectors' =>  $child['selectors'] ?? [],
             ];
         }
         return $children;
     }
+
    protected function detectType( string $name, array $property): string {
         if ($this->isImageField($name) ) {
             return 'image';
