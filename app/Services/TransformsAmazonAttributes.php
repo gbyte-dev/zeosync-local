@@ -414,8 +414,11 @@ class TransformsAmazonAttributes
         }
 
         if ($name === 'num_batteries') {
-            $d = json_decode($value, true);
-            return $d ? [[$d]] : null;
+            return [[
+                'quantity' => (int) $value,
+                'type' => 'nonstandard_battery',
+                'marketplace_id' => $marketplaceId, // whatever you're threading through elsewhere
+            ]];
         }
 
         if ($name === 'country_of_origin') {
