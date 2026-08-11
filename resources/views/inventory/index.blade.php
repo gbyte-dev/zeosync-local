@@ -1342,39 +1342,44 @@
 
             success: function(response) {
 
-                // Show existing global toast
+                // Show success toast immediately
                 showToast(response.message, 'success');
 
-                // Step 2: Fetch latest Shopify products
-                $.ajax({
-                    url: "{{ route('shopify.inventory.shopify') }}",
-                    type: 'GET',
-                    data: {
-                        shop: shop
-                    },
+                // Step 2: Wait 2 seconds, then fetch latest Shopify products
+                setTimeout(function() {
 
-                    success: function(data) {
+                    $.ajax({
+                        url: "{{ route('shopify.inventory.shopify') }}",
+                        type: 'GET',
+                        data: {
+                            shop: shop
+                        },
 
-                        const items = Array.isArray(data) ? data : [];
+                        success: function(data) {
 
-                        // Step 3: Render latest Shopify data
-                        renderShopifyTable(items);
-                    },
+                            const items = Array.isArray(data) ? data : [];
 
-                    error: function(xhr) {
+                            // Step 3: Render latest Shopify data
+                            renderShopifyTable(items);
+                        },
 
-                        console.error(
-                            'Failed to refresh Shopify products:',
-                            xhr.responseText
-                        );
+                        error: function(xhr) {
 
-                        showToast(
-                            'Inventory updated, but latest Shopify data could not be loaded.',
-                            'danger'
-                        );
-                    }
-                });
+                            console.error(
+                                'Failed to refresh Shopify products:',
+                                xhr.responseText
+                            );
 
+                            showToast(
+                                'Inventory updated, but latest Shopify data could not be loaded.',
+                                'danger'
+                            );
+                        }
+                    });
+
+                }, 2000);
+
+                // Refresh Amazon data if Amazon tab is active
                 if (activeTab === 'amazon') {
                     loadAmazon();
                 }
