@@ -266,9 +266,82 @@
 
 @push('scripts')
 <script>
-    // Include any variant-specific scripts here if needed.
-    // Ensure the shop parameter is preserved in API calls if applicable.
-    const shop = new URLSearchParams(window.location.search).get('shop') || '{{ $shop ?? '
-    ' }}';
+    const shop =
+        new URLSearchParams(window.location.search).get('shop') ||
+        @json($shop - > shop ?? '');
+
+    $(document).on('click', '.btn-action', function() {
+
+        const button = $(this);
+        const row = button.closest('tr');
+        const input = row.find('.qty-input');
+
+        const sku = input.data('sku');
+        const quantity = parseInt(input.val(), 10);
+
+        if (!sku) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Update Failed',
+                text: 'SKU not found.'
+            });
+            return;
+        }
+
+        if (isNaN(quantity) || quantity < 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Invalid Quantity',
+                text: 'Please enter a valid quantity.'
+            });
+            return;
+        }
+
+        const originalText = button.html();
+
+        button.prop('disabled', true)
+            .html(
+                '<span class="spinner-border spinner-border-sm me-1"></span> Updating...'
+            );
+
+        $.ajax({
+            url: "{{ route('shopify.inventory.amazon.update', ['childSku' => '__SKU__']) }}"
+                .replace('__SKU__', encodeURIComponent(sku)),
+
+            type: 'POST',
+
+            data: {
+                quantity: quantity,
+                shop: shop,
+                _token: '{{ csrf_token() }}'
+            },
+
+            success: function(response) {
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Inventory Updated',
+                    text: 'Inventory updated successfully. Latest inventory will reflect in the app in approximately 15 minutes.',
+                    confirmButtonText: 'OK'
+                });
+            },
+
+            error: function(xhr) {
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Update Failed',
+                    text: xhr.responseJSON?.message ||
+                        'Unable to update inventory.'
+                });
+            },
+
+            complete: function() {
+
+                button.prop('disabled', false)
+                    .html(originalText);
+            }
+        });
+    });
 </script>
 @endpush
