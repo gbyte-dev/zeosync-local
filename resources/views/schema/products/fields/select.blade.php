@@ -30,14 +30,10 @@ if($field['name'] == 'fc_shelf_life'){
         border:1px solid #aaaaeb !important;
         @endif
         ">
-
-        <option value="">
-            {{ \Illuminate\Support\Str::limit(trim(($field['description'] ?? '') . ' ' . ($extramsg ?? '')), 55) }}
-        </option>
+        <option value="">  {{ \Illuminate\Support\Str::limit(trim(($field['description'] ?? '') . ' ' . ($extramsg ?? '')), 55) }}  </option>
 
         @foreach($field['options'] as $option)
-            <option
-                value="{{ $option['value'] }}"
+            <option value="{{ $option['value'] }}"
                 {{ $value == $option['value'] ? 'selected' : '' }}>
                 {{ $option['label'] }}
             </option>
