@@ -654,6 +654,63 @@ class TransformsAmazonAttributes
             return array_values(array_map(fn($l) => ['value' => $l, 'language_tag' => 'en_US'], $lines));
         }
 
+        if ($name === 'memory_clock_speed') {
+            $validUnits = ['GHz', 'MHz'];
+            preg_match('/([\d.]+)\s*([a-zA-Z]+)?/', trim((string) $value), $matches);
+
+            $num = (float) ($matches[1] ?? 0);
+            $unitRaw = trim($matches[2] ?? '');
+            $unitMatch = array_filter($validUnits, fn ($u) => strtolower($u) === strtolower($unitRaw));
+            $unit = $unitMatch ? array_values($unitMatch)[0] : 'GHz';
+            $num = min(14700315, $num); 
+
+            $item = [
+                'value' => $num,
+                'marketplace_id' => $marketplaceId,
+            ];
+
+            if ($unitRaw !== '') {
+                $item['unit'] = $unit;
+            }
+
+            return [$item];
+        }
+
+        if ($name === 'flash_memory') {
+            $installed = parseUnitValue((string) $value, ['KB','GB', 'MB', 'TB'], 'GB');
+
+            return [[
+                'marketplace_id' => $marketplaceId,
+                'installed_size' => [$installed],
+            ]];
+        }
+
+        if ($name === 'graphics_ram') {
+            $raw = trim((string) $value);
+
+            // split "8 GB GDDR6X" into size part + type part
+            preg_match('/^([\d.]+\s*[a-zA-Z]+)\s+(.+)$/', $raw, $m);
+
+            $sizePart = trim($m[1] ?? $raw);
+            $typePart = trim($m[2] ?? '');
+
+            $size = parseUnitValue($sizePart, ['GB', 'MB', 'TB'], 'GB');
+
+            $graphicsRam = [
+                'marketplace_id' => $marketplaceId,
+                'size' => [$size],
+            ];
+
+            if ($typePart !== '') {
+                $graphicsRam['type'] = [[
+                    'value' => $typePart,
+                ]];
+            }
+
+            return [$graphicsRam];
+        }
+
+
         if (is_array($value)) {
             $items = array_values(array_filter(array_map(function ($item) {
                 if (is_array($item)) {
