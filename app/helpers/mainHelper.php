@@ -217,3 +217,14 @@ if (!function_exists('getAppName')) {
     }
 }
 
+function parseUnitValue(string $raw, array $validUnits, string $fallbackUnit): array
+{
+    preg_match('/([\d.]+)\s*([a-zA-Z]+)/', trim($raw), $matches);
+    $num = $matches[1] ?? 0;
+    $unit = $matches[2] ?? '';
+
+    $unitMatch = array_filter($validUnits, fn ($u) => strtolower($u) === strtolower($unit));
+    $unit = $unitMatch ? array_values($unitMatch)[0] : $fallbackUnit;
+
+    return ['value' => (float) $num, 'unit' => $unit];
+}
