@@ -1,6 +1,6 @@
-name = "Zeo AmzSync"
-client_id = "e90411fc01ef6455376cbf23a7cffe79"
-application_url = "https://webvire.com/crm"
+name = "Zeosync"
+client_id = "cc04d2b21de39debde846f2b0f70a763"
+application_url = "https://zeosync.app/"
 embedded = true
 
 [build]
@@ -13,16 +13,16 @@ scopes = "read_products,write_orders"
 [auth]
 # This tells Shopify where to send the user to start the session
 redirect_urls = [
-  "https://webvire.com/crm/callback",
-  "https://webvire.com/crm"
+  "https://zeosync.app/callback",
+  "https://zeosync.app/"
 ]
 
 [webhooks]
-api_version = "2024-10"
+api_version = "2026-07"
 
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
-  uri = "https://webvire.com/crm/api/webhooks/app-uninstalled"
+  uri = "https://zeosync.app/api/webhooks/app-uninstalled"
 
 [webhooks.privacy_compliance]
 customer_deletion_url = "https://webvire.com/crm/customers/redact"
