@@ -186,7 +186,7 @@
     <!-- Header -->
     <div class="sp-header-section dashboard-header-card">
         <div>
-            <h1 class="sp-title">Select Product Category</h1>
+            <h1 class="sp-title" style="font-size:small">Select Product Category</h1>
             <p class="sp-subtitle">
                 Choose the Amazon product category before creating your product listing.
             </p>
