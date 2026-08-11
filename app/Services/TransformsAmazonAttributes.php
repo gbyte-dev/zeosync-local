@@ -776,6 +776,44 @@ class TransformsAmazonAttributes
             return [['value' => $map[strtolower($value)] ?? 'new_new']];
         }
 
+        if ($name === 'battery') {
+            // $value expected shape: ['cell_composition' => 'Lithium-Ion', ...other battery fields if you have them]
+            $validCells = [
+                'alkaline', 'lead_acid', 'lithium_ion', 'lithium_metal',
+                'lithium_polymer', 'NiCAD', 'NiMh', 'other_than_listed',
+                'sodium_ion', 'wet_alkali',
+            ];
+
+            $cellRaw = strtolower(str_replace(['-', ' '], '_', trim((string) ($value ?? ''))));
+
+            $cellMap = [
+                'alkaline' => 'alkaline',
+                'lead_acid' => 'lead_acid',
+                'lithium_ion' => 'lithium_ion',
+                'liion' => 'lithium_ion',
+                'li_ion' => 'lithium_ion',
+                'lithium_metal' => 'lithium_metal',
+                'lithium_polymer' => 'lithium_polymer',
+                'lipo' => 'lithium_polymer',
+                'li_po' => 'lithium_polymer',
+                'nicad' => 'NiCAD',
+                'nimh' => 'NiMh',
+                'sodium_ion' => 'sodium_ion',
+                'wet_alkali' => 'wet_alkali',
+            ];
+
+            $cellToken = $cellMap[$cellRaw] ?? 'li_ion';
+
+            $batteryObject = [
+                'marketplace_id' => $marketplaceId,
+            ];
+
+            if ($cellToken !== null) {
+                $batteryObject['cell_composition'] = [['value' => $cellToken]];
+            }
+
+            return [$batteryObject];
+        }
 
         if (in_array($name, ['subject', 'subject_code'])) {
             return [['value' => $value , "type" => "bisac_description", "language_tag"=>"en_US"]];
@@ -1030,6 +1068,7 @@ class TransformsAmazonAttributes
         return $ring;
     }
 
+    
     private function booleanFields(): array
     {
         return [
