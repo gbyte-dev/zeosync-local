@@ -84,7 +84,7 @@ if($field['name'] == 'flash_memory'){
 }
 
 if($field['name'] == 'graphics_ram'){
-    $extramsg = "Please use in format like 16GB GDDR6X ";
+    $extramsg = "Please use in format like 16GB ddr4 ";
 }
 
 if($field['name'] == 'hard_disk'){
