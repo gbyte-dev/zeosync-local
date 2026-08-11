@@ -855,6 +855,46 @@ class TransformsAmazonAttributes
             return [$batteryObject];
         }
 
+        if ($name === 'color_gamut') {
+            $raw = trim((string) $value);
+
+            // extract percentage number
+            preg_match('/([\d.]+)\s*%/', $raw, $numMatch);
+            $num = (float) ($numMatch[1] ?? 0);
+            $num = min(150, $num); // enforce schema max
+
+            // detect standard name
+            $validNames = [
+                'adobe_rgb' => 'Adobe RGB',
+                'cie_1976' => 'CIE 1976',
+                'ntsc' => 'NTSC',
+                'rec_709' => 'Rec. 709',
+                'srgb' => 'sRGB',
+            ];
+
+            $nameToken = null;
+            foreach ($validNames as $token => $label) {
+                if (stripos($raw, $token) !== false || stripos($raw, str_replace('_', ' ', $token)) !== false || stripos($raw, $label) !== false) {
+                    $nameToken = $token;
+                    break;
+                }
+            }
+            // also catch plain "sRGB" without underscore variant explicitly
+            if ($nameToken === null && stripos($raw, 'srgb') !== false) {
+                $nameToken = 'srgb';
+            }
+
+            if ($nameToken === null || $num <= 0) {
+                return []; // can't produce a valid required pair — omit rather than guess
+            }
+
+            return [[
+                'marketplace_id' => $marketplaceId,
+                'name' => $nameToken,
+                'value' => $num,
+            ]];
+        }
+
         if (in_array($name, ['subject', 'subject_code'])) {
             return [['value' => $value , "type" => "bisac_description", "language_tag"=>"en_US"]];
         }

@@ -102,7 +102,9 @@ if($field['name'] == 'battery'){
 if($field['name'] == 'display'){
     $extramsg = "Please use in format like  Full HD 1920 × 1080 IPS Anti-Glare ";
 }
-
+if($field['name'] == 'color_gamut'){
+    $extramsg = "Please use in format like  70% NTSC";
+}
 
 $idreq = $field['required'] ? 'required' : '';
 
