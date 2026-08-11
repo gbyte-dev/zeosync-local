@@ -676,6 +676,41 @@ class TransformsAmazonAttributes
             return [$item];
         }
 
+        if ($name === 'flash_memory') {
+            $installed = parseUnitValue((string) $value, ['KB','GB', 'MB', 'TB'], 'GB');
+
+            return [[
+                'marketplace_id' => $marketplaceId,
+                'installed_size' => [$installed],
+            ]];
+        }
+
+        if ($name === 'graphics_ram') {
+            $raw = trim((string) $value);
+
+            // split "8 GB GDDR6X" into size part + type part
+            preg_match('/^([\d.]+\s*[a-zA-Z]+)\s+(.+)$/', $raw, $m);
+
+            $sizePart = trim($m[1] ?? $raw);
+            $typePart = trim($m[2] ?? '');
+
+            $size = parseUnitValue($sizePart, ['GB', 'MB', 'TB'], 'GB');
+
+            $graphicsRam = [
+                'marketplace_id' => $marketplaceId,
+                'size' => [$size],
+            ];
+
+            if ($typePart !== '') {
+                $graphicsRam['type'] = [[
+                    'value' => $typePart,
+                ]];
+            }
+
+            return [$graphicsRam];
+        }
+
+
         if (is_array($value)) {
             $items = array_values(array_filter(array_map(function ($item) {
                 if (is_array($item)) {
