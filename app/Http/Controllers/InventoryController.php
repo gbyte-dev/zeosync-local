@@ -52,15 +52,18 @@ class InventoryController extends ShopifyController
         Request $request,
         ShopifyInventoryService $shopifyInventoryService
     ) {
+
         $shop = $request->query('shop');
 
         $shopModel = Shop::where('shop', $shop)->first();
         $this->ensureFreshAccessToken($shopModel);
+
         if (!$shopModel) {
             return response()->json([]);
         }
 
         $data = $shopifyInventoryService->getInventory($shopModel);
+
         app(AutoSkuMappingService::class)->handle(
             $shopModel,
             $data,
@@ -180,6 +183,8 @@ class InventoryController extends ShopifyController
     {
 
         $shop = Shop::where('shop', $request->shop)->firstOrFail();
+    //    $shopModel = Shop::where('shop', $shop)->first();
+        $this->ensureFreshAccessToken($shop);
 
         $type = $request->type;
 
