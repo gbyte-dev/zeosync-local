@@ -283,7 +283,7 @@
 <div class="saas-wrapper">
 
     {{-- Header --}}
-    <div class="saas-page-header row">
+    <div class="saas-page-header">
         <div class="col-6 col-md-6">
             <h1 class="saas-page-title">Sync Logs</h1>
             <p class="saas-page-subtitle">Track all synchronization activities between Amazon and Shopify</p>
