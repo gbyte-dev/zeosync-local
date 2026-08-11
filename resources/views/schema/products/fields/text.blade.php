@@ -87,6 +87,10 @@ if($field['name'] == 'graphics_ram'){
     $extramsg = "Please use in format like 16GB GDDR6X ";
 }
 
+if($field['name'] == 'hard_disk'){
+    $extramsg = "Please use in format like 1TB HDD or 512GB SSD ";
+}
+
 $idreq = $field['required'] ? 'required' : '';
 
 @endphp
