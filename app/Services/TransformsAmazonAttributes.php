@@ -530,6 +530,46 @@ class TransformsAmazonAttributes
             return array_values(array_map(fn($l) => ['value' => $l, 'language_tag' => 'en_US'], $lines));
         }
 
+        if (is_array($value)) {
+            $items = array_values(array_filter(array_map(function ($item) {
+                if (is_array($item)) {
+                    if (isset($item['value'])) {
+                        return trim((string) $item['value']);
+                    }
+
+                    if (isset($item['name'])) {
+                        return trim((string) $item['name']);
+                    }
+
+                    return trim((string) json_encode($item));
+                }
+
+                return is_string($item) ? trim($item) : trim((string) $item);
+            }, $value), fn ($item) => $item !== '' && $item !== 'null'));
+
+            if ($items === []) {
+                return null;
+            }
+
+            if ($name === 'variation_theme') {
+                return array_map(fn ($item) => ['name' => strtoupper((string) $item)], $items);
+            }
+
+            if ($name === 'special_feature' || str_ends_with($name, '_feature') || str_contains($name, 'feature')) {
+                return array_map(fn ($item) => [
+                    'value' => (string) $item,
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => $marketplaceId,
+                ], $items);
+            }
+
+            return array_map(fn ($item) => [
+                'value' => (string) $item,
+                'language_tag' => 'en_US',
+                'marketplace_id' => $marketplaceId,
+            ], $items);
+        }
+
         if ($name === 'manufacturer') {
             return [['value' => mb_substr($value, 0, 100)]];
         }

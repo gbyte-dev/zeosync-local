@@ -434,6 +434,23 @@ class ProductSchemaController extends Controller
                 if (($key == 'country_of_origin') && $value == '') {
                     $value = 'US';
                 }
+
+                if (is_array($value)) {
+                    $value = array_values(array_filter(array_map(function ($item) {
+                        if (is_array($item)) {
+                            return json_encode($item);
+                        }
+
+                        if (is_string($item)) {
+                            $trimmed = trim($item);
+                            return $trimmed === '' ? null : $trimmed;
+                        }
+
+                        return $item;
+                    }, $value), fn ($item) => $item !== null && $item !== ''));
+                    $value = $value === [] ? '' : json_encode($value);
+                }
+
                 // if ($value === null || $value === 'null' || $value === '') {
                 //     continue;
                 // }
@@ -475,10 +492,19 @@ class ProductSchemaController extends Controller
         foreach ($product->attributes as $attribute) {
             $name  = $attribute->attribute_name;
             $value = $attribute->attribute_value;
+
             if (is_string($value)) {
+                $trimmed = trim($value);
+                if ($trimmed !== '' && str_starts_with($trimmed, '[')) {
+                    $decoded = json_decode($trimmed, true);
+                    if (is_array($decoded)) {
+                        $value = $decoded;
+                    }
+                }
                 $value = str_replace('"', '', $value);
                 $value = trim($value);
             }
+
             // Skip null / literal "null" entirely — never send empty attributes
             if ($value === null || $value === 'null' || $value === '') {
                 continue;
