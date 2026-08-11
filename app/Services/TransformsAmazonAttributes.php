@@ -702,7 +702,7 @@ class TransformsAmazonAttributes
 
             if ($typePart !== '') {
                 $graphicsRam['type'] = [[
-                    'value' => $typePart,
+                    'value' => $this->mapGraphicsRamType($typePart),
                 ]];
             }
 
@@ -1099,6 +1099,57 @@ class TransformsAmazonAttributes
             'carat' => 'carats','carats' => 'carats','ct' => 'carats','cts' => 'carats','ctw' => 'carats',
             'ct.' => 'carats','karat' => 'carats','karats' => 'carats','kt' => 'carats','kts' => 'carats',
         ];
+    }
+
+if ($name === 'graphics_ram') {
+    $raw = trim((string) $value);
+    preg_match('/^([\d.]+\s*[a-zA-Z]+)\s+(.+)$/', $raw, $m);
+
+    $sizePart = trim($m[1] ?? $raw);
+    $typePart = trim($m[2] ?? '');
+
+    $size = parseUnitValue($sizePart, ['GB', 'MB', 'TB'], 'GB');
+
+    $graphicsRam = [
+        'marketplace_id' => $marketplaceId,
+        'size' => [$size],
+    ];
+
+    $typeToken = mapGraphicsRamType($typePart);
+    if ($typeToken !== null) {
+        $graphicsRam['type'] = [['value' => $typeToken]];
+    }
+
+    return [$graphicsRam];
+}
+
+    function mapGraphicsRamType(string $raw): ?string
+    {
+        $normalized = strtolower(preg_replace('/[^a-z0-9]/i', '', $raw));
+
+        $map = [
+            'gddr3'   => 'gddr3',
+            'gddr4'   => 'gddr4',
+            'gddr5'   => 'gddr5',
+            'gddr5x'  => 'gddr5x',
+            'gddr6'   => 'gddr6',
+            'gddr6x'  => 'gddr6',   // no exact GDDR6X token exists — falls back to closest real match
+            'gddr7'   => 'gddr7',
+            'ddr3'    => 'ddr3_sdram',
+            'ddr4'    => 'ddr4_sdram',
+            'ddr5'    => 'ddr5_sdram',
+            'lpddr4'  => 'ddr4_sdram',  // approximate — no LPDDR-specific token
+            'lpddr5'  => 'ddr5_sdram',  // approximate
+            'sdram'   => 'sdram',
+            'sram'    => 'sram',
+            'vram'    => 'vram',
+            'shared'  => 'shared',
+            'integrated' => 'shared',
+            'dimm'    => 'dimm',
+            'sodimm'  => 'sodimm',
+        ];
+
+        return $map[$normalized] ?? 'gddr3';
     }
 
     private function voltageUnitMap(): array
