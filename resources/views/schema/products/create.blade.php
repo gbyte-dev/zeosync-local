@@ -688,18 +688,36 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 <script>
     const requiredFields = @json($requiredFields);
 
+    function getFieldInputs(fieldName) {
+        const direct = document.querySelector(`[name="attributes[${fieldName}]"]`);
+        const multi = document.querySelectorAll(`[name="attributes[${fieldName}][]"]`);
+
+        if (multi.length) {
+            return Array.from(multi);
+        }
+
+        return direct ? [direct] : [];
+    }
+
+    function isInputFilled(input) {
+        if (!input) {
+            return false;
+        }
+
+        if (input.multiple) {
+            const values = Array.isArray($(input).val()) ? $(input).val() : [];
+            return values.some(value => value !== null && value !== undefined && String(value).trim() !== '');
+        }
+
+        return input.value && input.value.trim() !== '';
+    }
+
     function updateProgress() {
         let filledCount = 0;
         let html = '<ul>';
         requiredFields.forEach(field => {
-            let input =
-                document.querySelector(
-                    `[name="attributes[${field}]"]`
-                );
-            let isFilled =
-                input &&
-                input.value &&
-                input.value.trim() !== '';
+            const inputs = getFieldInputs(field);
+            const isFilled = inputs.some(input => isInputFilled(input));
             if (isFilled) {
                 filledCount++;
                 html += `
@@ -742,7 +760,15 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
             let value = $(this).val();
 
-            if ($(this).is('select')) {
+            if ($(this).is('select[multiple]')) {
+
+                const values = Array.isArray(value) ? value : [];
+                if (!values.some(v => v !== null && v !== undefined && String(v).trim() !== '')) {
+                    allFilled = false;
+                    return false;
+                }
+
+            } else if ($(this).is('select')) {
 
                 if (!value) {
                     allFilled = false;
@@ -776,8 +802,9 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
         let found = false;
         requiredFields.forEach(field => {
             if (found) return;
-            let input = document.querySelector(`[name="attributes[${field}]"]`);
-            if (input && input.value.trim() === '') {
+            const inputs = getFieldInputs(field);
+            const input = inputs.find(item => !isInputFilled(item));
+            if (input) {
                 found = true;
                 $('html,body').animate({
                     scrollTop: $(input).closest('.field-card').offset().top - 100
@@ -792,10 +819,8 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
         function() {
             let field =
                 $(this).data('field');
-            let input =
-                document.querySelector(
-                    `[name="attributes[${field}]"]`
-                );
+            const inputs = getFieldInputs(field);
+            const input = inputs[0] || null;
             if (input) {
                 let pane =
                     $(input).closest('.tab-pane');

@@ -21,10 +21,7 @@ if($field['name'] == 'fc_shelf_life'){
 
 <div class="mb-2">
 
-    <select
-        name="attributes[{{ $field['name'] }}]"
-        {{ $idreq }}
-        class="form-select form-select-sm"
+    <select name="attributes[{{ $field['name'] }}]" {{ $idreq }} class="form-select form-select-sm"
         style="font-size: small ;
         @if(!empty($php_errormsg))
             border:3px solid #dc3545 !important;
