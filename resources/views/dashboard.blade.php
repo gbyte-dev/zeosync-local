@@ -55,10 +55,11 @@
         color: #6B7280;
         letter-spacing: .05em;
     }
-    
-    .in-iframe .saas-stat-label{
-        font-size: 10px; 
+
+    .in-iframe .saas-stat-label {
+        font-size: 10px;
     }
+
     .saas-stat-value {
         font-size: 24px;
         font-weight: 700;
@@ -66,20 +67,20 @@
         line-height: 1;
     }
 
-    .in-iframe .saas-stat-value{
-        font-size: 20px; 
+    .in-iframe .saas-stat-value {
+        font-size: 20px;
     }
 
-    .in-iframe .saas-stat-card{
+    .in-iframe .saas-stat-card {
         padding: 8px 9px;
     }
 
-    .in-iframe .card-title-custom{
+    .in-iframe .card-title-custom {
         font-size: 14px;
     }
 
     .in-iframe .low-inventory-table {
-        font-size:10px;
+        font-size: 10px;
     }
 
     /* Graph / Recent Activity Cards */
@@ -212,6 +213,15 @@
         text-overflow: ellipsis;
     }
 
+    .dashboard-header-card {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
     /* --- Responsive Improvements --- */
     /* Tablet (577px - 991px) */
     @media (min-width: 577px) and (max-width: 991.98px) {
@@ -275,7 +285,7 @@
 </style>
 <div class="container-fluid py-3 px-3 shopify-dashboard">
     <!-- Page Header -->
-    <div class="mb-3 d-flex justify-content-between align-items-center">
+    <div class="dashboard-header-card">
         <div>
             <h1 class="page-title mb-0">Dashboard</h1>
             <p class="page-subtitle mb-0">Amazon ↔ Shopify sync overview</p>
