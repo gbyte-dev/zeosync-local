@@ -382,9 +382,9 @@
 
     <!-- Header Section -->
     <div class="sp-header-section">
-        <div class="saas-page-header row">
+        <div class="saas-page-header">
             <div class="col-md-7 col-sm-12">
-                <h1 class="sp-title">Shopify Products</h1>
+                <h1 class="sp-title" style="font-size:medium">Shopify Products</h1>
                 <p class="sp-subtitle">If Products not available Click refresh button</p>
             </div>
             <div class="sp-actions col-md-5 col-sm-12">
