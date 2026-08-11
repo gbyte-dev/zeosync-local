@@ -396,6 +396,18 @@ $colorSizeMap[$color] = [];
         border-bottom: none;
     }
 
+    .sp-header {
+        margin-bottom: 16px;
+    }
+
+    .dashboard-header-card {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 10px;
+        padding: 16px 20px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
     .sp-table tbody tr:hover td {
         background-color: #F9FAFB;
     }
@@ -407,7 +419,10 @@ $colorSizeMap[$color] = [];
 </style>
 
 <div class="sp-page">
-    <h1 class="sp-title">Product Details</h1>
+
+    <div class="sp-header dashboard-header-card">
+        <h1 class="sp-title">Product Details</h1>
+    </div>
 
     <div class="sp-layout-grid">
 
