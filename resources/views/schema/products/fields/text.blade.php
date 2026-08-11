@@ -99,6 +99,10 @@ if($field['name'] == 'battery'){
     $extramsg = "Please use in format like  'Lithium-Ion ";
 }
 
+if($field['name'] == 'display'){
+    $extramsg = "Please use in format like  Full HD 1920 × 1080 IPS Anti-Glare ";
+}
+
 
 $idreq = $field['required'] ? 'required' : '';
 
