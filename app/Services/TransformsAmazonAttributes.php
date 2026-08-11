@@ -421,7 +421,7 @@ class TransformsAmazonAttributes
             ]];
         }
 
-        if ($name === 'memory_storage_capacity') {
+        if (in_array($name, ['memory_storage_capacity','digital_storage_capacity'])) {
             $validUnits = ['bytes', 'GB', 'KB', 'MB', 'TB'];
 
             preg_match('/([\d.]+)\s*([a-zA-Z]+)/', trim((string) $value), $matches);
