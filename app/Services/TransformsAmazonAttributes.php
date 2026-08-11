@@ -414,8 +414,11 @@ class TransformsAmazonAttributes
         }
 
         if ($name === 'num_batteries') {
-            $d = json_decode($value, true);
-            return $d ? [[$d]] : null;
+            return [[
+                'quantity' => (int) $value,
+                'type' => 'nonstandard_battery',
+                'marketplace_id' => $marketplaceId, // whatever you're threading through elsewhere
+            ]];
         }
 
         if ($name === 'country_of_origin') {
@@ -701,13 +704,6 @@ class TransformsAmazonAttributes
         if ($name === 'polarization_type') {
             // enum unknown — passing raw value through for now
             return [['value' => strtolower(trim((string) $value))]];
-        }
-
-        if ($name === 'num_batteries') {
-            return [[
-                'quantity' => (int) $value,
-                'type' => 'nonstandard_battery',
-            ]];
         }
 
         return [['value' => $value]];
