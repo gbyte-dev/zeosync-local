@@ -842,7 +842,7 @@ class TransformsAmazonAttributes
                 'wet_alkali' => 'wet_alkali',
             ];
 
-            $cellToken = $cellMap[$cellRaw] ?? 'li_ion';
+            $cellToken = $cellMap[$cellRaw] ?? 'lithium_ion';
 
             $batteryObject = [
                 'marketplace_id' => $marketplaceId,
