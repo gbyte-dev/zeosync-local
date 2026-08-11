@@ -761,7 +761,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-    const amazonConnected = @json(!empty($shop -> amazon_refresh_token));
+    const amazonConnected = @json(!empty($shop - > amazon_refresh_token));
     let selectedAmazonSku = null;
     let selectedShopifyVariantId = null;
     let selectedShopifyProductId = null;
@@ -1317,9 +1317,11 @@
     });
 
     $(document).on('click', '.update-shopify-inventory', function() {
+
         const button = $(this);
         const row = button.closest('tr');
         const qtyInput = row.find('.qty-input');
+
         const inventoryItemId = button.data('inventory-item');
         const quantity = qtyInput.val();
         const shop = new URLSearchParams(window.location.search).get('shop');
@@ -1327,6 +1329,7 @@
         button.prop('disabled', true).text('Updating...');
         qtyInput.prop('disabled', true);
 
+        // Step 1: Update Shopify inventory
         $.ajax({
             url: "{{ route('inventory.shopify.update') }}",
             type: 'POST',
@@ -1336,15 +1339,57 @@
                 quantity: quantity,
                 _token: $('meta[name="csrf-token"]').attr('content')
             },
+
             success: function(response) {
-                alert(response.message);
-                loadShopify();
-                if (activeTab === 'amazon') loadAmazon();
+
+                // Show existing global toast
+                showToast(response.message, 'success');
+
+                // Step 2: Fetch latest Shopify products
+                $.ajax({
+                    url: "{{ route('shopify.inventory.shopify') }}",
+                    type: 'GET',
+                    data: {
+                        shop: shop
+                    },
+
+                    success: function(data) {
+
+                        const items = Array.isArray(data) ? data : [];
+
+                        // Step 3: Render latest Shopify data
+                        renderShopifyTable(items);
+                    },
+
+                    error: function(xhr) {
+
+                        console.error(
+                            'Failed to refresh Shopify products:',
+                            xhr.responseText
+                        );
+
+                        showToast(
+                            'Inventory updated, but latest Shopify data could not be loaded.',
+                            'danger'
+                        );
+                    }
+                });
+
+                if (activeTab === 'amazon') {
+                    loadAmazon();
+                }
             },
+
             error: function(xhr) {
-                alert(xhr.responseJSON?.message ?? 'Inventory update failed.');
+
+                showToast(
+                    xhr.responseJSON?.message ?? 'Inventory update failed.',
+                    'danger'
+                );
             },
+
             complete: function() {
+
                 button.prop('disabled', false).text('Update');
                 qtyInput.prop('disabled', false);
             }
