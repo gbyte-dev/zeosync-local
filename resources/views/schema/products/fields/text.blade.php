@@ -72,9 +72,12 @@ if($field['name'] == 'ram_memory'){
     $extramsg = "Please use in format like 16GB DDR4 ";
 }
 
-
-
-
+if($field['name'] == 'memory_type'){
+    $extramsg = "Please use in format like DDR4 , DDR5 , LPDDR4X etc ";
+}
+if($field['name'] == 'memory_clock_speed'){
+    $extramsg = "Please use in format like 3200 MHz ";
+}
 
 
 $idreq = $field['required'] ? 'required' : '';
