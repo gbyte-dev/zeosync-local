@@ -696,8 +696,7 @@ class TransformsAmazonAttributes
 
             $size = parseUnitValue($sizePart, ['GB', 'MB', 'TB'], 'GB');
 
-            $graphicsRam = [
-                'marketplace_id' => $marketplaceId,
+            $graphicsRam = [ 'marketplace_id' => $marketplaceId,
                 'size' => [$size],
             ];
 
@@ -710,6 +709,23 @@ class TransformsAmazonAttributes
             return [$graphicsRam];
         }
 
+        if ($name === 'hard_disk') {
+            $raw = trim((string) $value);
+
+            $knownTypes = ['Emmc', 'HDD', 'SSD', 'SSHD', 'UFS'];
+            $matched = array_filter($knownTypes, fn ($t) => strtolower($t) === strtolower($raw));
+            $normalized = $matched ? array_values($matched)[0] : $raw; // keep raw as free text if no match
+
+            return [[
+                'marketplace_id' => $marketplaceId,
+                'description' => [
+                    [
+                        'value' => $normalized,
+                        'language_tag' => 'en_US',
+                    ],
+                ],
+            ]];
+        }
 
         if (is_array($value)) {
             $items = array_values(array_filter(array_map(function ($item) {
