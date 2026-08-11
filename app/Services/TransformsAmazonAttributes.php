@@ -720,8 +720,10 @@ class TransformsAmazonAttributes
         }
 
         if ($name === 'flash_memory') {
-            $installed = $this->parseUnitValue((string) $value, ['KB','GB', 'MB', 'TB'], 'GB');
-
+            $installed = parseUnitValue((string) $value, ['GB', 'MB', 'TB'], 'GB');
+            if ($installed['value'] <= 0) {
+                return []; // nothing to submit — omit attribute entirely
+            }
             return [[
                 'marketplace_id' => $marketplaceId,
                 'installed_size' => [$installed],
@@ -730,25 +732,20 @@ class TransformsAmazonAttributes
 
         if ($name === 'graphics_ram') {
             $raw = trim((string) $value);
-
-            // split "8 GB GDDR6X" into size part + type part
             preg_match('/^([\d.]+\s*[a-zA-Z]+)\s+(.+)$/', $raw, $m);
-
             $sizePart = trim($m[1] ?? $raw);
-            $typePart = trim($m[2] ?? '');
+            $size = parseUnitValue($sizePart, ['GB', 'MB', 'TB'], 'GB');
 
-            $size = $this->parseUnitValue($sizePart, ['GB', 'MB', 'TB'], 'GB');
-
-            $graphicsRam = [ 'marketplace_id' => $marketplaceId,
-                'size' => [$size],
-            ];
-
-            if ($typePart !== '') {
-                $graphicsRam['type'] = [[
-                    'value' => $this->mapGraphicsRamType($typePart),
-                ]];
+            if ($size['value'] <= 0) {
+                return []; // integrated/shared graphics, or unparseable — omit
             }
 
+            $typePart = trim($m[2] ?? '');
+            $graphicsRam = ['marketplace_id' => $marketplaceId, 'size' => [$size]];
+            $typeToken = $this->mapGraphicsRamType($typePart);
+            if ($typeToken !== null) {
+                $graphicsRam['type'] = [['value' => $typeToken]];
+            }
             return [$graphicsRam];
         }
 
