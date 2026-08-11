@@ -61,8 +61,18 @@ if($field['name'] == 'lens'){
 }
 
 if($field['name'] == 'memory_storage_capacity'){
-    $extramsg = "Please use in format 16GB ['TB' ,'bytes']";
+    $extramsg = "Please use in format like 16GB ['TB' ,'bytes']";
 }
+
+if($field['name'] == 'maximum_display_brightness'){
+    $extramsg = "Please use in format like 350 nits ";
+}
+
+if($field['name'] == 'ram_memory'){
+    $extramsg = "Please use in format like 16GB DDR4 ";
+}
+
+
 
 
 
