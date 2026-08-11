@@ -91,6 +91,11 @@ if($field['name'] == 'hard_disk'){
     $extramsg = "Please use in format like 1TB HDD or 512GB SSD ";
 }
 
+if($field['name'] == 'cpu_model'){
+    $extramsg = "Please use in format like Intel Core i7-1165G7 or AMD Ryzen 5 5600X ";
+}
+
+
 $idreq = $field['required'] ? 'required' : '';
 
 @endphp
