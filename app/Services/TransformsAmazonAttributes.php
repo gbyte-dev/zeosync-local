@@ -534,7 +534,7 @@ class TransformsAmazonAttributes
             $sizePart = trim($m[1] ?? $raw);
             $tech = strtoupper(trim($m[2] ?? ''));
 
-            $installed = parseUnitValue($sizePart, ['bytes', 'GB', 'KB', 'MB', 'TB'], 'GB');
+            $installed = $this->parseUnitValue($sizePart, ['bytes', 'GB', 'KB', 'MB', 'TB'], 'GB');
             $maxValue = $installed['value'] * 2;
             $maxUnit = $installed['unit'];
 
@@ -720,7 +720,7 @@ class TransformsAmazonAttributes
         }
 
         if ($name === 'flash_memory') {
-            $installed = parseUnitValue((string) $value, ['KB','GB', 'MB', 'TB'], 'GB');
+            $installed = $this->parseUnitValue((string) $value, ['KB','GB', 'MB', 'TB'], 'GB');
 
             return [[
                 'marketplace_id' => $marketplaceId,
@@ -737,7 +737,7 @@ class TransformsAmazonAttributes
             $sizePart = trim($m[1] ?? $raw);
             $typePart = trim($m[2] ?? '');
 
-            $size = parseUnitValue($sizePart, ['GB', 'MB', 'TB'], 'GB');
+            $size = $this->parseUnitValue($sizePart, ['GB', 'MB', 'TB'], 'GB');
 
             $graphicsRam = [ 'marketplace_id' => $marketplaceId,
                 'size' => [$size],
@@ -1183,29 +1183,7 @@ class TransformsAmazonAttributes
         ];
     }
 
-if ($name === 'graphics_ram') {
-    $raw = trim((string) $value);
-    preg_match('/^([\d.]+\s*[a-zA-Z]+)\s+(.+)$/', $raw, $m);
-
-    $sizePart = trim($m[1] ?? $raw);
-    $typePart = trim($m[2] ?? '');
-
-    $size = parseUnitValue($sizePart, ['GB', 'MB', 'TB'], 'GB');
-
-    $graphicsRam = [
-        'marketplace_id' => $marketplaceId,
-        'size' => [$size],
-    ];
-
-    $typeToken = mapGraphicsRamType($typePart);
-    if ($typeToken !== null) {
-        $graphicsRam['type'] = [['value' => $typeToken]];
-    }
-
-    return [$graphicsRam];
-}
-
-    function mapGraphicsRamType(string $raw): ?string
+    private function mapGraphicsRamType(string $raw): ?string
     {
         $normalized = strtolower(preg_replace('/[^a-z0-9]/i', '', $raw));
 
@@ -1215,13 +1193,13 @@ if ($name === 'graphics_ram') {
             'gddr5'   => 'gddr5',
             'gddr5x'  => 'gddr5x',
             'gddr6'   => 'gddr6',
-            'gddr6x'  => 'gddr6',   // no exact GDDR6X token exists — falls back to closest real match
+            'gddr6x'  => 'gddr6',
             'gddr7'   => 'gddr7',
             'ddr3'    => 'ddr3_sdram',
             'ddr4'    => 'ddr4_sdram',
             'ddr5'    => 'ddr5_sdram',
-            'lpddr4'  => 'ddr4_sdram',  // approximate — no LPDDR-specific token
-            'lpddr5'  => 'ddr5_sdram',  // approximate
+            'lpddr4'  => 'ddr4_sdram',
+            'lpddr5'  => 'ddr5_sdram',
             'sdram'   => 'sdram',
             'sram'    => 'sram',
             'vram'    => 'vram',
