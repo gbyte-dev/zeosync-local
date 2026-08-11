@@ -1317,9 +1317,11 @@
     });
 
     $(document).on('click', '.update-shopify-inventory', function() {
+
         const button = $(this);
         const row = button.closest('tr');
         const qtyInput = row.find('.qty-input');
+
         const inventoryItemId = button.data('inventory-item');
         const quantity = qtyInput.val();
         const shop = new URLSearchParams(window.location.search).get('shop');
@@ -1327,6 +1329,7 @@
         button.prop('disabled', true).text('Updating...');
         qtyInput.prop('disabled', true);
 
+        // Step 1: Update Shopify inventory
         $.ajax({
             url: "{{ route('inventory.shopify.update') }}",
             type: 'POST',
@@ -1336,15 +1339,62 @@
                 quantity: quantity,
                 _token: $('meta[name="csrf-token"]').attr('content')
             },
+
             success: function(response) {
-                alert(response.message);
-                loadShopify();
-                if (activeTab === 'amazon') loadAmazon();
+
+                // Show success toast immediately
+                showToast(response.message, 'success');
+
+                // Step 2: Wait 2 seconds, then fetch fresh Shopify data
+                setTimeout(function() {
+
+                    $.ajax({
+                        url: "{{ route('shopify.inventory.shopify') }}",
+                        type: 'GET',
+                        data: {
+                            shop: shop
+                        },
+
+                        success: function(data) {
+
+                            const items = Array.isArray(data) ? data : [];
+
+                            // Step 3: Render latest Shopify data
+                            renderShopifyTable(items);
+                        },
+
+                        error: function(xhr) {
+
+                            console.error(
+                                'Failed to refresh Shopify products:',
+                                xhr.responseText
+                            );
+
+                            showToast(
+                                'Inventory updated, but latest Shopify data could not be loaded.',
+                                'danger'
+                            );
+                        }
+                    });
+
+                }, 2000);
+
+                // Refresh Amazon data if Amazon tab is active
+                if (activeTab === 'amazon') {
+                    loadAmazon();
+                }
             },
+
             error: function(xhr) {
-                alert(xhr.responseJSON?.message ?? 'Inventory update failed.');
+
+                showToast(
+                    xhr.responseJSON?.message ?? 'Inventory update failed.',
+                    'danger'
+                );
             },
+
             complete: function() {
+
                 button.prop('disabled', false).text('Update');
                 qtyInput.prop('disabled', false);
             }
