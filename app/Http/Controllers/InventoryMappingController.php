@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\AmazonService;
 use App\Services\SyncLimitService;
+use Illuminate\Support\Facades\Cache;
 use App\Models\Shop;
 
 
