@@ -451,6 +451,109 @@ class TransformsAmazonAttributes
             return in_array($normalized, $valid) ? [['value' => $normalized]] : null;
         }
 
+        if ($name === 'maximum_display_brightness') {
+            $validUnits = ['candela_per_square_meter', 'nit'];
+
+            preg_match('/([\d.]+)\s*([a-zA-Z_\s]+)/', trim((string) $value), $matches);
+
+            $num = (float) ($matches[1] ?? 0);
+            $unitRaw = strtolower(trim($matches[2] ?? ''));
+
+            // normalize common phrasings to the enum
+            $unitAliases = [
+                'nit' => 'nit',
+                'nits' => 'nit',
+                'cd/m2' => 'candela_per_square_meter',
+                'cd/m^2' => 'candela_per_square_meter',
+                'candela per square meter' => 'candela_per_square_meter',
+                'candela_per_square_meter' => 'candela_per_square_meter',
+            ];
+            $unit = $unitAliases[$unitRaw] ?? 'nit'; // fallback default
+
+            // enforce schema constraints: 0-50000, multiple of 0.001
+            $num = max(0, min(50000, $num));
+            $num = round($num, 3);
+
+            return [[
+                'value' => $num,
+                'unit' => $unit,
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
+        if ($name === 'ram_memory') {
+            $raw = trim((string) $value);
+            preg_match('/^([\d.]+\s*[a-zA-Z]+)\s+(DDR\d[X]?|LPDDR\d[X]?)$/i', $raw, $m);
+
+            $sizePart = trim($m[1] ?? $raw);
+            $tech = strtoupper(trim($m[2] ?? ''));
+
+            $installed = parseUnitValue($sizePart, ['bytes', 'GB', 'KB', 'MB', 'TB'], 'GB');
+            $maxValue = $installed['value'] * 2;
+            $maxUnit = $installed['unit'];
+
+            if ($maxUnit === 'TB') {
+                $maxValue *= 1000;
+                $maxUnit = 'GB';
+            } elseif (in_array($maxUnit, ['bytes', 'KB'], true)) {
+                $maxUnit = 'MB'; 
+            }
+
+            $ramObject = [
+                'marketplace_id' => $marketplaceId,
+                'installed_size' => [$installed],
+                'maximum_size' => [[
+                    'value' => $maxValue,
+                    'unit' => $maxUnit,
+                ]],
+            ];
+
+            if ($tech !== '') {
+                $ramObject['technology'] = [[
+                    'value' => $tech,
+                    'language_tag' => 'en_US',
+                ]];
+            }
+
+            return [$ramObject];
+        }
+
+        if ($name === 'cpu_model') {
+
+            $raw = trim((string) $value);
+
+            // detect manufacturer
+            $manufacturers = ['Intel', 'AMD', 'Apple', 'Qualcomm', 'Ryzen','MediaTek','Phenom', 'Samsung','Xeon','Turion'];
+            $manufacturer = '';
+            foreach ($manufacturers as $m) {
+                if (stripos($raw, $m) !== false) {
+                    $manufacturer = $m;
+                    break;
+                }
+            }
+
+            // extract model number (e.g. "i7-1165G7", "5800H", "M2")
+            preg_match('/([A-Za-z]*\d[A-Za-z0-9\-]*)/', $raw, $modelMatch);
+            $modelNumber = $modelMatch[1] ?? '';
+
+            // build family token: spaces -> underscores, strip model number if present
+            $familyRaw = trim(str_ireplace($modelNumber, '', $raw));
+            $family = preg_replace('/\s+/', '_', $familyRaw);
+
+            return [[
+                'marketplace_id' => $marketplaceId,
+                'family' => [
+                    ['value' => $family],
+                ],
+                'manufacturer' => [
+                    ['value' => $manufacturer, 'language_tag' => 'en_US'],
+                ],
+                'model_number' => [
+                    ['value' => $modelNumber, 'language_tag' => 'en_US'],
+                ],
+            ]];
+        }
+
         if ($name === 'supplier_declared_dg_hz_regulation') {
             $valid = ['not_applicable','un3480','un3481','un3090','un3091','iata_section_ii','iata_section_ib'];
             return [['value' => in_array(strtolower($value), $valid) ? strtolower($value) : 'not_applicable']];
