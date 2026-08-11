@@ -653,7 +653,9 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 
             <div class="float-end">
                 <a href="{{ route('shopify.products') }}{{ $shopQuery }}" class="btn btn-primary"> Back </a>
-                <button type="submit" class="btn btn-success"> Update Product </button>
+                <button type="submit" class="btn btn-success" id="updateProductBtn">
+                    Update Product
+                </button>
             </div>
         </div>
     </form>
@@ -663,11 +665,21 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 @push('scripts')
 <script>
     const productForm = document.getElementById('productForm');
+    const updateProductBtn = document.getElementById('updateProductBtn');
     const productTitleInput = document.querySelector('input[name="title"]');
     const amazonTitleInput = document.getElementById('amazonTitle');
 
     // Product data passed from controller
     const productData = @json($product);
+
+    productForm.addEventListener('submit', function() {
+        if (updateProductBtn.disabled) {
+            return;
+        }
+
+        updateProductBtn.disabled = true;
+        updateProductBtn.innerHTML = 'Updating...';
+    });
 
     // Sync Amazon title with product title silently
     if (productTitleInput && amazonTitleInput) {
