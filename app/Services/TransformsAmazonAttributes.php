@@ -703,6 +703,13 @@ class TransformsAmazonAttributes
             return [['value' => strtolower(trim((string) $value))]];
         }
 
+        if ($name === 'num_batteries') {
+            return [[
+                'quantity' => (int) $value,
+                'type' => 'nonstandard_battery',
+            ]];
+        }
+
         return [['value' => $value]];
         }catch(\Exception $e){
             return [['value' => $value]];
