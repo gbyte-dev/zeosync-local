@@ -425,6 +425,8 @@ class InventoryMappingController extends Controller
             ], 422);
         }
 
+        Cache::forget("shopify_inventory_{$shop->shop}");
+
         // Check existing mapping
         $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
             ->where('shopify_inventory_item_id', $request->inventory_item_id)
