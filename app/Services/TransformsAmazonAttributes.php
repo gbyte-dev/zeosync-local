@@ -549,38 +549,36 @@ class TransformsAmazonAttributes
         }
 
         if ($name === 'ram_memory') {
-            $raw = trim((string) $value);
-            preg_match('/^([\d.]+\s*[a-zA-Z]+)\s+(DDR\d[X]?|LPDDR\d[X]?)$/i', $raw, $m);
 
-            $sizePart = trim($m[1] ?? $raw);
-            $tech = strtoupper(trim($m[2] ?? ''));
+            preg_match('/([\d.]+)\s*(GB|MB|TB)\s*(DDR\d+|LPDDR\d+)?/i', trim((string) $value), $m);
 
-            $installed = $this->parseUnitValue($sizePart, ['bytes', 'GB', 'KB', 'MB', 'TB'], 'GB');
-            $maxValue = $installed['value'] * 2;
-            $maxUnit = $installed['unit'];
-
-            if ($maxUnit === 'TB') {
-                $maxValue *= 1000;
-                $maxUnit = 'GB';
-            } elseif (in_array($maxUnit, ['bytes', 'KB'], true)) {
-                $maxUnit = 'MB'; 
-            }
+            $size = isset($m[1]) ? (float) $m[1] : 8;
+            $unit = isset($m[2]) ? strtoupper($m[2]) : 'GB';
+            $tech = isset($m[3]) ? strtoupper($m[3]) : 'DDR4';
 
             $ramObject = [
                 'marketplace_id' => $marketplaceId,
-                'installed_size' => [$installed],
-                'maximum_size' => [[
-                    'value' => $maxValue,
-                    'unit' => $maxUnit,
+                'installed_size' => [[
+                    'value' => $size,
+                    'unit' => $unit,
                 ]],
-            ];
-
-            if ($tech !== '') {
-                $ramObject['technology'] = [[
+                'installed_size_unit' => [[
+                    'value' => $unit,
+                    'language_tag' => 'en_US',
+                ]],
+                'maximum_size' => [[
+                    'value' => $size * 2,
+                    'unit' => $unit,
+                ]],
+                'maximum_size_unit' => [[
+                    'value' => $unit,
+                    'language_tag' => 'en_US',
+                ]],
+                'technology' => [[
                     'value' => $tech,
                     'language_tag' => 'en_US',
-                ]];
-            }
+                ]],
+            ];
 
             return [$ramObject];
         }
