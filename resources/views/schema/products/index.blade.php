@@ -359,7 +359,7 @@ table.dataTable.dtr-inline.collapsed>tbody>tr>td.dtr-control:before, table.dataT
 
     <!-- Header Section -->
     <div class="sp-header-section">
-        <div class="saas-page-header row">
+        <div class="saas-page-header">
         <div class="col-md-7 col-sm-12">
             <h1 class="sp-title">Amazon Products Under Progress</h1>
         </div>
