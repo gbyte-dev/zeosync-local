@@ -1283,6 +1283,7 @@
     });
 
     $(document).on('click', '.update-amazon-qty', function() {
+
         const button = $(this);
         const row = button.closest('tr');
         const qtyInput = row.find('.amazon-qty');
@@ -1293,23 +1294,45 @@
         qtyInput.prop('disabled', true);
 
         const shop = new URLSearchParams(window.location.search).get('shop');
+
         $.ajax({
             url: `${window.location.origin}/inventory/amazon/${sku}/update-quantity?shop=${encodeURIComponent(shop)}`,
             type: 'POST',
+
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
+
             data: {
                 quantity: quantity
             },
+
             success: function(response) {
-                alert(response.message ?? 'Inventory updated successfully.');
-                loadAmazon();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Inventory Updated',
+                    text: 'Inventory updated successfully. Latest inventory will reflect in the app in approximately 15 minutes.',
+                    confirmButtonText: 'OK'
+                });
+
+                // Do NOT call loadAmazon() here.
+                // Amazon latest inventory comes through the report after ~15 minutes.
             },
+
             error: function(xhr) {
-                alert(xhr.responseJSON?.message ?? 'Inventory update failed.');
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Update Failed',
+                    text: xhr.responseJSON?.message ??
+                        'Inventory update failed.',
+                    confirmButtonText: 'OK'
+                });
             },
+
             complete: function() {
+
                 button.prop('disabled', false).text('Update');
                 qtyInput.prop('disabled', false);
             }
