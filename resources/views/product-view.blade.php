@@ -421,7 +421,7 @@ $colorSizeMap[$color] = [];
 <div class="sp-page">
 
     <div class="sp-header dashboard-header-card">
-        <h1 class="sp-title">Product Details</h1>
+        <h1 class="sp-title" style="font-size:medium">Product Details</h1>
     </div>
 
     <div class="sp-layout-grid">

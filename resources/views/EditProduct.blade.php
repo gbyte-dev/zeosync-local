@@ -440,7 +440,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 
 <div class="sp-page container-fluid">
     <div class="sp-header dashboard-header-card">
-        <h1 class="sp-title">Edit Product</h1>
+        <h1 class="sp-title" style="font-size:medium">Edit Product</h1>
         <p class="sp-subtitle">Update the details below to modify your product</p>
     </div>
 
