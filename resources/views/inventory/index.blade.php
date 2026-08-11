@@ -1310,8 +1310,6 @@
             success: function(response) {
 
                 Swal.fire({
-                    icon: 'success',
-                    title: 'Inventory Updated',
                     text: 'Inventory updated successfully. Latest inventory will reflect in the app in approximately 15 minutes.',
                     confirmButtonText: 'OK'
                 });
