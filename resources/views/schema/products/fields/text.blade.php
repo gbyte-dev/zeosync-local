@@ -60,6 +60,10 @@ if($field['name'] == 'lens'){
     $extramsg = 'Please use in format {"width":20,"material":"polycarbonate","color":"black"}';
 }
 
+if($field['name'] == 'memory_storage_capacity'){
+    $extramsg = "Please use in format 16GB ['TB' ,'bytes']";
+}
+
 
 
 
