@@ -700,7 +700,7 @@ class TransformsAmazonAttributes
             return array_values(array_map(fn($l) => ['value' => $l, 'language_tag' => 'en_US'], $lines));
         }
 
-        if ($name === 'memory_clock_speed') {
+        if (in_array($name , ['memory_clock_speed','memory_speed'])) {
             $validUnits = ['GHz', 'MHz'];
             preg_match('/([\d.]+)\s*([a-zA-Z]+)?/', trim((string) $value), $matches);
 
@@ -713,12 +713,9 @@ class TransformsAmazonAttributes
             $item = [
                 'value' => $num,
                 'marketplace_id' => $marketplaceId,
+                'unit' => $unit??'GHz',
             ];
-
-            if ($unitRaw !== '') {
-                $item['unit'] = $unit;
-            }
-
+            
             return [$item];
         }
 
