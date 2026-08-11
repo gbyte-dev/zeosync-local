@@ -138,7 +138,7 @@ class InventoryMappingController extends Controller
             'sync_status' => 'pending',
             'submission_status' => 'not_submitted',
         ];
-        
+
         $mapping = ProductMarketplaceMapping::create($insertData);
 
         Log::info('Saved Record', $mapping->fresh()->toArray());
@@ -256,6 +256,118 @@ class InventoryMappingController extends Controller
         ]);
     }
 
+    // public function updateShopifyInventory(Request $request)
+    // {
+    //     $request->validate([
+    //         'shop'              => 'required',
+    //         'inventory_item_id' => 'required',
+    //         'quantity'          => 'required|integer|min:0',
+    //     ]);
+
+    //     $shop = Shop::where('shop', $request->shop)->firstOrFail();
+
+    //     $shopify = new ShopifyService(
+    //         $shop->shop,
+    //         $shop->access_token
+    //     );
+
+    //     // Get Shopify Location
+    //     $locationRes = $shopify->shopifyRest(
+    //         $shop,
+    //         'get',
+    //         'locations.json'
+    //     );
+
+    //     if (!empty($locationRes['error'])) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Unable to fetch Shopify location.'
+    //         ], 422);
+    //     }
+
+    //     $locationId = $locationRes['locations'][0]['id'] ?? null;
+
+    //     if (!$locationId) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Shopify location not found.'
+    //         ], 422);
+    //     }
+
+    //     // Update Shopify Inventory
+    //     $response = $shopify->shopifyRest(
+    //         $shop,
+    //         'post',
+    //         'inventory_levels/set.json',
+    //         [
+    //             'location_id'       => $locationId,
+    //             'inventory_item_id' => $request->inventory_item_id,
+    //             'available'         => (int) $request->quantity,
+    //         ]
+    //     );
+
+    //     if (!empty($response['error'])) {
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => $response['message'] ?? 'Shopify inventory update failed.'
+    //         ], 422);
+    //     }
+
+    //     // Check existing mapping
+    //     $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
+    //         ->where('shopify_inventory_item_id', $request->inventory_item_id)
+    //         ->first();
+
+    //     // Product is not mapped -> Only Shopify update
+    //     if (!$mapping) {
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Shopify inventory updated successfully.'
+    //         ]);
+    //     }
+
+    //     try {
+
+    //         app(AmazonService::class)->updateInventory(
+    //             $shop,
+    //             $mapping->amazon_sku,
+    //             (int) $request->quantity
+    //         );
+
+    //         // Update existing mapping record only
+    //         $mapping->update([
+    //             'quantity'        => (int) $request->quantity,
+    //             'sync_status'     => 'success',
+    //             'last_synced_at'  => now(),
+    //             'error_message'   => null,
+    //         ]);
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Shopify and Amazon inventory updated successfully.'
+    //         ]);
+    //     } catch (\Throwable $e) {
+
+    //         \Log::error('Amazon inventory sync failed', [
+    //             'shop_id'           => $shop->id,
+    //             'amazon_sku'        => $mapping->amazon_sku,
+    //             'inventory_item_id' => $request->inventory_item_id,
+    //             'quantity'          => $request->quantity,
+    //             'message'           => $e->getMessage(),
+    //         ]);
+
+    //         $mapping->update([
+    //             'sync_status'   => 'failed',
+    //             'error_message' => $e->getMessage(),
+    //         ]);
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Shopify inventory updated successfully. Amazon sync failed.'
+    //         ]);
+    //     }
+    // }
+
     public function updateShopifyInventory(Request $request)
     {
         $request->validate([
@@ -318,54 +430,86 @@ class InventoryMappingController extends Controller
             ->where('shopify_inventory_item_id', $request->inventory_item_id)
             ->first();
 
-        // Product is not mapped -> Only Shopify update
-        if (!$mapping) {
+        /*
+    |--------------------------------------------------------------------------
+    | Amazon Sync
+    |--------------------------------------------------------------------------
+    */
+
+        $message = 'Shopify inventory updated successfully.';
+
+        if ($mapping) {
+            try {
+
+                app(AmazonService::class)->updateInventory(
+                    $shop,
+                    $mapping->amazon_sku,
+                    (int) $request->quantity
+                );
+
+                $mapping->update([
+                    'quantity'       => (int) $request->quantity,
+                    'sync_status'    => 'success',
+                    'last_synced_at' => now(),
+                    'error_message'  => null,
+                ]);
+
+                $message = 'Shopify and Amazon inventory updated successfully.';
+            } catch (\Throwable $e) {
+
+                \Log::error('Amazon inventory sync failed', [
+                    'shop_id'           => $shop->id,
+                    'amazon_sku'        => $mapping->amazon_sku,
+                    'inventory_item_id' => $request->inventory_item_id,
+                    'quantity'          => $request->quantity,
+                    'message'           => $e->getMessage(),
+                ]);
+
+                $mapping->update([
+                    'sync_status'   => 'failed',
+                    'error_message' => $e->getMessage(),
+                ]);
+
+                $message = 'Shopify inventory updated successfully. Amazon sync failed.';
+            }
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | ALWAYS GET LATEST SHOPIFY PRODUCTS
+    |--------------------------------------------------------------------------
+    */
+
+        $productsResponse = $shopify->shopifyRest(
+            $shop,
+            'get',
+            'products.json',
+            [
+                'limit'  => 250,
+                'status' => 'active',
+            ]
+        );
+
+        if (!empty($productsResponse['error'])) {
+            \Log::error('Failed to fetch latest Shopify products', [
+                'shop_id' => $shop->id,
+                'message' => $productsResponse['message'] ?? null,
+            ]);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Shopify inventory updated successfully.'
+                'message' => $message,
+                'products' => [],
             ]);
         }
 
-        try {
+        $latestProducts = $productsResponse['products'] ?? [];
 
-            app(AmazonService::class)->updateInventory(
-                $shop,
-                $mapping->amazon_sku,
-                (int) $request->quantity
-            );
-
-            // Update existing mapping record only
-            $mapping->update([
-                'quantity'        => (int) $request->quantity,
-                'sync_status'     => 'success',
-                'last_synced_at'  => now(),
-                'error_message'   => null,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Shopify and Amazon inventory updated successfully.'
-            ]);
-        } catch (\Throwable $e) {
-
-            \Log::error('Amazon inventory sync failed', [
-                'shop_id'           => $shop->id,
-                'amazon_sku'        => $mapping->amazon_sku,
-                'inventory_item_id' => $request->inventory_item_id,
-                'quantity'          => $request->quantity,
-                'message'           => $e->getMessage(),
-            ]);
-
-            $mapping->update([
-                'sync_status'   => 'failed',
-                'error_message' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Shopify inventory updated successfully. Amazon sync failed.'
-            ]);
-        }
+        return response()->json([
+            'success'  => true,
+            'message'  => $message,
+            'products' => $latestProducts,
+        ]);
     }
 
     public function unmap(Request $request, ProductMarketplaceMapping $mapping)
