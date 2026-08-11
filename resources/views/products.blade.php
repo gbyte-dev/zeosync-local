@@ -166,7 +166,12 @@
 
     .shopify-products-loader {
         position: fixed;
-        inset: 0;
+        top: 0;
+        left: var(--sidebar-width);
+        right: 0;
+        bottom: 0;
+        width: auto;
+        height: auto;
         z-index: 99999;
         background: rgba(255, 255, 255, 0.85);
         display: none;
@@ -366,6 +371,12 @@
     table.dataTable.dtr-inline.collapsed>tbody>tr>th.dtr-control:before {
         background-color: #111827;
     }
+
+    @media (max-width: 767.98px) {
+        .shopify-products-loader {
+            left: 0;
+        }
+    }
 </style>
 
 <div id="shopifyProductsPageLoader" class="shopify-products-loader">
@@ -396,12 +407,12 @@
                 </a>
                 @if(!$productLimitReached)
                 <a href="{{ route('user.addProductCategory', ['shop' => request('shop')]) }}" class="sp-btn sp-btn-primary">
-                <i class="bi bi-send"></i> Add To Amazon
-            </a>
+                    <i class="bi bi-send"></i> Add To Amazon
+                </a>
                 @else
                 <a href="javascript:void(0)" onclick="showProductLimitAlert()" class="sp-btn sp-btn-primary">
-                <i class="bi bi-send"></i> Add To Amazon
-            </a>
+                    <i class="bi bi-send"></i> Add To Amazon
+                </a>
                 @endif
             </div>
         </div>
