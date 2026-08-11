@@ -382,9 +382,11 @@
         .global-loader-overlay {
             position: fixed;
             top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            left: var(--sidebar-width);
+            right: 0;
+            bottom: 0;
+            width: auto;
+            height: auto;
             background: rgba(255, 255, 255, 0.85);
             /* Shopify light blur overlay */
             backdrop-filter: blur(4px);
@@ -537,6 +539,12 @@
 
         .loader-square:nth-of-type(7) {
             animation-delay: -10s;
+        }
+
+        @media (max-width: 767.98px) {
+            .global-loader-overlay {
+                left: 0;
+            }
         }
     </style>
 
