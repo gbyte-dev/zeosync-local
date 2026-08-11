@@ -423,6 +423,14 @@
         font-size: 12px;
         margin: 0;
     }
+
+    .dashboard-header-card {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 10px;
+        padding: 16px 20px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
 </style>
 
 @php
@@ -431,8 +439,8 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 @endphp
 
 <div class="sp-page container-fluid">
-    <div class="sp-header">
-        <h1 class="sp-title">Edit Product</h1>
+    <div class="sp-header dashboard-header-card">
+        <h1 class="sp-title" style="font-size:medium">Edit Product</h1>
         <p class="sp-subtitle">Update the details below to modify your product</p>
     </div>
 

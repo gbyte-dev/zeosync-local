@@ -171,16 +171,27 @@
         border-radius: 6px !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
     }
+
+    .dashboard-header-card {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 10px;
+        padding: 16px 20px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
 </style>
 
 <div class="sp-page">
 
     <!-- Header -->
-    <div class="sp-header-section">
+    <div class="sp-header-section dashboard-header-card">
         <div>
-            <h1 class="sp-title">Select Product Category</h1>
-            <p class="sp-subtitle">Choose the Amazon product category before creating your product listing.</p>
+            <h1 class="sp-title" style="font-size:medium">Select Product Category</h1>
+            <p class="sp-subtitle">
+                Choose the Amazon product category before creating your product listing.
+            </p>
         </div>
+
         <div>
             <div class="sp-step-badge">
                 <i class="bi bi-layers"></i>

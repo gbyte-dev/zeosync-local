@@ -287,7 +287,7 @@
     <!-- Page Header -->
     <div class="dashboard-header-card">
         <div>
-            <h1 class="page-title mb-0">Dashboard</h1>
+            <h1 class="page-title mb-0" style="font-size:medium">Dashboard</h1>
             <p class="page-subtitle mb-0">Amazon ↔ Shopify sync overview</p>
         </div>
     </div>
