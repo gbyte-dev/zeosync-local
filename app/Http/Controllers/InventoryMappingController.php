@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\AmazonService;
 use App\Services\SyncLimitService;
+use Illuminate\Support\Facades\Cache;
 use App\Models\Shop;
 
 
@@ -424,6 +425,8 @@ class InventoryMappingController extends Controller
                 'message' => $response['message'] ?? 'Shopify inventory update failed.'
             ], 422);
         }
+
+        Cache::forget("shopify_inventory_{$shop->shop}");
 
         // Check existing mapping
         $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
