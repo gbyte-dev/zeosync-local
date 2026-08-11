@@ -494,7 +494,7 @@ class TransformsAmazonAttributes
                     'language_tag' => 'en_US',
                 ]];
             }
-
+// dd($displayObject);
             return [$displayObject];
         }
         if ($name === 'maximum_display_brightness') {
