@@ -514,7 +514,7 @@ class TransformsAmazonAttributes
                     'language_tag' => 'en_US',
                 ]];
             }
-dd($displayObject);
+
             return [$displayObject];
         }
 
