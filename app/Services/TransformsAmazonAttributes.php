@@ -421,6 +421,24 @@ class TransformsAmazonAttributes
             ]];
         }
 
+        if ($name === 'memory_storage_capacity') {
+            $validUnits = ['bytes', 'GB', 'KB', 'MB', 'TB'];
+
+            preg_match('/([\d.]+)\s*([a-zA-Z]+)/', trim((string) $value), $matches);
+
+            $num = $matches[1] ?? 0;
+            $unit = $matches[2] ?? '';
+
+            $unitMatch = array_filter($validUnits, fn ($u) => strtolower($u) === strtolower($unit));
+            $unit = $unitMatch ? array_values($unitMatch)[0] : 'GB';
+
+            return [[
+                'value' => (float) $num,
+                'unit' => $unit,
+                'marketplace_id' => $marketplaceId,
+            ]];
+        }
+
         if ($name === 'country_of_origin') {
             $normalized = strtolower(trim((string) $value));
             $mapped = $this->countryMap()[$normalized] ?? null;
