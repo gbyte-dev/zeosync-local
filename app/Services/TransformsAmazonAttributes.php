@@ -452,22 +452,39 @@ class TransformsAmazonAttributes
         }
 
         if ($name === 'display') {
-            $raw = str_replace('*', 'x', trim((string) $value));
+            $raw = trim((string) $value);
+            $resolution = '';
 
-            // extract resolution: "1920 × 1080" or "1920 x 1080" or "1920x1080"
-            preg_match('/(\d{3,4})\s*[×xX]\s*(\d{3,4})/', $raw, $resMatch);
-            $resolution = isset($resMatch[1], $resMatch[2])
-                ? $resMatch[1] . 'x' . $resMatch[2]
-                : '';
+            if (preg_match('/(\d{3,4})\s*(?:×|x|X)\s*(\d{3,4})/u', $raw, $resMatch)) {
+                $resolution = $resMatch[1] . 'x' . $resMatch[2];
+            }
 
-            // strip the resolution + "Full HD"/"4K"/etc marketing labels to isolate remaining descriptors
-            $remaining = preg_replace('/(\d{3,4})\s*[×xX]\s*(\d{3,4})/', '', $raw);
-            $remaining = preg_replace('/\b(Full\s?HD|HD|4K|UHD|QHD|2K)\b/i', '', $remaining);
+            $remaining = preg_replace(
+                '/(\d{3,4})\s*(?:×|x|X)\s*(\d{3,4})/u',
+                '',
+                $raw
+            );
+
+            $remaining = preg_replace(
+                '/\b(Full\s*HD|HD|4K|UHD|QHD|2K)\b/i',
+                '',
+                $remaining
+            );
+
             $remaining = trim(preg_replace('/\s+/', ' ', $remaining));
-            // $remaining now holds something like "IPS Anti-Glare"
 
-            $knownTech = ['AMOLED', 'LCD', 'LED', 'OLED', 'IPS', 'TN', 'VA'];
+            $knownTech = [
+                'AMOLED',
+                'LCD',
+                'LED',
+                'OLED',
+                'IPS',
+                'TN',
+                'VA',
+            ];
+
             $technology = '';
+
             foreach ($knownTech as $t) {
                 if (stripos($remaining, $t) !== false) {
                     $technology = $t;
@@ -475,7 +492,9 @@ class TransformsAmazonAttributes
                 }
             }
 
-            $displayObject = ['marketplace_id' => $marketplaceId];
+            $displayObject = [
+                'marketplace_id' => $marketplaceId,
+            ];
 
             if ($resolution !== '') {
                 $displayObject['resolution_maximum'] = [[
@@ -489,14 +508,16 @@ class TransformsAmazonAttributes
                     'value' => $technology,
                     'language_tag' => 'en_US',
                 ]];
+
                 $displayObject['type'] = [[
                     'value' => $technology,
                     'language_tag' => 'en_US',
                 ]];
             }
-// dd($displayObject);
+dd($displayObject);
             return [$displayObject];
         }
+
         if ($name === 'maximum_display_brightness') {
             $validUnits = ['candela_per_square_meter', 'nit'];
 
