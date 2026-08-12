@@ -452,22 +452,39 @@ class TransformsAmazonAttributes
         }
 
         if ($name === 'display') {
-            $raw = str_replace('*', 'x', trim((string) $value));
+            $raw = trim((string) $value);
+            $resolution = '';
 
-            // extract resolution: "1920 × 1080" or "1920 x 1080" or "1920x1080"
-            preg_match('/(\d{3,4})\s*[×xX]\s*(\d{3,4})/', $raw, $resMatch);
-            $resolution = isset($resMatch[1], $resMatch[2])
-                ? $resMatch[1] . 'x' . $resMatch[2]
-                : '';
+            if (preg_match('/(\d{3,4})\s*(?:×|x|X)\s*(\d{3,4})/u', $raw, $resMatch)) {
+                $resolution = $resMatch[1] . 'x' . $resMatch[2];
+            }
 
-            // strip the resolution + "Full HD"/"4K"/etc marketing labels to isolate remaining descriptors
-            $remaining = preg_replace('/(\d{3,4})\s*[×xX]\s*(\d{3,4})/', '', $raw);
-            $remaining = preg_replace('/\b(Full\s?HD|HD|4K|UHD|QHD|2K)\b/i', '', $remaining);
+            $remaining = preg_replace(
+                '/(\d{3,4})\s*(?:×|x|X)\s*(\d{3,4})/u',
+                '',
+                $raw
+            );
+
+            $remaining = preg_replace(
+                '/\b(Full\s*HD|HD|4K|UHD|QHD|2K)\b/i',
+                '',
+                $remaining
+            );
+
             $remaining = trim(preg_replace('/\s+/', ' ', $remaining));
-            // $remaining now holds something like "IPS Anti-Glare"
 
-            $knownTech = ['AMOLED', 'LCD', 'LED', 'OLED', 'IPS', 'TN', 'VA'];
+            $knownTech = [
+                'AMOLED',
+                'LCD',
+                'LED',
+                'OLED',
+                'IPS',
+                'TN',
+                'VA',
+            ];
+
             $technology = '';
+
             foreach ($knownTech as $t) {
                 if (stripos($remaining, $t) !== false) {
                     $technology = $t;
@@ -475,7 +492,9 @@ class TransformsAmazonAttributes
                 }
             }
 
-            $displayObject = ['marketplace_id' => $marketplaceId];
+            $displayObject = [
+                'marketplace_id' => $marketplaceId,
+            ];
 
             if ($resolution !== '') {
                 $displayObject['resolution_maximum'] = [[
@@ -489,6 +508,7 @@ class TransformsAmazonAttributes
                     'value' => $technology,
                     'language_tag' => 'en_US',
                 ]];
+
                 $displayObject['type'] = [[
                     'value' => $technology,
                     'language_tag' => 'en_US',
@@ -497,6 +517,7 @@ class TransformsAmazonAttributes
 
             return [$displayObject];
         }
+
         if ($name === 'maximum_display_brightness') {
             $validUnits = ['candela_per_square_meter', 'nit'];
 
@@ -528,38 +549,36 @@ class TransformsAmazonAttributes
         }
 
         if ($name === 'ram_memory') {
-            $raw = trim((string) $value);
-            preg_match('/^([\d.]+\s*[a-zA-Z]+)\s+(DDR\d[X]?|LPDDR\d[X]?)$/i', $raw, $m);
 
-            $sizePart = trim($m[1] ?? $raw);
-            $tech = strtoupper(trim($m[2] ?? ''));
+            preg_match('/([\d.]+)\s*(GB|MB|TB)\s*(DDR\d+|LPDDR\d+)?/i', trim((string) $value), $m);
 
-            $installed = $this->parseUnitValue($sizePart, ['bytes', 'GB', 'KB', 'MB', 'TB'], 'GB');
-            $maxValue = $installed['value'] * 2;
-            $maxUnit = $installed['unit'];
-
-            if ($maxUnit === 'TB') {
-                $maxValue *= 1000;
-                $maxUnit = 'GB';
-            } elseif (in_array($maxUnit, ['bytes', 'KB'], true)) {
-                $maxUnit = 'MB'; 
-            }
+            $size = isset($m[1]) ? (float) $m[1] : 8;
+            $unit = isset($m[2]) ? strtoupper($m[2]) : 'GB';
+            $tech = isset($m[3]) ? strtoupper($m[3]) : 'DDR4';
 
             $ramObject = [
                 'marketplace_id' => $marketplaceId,
-                'installed_size' => [$installed],
-                'maximum_size' => [[
-                    'value' => $maxValue,
-                    'unit' => $maxUnit,
+                'installed_size' => [[
+                    'value' => $size,
+                    'unit' => $unit,
                 ]],
-            ];
-
-            if ($tech !== '') {
-                $ramObject['technology'] = [[
+                'installed_size_unit' => [[
+                    'value' => $unit,
+                    'language_tag' => 'en_US',
+                ]],
+                'maximum_size' => [[
+                    'value' => $size * 2,
+                    'unit' => $unit,
+                ]],
+                'maximum_size_unit' => [[
+                    'value' => $unit,
+                    'language_tag' => 'en_US',
+                ]],
+                'technology' => [[
                     'value' => $tech,
                     'language_tag' => 'en_US',
-                ]];
-            }
+                ]],
+            ];
 
             return [$ramObject];
         }

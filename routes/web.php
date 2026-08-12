@@ -118,7 +118,6 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::get('/amazonView/{sku}', [TestController::class, 'amazonView'])->name('user.product.amazonView');
 });
 Route::get('/test-amazon', [ShopifyController::class, 'testAmazon']);
-
 Route::get('/get-seller-id', [ShopifyController::class, 'getSellerIdFull']);
 Route::get('/amazon/orders', [ShopifyController::class, 'getAmazonOrders']);
 Route::prefix('amazon/sandbox')->group(function () {
