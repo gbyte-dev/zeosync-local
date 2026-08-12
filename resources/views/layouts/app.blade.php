@@ -572,9 +572,15 @@
                 return;
             }
 
+            // Ignore Bootstrap collapse/dropdown links
+            const href = link.getAttribute('href');
+
+            if (!href || href.startsWith('#')) {
+                return;
+            }
+
             const url = new URL(link.href, window.location.origin);
 
-            // Only Shopify Products page
             if (url.pathname !== '/products') {
                 return;
             }
