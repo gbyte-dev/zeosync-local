@@ -31,7 +31,9 @@ class ShopifyWebhookService
     public function ensureOrdersCreateWebhook(Shop $shop): void
     {
         \Log::info('INSIDE ORDERS WEBHOOK FUNCTION');
+
         $targetUrl = $this->buildOrdersCreateWebhookUrl();
+
         $existingWebhook = $this->findOrdersCreateWebhook($shop, $targetUrl);
 
         if ($existingWebhook) {
@@ -66,13 +68,19 @@ GRAPHQL,
 
         if (!empty($errors)) {
             $message = collect($errors)->pluck('message')->filter()->implode(' ');
-            throw new RuntimeException($message !== '' ? $message : 'Unable to create Shopify orders webhook subscription.');
+
+            throw new RuntimeException(
+                $message !== ''
+                    ? $message
+                    : 'Unable to create Shopify orders webhook subscription.'
+            );
         }
     }
 
     public function ensureAppUninstalledWebhook(Shop $shop): void
     {
         \Log::info('INSIDE UNINSTALL WEBHOOK FUNCTION');
+
         $targetUrl = $this->buildAppUninstalledWebhookUrl();
 
         \Log::info('UNINSTALL WEBHOOK URL', ['url' => $targetUrl]);
@@ -101,6 +109,7 @@ GRAPHQL,
             ]
         );
     }
+
     public function isValidWebhook(string $payload, ?string $hmacHeader): bool
     {
         $hmacHeader = trim((string) $hmacHeader);
@@ -109,8 +118,14 @@ GRAPHQL,
             return false;
         }
 
-        $secret = (string) config('services.shopify.api_secret');
-        $calculated = base64_encode(hash_hmac('sha256', $payload, $secret, true));
+        $secret = (string) $this->setting(
+            'SHOPIFY_API_SECRET',
+            config('services.shopify.api_secret')
+        );
+
+        $calculated = base64_encode(
+            hash_hmac('sha256', $payload, $secret, true)
+        );
 
         return hash_equals($calculated, $hmacHeader);
     }
@@ -161,12 +176,15 @@ GRAPHQL
             sprintf(
                 'https://%s/admin/api/%s/graphql.json',
                 $shop->shop,
-                config('services.shopify.api_version', '2026-01')
+                $this->setting(
+                    'SHOPIFY_API_VERSION',
+                    config('services.shopify.api_version', '2026-01')
+                )
             ),
             $payload
         );
 
-        //  LOG RAW RESPONSE
+        // LOG RAW RESPONSE
         \Log::info('SHOPIFY GRAPHQL RAW RESPONSE', [
             'body' => $response->body()
         ]);
@@ -177,17 +195,28 @@ GRAPHQL
 
         $payload = $response->json();
 
-        //  Top-level GraphQL errors
+        // Top-level GraphQL errors
         if (!empty($payload['errors'])) {
             $message = collect($payload['errors'])
-                ->map(fn($error) => is_array($error) ? ($error['message'] ?? json_encode($error)) : (string) $error)
+                ->map(fn($error) => is_array($error)
+                    ? ($error['message'] ?? json_encode($error))
+                    : (string) $error
+                )
                 ->implode(' ');
 
-            throw new \RuntimeException($message !== '' ? $message : 'GraphQL top-level error');
+            throw new \RuntimeException(
+                $message !== ''
+                    ? $message
+                    : 'GraphQL top-level error'
+            );
         }
 
-        //  IMPORTANT: Shopify userErrors detect kar
-        $userErrors = data_get($payload, 'data.webhookSubscriptionCreate.userErrors', []);
+        // IMPORTANT: Shopify userErrors detect kar
+        $userErrors = data_get(
+            $payload,
+            'data.webhookSubscriptionCreate.userErrors',
+            []
+        );
 
         if (!empty($userErrors)) {
             \Log::error('SHOPIFY USER ERRORS', $userErrors);
@@ -196,7 +225,9 @@ GRAPHQL
                 ->pluck('message')
                 ->implode(' ');
 
-            throw new \RuntimeException($message ?: 'Shopify user error');
+            throw new \RuntimeException(
+                $message ?: 'Shopify user error'
+            );
         }
 
         return $payload;
@@ -204,13 +235,19 @@ GRAPHQL
 
     private function publicAppUrl(): string
     {
-        $appUrl = trim((string) config('services.shopify.app_url'));
+        $appUrl = trim((string) $this->setting(
+            'SHOPIFY_APP_URL',
+            config('services.shopify.app_url')
+        ));
 
         if ($appUrl !== '' && !str_contains($appUrl, 'localhost')) {
             return $appUrl;
         }
 
-        $redirectUri = trim((string) config('services.shopify.redirect_uri'));
+        $redirectUri = trim((string) $this->setting(
+            'SHOPIFY_REDIRECT_URI',
+            config('services.shopify.redirect_uri')
+        ));
 
         if ($redirectUri !== '') {
             $scheme = parse_url($redirectUri, PHP_URL_SCHEME);
@@ -222,6 +259,13 @@ GRAPHQL
             }
         }
 
-        return $appUrl !== '' ? $appUrl : rtrim((string) config('app.url'), '/');
+        return $appUrl !== ''
+            ? $appUrl
+            : rtrim((string) config('app.url'), '/');
+    }
+
+    private function setting(string $key, $fallback = null)
+    {
+        return \App\Models\AdminSetting::get($key, $fallback);
     }
 }
