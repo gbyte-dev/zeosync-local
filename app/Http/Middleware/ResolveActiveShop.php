@@ -13,6 +13,17 @@ class ResolveActiveShop
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (
+            $request->routeIs('shopify.webhooks.orders.create')
+            || $request->routeIs('shopify.webhooks.app.uninstalled')
+        ) {
+
+            Log::info('BYPASS RESOLVE ACTIVE SHOP FOR WEBHOOK', [
+                'route' => $request->route()?->getName(),
+            ]);
+
+            return $next($request);
+        }
         $activeShop = $this->resolveShopDomain($request);
 
         if ($request->ajax() || $request->expectsJson()) {
@@ -63,7 +74,8 @@ class ResolveActiveShop
                 ->where('is_active', 1)
                 ->first();
 
-            if (  $shop && filled($shop->shop_name) && filled($shop->email) &&
+            if (
+                $shop && filled($shop->shop_name) && filled($shop->email) &&
                 (
                     $request->routeIs('setup.store')
                 )
