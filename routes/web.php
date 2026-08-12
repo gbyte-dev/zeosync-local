@@ -72,6 +72,10 @@ Route::get('/webhooks/customers/data_request', [ShopifyComplianceWebhookControll
 Route::get('/webhooks/customers/redact', [ShopifyComplianceWebhookController::class, 'customersRedact']);
 Route::get('/webhooks/shop/redact', [ShopifyComplianceWebhookController::class, 'shopRedact']);
 
+Route::post('webhooks/shopify/orders/create', [ShopifyController::class, 'handleOrdersCreateWebhook'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->name('shopify.webhooks.orders.create');
+
 Route::middleware([ResolveActiveShop::class])->group(function () {
     //  product page route 
     Route::get('/products', [ShopifyController::class, 'products'])->name('shopify.products');
@@ -84,17 +88,20 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::get('plans', [ShopifyController::class, 'plans'])->name('plans.index');
     //Route::post('plans/subscribe', [ShopifyController::class, 'subscribeToPlan'])->name('plans.subscribe'); // TO MAKE THIS WORKING REMOVE SAME ROUTE IN WEBSHOPIFY
     Route::get('billing/callback', [ShopifyController::class, 'billingCallback'])->name('shopify.billing.callback');
-    Route::post('webhooks/shopify/orders/create', [ShopifyController::class, 'handleOrdersCreateWebhook'])
-        ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
-        ->name('shopify.webhooks.orders.create');
     Route::get('/image-upload', [ImageController::class, 'index'])->name('shopify.imgupload');
     Route::get('/image-picker-images', [ImageController::class, 'forSelection'])->name('shopify.image-picker-images');
     Route::post('/image-upload', [ImageController::class, 'store'])->name('shopify.imgupload.store');
     Route::delete('/image-upload/{id}', [ImageController::class, 'destroy'])
         ->name('shopify.imgupload.delete');
-    Route::get('/rules', function () { return view('rules');  })->name('shopify.rules');
-    Route::get('/help', function () { return view('help'); })->name('shopify.help');
-    Route::get('/support', function () { return view('support'); })->name('shopify.support');
+    Route::get('/rules', function () {
+        return view('rules');
+    })->name('shopify.rules');
+    Route::get('/help', function () {
+        return view('help');
+    })->name('shopify.help');
+    Route::get('/support', function () {
+        return view('support');
+    })->name('shopify.support');
     Route::get('/notification', [NotificationController::class, 'usernotification'])->name('user.notification');
     Route::post('/settings/notifications',  [NotificationController::class, 'updateNotificationSettings'])->name('notification.settings.update');
     Route::delete('/notification/user/all', [NotificationController::class, 'removeAllUserNotifications'])->name('user.notification.delete.all');
@@ -109,7 +116,6 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::get('/sync-shopify-to-amazon/{id}', [ShopifyController::class, 'syncShopifyToAmazon'])->name('user.product.syncShopifyToAmazon');
     Route::post('/remove_drafts/{product}', [ProductSchemaController::class, 'removeDrafts'])->name('user.product.removeDraft');
     Route::get('/amazonView/{sku}', [TestController::class, 'amazonView'])->name('user.product.amazonView');
-
 });
 Route::get('/test-amazon', [ShopifyController::class, 'testAmazon']);
 
@@ -129,9 +135,11 @@ Route::post('/inventory/amazon/sync', [InventoryController::class, 'syncAmazonIn
 Route::post('/webhooks/app-uninstalled', [ShopifyController::class, 'handleAppUninstalledWebhook'])
     ->name('shopify.webhooks.app.uninstalled');
 
-Route::get('/support_front', function () {  return view('support_front'); })->name('shopify.support_front');
+Route::get('/support_front', function () {
+    return view('support_front');
+})->name('shopify.support_front');
 Route::get('/test/{type}', [TestController::class, 'test'])->name('test.by.productype');
- 
+
 Route::get('/logout', [SettingsController::class, 'logout'])->name('site.logout');
 Route::prefix('admin')->group(function () {
     Route::middleware('auth:admin')->group(function () {
@@ -147,7 +155,6 @@ Route::prefix('admin')->group(function () {
         Route::get('/import-categories', [CategoryController::class, 'importCategories'])->name('admin.import.categories');
         Route::get('/search-categories', [AdminController::class, 'categoryserchedChildren'])->name('admin.search.categories');
         Route::get('/shops/{id}', [ShopifyController::class, 'show'])->name('admin.shops.show');
-
     });
 });
 
