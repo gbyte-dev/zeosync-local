@@ -41,12 +41,16 @@ class Shop extends Model
         'hmac',
         'store_status',
         'last_status_check_at',
+        'shopify_locations',
+        'selected_location_index',
     ];
 
     protected $casts = [
         'access_token_expires_at' => 'datetime',
         'refresh_token_expires_at' => 'datetime',
         'last_status_check_at' => 'datetime',
+        'shopify_locations' => 'array',
+        'selected_location_index' => 'integer',
     ];
 
     /**
