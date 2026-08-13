@@ -13,6 +13,13 @@ class ShopifyComplianceWebhookController extends Controller
      */
     public function customersDataRequest(Request $request)
     {
+
+        Log::info('COMPLIANCE WEBHOOK HIT', [
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+            'headers' => $request->headers->all(),
+            'body' => $request->getContent(),
+        ]);
         $payload = $request->getContent();
 
         $shopifyWebhook = app(\App\Services\ShopifyWebhookService::class);
