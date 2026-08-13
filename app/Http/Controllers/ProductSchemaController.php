@@ -370,6 +370,55 @@ class ProductSchemaController extends Controller
                 $tabs['other'][] = $field;
             }
         }
+
+        $tabErrorCounts = array_fill_keys(array_keys($tabs), 0);
+
+        $amazonErrors = session('errors_amazon', []);
+
+        if (is_array($amazonErrors)) {
+            foreach ($amazonErrors as $error) {
+                foreach ($tabs as $tabName => $tabFields) {
+                    foreach ($tabFields as $field) {
+                        $fieldName = strtolower($field['name'] ?? '');
+
+                        if (!$fieldName) {
+                            continue;
+                        }
+
+                        $message = strtolower($error['message'] ?? '');
+                        $path = strtolower($error['path'] ?? '');
+
+                        $attributeNames = array_map(
+                            'strtolower',
+                            $error['attributeNames'] ?? []
+                        );
+
+                        $matched = false;
+
+                        foreach ($attributeNames as $attribute) {
+                            if (
+                                $attribute === $fieldName ||
+                                str_contains($fieldName, $attribute) ||
+                                str_contains($attribute, $fieldName)
+                            ) {
+                                $matched = true;
+                                break;
+                            }
+                        }
+
+                        if (
+                            $matched ||
+                            $path === $fieldName ||
+                            str_contains($path, $fieldName) ||
+                            str_contains($message, $fieldName)
+                        ) {
+                            $tabErrorCounts[$tabName]++;
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
         $requiredFields = collect($fields)->where('required', true)->values();
         $canUseAiAutoFill = $this->aiFeatureService->canUseAutoFill($this->shop->id);
         $canUseAiSingleField = $this->aiFeatureService->canUseSingleField($this->shop->id);
@@ -384,7 +433,8 @@ class ProductSchemaController extends Controller
                 'productshow',
                 'prodAttri',
                 'canUseAiAutoFill',
-                'canUseAiSingleField'
+                'canUseAiSingleField',
+                'tabErrorCounts'
             )
         );
     }
@@ -447,7 +497,7 @@ class ProductSchemaController extends Controller
                         }
 
                         return $item;
-                    }, $value), fn ($item) => $item !== null && $item !== ''));
+                    }, $value), fn($item) => $item !== null && $item !== ''));
                     $value = $value === [] ? '' : json_encode($value);
                 }
 
@@ -928,8 +978,18 @@ class ProductSchemaController extends Controller
     private static function tags(array $attributes): string
     {
         $tags = [];
-        foreach ([ 'generic_keyword', 'style','pattern', 'material','department',
-                'target_gender','occasion_type', 'season', 'sport_type' ] as $field
+        foreach (
+            [
+                'generic_keyword',
+                'style',
+                'pattern',
+                'material',
+                'department',
+                'target_gender',
+                'occasion_type',
+                'season',
+                'sport_type'
+            ] as $field
         ) {
             if (!isset($attributes[$field][0])) {
                 continue;
@@ -1259,7 +1319,7 @@ class ProductSchemaController extends Controller
                     ->orWhere('amazon_parent_sku', (string) $product_id);
             });
 
-            $product = ProductAttribute::where(['product_id' => (string) $product_id ,'attribute_name' => 'item_name'])->first();
+            $product = ProductAttribute::where(['product_id' => (string) $product_id, 'attribute_name' => 'item_name'])->first();
             $product_name = $product ? $product->attribute_value : (string) $product_id;
         }
         // Use get() instead of first() so we don't silently ignore extra matches.
@@ -1463,7 +1523,7 @@ class ProductSchemaController extends Controller
         );
     }
 
-       /**
+    /**
      * Ensures the shop has a valid access token, refreshing if needed.
      * Returns an array: ['success' => bool, 'access_token' => ?string, 'message' => string]
      */
@@ -1548,7 +1608,6 @@ class ProductSchemaController extends Controller
                 'access_token' => $data['access_token'],
                 'message' => 'Token refreshed successfully.',
             ];
-
         } catch (\Throwable $e) {
             Log::error('TOKEN REFRESH EXCEPTION', [
                 'shop' => $shopModel->shop ?? null,
