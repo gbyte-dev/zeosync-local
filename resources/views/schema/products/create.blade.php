@@ -12,19 +12,24 @@
     }
 
     .tab-error-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 18px;
-        height: 18px;
-        padding: 0 5px;
-        margin-left: 5px;
-        border-radius: 999px;
-        background: #dc3545;
-        color: #fff;
-        font-size: 10px;
-        font-weight: 700;
-        line-height: 1;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+
+        min-width: 20px !important;
+        height: 20px !important;
+        padding: 0 6px !important;
+        margin-left: 6px !important;
+
+        border-radius: 50% !important;
+
+        background: #dc3545 !important;
+        color: #fff !important;
+
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        line-height: 1 !important;
+        vertical-align: middle !important;
     }
 
     .amazon-tabs .nav-link {
