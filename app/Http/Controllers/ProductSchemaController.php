@@ -371,27 +371,34 @@ class ProductSchemaController extends Controller
             }
         }
 
-        $tabErrorCounts = array_fill_keys(array_keys($tabs), 0);
+        $tabErrorFields = array_fill_keys(array_keys($tabs), []);
 
         $amazonErrors = session('errors_amazon', []);
 
         if (is_array($amazonErrors)) {
             foreach ($amazonErrors as $error) {
+
+                if (!is_array($error)) {
+                    continue;
+                }
+
+                $message = strtolower($error['message'] ?? '');
+                $path = strtolower($error['path'] ?? '');
+
+                $attributeNames = array_map(
+                    'strtolower',
+                    $error['attributeNames'] ?? []
+                );
+
                 foreach ($tabs as $tabName => $tabFields) {
+
                     foreach ($tabFields as $field) {
+
                         $fieldName = strtolower($field['name'] ?? '');
 
                         if (!$fieldName) {
                             continue;
                         }
-
-                        $message = strtolower($error['message'] ?? '');
-                        $path = strtolower($error['path'] ?? '');
-
-                        $attributeNames = array_map(
-                            'strtolower',
-                            $error['attributeNames'] ?? []
-                        );
 
                         $matched = false;
 
@@ -412,12 +419,19 @@ class ProductSchemaController extends Controller
                             str_contains($path, $fieldName) ||
                             str_contains($message, $fieldName)
                         ) {
-                            $tabErrorCounts[$tabName]++;
-                            break 2;
+                            $tabErrorFields[$tabName][$fieldName] = true;
+
+                            break;
                         }
                     }
                 }
             }
+        }
+
+        $tabErrorCounts = [];
+
+        foreach ($tabErrorFields as $tabName => $fields) {
+            $tabErrorCounts[$tabName] = count($fields);
         }
         $requiredFields = collect($fields)->where('required', true)->values();
         $canUseAiAutoFill = $this->aiFeatureService->canUseAutoFill($this->shop->id);
