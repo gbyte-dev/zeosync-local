@@ -26,46 +26,50 @@ $fieldAlias = [
 
 foreach ($errors as $error) {
 
-    if (is_array($error)) {
+if (is_array($error)) {
 
-        $message = strtolower($error['message'] ?? '');
-        $path = strtolower($error['path'] ?? '');
-        $attributeNames = array_map('strtolower',  $error['attributeNames'] ?? [] );
-        $aliases = $fieldAlias[$fieldName] ?? [];
-        $matched = false;
+$message = strtolower($error['message'] ?? '');
+$path = strtolower($error['path'] ?? '');
+$attributeNames = array_map('strtolower', $error['attributeNames'] ?? [] );
+$aliases = $fieldAlias[$fieldName] ?? [];
+$matched = false;
 
-        foreach ($attributeNames as $attribute) {
-            if ($attribute === $fieldName || in_array($attribute, $aliases, true) || str_contains($fieldName, $attribute) ||
-                str_contains($attribute, $fieldName)) {
-                    $matched = true;
-                    break;
-                }
-            }
+foreach ($attributeNames as $attribute) {
+if (
+$attribute === $fieldName ||
+in_array($attribute, $aliases, true)
+) {
+$matched = true;
+break;
+}
+}
 
-            if ($matched || $path === $fieldName || str_contains($path, $fieldName) || str_contains($message, $fieldName)
-            ) {
-                $php_errormsg = $error['message'] ?? '';
-                break;
-            }
+if (
+$matched ||
+$path === $fieldName
+) {
+$php_errormsg = $error['message'] ?? '';
+break;
+}
 
-        } elseif (is_string($error)) {
+} elseif (is_string($error)) {
 
-            if (str_contains(strtolower($error), $fieldName)) {
-                $php_errormsg = $error;
-                break;
-            }
+if (str_contains(strtolower($error), $fieldName)) {
+$php_errormsg = $error;
+break;
+}
 
-        }
-    }
+}
+}
 }
 }
 
 if (in_array($field['name'], ['item_name', 'item_display_weight', 'region_of_origin'])) {
-    $field['type'] = 'text';
+$field['type'] = 'text';
 }
 
 if (in_array($field['name'], ['product_description', 'bullet_point'])) {
-    $field['type'] = 'textarea';
+$field['type'] = 'textarea';
 }
 
 $fieldHint = \App\Support\AmazonFieldHint::get($field['name']);
@@ -131,7 +135,7 @@ $showImagePickerButton = $isImageField;
         </div>
     </div>
 
-@if($showAiButton || $showImagePickerButton)
+    @if($showAiButton || $showImagePickerButton)
     <div class="col-sm-8">
         @else
         <div class="col-sm-8">
