@@ -371,35 +371,65 @@ class ProductSchemaController extends Controller
             }
         }
 
-        $tabErrorCounts = array_fill_keys(array_keys($tabs), 0);
+        $tabErrorFields = array_fill_keys(array_keys($tabs), []);
 
         $amazonErrors = session('errors_amazon', []);
 
+        $fieldAlias = [
+            'externally_assigned_product_identifier' => [
+                'external_product_id',
+                'external_product_identifier',
+            ],
+
+            'material' => [
+                'fabric_type',
+            ],
+
+            'apparel_size_class' => [
+                'apparel_size',
+            ],
+        ];
+
         if (is_array($amazonErrors)) {
+
             foreach ($amazonErrors as $error) {
+
+                if (!is_array($error)) {
+                    continue;
+                }
+
+                // Only real Amazon validation errors.
+                // Warnings should not appear in the red error badge.
+                if (($error['severity'] ?? '') !== 'ERROR') {
+                    continue;
+                }
+
+                $path = strtolower($error['path'] ?? '');
+
+                $attributeNames = array_map(
+                    'strtolower',
+                    $error['attributeNames'] ?? []
+                );
+
                 foreach ($tabs as $tabName => $tabFields) {
+
                     foreach ($tabFields as $field) {
+
                         $fieldName = strtolower($field['name'] ?? '');
 
                         if (!$fieldName) {
                             continue;
                         }
 
-                        $message = strtolower($error['message'] ?? '');
-                        $path = strtolower($error['path'] ?? '');
-
-                        $attributeNames = array_map(
-                            'strtolower',
-                            $error['attributeNames'] ?? []
-                        );
+                        $aliases = $fieldAlias[$fieldName] ?? [];
 
                         $matched = false;
 
                         foreach ($attributeNames as $attribute) {
+
                             if (
                                 $attribute === $fieldName ||
-                                str_contains($fieldName, $attribute) ||
-                                str_contains($attribute, $fieldName)
+                                in_array($attribute, $aliases, true)
                             ) {
                                 $matched = true;
                                 break;
@@ -408,16 +438,24 @@ class ProductSchemaController extends Controller
 
                         if (
                             $matched ||
-                            $path === $fieldName ||
-                            str_contains($path, $fieldName) ||
-                            str_contains($message, $fieldName)
+                            $path === $fieldName
                         ) {
-                            $tabErrorCounts[$tabName]++;
+                            // Store field name instead of incrementing.
+                            // This prevents duplicate errors for the same field
+                            // from increasing the badge count.
+                            $tabErrorFields[$tabName][$fieldName] = true;
+
                             break 2;
                         }
                     }
                 }
             }
+        }
+
+        $tabErrorCounts = [];
+
+        foreach ($tabErrorFields as $tabName => $fieldsWithErrors) {
+            $tabErrorCounts[$tabName] = count($fieldsWithErrors);
         }
         $requiredFields = collect($fields)->where('required', true)->values();
         $canUseAiAutoFill = $this->aiFeatureService->canUseAutoFill($this->shop->id);
