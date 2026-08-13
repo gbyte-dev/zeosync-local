@@ -30,6 +30,10 @@ topics = ["orders/create"]
 uri = "https://zeosync.app/webhooks/shopify/orders/create"
 
 
-[webhooks.privacy_compliance]
-customer_deletion_url = "https://zeosync.app/webhooks/customers/redact"
-customer_data_request_url = "https://zeosync.app/webhooks/customers/data_request"
+[[webhooks.subscriptions]]
+compliance_topics = [
+  "customers/data_request",
+  "customers/redact",
+  "shop/redact"
+]
+uri = "https://zeosync.app/webhooks/compliance"

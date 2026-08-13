@@ -1584,8 +1584,7 @@ class ShopifyController extends Controller
             }
 
             // --- FLOW: INVENTORY LEVEL SYNC ---
-            $locationRes = $this->shopifyRest($shopModel, 'get', 'locations.json');
-            $locationId = $locationRes['locations'][0]['id'] ?? null;
+            $locationId = $this->getSelectedShopifyLocationId($shopModel);
 
             if ($locationId && !empty($productData['variants'])) {
                 foreach ($productData['variants'] as $index => $variant) {
@@ -1807,9 +1806,7 @@ class ShopifyController extends Controller
 
             Log::info("Iterating over variants. Total Count: " . count($variantIds));
 
-            Log::info("Fetching locations for inventory update...");
-            $locationRes = $this->shopifyRest($shopModel, 'get', 'locations.json');
-            $locationId = empty($locationRes['error']) ? ($locationRes['locations'][0]['id'] ?? null) : null;
+            $locationId = $this->getSelectedShopifyLocationId($shopModel);
 
             foreach ($variantIds as $index => $variantId) {
                 $price = $request->input("variant_price.$index");
@@ -2280,6 +2277,35 @@ class ShopifyController extends Controller
                 'message' => $e->getMessage(),
             ];
         }
+    }
+
+    protected function getSelectedShopifyLocationId(Shop $shop): ?int
+    {
+        $locations = $shop->shopify_locations ?? [];
+        $index = $shop->selected_location_index;
+
+        if ($index === null || !isset($locations[$index])) {
+            Log::warning('SHOPIFY LOCATION NOT SELECTED', [
+                'shop_id' => $shop->id,
+                'selected_location_index' => $index,
+            ]);
+
+            return null;
+        }
+
+        $locationId = $locations[$index]['id'] ?? null;
+
+        if (!$locationId) {
+            Log::warning('SHOPIFY SELECTED LOCATION ID MISSING', [
+                'shop_id' => $shop->id,
+                'selected_location_index' => $index,
+                'location' => $locations[$index],
+            ]);
+
+            return null;
+        }
+
+        return (int) $locationId;
     }
     private function formatDescription($text): string
     {
