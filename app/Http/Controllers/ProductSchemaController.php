@@ -423,6 +423,10 @@ class ProductSchemaController extends Controller
         $canUseAiAutoFill = $this->aiFeatureService->canUseAutoFill($this->shop->id);
         $canUseAiSingleField = $this->aiFeatureService->canUseSingleField($this->shop->id);
 
+        Log::info('AMAZON ERRORS DEBUG', [
+            'errors' => session('errors_amazon'),
+        ]);
+
         return view(
             'schema.products.create',
             compact(
