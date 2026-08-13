@@ -46,7 +46,18 @@ class DashboardController extends ShopifyController
 
             $shop = Shop::where('shop', $activeShop)
                 ->where('is_active', 1)
-                ->firstOrFail();
+                ->first();
+
+            if (!$shop) {
+                Log::info('DASHBOARD WAITING FOR SHOP INSTALLATION', [
+                    'shop' => $activeShop,
+                    'url' => $request->fullUrl(),
+                ]);
+
+                return view('dashboard-waiting', [
+                    'shop' => $activeShop,
+                ]);
+            }
         }
 
         $shopId = $shop->id;
