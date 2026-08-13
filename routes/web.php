@@ -68,9 +68,17 @@ Route::middleware([
     Route::delete('logs/{id}', [SettingsController::class, 'removeLog'])->name('shopify.logs.remove');
 });
 
-Route::get('/webhooks/customers/data_request', [ShopifyComplianceWebhookController::class, 'customersDataRequest']);
-Route::get('/webhooks/customers/redact', [ShopifyComplianceWebhookController::class, 'customersRedact']);
-Route::get('/webhooks/shop/redact', [ShopifyComplianceWebhookController::class, 'shopRedact']);
+// Route::get('/webhooks/customers/data_request', [ShopifyComplianceWebhookController::class, 'customersDataRequest']);
+// Route::get('/webhooks/customers/redact', [ShopifyComplianceWebhookController::class, 'customersRedact']);
+// Route::get('/webhooks/shop/redact', [ShopifyComplianceWebhookController::class, 'shopRedact']);
+
+
+Route::post(
+    '/webhooks/compliance',
+    [ShopifyComplianceWebhookController::class, 'handle']
+)->withoutMiddleware([
+    \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
+])->name('shopify.webhooks.compliance');
 
 Route::post('webhooks/shopify/orders/create', [ShopifyController::class, 'handleOrdersCreateWebhook'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
