@@ -97,6 +97,10 @@ Route::post('webhooks/shopify/orders/create', [ShopifyController::class, 'handle
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('shopify.webhooks.orders.create');
 
+Route::get('/webhooks/test', function () {
+    return 'WEB.PHP HIT';
+});
+
 Route::middleware([ResolveActiveShop::class])->group(function () {
     //  product page route 
     Route::get('/products', [ShopifyController::class, 'products'])->name('shopify.products');
