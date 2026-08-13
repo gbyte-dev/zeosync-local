@@ -72,13 +72,26 @@ Route::middleware([
 // Route::get('/webhooks/customers/redact', [ShopifyComplianceWebhookController::class, 'customersRedact']);
 // Route::get('/webhooks/shop/redact', [ShopifyComplianceWebhookController::class, 'shopRedact']);
 
-
 Route::post(
-    '/webhooks/compliance',
-    [ShopifyComplianceWebhookController::class, 'handle']
+    '/webhooks/customers/data_request',
+    [ShopifyComplianceWebhookController::class, 'customersDataRequest']
 )->withoutMiddleware([
     \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
-])->name('shopify.webhooks.compliance');
+]);
+
+Route::post(
+    '/webhooks/customers/redact',
+    [ShopifyComplianceWebhookController::class, 'customersRedact']
+)->withoutMiddleware([
+    \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
+]);
+
+Route::post(
+    '/webhooks/shop/redact',
+    [ShopifyComplianceWebhookController::class, 'shopRedact']
+)->withoutMiddleware([
+    \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
+]);
 
 Route::post('webhooks/shopify/orders/create', [ShopifyController::class, 'handleOrdersCreateWebhook'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
