@@ -64,7 +64,6 @@ class ShopifyController extends Controller
             if (!str_contains($shop, '.myshopify.com')) {
                 $shop .= '.myshopify.com';
             }
-           
         }
 
         if (!$shop) {
@@ -73,7 +72,8 @@ class ShopifyController extends Controller
 
         $shopModel = \App\Models\Shop::where('shop', $shop)->first();
 
-        if ( $shopModel &&  $shopModel->is_active == 1 && !empty($shopModel->access_token)
+        if (
+            $shopModel &&  $shopModel->is_active == 1 && !empty($shopModel->access_token)
         ) {
             if (!$this->isShopActive($shopModel)) {
 
@@ -91,7 +91,7 @@ class ShopifyController extends Controller
                 'shop' => $shop
             ]);
         }
- 
+
         return redirect()->route('shopify.install', ['shop' => $shop]);
     }
     private function isShopActive(Shop $shop): bool
@@ -167,16 +167,16 @@ class ShopifyController extends Controller
                 $shop = $matches[1] . '.myshopify.com';
             }
         }
-      
+
         if (!$shop) {
             Log::error('SHOP MISSING');
             return response('Missing shop parameter', 400);
         }
-        
+
         if (!str_contains($shop, '.myshopify.com')) {
             $shop .= '.myshopify.com';
         }
-      
+
         // ✅ strict validation
         if (!preg_match('/^[a-zA-Z0-9\-]+\.myshopify\.com$/', $shop)) {
             Log::error('INVALID SHOP FORMAT', [
@@ -211,7 +211,7 @@ class ShopifyController extends Controller
             'scope'        => $this->oauthScopes(),
             'redirect_uri' => $shopifyRedirectUri,
             'state'        => $state,
-        ]); 
+        ]);
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
         Log::info('STEP 4: REDIRECT URL', [
             'url' => $redirectUrl
@@ -320,7 +320,45 @@ class ShopifyController extends Controller
                 'is_active' => 1
             ]
         );
-        
+
+        // Fetch and store all Shopify locations
+        try {
+            $locationResponse = $this->shopifyRest(
+                $shopModel,
+                'get',
+                'locations.json'
+            );
+
+            if (!empty($locationResponse['error'])) {
+                Log::error('SHOPIFY LOCATIONS FETCH FAILED', [
+                    'shop_id' => $shopModel->id,
+                    'shop' => $shopModel->shop,
+                    'response' => $locationResponse,
+                ]);
+            } else {
+                $locations = $locationResponse['locations'] ?? [];
+
+                $shopModel->update([
+                    'shopify_locations' => $locations,
+                    'selected_location_index' => null,
+                ]);
+
+                Log::info('SHOPIFY LOCATIONS SAVED', [
+                    'shop_id' => $shopModel->id,
+                    'shop' => $shopModel->shop,
+                    'locations_count' => count($locations),
+                    'locations' => $locations,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('SHOPIFY LOCATIONS SAVE FAILED', [
+                'shop_id' => $shopModel->id,
+                'shop' => $shopModel->shop,
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+            ]);
+        }
+
         // optional session
         session(['active_shop' => $shop]);
         // =========================
@@ -680,7 +718,7 @@ class ShopifyController extends Controller
                 'incoming_id' => $id
             ]);
             $shopModel = $this->getActiveShop($request);
-          $this->ensureFreshAccessToken($shopModel);
+            $this->ensureFreshAccessToken($shopModel);
             if (!$shopModel) {
                 ProductSyncLog::create([
                     'product_id' => null,
@@ -929,7 +967,7 @@ class ShopifyController extends Controller
             return response('Invalid webhook signature', 401);
         }
         $shopModel = $this->findShopByIdentifier($shopDomain);
-        
+
         if (!$shopModel) {
             Log::warning('Rejected Shopify order webhook because shop was not found.', [
                 'shop' => $shopDomain,
@@ -1292,8 +1330,8 @@ class ShopifyController extends Controller
         $this->ensureFreshAccessToken($shopModel);
         try {
             $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
-       //  dd($response); 
-	   if (!empty($response['error'])) {
+            //  dd($response); 
+            if (!empty($response['error'])) {
                 return redirect($this->shopAwareUrl('/products', $shopModel->shop))
                     ->with('error', 'Product not found.');
             }
@@ -1343,13 +1381,13 @@ class ShopifyController extends Controller
     {
         $shopModel = $this->getActiveShop($request);
         $activeShop = $shopModel?->shop;
-	$this->ensureFreshAccessToken($shopModel);
+        $this->ensureFreshAccessToken($shopModel);
         if (!$shopModel) {
             return redirect('/products')->with('error', 'No shop connected.');
         }
         try {
             $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
-	if (!empty($response['error'])) {
+            if (!empty($response['error'])) {
                 return back()->with('error', 'Product not found');
             }
             $product = $response['product'] ?? null;
@@ -2005,7 +2043,7 @@ class ShopifyController extends Controller
     public function deleteProduct(Request $request, $id)
     {
         $shopModel = $this->getActiveShop($request);
-           $this->ensureFreshAccessToken($shopModel);
+        $this->ensureFreshAccessToken($shopModel);
         if (!$shopModel) {
             return response()->json(['success' => false, 'message' => 'No shop connected'], 401);
         }
@@ -2082,14 +2120,13 @@ class ShopifyController extends Controller
         $decodedHost = base64_decode(strtr($host, '-_', '+/'), true);
         return $decodedHost !== false ? $decodedHost : $host;
     }
-    
+
 
     public function extractShopIdentifier(?Request $request = null): ?string
     {
         $request ??= request();
 
-        foreach ( [ $request?->query('shop'), $request?->input('shop')  ] as $candidate
-        ) {
+        foreach ([$request?->query('shop'), $request?->input('shop')] as $candidate) {
             $candidate = trim((string) $candidate);
             if ($candidate !== '') {
                 return strtolower($candidate);
@@ -3133,7 +3170,6 @@ class ShopifyController extends Controller
                 'access_token' => $data['access_token'],
                 'message' => 'Token refreshed successfully.',
             ];
-
         } catch (\Throwable $e) {
             Log::error('TOKEN REFRESH EXCEPTION', [
                 'shop' => $shopModel->shop ?? null,
@@ -3147,5 +3183,4 @@ class ShopifyController extends Controller
             ];
         }
     }
-
 }
