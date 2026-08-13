@@ -1,64 +1,20 @@
 <!doctype html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Shopify Authentication</title>
     <style>
-        body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background: #f7f8fb;
-            color: #202124;
-            margin: 0;
-        }
-
-        .page {
-            max-width: 640px;
-            margin: 0 auto;
-            padding: 48px 24px;
-            text-align: center;
-        }
-
-        .card {
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 16px 40px rgba(16, 24, 40, .08);
-            padding: 32px;
-        }
-
-        .button {
-            appearance: none;
-            border: none;
-            background: #1d72f3;
-            color: #fff;
-            padding: 12px 24px;
-            border-radius: 10px;
-            font-size: 1rem;
-            cursor: pointer;
-            margin-top: 20px;
-        }
-
-        .button:hover {
-            background: #1558d0;
-        }
-
-        .muted {
-            color: #556074;
-        }
-
-        .status {
-            margin-top: 16px;
-            font-size: 0.95rem;
-        }
-
-        a {
-            color: #1d72f3;
-            text-decoration: none;
-        }
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f8fb; color: #202124; margin: 0; }
+        .page { max-width: 640px; margin: 0 auto; padding: 48px 24px; text-align: center; }
+        .card { background: #fff; border-radius: 16px; box-shadow: 0 16px 40px rgba(16,24,40,.08); padding: 32px; }
+        .button { appearance: none; border: none; background: #1d72f3; color: #fff; padding: 12px 24px; border-radius: 10px; font-size: 1rem; cursor: pointer; margin-top: 20px; }
+        .button:hover { background: #1558d0; }
+        .muted { color: #556074; }
+        .status { margin-top: 16px; font-size: 0.95rem; }
+        a { color: #1d72f3; text-decoration: none; }
     </style>
 </head>
-
 <body>
     <div class="page">
         <div class="card">
@@ -71,9 +27,7 @@
     </div>
 
     <script>
-        const shop = {
-            !!json_encode($shop ?? null) !!
-        };
+        const shop = {!! json_encode($shop ?? null) !!};
         let setupCheckInterval;
         let hasRedirected = false;
 
@@ -82,30 +36,28 @@
             if (!shop) return;
 
             fetch('/api/shop-status?shop=' + encodeURIComponent(shop), {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.shop_name && data.email && !hasRedirected) {
-                        hasRedirected = true;
-                        const statusEl = document.getElementById('status');
-                        if (statusEl) statusEl.textContent = 'Setup complete. Redirecting to dashboard...';
-                        setTimeout(function() {
-                            window.location.href = '{{ route("dashboard", ["shop" => "SHOP_PLACEHOLDER"]) }}'.replace('SHOP_PLACEHOLDER', shop);
-                        }, 500);
-                        if (setupCheckInterval) clearInterval(setupCheckInterval);
-                    }
-                })
-                .catch(err => console.log('Status check failed:', err));
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.shop_name && data.email && !hasRedirected) {
+                    hasRedirected = true;
+                    const statusEl = document.getElementById('status');
+                    if (statusEl) statusEl.textContent = 'Setup complete. Redirecting to dashboard...';
+                    setTimeout(function() {
+                        window.location.href = '{{ route("dashboard", ["shop" => "SHOP_PLACEHOLDER"]) }}'.replace('SHOP_PLACEHOLDER', shop);
+                    }, 500);
+                    if (setupCheckInterval) clearInterval(setupCheckInterval);
+                }
+            })
+            .catch(err => console.log('Status check failed:', err));
         }
 
         (function() {
-            const redirectUrl = {
-                !!json_encode($redirectUrl) !!
-            };
+            const redirectUrl = {!! json_encode($redirectUrl) !!};
             const statusEl = document.getElementById('status');
             const openButton = document.getElementById('openPopup');
             const features = [
@@ -140,24 +92,13 @@
                 }
             });
 
-            // const popupChecker = setInterval(function() {
-            //     if (popup && popup.closed) {
-            //         clearInterval(popupChecker);
-            //         statusEl.textContent = 'Authorization window closed. Waiting for setup completion...';
-            //         // Start polling for shop setup when popup closes
-            //         if (!setupCheckInterval) {
-            //             setupCheckInterval = setInterval(checkShopSetup, 1000);
-            //         }
-            //     }
-            // }, 500);
-
             const popupChecker = setInterval(function() {
                 if (popup && popup.closed) {
                     clearInterval(popupChecker);
-
-                    // Popup closed → reload the page that opened this popup
-                    if (window.opener && !window.opener.closed) {
-                        window.opener.location.reload();
+                    statusEl.textContent = 'Authorization window closed. Waiting for setup completion...';
+                    // Start polling for shop setup when popup closes
+                    if (!setupCheckInterval) {
+                        setupCheckInterval = setInterval(checkShopSetup, 1000);
                     }
                 }
             }, 500);
@@ -175,5 +116,4 @@
         })();
     </script>
 </body>
-
 </html>
