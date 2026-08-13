@@ -404,7 +404,45 @@
                 </div>
             </div>
         </div>
+        {{-- Shopify Inventory Location --}}
+        <div class="saas-card">
+            <div class="saas-card-body">
+                <div class="saas-section-title">Shopify Inventory</div>
 
+                <div class="saas-section-desc">
+                    Select the Shopify location that will be used for inventory sync and updates.
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="saas-label">Select Your Shopify Location</label>
+
+                        <select
+                            name="selected_location_index"
+                            class="saas-select">
+                            <option value="">Select a location</option>
+
+                            @foreach(($shop->shopify_locations ?? []) as $index => $location)
+                            <option
+                                value="{{ $index }}"
+                                {{ old(
+                                'selected_location_index',
+                                $shop->selected_location_index
+                            ) == $index ? 'selected' : '' }}>
+                                {{ $location['name'] ?? 'Unnamed Location' }}
+                            </option>
+                            @endforeach
+                        </select>
+
+                        @if(empty($shop->shopify_locations))
+                        <div class="text-muted mt-2" style="font-size: 12px;">
+                            No Shopify locations found.
+                        </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
         {{-- Save Button for General Settings --}}
         <div class="d-flex justify-content-end mb-3">
             <button class="saas-btn saas-btn-primary">
