@@ -68,9 +68,6 @@ Route::middleware([
     Route::delete('logs/{id}', [SettingsController::class, 'removeLog'])->name('shopify.logs.remove');
 });
 
-// Route::get('/webhooks/customers/data_request', [ShopifyComplianceWebhookController::class, 'customersDataRequest']);
-// Route::get('/webhooks/customers/redact', [ShopifyComplianceWebhookController::class, 'customersRedact']);
-// Route::get('/webhooks/shop/redact', [ShopifyComplianceWebhookController::class, 'shopRedact']);
 
 Route::post(
     '/webhooks/customers/data_request',
