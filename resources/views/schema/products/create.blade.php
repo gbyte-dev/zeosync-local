@@ -11,6 +11,22 @@
         border-bottom: 1px solid #dee2e6;
     }
 
+    .tab-error-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        margin-left: 5px;
+        border-radius: 999px;
+        background: #dc3545;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+    }
+
     .amazon-tabs .nav-link {
         border: none;
         color: #495057;
@@ -72,8 +88,6 @@
         margin-bottom: 8px;
         cursor: pointer;
     }
-
-
 </style>
 @endpush
 @section('content')
@@ -92,7 +106,7 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                 @if(is_array(session('errors_amazon')))
                 @foreach(session('errors_amazon') as $error)
                 <li>
-                 <strong style="display:none">{{ implode(', ', $error['attributeNames'] ?? []) }} : </strong>
+                    <strong style="display:none">{{ implode(', ', $error['attributeNames'] ?? []) }} : </strong>
                     {{ $error['message'] }}
                 </li>
                 @endforeach
@@ -107,12 +121,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             <form action="{{ route('admin.product.edit.post', [
                 'product_id' => $productshow->id,
                 'shop' => $activeShop,
-            ]) }}"  method="POST"   enctype="multipart/form-data">
-            @else
-            <form action="{{ route('admin.product.store.post', [
-                'shop' => $activeShop ]) }}"  method="POST"
-                enctype="multipart/form-data">
-            @endif
+            ]) }}" method="POST" enctype="multipart/form-data">
+                @else
+                <form action="{{ route('admin.product.store.post', [
+                'shop' => $activeShop ]) }}" method="POST"
+                    enctype="multipart/form-data">
+                    @endif
                     @csrf
                     <input type="hidden" name="shop" value="{{ request('shop') }}">
                     @if(isset($productshow) && ($productshow->status != 'draft' && $productshow->status != 'failed'))
@@ -136,7 +150,7 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                         id="aiAutofillBtn"
                                         class="btn btn-primary">
                                         <i class="fas fa-magic me-2"></i>
-                                         Auto Fill
+                                        Auto Fill
                                     </button>
                                     @endif
 
@@ -202,6 +216,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                         data-bs-toggle="tab"
                                         href="#productTab">
                                         Product Info
+
+                                        @if(($tabErrorCounts['product'] ?? 0) > 0)
+                                        <span class="tab-error-badge">
+                                            {{ $tabErrorCounts['product'] }}
+                                        </span>
+                                        @endif
                                     </a>
                                 </li>
                                 @endif
@@ -211,6 +231,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                         data-bs-toggle="tab"
                                         href="#imageTab">
                                         Images
+
+                                        @if(($tabErrorCounts['images'] ?? 0) > 0)
+                                        <span class="tab-error-badge">
+                                            {{ $tabErrorCounts['images'] }}
+                                        </span>
+                                        @endif
                                     </a>
                                 </li>
                                 @endif
@@ -220,6 +246,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                         data-bs-toggle="tab"
                                         href="#variationTab">
                                         Variations
+
+                                        @if(($tabErrorCounts['variations'] ?? 0) > 0)
+                                        <span class="tab-error-badge">
+                                            {{ $tabErrorCounts['variations'] }}
+                                        </span>
+                                        @endif
                                     </a>
                                 </li>
                                 @endif
@@ -229,6 +261,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                         data-bs-toggle="tab"
                                         href="#attributeTab">
                                         Attributes
+
+                                        @if(($tabErrorCounts['attributes'] ?? 0) > 0)
+                                        <span class="tab-error-badge">
+                                            {{ $tabErrorCounts['attributes'] }}
+                                        </span>
+                                        @endif
                                     </a>
                                 </li>
                                 @endif
@@ -238,6 +276,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                         data-bs-toggle="tab"
                                         href="#productRulesTab">
                                         Product Rules
+
+                                        @if(($tabErrorCounts['product_rules'] ?? 0) > 0)
+                                        <span class="tab-error-badge">
+                                            {{ $tabErrorCounts['product_rules'] }}
+                                        </span>
+                                        @endif
                                     </a>
                                 </li>
                                 @endif
@@ -247,6 +291,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                         data-bs-toggle="tab"
                                         href="#batterySpecsTab">
                                         Battery Specs
+
+                                        @if(($tabErrorCounts['battery_specs'] ?? 0) > 0)
+                                        <span class="tab-error-badge">
+                                            {{ $tabErrorCounts['battery_specs'] }}
+                                        </span>
+                                        @endif
                                     </a>
                                 </li>
                                 @endif
@@ -256,6 +306,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                         data-bs-toggle="tab"
                                         href="#otherTab">
                                         Other
+
+                                        @if(($tabErrorCounts['other'] ?? 0) > 0)
+                                        <span class="tab-error-badge">
+                                            {{ $tabErrorCounts['other'] }}
+                                        </span>
+                                        @endif
                                     </a>
                                 </li>
                                 @endif
@@ -679,11 +735,11 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
     }
 
     document.addEventListener("DOMContentLoaded", function() {
-    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
-    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
-        return new bootstrap.Popover(popoverTriggerEl)
-    })
-});
+        var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+        var popoverList = popoverTriggerList.map(function(popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl)
+        })
+    });
 </script>
 <script>
     const requiredFields = @json($requiredFields);
