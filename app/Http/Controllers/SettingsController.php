@@ -37,7 +37,28 @@ class SettingsController extends ShopifyController
     {
         $shopModel = $this->getActiveShop($request);
         $activeShop = $shopModel?->shop;
+
         $shop = Shop::where('shop', $activeShop)->first();
+
+        if (!$shop) {
+            return back()->with('error', 'Shop not found.');
+        }
+
+        $locations = $shop->shopify_locations ?? [];
+
+        $request->validate([
+            'selected_location_index' => [
+                'nullable',
+                'integer',
+                'min:0',
+                function ($attribute, $value, $fail) use ($locations) {
+                    if ($value !== null && !array_key_exists($value, $locations)) {
+                        $fail('Invalid Shopify location selected.');
+                    }
+                },
+            ],
+        ]);
+
         Log::info('Settings Update', [
             'query_shop'   => request()->query('shop'),
             'input_shop'   => request('shop'),
@@ -46,16 +67,29 @@ class SettingsController extends ShopifyController
                 ? app('activeShop')?->shop
                 : null,
         ]);
+
         $shop->settings()->updateOrCreate(
             ['shop_id' => $shop->id],
             [
-                'auto_sync'         => $request->has('auto_sync'),
-                'auto_sku_mapping'  => $request->has('auto_sku_mapping'),
-                'ai_assist'         => $request->has('ai_assist'),
-                'currency'          => $request->input('currency'),
-                'tax_behavior'      => $request->input('tax_behavior'),
+                'auto_sync'        => $request->has('auto_sync'),
+                'auto_sku_mapping' => $request->has('auto_sku_mapping'),
+                'ai_assist'        => $request->has('ai_assist'),
+                'currency'         => $request->input('currency'),
+                'tax_behavior'     => $request->input('tax_behavior'),
             ]
         );
+
+        $shop->update([
+            'selected_location_index' => $request->input('selected_location_index'),
+        ]);
+
+        Log::info('SHOPIFY LOCATION SELECTED', [
+            'shop_id' => $shop->id,
+            'index' => $request->input('selected_location_index'),
+            'location' => $request->input('selected_location_index') !== null
+                ? ($locations[$request->input('selected_location_index')] ?? null)
+                : null,
+        ]);
 
         return back()->with('success', 'Settings updated.');
     }
