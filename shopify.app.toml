@@ -33,7 +33,8 @@ api_version = "2026-07"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_analytics,write_customer_merge,read_delivery_customizations,write_delivery_customizations,read_price_rules,write_price_rules,read_discounts,write_discounts,write_draft_orders,read_draft_orders,read_fulfillments,write_fulfillments,read_gift_cards,write_gift_cards,write_inventory,read_inventory,write_inventory_shipments,read_inventory_shipments,write_inventory_shipments_received_items,read_inventory_shipments_received_items,write_inventory_transfers,read_inventory_transfers,write_locations,read_locations,write_order_edits,read_order_edits,read_orders,write_orders,read_product_listings,write_product_listings,read_products,write_products,write_reports,read_reports,read_returns,write_returns,read_content,write_content,customer_read_companies,customer_write_companies,customer_write_customers,customer_read_customers,customer_read_orders,customer_write_orders,unauthenticated_read_product_listings"
+[access_scopes]
+scopes = "read_products,write_products,read_orders,write_orders,read_inventory,write_inventory,read_locations,write_locations"
 optional_scopes = [
   "read_files",
   "write_files",
