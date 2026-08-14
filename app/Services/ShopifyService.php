@@ -182,6 +182,10 @@ class ShopifyService
         $response = $this->graphql($query, [
             'cursor' => $cursor
         ]);
+        Log::info('SHOPIFY PRODUCTS GRAPHQL RESPONSE', [
+            'shop' => $this->shop,
+            'response' => $response,
+        ]);
 
         if (!$response || !isset($response['data']['products'])) {
             return [
