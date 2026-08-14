@@ -1,5 +1,3 @@
-# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
-
 client_id = "cc04d2b21de39debde846f2b0f70a763"
 name = "Zeosync"
 application_url = "https://zeosync.app/"
@@ -8,31 +6,6 @@ embedded = true
 [build]
 automatically_update_urls_on_dev = true
 
-[webhooks]
-api_version = "2026-07"
-
-  [[webhooks.subscriptions]]
-  uri = "/customers/data_request"
-  compliance_topics = [ "customers/data_request" ]
-
-  [[webhooks.subscriptions]]
-  uri = "/customers/redact"
-  compliance_topics = [ "customers/redact" ]
-
-  [[webhooks.subscriptions]]
-  uri = "/shop/redact"
-  compliance_topics = [ "shop/redact" ]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/app-uninstalled"
-  topics = [ "app/uninstalled" ]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/shopify/orders/create"
-  topics = [ "orders/create" ]
-
-[access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 [access_scopes]
 scopes = "read_products,write_products,read_orders,write_orders,read_inventory,write_inventory,read_locations,write_locations"
 optional_scopes = [
@@ -44,4 +17,30 @@ optional_scopes = [
 use_legacy_install_flow = false
 
 [auth]
-redirect_urls = [ "https://zeosync.app/callback", "https://zeosync.app" ]
+redirect_urls = [
+  "https://zeosync.app/callback",
+  "https://zeosync.app/"
+]
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+uri = "https://zeosync.app/customers/data_request"
+compliance_topics = ["customers/data_request"]
+
+[[webhooks.subscriptions]]
+uri = "https://zeosync.app/customers/redact"
+compliance_topics = ["customers/redact"]
+
+[[webhooks.subscriptions]]
+uri = "https://zeosync.app/shop/redact"
+compliance_topics = ["shop/redact"]
+
+[[webhooks.subscriptions]]
+uri = "https://zeosync.app/webhooks/app-uninstalled"
+topics = ["app/uninstalled"]
+
+[[webhooks.subscriptions]]
+uri = "https://zeosync.app/webhooks/shopify/orders/create"
+topics = ["orders/create"]
