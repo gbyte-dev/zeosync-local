@@ -160,7 +160,7 @@ class ShopifyService
     /**
      * 2. Paginated Query (Array → GraphQL)
      */
-    public function paginate($structure, $first = 50, $cursor = null)
+    public function paginate($structure, $first = 15, $cursor = null)
     {
         // 🔹 Build GraphQL fields
         $queryBody = $this->buildQuery($structure);
@@ -181,6 +181,10 @@ class ShopifyService
 
         $response = $this->graphql($query, [
             'cursor' => $cursor
+        ]);
+        Log::info('SHOPIFY PRODUCTS GRAPHQL RESPONSE', [
+            'shop' => $this->shop,
+            'response' => $response,
         ]);
 
         if (!$response || !isset($response['data']['products'])) {
