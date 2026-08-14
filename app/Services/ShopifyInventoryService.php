@@ -210,4 +210,10 @@ class ShopifyInventoryService
 
         return $result;
     }
+    public function isExpired(Shop $shop): bool
+    {
+        $cacheKey = "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}";
+
+        return !Cache::has($cacheKey);
+    }
 }
