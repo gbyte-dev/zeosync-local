@@ -568,10 +568,11 @@
                 </button>
             </li>
             <li class="nav-item">
-                <button class="nav-link"
+                <button
+                    class="nav-link"
+                    id="amazon-tab"
                     data-bs-toggle="tab"
-                    data-bs-target="#amazonTab"
-                    onclick="switchToAmazonTab();">
+                    data-bs-target="#amazonTab">
                     Amazon
                 </button>
             </li>
@@ -761,7 +762,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-    const amazonConnected = @json(!empty($shop -> amazon_refresh_token));
+    const amazonConnected = @json(!empty($shop - > amazon_refresh_token));
     let selectedAmazonSku = null;
     let selectedShopifyVariantId = null;
     let selectedShopifyProductId = null;
@@ -781,7 +782,18 @@
     document.addEventListener('DOMContentLoaded', function() {
         $('#dtLengthShopify').val(savedShopifyLength);
         $('#dtLengthAmazon').val(savedAmazonLength);
-        loadShopify(); // Your existing load call
+
+        loadShopify();
+
+        const amazonTab = document.querySelector(
+            '[data-bs-target="#amazonTab"]'
+        );
+
+        if (amazonTab) {
+            amazonTab.addEventListener('shown.bs.tab', function() {
+                switchToAmazonTab();
+            });
+        }
     });
 
     function getMappedStatus(rawStatus, tab) {
@@ -983,6 +995,7 @@
     function switchToAmazonTab() {
         activeTab = 'amazon';
 
+        // Products already loaded in browser cache
         if (amazonProductsCache !== null) {
             renderAmazonTable(amazonProductsCache, false);
 
@@ -996,6 +1009,8 @@
             return;
         }
 
+        // No browser cache → fetch in background + show loader
+        showAmazonLoader();
         loadAmazon();
     }
 
