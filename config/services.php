@@ -27,6 +27,7 @@ return [
         'api_secret' => env('SHOPIFY_API_SECRET'),
         'redirect_uri' => env('SHOPIFY_REDIRECT_URI'),
         'app_url' => env('SHOPIFY_APP_URL'),
+        'api_version' => env('SHOPIFY_API_VERSION', '2026-07'),
     ],
 
     'ses' => [

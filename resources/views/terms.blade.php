@@ -61,7 +61,7 @@
                     <h6 class="card-title">Contact Information</h6>
                     <p class="card-text text-muted">
                         For questions or concerns regarding these Terms & Conditions, please contact us at 
-                        legal@zeosync.example. We will respond to your inquiry within a reasonable timeframe.
+                        legal@zeosync.app. We will respond to your inquiry within a reasonable timeframe.
                     </p>
                 </div>
             </div>
