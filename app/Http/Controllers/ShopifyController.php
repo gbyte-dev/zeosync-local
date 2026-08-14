@@ -1131,14 +1131,47 @@ class ShopifyController extends Controller
     }
     public function products(Request $request)
     {
+        Log::info('PRODUCTS METHOD START', [
+            'url' => $request->fullUrl(),
+            'shop_query' => $request->query('shop'),
+            'host_query' => $request->query('host'),
+        ]);
+
         set_time_limit(120);
+
         $shopModel = $this->getActiveShop($request);
-        $this->ensureFreshAccessToken($shopModel);
-        $activeShop = $shopModel?->shop;
+
+        Log::info('PRODUCTS ACTIVE SHOP RESOLVED', [
+            'shop_id' => $shopModel?->id,
+            'shop' => $shopModel?->shop,
+        ]);
+
         if (!$shopModel) {
+            Log::warning('PRODUCTS NO ACTIVE SHOP');
+
             return redirect('/')->with('error', 'No store connected.');
         }
+
+        Log::info('PRODUCTS BEFORE TOKEN CHECK', [
+            'shop_id' => $shopModel->id,
+            'shop' => $shopModel->shop,
+        ]);
+
+        $this->ensureFreshAccessToken($shopModel);
+
+        Log::info('PRODUCTS AFTER TOKEN CHECK', [
+            'shop_id' => $shopModel->id,
+            'shop' => $shopModel->shop,
+        ]);
+
+        $activeShop = $shopModel->shop;
+
         $cacheKey = "products_shop_{$shopModel->id}";
+
+        Log::info('PRODUCTS BEFORE CACHE', [
+            'shop_id' => $shopModel->id,
+            'cache_key' => $cacheKey,
+        ]);
         //   REFRESH FLOW (correct order)
         if ($request->has('refresh')) {
             $this->refreshProductsCache($shopModel);
