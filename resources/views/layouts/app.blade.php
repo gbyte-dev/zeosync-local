@@ -687,22 +687,38 @@
             document.documentElement.classList.add('normal-page');
         }
 
-        async function getProducts() {
-            try {
-                if (typeof shopify === 'undefined') {
-                    console.error('Shopify App Bridge is not loaded');
-                    return;
+        (function () {
+            const originalAjax = $.ajax;
+
+            $.ajax = async function (url, options) {
+                if (typeof url === 'object') {
+                    options = url;
+                } else {
+                    options = options || {};
+                    options.url = url;
                 }
 
-                const token = await shopify.idToken();
+                try {
+                    if (typeof shopify === 'undefined') {
+                        console.error('Shopify App Bridge is not loaded');
+                        return originalAjax.call(this, options);
+                    }
 
-                return token;
-            } catch (error) {
-                console.error('Failed to get Shopify ID Token:', error);
-            }
-        }
+                    const token = await shopify.idToken();
 
-        getProducts();
+                    options.headers = {
+                        ...(options.headers || {}),
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    };
+
+                    return originalAjax.call(this, options);
+                } catch (error) {
+                    console.error('Failed to get Shopify session token:', error);
+                    throw error;
+                }
+            };
+        })();
 
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
