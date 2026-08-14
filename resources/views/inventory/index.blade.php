@@ -762,7 +762,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-    const amazonConnected = @json(!empty($shop -> amazon_refresh_token));
+    const amazonConnected = @json(!empty($shop - > amazon_refresh_token));
     let selectedAmazonSku = null;
     let selectedShopifyVariantId = null;
     let selectedShopifyProductId = null;
@@ -1132,7 +1132,6 @@
     function renderAmazonTable(data, isLoading = false) {
 
         if (!data || data.length === 0) {
-
             $('#amazonTableWrapper').hide();
 
             if (isLoading) {
@@ -1154,13 +1153,9 @@
         $('#amazonNoDataMsg').hide();
         $('#amazonTableWrapper').show();
 
-        if ($.fn.DataTable.isDataTable('#amazonTable')) {
-            // Update elegantly via AJAX
-            dtAmazon.clear().rows.add(data).draw();
-        } else {
-            // Initialize DataTables
+        // 1. Initialize the structure ONLY (Do NOT pass data: data here)
+        if (!$.fn.DataTable.isDataTable('#amazonTable')) {
             dtAmazon = $('#amazonTable').DataTable({
-                data: data,
                 pageLength: parseInt(savedAmazonLength),
                 ordering: true, // Enables Asc/Desc
                 dom: 'rt<"saas-pagination-wrapper"ip>', // Hides default UI components
@@ -1217,10 +1212,10 @@
                                 `<button class="btn btn-primary btn-sm map-shopify-product btn-icon-only" data-sku="${row.sku}" title="Map Product" data-bs-toggle="tooltip" data-bs-placement="top"><i class="bi bi-link-45deg"></i></button>`;
 
                             return `
-                            <div class="d-flex align-items-center justify-content-end gap-1">
-                                <button class="btn btn-primary btn-sm update-amazon-qty" data-sku="${row.sku}" title="Update Stock" data-bs-toggle="tooltip" data-bs-placement="top">Update</button>
-                                ${mapBtn}
-                            </div>`;
+                        <div class="d-flex align-items-center justify-content-end gap-1">
+                            <button class="btn btn-primary btn-sm update-amazon-qty" data-sku="${row.sku}" title="Update Stock" data-bs-toggle="tooltip" data-bs-placement="top">Update</button>
+                            ${mapBtn}
+                        </div>`;
                         }
                     }
                 ],
@@ -1230,6 +1225,9 @@
                 }
             });
         }
+
+        // 2. Universally clear existing DOM rows and inject the new data array for every load
+        dtAmazon.clear().rows.add(data).draw();
     }
 
     // ==========================================
