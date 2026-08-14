@@ -60,9 +60,35 @@ class InventoryCacheService
 
         $inventory = Cache::get($cacheKey, []);
 
+        $status = $this->getStatus($shop, $marketplaceId);
+
         Log::info('Inventory cache loaded', [
             'count' => is_array($inventory) ? count($inventory) : 0,
+            'status' => $status,
         ]);
+
+        /*
+ * Cache key exists but contains no products.
+ * Treat it as a cache miss if a sync is not currently running.
+ */
+        if (empty($inventory) && !($status['refreshing'] ?? false)) {
+
+            $this->updateStatus($shop, $marketplaceId, [
+                'refreshing' => true,
+            ]);
+
+            SyncAmazonInventoryJob::dispatch($shop->id);
+
+            Log::info('Amazon inventory cache empty - background refresh dispatched', [
+                'shop_id' => $shop->id,
+                'marketplace_id' => $marketplaceId,
+            ]);
+
+            return [
+                'products' => [],
+                'status' => $this->getStatus($shop, $marketplaceId),
+            ];
+        }
 
         $expired = $this->isExpired($shop, $marketplaceId);
 
@@ -158,7 +184,8 @@ class InventoryCacheService
     /**
      * Dispatch background refresh.
      */
-    public function dispatchRefresh(Shop $shop, ?string $marketplaceId = null ): void {
+    public function dispatchRefresh(Shop $shop, ?string $marketplaceId = null): void
+    {
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
 
         Log::info('dispatchRefresh ENTERED', [
@@ -187,7 +214,8 @@ class InventoryCacheService
     /**
      * Check whether cache is expired.
      */
-    public function isExpired( Shop $shop,  ?string $marketplaceId = null ): bool {
+    public function isExpired(Shop $shop,  ?string $marketplaceId = null): bool
+    {
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
         $status = $this->getStatus($shop, $marketplaceId);
         if (empty($status['last_synced_at'])) {
@@ -202,7 +230,8 @@ class InventoryCacheService
     /**
      * Get cache metadata.
      */
-    public function getStatus( Shop $shop, ?string $marketplaceId = null ): array {
+    public function getStatus(Shop $shop, ?string $marketplaceId = null): array
+    {
 
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
         return Cache::get(
@@ -218,7 +247,10 @@ class InventoryCacheService
     /**
      * Update cache metadata.
      */
-    public function updateStatus(Shop $shop,  string $marketplaceId, array $data
+    public function updateStatus(
+        Shop $shop,
+        string $marketplaceId,
+        array $data
     ): void {
 
         $status = array_merge(
@@ -235,17 +267,23 @@ class InventoryCacheService
     /**
      * Inventory cache key.
      */
-    protected function getInventoryCacheKey(Shop $shop, string $marketplaceId
+    protected function getInventoryCacheKey(
+        Shop $shop,
+        string $marketplaceId
     ): string {
         return self::INVENTORY_CACHE_PREFIX . "_{$shop->id}_{$marketplaceId}";
     }
 
-    protected function getStatusCacheKey(  Shop $shop, string $marketplaceId
+    protected function getStatusCacheKey(
+        Shop $shop,
+        string $marketplaceId
     ): string {
         return self::STATUS_CACHE_PREFIX . "_{$shop->id}_{$marketplaceId}";
     }
 
-    protected function getLockCacheKey(  Shop $shop,  string $marketplaceId
+    protected function getLockCacheKey(
+        Shop $shop,
+        string $marketplaceId
     ): string {
         return self::LOCK_CACHE_PREFIX . "_{$shop->id}_{$marketplaceId}";
     }

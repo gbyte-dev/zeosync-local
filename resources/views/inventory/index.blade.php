@@ -568,10 +568,11 @@
                 </button>
             </li>
             <li class="nav-item">
-                <button class="nav-link"
+                <button
+                    class="nav-link"
+                    id="amazon-tab"
                     data-bs-toggle="tab"
-                    data-bs-target="#amazonTab"
-                    onclick="switchToAmazonTab();">
+                    data-bs-target="#amazonTab">
                     Amazon
                 </button>
             </li>
@@ -781,7 +782,18 @@
     document.addEventListener('DOMContentLoaded', function() {
         $('#dtLengthShopify').val(savedShopifyLength);
         $('#dtLengthAmazon').val(savedAmazonLength);
-        loadShopify(); // Your existing load call
+
+        loadShopify();
+
+        const amazonTab = document.querySelector(
+            '[data-bs-target="#amazonTab"]'
+        );
+
+        if (amazonTab) {
+            amazonTab.addEventListener('shown.bs.tab', function() {
+                switchToAmazonTab();
+            });
+        }
     });
 
     function getMappedStatus(rawStatus, tab) {
@@ -983,6 +995,7 @@
     function switchToAmazonTab() {
         activeTab = 'amazon';
 
+        // Products already loaded in browser cache
         if (amazonProductsCache !== null) {
             renderAmazonTable(amazonProductsCache, false);
 
@@ -996,6 +1009,8 @@
             return;
         }
 
+        // No browser cache → fetch in background + show loader
+        showAmazonLoader();
         loadAmazon();
     }
 
@@ -1672,11 +1687,5 @@
             console.error('Failed to load Amazon products:', xhr.responseText);
         });
     });
-    document.querySelector('[data-bs-target="#amazonTab"]')
-        ?.addEventListener('shown.bs.tab', function() {
-            if (dtAmazon) {
-                dtAmazon.columns.adjust().draw(false);
-            }
-        });
 </script>
 @endpush
