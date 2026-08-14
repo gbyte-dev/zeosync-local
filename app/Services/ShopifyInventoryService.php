@@ -63,7 +63,7 @@ class ShopifyInventoryService
                 do {
                     $response = $shopify->paginate(
                         $structure,
-                        50,
+                        20,
                         $cursor
                     );
 
