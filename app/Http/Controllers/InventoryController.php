@@ -114,7 +114,10 @@ class InventoryController extends ShopifyController
         app(AutoSkuMappingService::class)
             ->handle(
                 $shop,
-                Cache::get("shopify_inventory_{$shop->shop}", []),
+                Cache::get(
+                    "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}",
+                    []
+                ),
                 $data
             );
 
@@ -183,14 +186,16 @@ class InventoryController extends ShopifyController
     {
 
         $shop = Shop::where('shop', $request->shop)->firstOrFail();
-    //    $shopModel = Shop::where('shop', $shop)->first();
+        //    $shopModel = Shop::where('shop', $shop)->first();
         $this->ensureFreshAccessToken($shop);
 
         $type = $request->type;
 
         if ($type === 'shopify') {
 
-            Cache::forget("shopify_inventory_{$shop->shop}");
+            Cache::forget(
+                "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}"
+            );
         } elseif ($type === 'amazon') {
 
             $marketplaceId = 'ATVPDKIKX0DER';
@@ -346,7 +351,7 @@ class InventoryController extends ShopifyController
     }
 
 
-        /**
+    /**
      * Ensures the shop has a valid access token, refreshing if needed.
      * Returns an array: ['success' => bool, 'access_token' => ?string, 'message' => string]
      */
@@ -431,7 +436,6 @@ class InventoryController extends ShopifyController
                 'access_token' => $data['access_token'],
                 'message' => 'Token refreshed successfully.',
             ];
-
         } catch (\Throwable $e) {
             Log::error('TOKEN REFRESH EXCEPTION', [
                 'shop' => $shopModel->shop ?? null,
