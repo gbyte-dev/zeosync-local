@@ -10,7 +10,7 @@ class ShopifyService
 {
     protected $shop;
     protected $token;
-    protected $version = '2026-01';
+    protected $version = config('services.shopify.api_version', '2026-07');
 
     public function __construct($shop, $token)
     {
@@ -110,7 +110,7 @@ class ShopifyService
         $url = sprintf(
             'https://%s/admin/api/%s/%s',
             $shop->shop,
-            config('services.shopify.api_version', '2026-01'),
+            config('services.shopify.api_version', '2026-07'),
             ltrim($endpoint, '/')
         );
         $options = [];
