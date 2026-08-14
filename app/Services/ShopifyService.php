@@ -161,7 +161,7 @@ class ShopifyService
     /**
      * 2. Paginated Query (Array → GraphQL)
      */
-    public function paginate($structure, $first = 15, $cursor = null)
+    public function paginate($structure, $first = 50, $cursor = null)
     {
         // 🔹 Build GraphQL fields
         $queryBody = $this->buildQuery($structure);
