@@ -1687,11 +1687,5 @@
             console.error('Failed to load Amazon products:', xhr.responseText);
         });
     });
-    document.querySelector('[data-bs-target="#amazonTab"]')
-        ?.addEventListener('shown.bs.tab', function() {
-            if (dtAmazon) {
-                dtAmazon.columns.adjust().draw(false);
-            }
-        });
 </script>
 @endpush
