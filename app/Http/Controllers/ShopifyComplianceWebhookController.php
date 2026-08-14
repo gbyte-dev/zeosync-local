@@ -32,6 +32,8 @@ class ShopifyComplianceWebhookController extends Controller
             ]);
 
             return response()->json([
+                'success' => false,
+                'message' => 'Invalid webhook signature',
                 'error' => 'invalid_webhook_signature',
             ], 401);
         }
@@ -96,6 +98,8 @@ class ShopifyComplianceWebhookController extends Controller
             ]);
 
             return response()->json([
+                'success' => false,
+                'message' => 'Invalid webhook signature',
                 'error' => 'invalid_webhook_signature',
             ], 401);
         }
@@ -135,6 +139,8 @@ class ShopifyComplianceWebhookController extends Controller
             ]);
 
             return response()->json([
+                'success' => false,
+                'message' => 'Invalid webhook signature',
                 'error' => 'invalid_webhook_signature',
             ], 401);
         }
