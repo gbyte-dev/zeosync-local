@@ -10,12 +10,13 @@ class ShopifyService
 {
     protected $shop;
     protected $token;
-    protected $version = config('services.shopify.api_version', '2026-07');
+    protected $version = 2026-07;
 
     public function __construct($shop, $token)
     {
         $this->shop = $shop;
         $this->token = $token;
+        $this->version = config('services.shopify.api_version', '2026-07');
     }
 
     /**
