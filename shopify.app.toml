@@ -32,14 +32,14 @@ uri = "https://zeosync.app/webhooks/shopify/orders/create"
 
 [[webhooks.subscriptions]]
 
-uri = "https://zeosync.app/webhooks/customers/data_request"
+uri = "https://zeosync.app/customers/data_request"
 compliance_topics = ["customers/data_request"]
 
 [[webhooks.subscriptions]]
-uri = "https://zeosync.app/webhooks/customers/redact"
+uri = "https://zeosync.app/customers/redact"
 compliance_topics = ["customers/redact"]
 
 [[webhooks.subscriptions]]
-uri = "https://zeosync.app/webhooks/shop/redact"
+uri = "https://zeosync.app/shop/redact"
 compliance_topics = ["shop/redact"]
 
