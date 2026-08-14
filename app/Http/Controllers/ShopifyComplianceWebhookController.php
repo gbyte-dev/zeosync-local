@@ -32,8 +32,7 @@ class ShopifyComplianceWebhookController extends Controller
             ]);
 
             return response()->json([
-                'success' => false,
-                'message' => 'Invalid webhook signature',
+                'error' => 'invalid_webhook_signature',
             ], 401);
         }
 
@@ -64,12 +63,12 @@ class ShopifyComplianceWebhookController extends Controller
         }
 
         return response()->json([
-            'success'       => true,
-            'shop_name'     => $shop->shop,
-            'email'         => $shop->email,
-            'installed_at'  => $shop->installed_at,
-            'is_active'     => $shop->is_active,
-            'store_status'  => $shop->store_status,
+            'success' => true,
+            'shop_name' => $shop->shop,
+            'email' => $shop->email,
+            'installed_at' => $shop->installed_at,
+            'is_active' => $shop->is_active,
+            'store_status' => $shop->store_status,
         ], 200);
     }
 
@@ -97,8 +96,7 @@ class ShopifyComplianceWebhookController extends Controller
             ]);
 
             return response()->json([
-                'success' => false,
-                'message' => 'Invalid webhook signature',
+                'error' => 'invalid_webhook_signature',
             ], 401);
         }
 
@@ -137,8 +135,7 @@ class ShopifyComplianceWebhookController extends Controller
             ]);
 
             return response()->json([
-                'success' => false,
-                'message' => 'Invalid webhook signature',
+                'error' => 'invalid_webhook_signature',
             ], 401);
         }
 
