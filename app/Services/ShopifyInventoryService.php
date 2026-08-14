@@ -11,7 +11,8 @@ class ShopifyInventoryService
 {
     public function getInventory(Shop $shop): array
     {
-        $cacheKey = "shopify_inventory_{$shop->shop}";
+        // $cacheKey = "shopify_inventory_{$shop->shop}";
+        $cacheKey = "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}";
 
         return Cache::remember(
             $cacheKey,
@@ -39,8 +40,11 @@ class ShopifyInventoryService
                             'inventoryQuantity',
                             'inventoryItem' => [
                                 'id',
-                                'inventoryLevels(first: 1)' => [
+                                'inventoryLevels(first: 50)' => [
                                     'nodes' => [
+                                        'location' => [
+                                            'id'
+                                        ],
                                         'quantities(names: ["available", "committed", "incoming", "on_hand"])' => [
                                             'name',
                                             'quantity'
@@ -87,6 +91,15 @@ class ShopifyInventoryService
 
         $result = [];
 
+        $selectedLocationId = null;
+
+        $locations = $shop->shopify_locations ?? [];
+        $selectedIndex = $shop->selected_location_index;
+
+        if ($selectedIndex !== null && isset($locations[$selectedIndex])) {
+            $selectedLocationId = (string) ($locations[$selectedIndex]['id'] ?? '');
+        }
+
         $mappings = ProductMarketplaceMapping::where(
             'shop_id',
             $shop->id
@@ -107,9 +120,23 @@ class ShopifyInventoryService
 
                 $levels = $variant['inventoryItem']['inventoryLevels']['nodes'] ?? [];
 
-                if (!empty($levels)) {
+                $selectedLevel = null;
 
-                    foreach ($levels[0]['quantities'] ?? [] as $q) {
+                foreach ($levels as $level) {
+                    $levelLocationId = (string) ($level['location']['id'] ?? '');
+
+                    if (
+                        $selectedLocationId !== null &&
+                        $levelLocationId === $selectedLocationId
+                    ) {
+                        $selectedLevel = $level;
+                        break;
+                    }
+                }
+
+                if ($selectedLevel) {
+
+                    foreach ($selectedLevel['quantities'] ?? [] as $q) {
 
                         if ($q['name'] === 'available') {
                             $available = $q['quantity'];

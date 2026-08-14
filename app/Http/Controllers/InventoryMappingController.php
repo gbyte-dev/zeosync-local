@@ -256,7 +256,7 @@ class InventoryMappingController extends Controller
             'message' => 'Amazon product mapped successfully.'
         ]);
     }
-    
+
 
     public function updateShopifyInventory(Request $request)
     {
@@ -274,20 +274,26 @@ class InventoryMappingController extends Controller
         );
 
         // Get Shopify Location
-        $locationRes = $shopify->shopifyRest(
-            $shop,
-            'get',
-            'locations.json'
-        );
+        $locations = $shop->shopify_locations ?? [];
+        $selectedIndex = $shop->selected_location_index;
 
-        if (!empty($locationRes['error'])) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unable to fetch Shopify location.'
-            ], 422);
+        $locationId = null;
+
+        if ($selectedIndex !== null && isset($locations[$selectedIndex])) {
+            $locationId = $locations[$selectedIndex]['id'] ?? null;
         }
 
-        $locationId = $locationRes['locations'][0]['id'] ?? null;
+        if (!$locationId) {
+            Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
+                'shop_id' => $shop->id,
+                'selected_location_index' => $selectedIndex,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Please select a valid Shopify inventory location in Settings.'
+            ], 422);
+        }
 
         if (!$locationId) {
             return response()->json([

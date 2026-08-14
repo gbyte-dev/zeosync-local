@@ -1238,13 +1238,16 @@ class ShopifyController extends Controller
                     }
                 }
                 //  STEP 2: Fetch real inventory
-                if (!empty($inventoryItemIds)) {
+                $locationId = $this->getSelectedShopifyLocationId($shopModel);
+
+                if (!empty($inventoryItemIds) && $locationId) {
                     $inventoryRes = $this->shopifyRest(
                         $shopModel,
                         'get',
                         'inventory_levels.json',
                         [
-                            'inventory_item_ids' => implode(',', $inventoryItemIds)
+                            'location_ids' => $locationId,
+                            'inventory_item_ids' => implode(',', $inventoryItemIds),
                         ]
                     );
                     if (empty($inventoryRes['error'])) {
@@ -1253,7 +1256,7 @@ class ShopifyController extends Controller
                             if (!isset($inventoryMap[$item['inventory_item_id']])) {
                                 $inventoryMap[$item['inventory_item_id']] = 0;
                             }
-                            $inventoryMap[$item['inventory_item_id']] += $item['available'];
+                            $inventoryMap[$item['inventory_item_id']] = $item['available'];
                         }
                         Log::info('INVENTORY MAP', $inventoryMap);
                         //  STEP 3: Update variants with real inventory
@@ -1346,13 +1349,16 @@ class ShopifyController extends Controller
                     $inventoryItemIds[] = $variant['inventory_item_id'];
                 }
             }
-            if (!empty($inventoryItemIds)) {
+            $locationId = $this->getSelectedShopifyLocationId($shopModel);
+
+            if (!empty($inventoryItemIds) && $locationId) {
                 $inventoryRes = $this->shopifyRest(
                     $shopModel,
                     'get',
                     'inventory_levels.json',
                     [
-                        'inventory_item_ids' => implode(',', $inventoryItemIds)
+                        'location_ids' => $locationId,
+                        'inventory_item_ids' => implode(',', $inventoryItemIds),
                     ]
                 );
                 if (empty($inventoryRes['error'])) {
@@ -1361,7 +1367,7 @@ class ShopifyController extends Controller
                         if (!isset($inventoryMap[$item['inventory_item_id']])) {
                             $inventoryMap[$item['inventory_item_id']] = 0;
                         }
-                        $inventoryMap[$item['inventory_item_id']] += $item['available'];
+                        $inventoryMap[$item['inventory_item_id']] = $item['available'];
                     }
                     foreach ($product['variants'] as &$variant) {
                         $variant['inventory_quantity'] = $inventoryMap[$variant['inventory_item_id']] ?? 0;
@@ -1407,13 +1413,16 @@ class ShopifyController extends Controller
                     $inventoryItemIds[] = $variant['inventory_item_id'];
                 }
             }
-            if (!empty($inventoryItemIds)) {
+            $locationId = $this->getSelectedShopifyLocationId($shopModel);
+
+            if (!empty($inventoryItemIds) && $locationId) {
                 $inventoryRes = $this->shopifyRest(
                     $shopModel,
                     'get',
                     'inventory_levels.json',
                     [
-                        'inventory_item_ids' => implode(',', $inventoryItemIds)
+                        'location_ids' => $locationId,
+                        'inventory_item_ids' => implode(',', $inventoryItemIds),
                     ]
                 );
                 if (empty($inventoryRes['error'])) {
@@ -1422,7 +1431,7 @@ class ShopifyController extends Controller
                         if (!isset($inventoryMap[$item['inventory_item_id']])) {
                             $inventoryMap[$item['inventory_item_id']] = 0;
                         }
-                        $inventoryMap[$item['inventory_item_id']] += $item['available'];
+                        $inventoryMap[$item['inventory_item_id']] = $item['available'];
                     }
                     foreach ($product['variants'] as &$variant) {
                         $variant['inventory_quantity'] = $inventoryMap[$variant['inventory_item_id']] ?? 0;

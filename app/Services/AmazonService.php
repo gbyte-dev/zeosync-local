@@ -61,7 +61,7 @@ class AmazonService
      */
     public function getAccessToken()
     {
-       
+
         $cacheKey = "amazon_access_token_{$this->region}";
         return Cache::remember($cacheKey, 3000, function () {
             $response = Http::asForm()->post('https://api.amazon.com/auth/o2/token', [
@@ -240,7 +240,7 @@ class AmazonService
             'seller_id' => $shop->amazon_seller_id ?? null,
         ];
     }
-    
+
     public function getDbConnectorFromCredentials($shop)
     {
         $creds = $this->getDbCredentials($shop);
@@ -370,30 +370,36 @@ class AmazonService
                 $shop->access_token
             );
 
-            $locationRes = $shopify->shopifyRest(
-                $shop,
-                'get',
-                'locations.json'
-            );
+            $locations = $shop->shopify_locations ?? [];
+            $selectedIndex = $shop->selected_location_index;
 
-            if (empty($locationRes['error'])) {
+            $locationId = null;
 
-                $locationId = $locationRes['locations'][0]['id'] ?? null;
-
-                if ($locationId) {
-
-                    $shopify->shopifyRest(
-                        $shop,
-                        'post',
-                        'inventory_levels/set.json',
-                        [
-                            'location_id'       => $locationId,
-                            'inventory_item_id' => $mapping->shopify_inventory_item_id,
-                            'available'         => $quantity,
-                        ]
-                    );
-                }
+            if ($selectedIndex !== null && isset($locations[$selectedIndex])) {
+                $locationId = $locations[$selectedIndex]['id'] ?? null;
             }
+
+            if (!$locationId) {
+                Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
+                    'shop_id' => $shop->id,
+                    'selected_location_index' => $selectedIndex,
+                ]);
+
+                throw new \Exception(
+                    'Please select a valid Shopify inventory location in Settings.'
+                );
+            }
+
+            $shopify->shopifyRest(
+                $shop,
+                'post',
+                'inventory_levels/set.json',
+                [
+                    'location_id'       => $locationId,
+                    'inventory_item_id' => $mapping->shopify_inventory_item_id,
+                    'available'         => $quantity,
+                ]
+            );
         }
 
         return $responseBody;
