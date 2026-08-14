@@ -9,10 +9,17 @@ use Illuminate\Support\Facades\Log;
 class ShopifyComplianceWebhookController extends Controller
 {
     /**
-     * Main Shopify compliance webhook handler.
+     * Shopify GDPR - Customer Data Request
      */
-    public function handle(Request $request)
+    public function customersDataRequest(Request $request)
     {
+
+        Log::info('COMPLIANCE WEBHOOK HIT', [
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+            'headers' => $request->headers->all(),
+            'body' => $request->getContent(),
+        ]);
         $payload = $request->getContent();
 
         $shopifyWebhook = app(\App\Services\ShopifyWebhookService::class);
@@ -21,34 +28,13 @@ class ShopifyComplianceWebhookController extends Controller
             $payload,
             $request->header('X-Shopify-Hmac-Sha256')
         )) {
-            Log::warning('Invalid Shopify compliance webhook HMAC', [
-                'topic' => $request->header('X-Shopify-Topic'),
+            Log::warning('Invalid Shopify Customer Data Request HMAC', [
                 'shop' => $request->header('X-Shopify-Shop-Domain'),
             ]);
 
             return response('Invalid webhook signature', 401);
         }
 
-        $topic = $request->header('X-Shopify-Topic');
-
-        Log::info('Shopify compliance webhook received', [
-            'topic' => $topic,
-            'shop' => $request->header('X-Shopify-Shop-Domain'),
-        ]);
-
-        return match ($topic) {
-            'customers/data_request' => $this->customersDataRequest($request),
-            'customers/redact' => $this->customersRedact($request),
-            'shop/redact' => $this->shopRedact($request),
-            default => response('Unsupported webhook topic', 400),
-        };
-    }
-
-    /**
-     * Shopify GDPR - Customer Data Request
-     */
-    public function customersDataRequest(Request $request)
-    {
         $shopName = strtolower(
             trim((string) $request->header('X-Shopify-Shop-Domain'))
         );
@@ -75,7 +61,7 @@ class ShopifyComplianceWebhookController extends Controller
             'installed_at' => $shop->installed_at,
             'is_active'    => $shop->is_active,
             'store_status' => $shop->store_status,
-        ]);
+        ], 200);
     }
 
     /**
@@ -83,6 +69,21 @@ class ShopifyComplianceWebhookController extends Controller
      */
     public function customersRedact(Request $request)
     {
+        $payload = $request->getContent();
+
+        $shopifyWebhook = app(\App\Services\ShopifyWebhookService::class);
+
+        if (!$shopifyWebhook->isValidWebhook(
+            $payload,
+            $request->header('X-Shopify-Hmac-Sha256')
+        )) {
+            Log::warning('Invalid Shopify Customer Redact HMAC', [
+                'shop' => $request->header('X-Shopify-Shop-Domain'),
+            ]);
+
+            return response('Invalid webhook signature', 401);
+        }
+
         Log::info('Shopify Customer Redact Webhook', [
             'shop' => $request->header('X-Shopify-Shop-Domain'),
             'payload' => $request->all(),
@@ -99,6 +100,21 @@ class ShopifyComplianceWebhookController extends Controller
      */
     public function shopRedact(Request $request)
     {
+        $payload = $request->getContent();
+
+        $shopifyWebhook = app(\App\Services\ShopifyWebhookService::class);
+
+        if (!$shopifyWebhook->isValidWebhook(
+            $payload,
+            $request->header('X-Shopify-Hmac-Sha256')
+        )) {
+            Log::warning('Invalid Shopify Shop Redact HMAC', [
+                'shop' => $request->header('X-Shopify-Shop-Domain'),
+            ]);
+
+            return response('Invalid webhook signature', 401);
+        }
+
         $shopName = strtolower(
             trim((string) $request->header('X-Shopify-Shop-Domain'))
         );
@@ -121,9 +137,13 @@ class ShopifyComplianceWebhookController extends Controller
 
         $shop->delete();
 
+        Log::info('Shopify Shop Redact completed', [
+            'shop' => $shopName,
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Shop deleted successfully.'
-        ]);
+        ], 200);
     }
 }

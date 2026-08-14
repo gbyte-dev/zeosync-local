@@ -16,6 +16,9 @@ class ResolveActiveShop
         if (
             $request->routeIs('shopify.webhooks.orders.create')
             || $request->routeIs('shopify.webhooks.app.uninstalled')
+            || $request->routeIs('shopify.webhooks.customers.data_request')
+            || $request->routeIs('shopify.webhooks.customers.redact')
+            || $request->routeIs('shopify.webhooks.shop.redact')
         ) {
 
             Log::info('BYPASS RESOLVE ACTIVE SHOP FOR WEBHOOK', [
