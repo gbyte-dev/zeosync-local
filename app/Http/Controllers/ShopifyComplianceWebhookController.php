@@ -13,13 +13,12 @@ class ShopifyComplianceWebhookController extends Controller
      */
     public function customersDataRequest(Request $request)
     {
-
-        Log::info('COMPLIANCE WEBHOOK HIT', [
+        Log::info('COMPLIANCE WEBHOOK HIT - CUSTOMER DATA REQUEST', [
             'method' => $request->method(),
             'url' => $request->fullUrl(),
-            'headers' => $request->headers->all(),
-            'body' => $request->getContent(),
+            'shop' => $request->header('X-Shopify-Shop-Domain'),
         ]);
+
         $payload = $request->getContent();
 
         $shopifyWebhook = app(\App\Services\ShopifyWebhookService::class);
@@ -32,7 +31,10 @@ class ShopifyComplianceWebhookController extends Controller
                 'shop' => $request->header('X-Shopify-Shop-Domain'),
             ]);
 
-            return response('Invalid webhook signature', 401);
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid webhook signature',
+            ], 401);
         }
 
         $shopName = strtolower(
@@ -40,10 +42,12 @@ class ShopifyComplianceWebhookController extends Controller
         );
 
         if (!$shopName) {
+            Log::warning('Customer Data Request: shop domain missing');
+
             return response()->json([
-                'success' => false,
-                'message' => 'Shop domain is required.'
-            ], 400);
+                'success' => true,
+                'message' => 'Webhook received.',
+            ], 200);
         }
 
         $shop = Shop::where('shop', $shopName)->first();
@@ -55,16 +59,17 @@ class ShopifyComplianceWebhookController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Webhook received.'
+                'message' => 'Webhook received.',
             ], 200);
         }
 
         return response()->json([
-            'shop_name'    => $shop->shop,
-            'email'        => $shop->email,
-            'installed_at' => $shop->installed_at,
-            'is_active'    => $shop->is_active,
-            'store_status' => $shop->store_status,
+            'success'       => true,
+            'shop_name'     => $shop->shop,
+            'email'         => $shop->email,
+            'installed_at'  => $shop->installed_at,
+            'is_active'     => $shop->is_active,
+            'store_status'  => $shop->store_status,
         ], 200);
     }
 
@@ -73,6 +78,12 @@ class ShopifyComplianceWebhookController extends Controller
      */
     public function customersRedact(Request $request)
     {
+        Log::info('COMPLIANCE WEBHOOK HIT - CUSTOMER REDACT', [
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+            'shop' => $request->header('X-Shopify-Shop-Domain'),
+        ]);
+
         $payload = $request->getContent();
 
         $shopifyWebhook = app(\App\Services\ShopifyWebhookService::class);
@@ -85,7 +96,10 @@ class ShopifyComplianceWebhookController extends Controller
                 'shop' => $request->header('X-Shopify-Shop-Domain'),
             ]);
 
-            return response('Invalid webhook signature', 401);
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid webhook signature',
+            ], 401);
         }
 
         Log::info('Shopify Customer Redact Webhook', [
@@ -95,7 +109,7 @@ class ShopifyComplianceWebhookController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Customer redact request received successfully.'
+            'message' => 'Customer redact request received successfully.',
         ], 200);
     }
 
@@ -104,6 +118,12 @@ class ShopifyComplianceWebhookController extends Controller
      */
     public function shopRedact(Request $request)
     {
+        Log::info('COMPLIANCE WEBHOOK HIT - SHOP REDACT', [
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+            'shop' => $request->header('X-Shopify-Shop-Domain'),
+        ]);
+
         $payload = $request->getContent();
 
         $shopifyWebhook = app(\App\Services\ShopifyWebhookService::class);
@@ -116,7 +136,10 @@ class ShopifyComplianceWebhookController extends Controller
                 'shop' => $request->header('X-Shopify-Shop-Domain'),
             ]);
 
-            return response('Invalid webhook signature', 401);
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid webhook signature',
+            ], 401);
         }
 
         $shopName = strtolower(
@@ -124,10 +147,12 @@ class ShopifyComplianceWebhookController extends Controller
         );
 
         if (!$shopName) {
+            Log::warning('Shop Redact: shop domain missing');
+
             return response()->json([
-                'success' => false,
-                'message' => 'Shop domain is required.'
-            ], 400);
+                'success' => true,
+                'message' => 'Webhook received.',
+            ], 200);
         }
 
         $shop = Shop::where('shop', $shopName)->first();
@@ -139,7 +164,7 @@ class ShopifyComplianceWebhookController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Webhook received.'
+                'message' => 'Webhook received.',
             ], 200);
         }
 
@@ -151,7 +176,7 @@ class ShopifyComplianceWebhookController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Shop deleted successfully.'
+            'message' => 'Shop deleted successfully.',
         ], 200);
     }
 }
