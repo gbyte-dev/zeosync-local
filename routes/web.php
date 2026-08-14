@@ -69,27 +69,16 @@ Route::middleware([
 });
 
 
-Route::post(
-    'customers/data_request',
-    [ShopifyComplianceWebhookController::class, 'customersDataRequest']
-)
-    ->withoutMiddleware([
-        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
-    ])
-    ->name('shopify.webhooks.customers.data_request');
+Route::post('customers/data_request', [ShopifyComplianceWebhookController::class, 'customersDataRequest']
+    )->withoutMiddleware([ \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
+    ])->name('shopify.webhooks.customers.data_request');
 
-Route::post(
-    'customers/redact',
-    [ShopifyComplianceWebhookController::class, 'customersRedact']
-)
-    ->withoutMiddleware([
-        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
-    ])
-    ->name('shopify.webhooks.customers.redact');
+Route::post('customers/redact', [ShopifyComplianceWebhookController::class, 'customersRedact']
+    )->withoutMiddleware([  \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
+    ])->name('shopify.webhooks.customers.redact');
 
 Route::post('shop/redact', [ShopifyComplianceWebhookController::class, 'shopRedact'])
-    ->withoutMiddleware([
-        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
+    ->withoutMiddleware([  \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
     ])->name('shopify.webhooks.shop.redact');
     
 Route::post('webhooks/shopify/orders/create', [ShopifyController::class, 'handleOrdersCreateWebhook'])
@@ -113,15 +102,9 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::post('/image-upload', [ImageController::class, 'store'])->name('shopify.imgupload.store');
     Route::delete('/image-upload/{id}', [ImageController::class, 'destroy'])
         ->name('shopify.imgupload.delete');
-    Route::get('/rules', function () {
-        return view('rules');
-    })->name('shopify.rules');
-    Route::get('/help', function () {
-        return view('help');
-    })->name('shopify.help');
-    Route::get('/support', function () {
-        return view('support');
-    })->name('shopify.support');
+    Route::get('/rules', function () {  return view('rules');  })->name('shopify.rules');
+    Route::get('/help', function () { return view('help'); })->name('shopify.help');
+    Route::get('/support', function () { return view('support');  })->name('shopify.support');
     Route::get('/notification', [NotificationController::class, 'usernotification'])->name('user.notification');
     Route::post('/settings/notifications',  [NotificationController::class, 'updateNotificationSettings'])->name('notification.settings.update');
     Route::delete('/notification/user/all', [NotificationController::class, 'removeAllUserNotifications'])->name('user.notification.delete.all');
