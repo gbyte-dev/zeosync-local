@@ -687,7 +687,7 @@
             document.documentElement.classList.add('normal-page');
         }
 
-         function getProducts() {
+        async function getProducts() {
             const token = await shopify.idToken();
             // const response = await fetch('/api/products', {
             //     headers: {
@@ -698,8 +698,9 @@
             console.log('Shopify ID Token:', token);
            // return await response.json();
         }
-        getProducts();
 
+        getProducts();
+        
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
