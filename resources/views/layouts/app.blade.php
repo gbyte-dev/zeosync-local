@@ -696,8 +696,6 @@
 
                 const token = await shopify.idToken();
 
-                console.log('Shopify ID Token:', token);
-
                 return token;
             } catch (error) {
                 console.error('Failed to get Shopify ID Token:', error);
