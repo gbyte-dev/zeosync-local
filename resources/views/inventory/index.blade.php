@@ -925,7 +925,22 @@
                 // Final server result
                 amazonProductsCache = items;
 
+                console.log('AMAZON BEFORE RENDER', {
+                    count: items.length,
+                    activeTab: $('#amazonTab').hasClass('active'),
+                    paneVisible: $('#amazonTab').is(':visible'),
+                    wrapperVisible: $('#amazonTableWrapper').is(':visible'),
+                    dtExists: $.fn.DataTable.isDataTable('#amazonTable')
+                });
+
                 renderAmazonTable(items, false);
+
+                console.log('AMAZON AFTER RENDER', {
+                    count: items.length,
+                    dtExists: $.fn.DataTable.isDataTable('#amazonTable'),
+                    rows: $('#amazonTable tbody tr').length,
+                    wrapperVisible: $('#amazonTableWrapper').is(':visible')
+                });
 
                 requestAnimationFrame(() => {
                     if (dtAmazon) {
@@ -1130,6 +1145,10 @@
     }
 
     function renderAmazonTable(data, isLoading = false) {
+        console.log('RENDER AMAZON CALLED', {
+            count: data?.length,
+            loading: isLoading
+        });
 
         if (!data || data.length === 0) {
             $('#amazonTableWrapper').hide();
