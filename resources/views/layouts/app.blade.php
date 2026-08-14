@@ -688,19 +688,24 @@
         }
 
         async function getProducts() {
-            const token = await shopify.idToken();
-            // const response = await fetch('/api/products', {
-            //     headers: {
-            //         'Authorization': `Bearer ${token}`,
-            //         'Accept': 'application/json'
-            //     }
-            // });
-            console.log('Shopify ID Token:', token);
-           // return await response.json();
+            try {
+                if (typeof shopify === 'undefined') {
+                    console.error('Shopify App Bridge is not loaded');
+                    return;
+                }
+
+                const token = await shopify.idToken();
+
+                console.log('Shopify ID Token:', token);
+
+                return token;
+            } catch (error) {
+                console.error('Failed to get Shopify ID Token:', error);
+            }
         }
 
         getProducts();
-        
+
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
