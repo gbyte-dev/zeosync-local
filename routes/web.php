@@ -70,7 +70,7 @@ Route::middleware([
 
 
 Route::post(
-    '/webhooks/customers/data_request',
+    'customers/data_request',
     [ShopifyComplianceWebhookController::class, 'customersDataRequest']
 )
     ->withoutMiddleware([
@@ -79,7 +79,7 @@ Route::post(
     ->name('shopify.webhooks.customers.data_request');
 
 Route::post(
-    '/webhooks/customers/redact',
+    'customers/redact',
     [ShopifyComplianceWebhookController::class, 'customersRedact']
 )
     ->withoutMiddleware([
@@ -88,7 +88,7 @@ Route::post(
     ->name('shopify.webhooks.customers.redact');
 
 Route::post(
-    '/webhooks/shop/redact',
+    'shop/redact',
     [ShopifyComplianceWebhookController::class, 'shopRedact']
 )
     ->withoutMiddleware([
