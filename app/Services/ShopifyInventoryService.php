@@ -136,7 +136,11 @@ class ShopifyInventoryService
 
                 foreach ($levels as $level) {
 
-                    $levelLocationId = (string) ($level['location']['id'] ?? '');
+                    $levelLocationId = str_replace(
+                        'gid://shopify/Location/',
+                        '',
+                        (string) ($level['location']['id'] ?? '')
+                    );
 
                     \Log::info('SHOPIFY LOCATION LEVEL CHECK', [
                         'shop_id' => $shop->id,
