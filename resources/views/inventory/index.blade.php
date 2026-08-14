@@ -761,7 +761,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-    const amazonConnected = @json(!empty($shop -> amazon_refresh_token));
+    const amazonConnected = @json(!empty($shop - > amazon_refresh_token));
     let selectedAmazonSku = null;
     let selectedShopifyVariantId = null;
     let selectedShopifyProductId = null;
@@ -899,11 +899,34 @@
 
                 const isRefreshing = response.status?.refreshing === true;
 
-                // Save response in browser memory
+                if (isRefreshing && items.length === 0) {
+                    // Do NOT cache an empty response while Amazon sync is running.
+                    amazonProductsCache = null;
+
+                    renderAmazonTable([], true);
+                    showAmazonLoader();
+
+                    startProgress();
+                    return;
+                }
+
+                // Final server result
                 amazonProductsCache = items;
 
-                // Render immediately
-                renderAmazonTable(items, isRefreshing);
+                renderAmazonTable(items, false);
+
+                requestAnimationFrame(() => {
+                    if (dtAmazon) {
+                        dtAmazon.columns.adjust().draw(false);
+                    }
+                });
+
+                hideAmazonLoader();
+
+                if (progressTimer) {
+                    clearInterval(progressTimer);
+                    progressTimer = null;
+                }
 
                 // DataTables was possibly initialized while tab was hidden
                 requestAnimationFrame(() => {
@@ -960,7 +983,7 @@
     function switchToAmazonTab() {
         activeTab = 'amazon';
 
-        if (Array.isArray(amazonProductsCache)) {
+        if (amazonProductsCache !== null) {
             renderAmazonTable(amazonProductsCache, false);
 
             requestAnimationFrame(() => {
