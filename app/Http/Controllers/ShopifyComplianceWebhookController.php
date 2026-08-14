@@ -49,10 +49,14 @@ class ShopifyComplianceWebhookController extends Controller
         $shop = Shop::where('shop', $shopName)->first();
 
         if (!$shop) {
+            Log::warning('Compliance shop not found', [
+                'shop' => $shopName,
+            ]);
+
             return response()->json([
-                'success' => false,
-                'message' => 'Shop not found.'
-            ], 404);
+                'success' => true,
+                'message' => 'Webhook received.'
+            ], 200);
         }
 
         return response()->json([
@@ -129,10 +133,14 @@ class ShopifyComplianceWebhookController extends Controller
         $shop = Shop::where('shop', $shopName)->first();
 
         if (!$shop) {
+            Log::warning('Compliance shop not found for redact', [
+                'shop' => $shopName,
+            ]);
+
             return response()->json([
-                'success' => false,
-                'message' => 'Shop not found.'
-            ], 404);
+                'success' => true,
+                'message' => 'Webhook received.'
+            ], 200);
         }
 
         $shop->delete();
