@@ -34,7 +34,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'webhooks/*',
-            '*',
+            'shopify/webhooks/*',
+            'customers/data_request',
+            'customers/redact',
+            'shop/redact',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
