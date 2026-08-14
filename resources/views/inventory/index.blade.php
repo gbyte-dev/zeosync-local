@@ -865,8 +865,8 @@
 
         activeTab = 'amazon';
 
-        // Browser-side cache available
-        if (!force && Array.isArray(amazonProductsCache)) {
+        // Browser cache hit
+        if (!force && amazonProductsCache !== null) {
             renderAmazonTable(amazonProductsCache, false);
 
             requestAnimationFrame(() => {
@@ -885,13 +885,7 @@
         }
 
         amazonLoading = true;
-
-        const hasProducts = Array.isArray(amazonProductsCache) &&
-            amazonProductsCache.length > 0;
-
-        if (!hasProducts) {
-            showAmazonLoader();
-        }
+        showAmazonLoader();
 
         const shop = new URLSearchParams(window.location.search).get('shop');
 
@@ -904,15 +898,25 @@
 
             success: function(response) {
                 console.log('AMAZON RESPONSE:', response);
-                console.log('REFRESHING:', response.status?.refreshing);
 
                 const items = Array.isArray(response.products) ?
-                    response.products : [];
+                    response.products :
+                    [];
 
-                const isRefreshing = response.status?.refreshing === true;
+                const isRefreshing =
+                    response.status?.refreshing === true;
 
+                console.log('AMAZON LOAD RESULT:', {
+                    count: items.length,
+                    refreshing: isRefreshing,
+                    force: force
+                });
+
+                /*
+                 * Server sync is still running.
+                 * Do not treat empty response as final browser cache.
+                 */
                 if (isRefreshing && items.length === 0) {
-                    // Do NOT cache an empty response while Amazon sync is running.
                     amazonProductsCache = null;
 
                     renderAmazonTable([], true);
@@ -922,26 +926,22 @@
                     return;
                 }
 
-                // Final server result
+                /*
+                 * Final server result.
+                 */
                 amazonProductsCache = items;
 
-                console.log('AMAZON BEFORE RENDER', {
+                console.log('AMAZON RENDER START:', {
                     count: items.length,
-                    activeTab: $('#amazonTab').hasClass('active'),
-                    paneVisible: $('#amazonTab').is(':visible'),
-                    wrapperVisible: $('#amazonTableWrapper').is(':visible'),
-                    dtExists: $.fn.DataTable.isDataTable('#amazonTable')
+                    tabActive: $('#amazonTab').hasClass('active'),
+                    tabVisible: $('#amazonTab').is(':visible')
                 });
 
                 renderAmazonTable(items, false);
 
-                console.log('AMAZON AFTER RENDER', {
-                    count: items.length,
-                    dtExists: $.fn.DataTable.isDataTable('#amazonTable'),
-                    rows: $('#amazonTable tbody tr').length,
-                    wrapperVisible: $('#amazonTableWrapper').is(':visible')
-                });
-
+                /*
+                 * DataTables needs the tab to have its final dimensions.
+                 */
                 requestAnimationFrame(() => {
                     if (dtAmazon) {
                         dtAmazon.columns.adjust().draw(false);
@@ -955,32 +955,6 @@
                     progressTimer = null;
                 }
 
-                // DataTables was possibly initialized while tab was hidden
-                requestAnimationFrame(() => {
-                    if (dtAmazon) {
-                        dtAmazon.columns.adjust().draw(false);
-                    }
-                });
-
-                if (isRefreshing) {
-
-                    if (items.length === 0) {
-                        showAmazonLoader();
-                    } else {
-                        hideAmazonLoader();
-                    }
-
-                    startProgress();
-
-                } else {
-
-                    hideAmazonLoader();
-
-                    if (progressTimer) {
-                        clearInterval(progressTimer);
-                        progressTimer = null;
-                    }
-                }
             },
 
             error: function(xhr) {
@@ -989,9 +963,7 @@
                     xhr.responseText
                 );
 
-                if (!amazonProductsCache || amazonProductsCache.length === 0) {
-                    renderAmazonTable([], false);
-                }
+                renderAmazonTable([], false);
 
                 hideAmazonLoader();
 
@@ -1359,10 +1331,8 @@
                         clearInterval(progressTimer);
                         progressTimer = null;
 
-                        hideAmazonLoader();
-
-                        // Background refresh completed.
-                        // Invalidate browser cache and fetch latest server cache once.
+                        // Sync completed.
+                        // Force fresh Amazon inventory request.
                         amazonProductsCache = null;
 
                         loadAmazon(true);
