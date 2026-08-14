@@ -6,6 +6,7 @@ use App\Services\ShopifyService;
 use App\Models\Shop;
 use App\Models\ProductMarketplaceMapping;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class ShopifyInventoryService
 {
@@ -95,10 +96,21 @@ class ShopifyInventoryService
 
         $locations = $shop->shopify_locations ?? [];
         $selectedIndex = $shop->selected_location_index;
+        Log::info('SHOPIFY INVENTORY LOCATION DEBUG', [
+            'shop_id' => $shop->id,
+            'selected_location_index' => $selectedIndex,
+            'locations' => $locations,
+        ]);
 
         if ($selectedIndex !== null && isset($locations[$selectedIndex])) {
             $selectedLocationId = (string) ($locations[$selectedIndex]['id'] ?? '');
         }
+
+        Log::info('SHOPIFY SELECTED LOCATION RESOLVED', [
+            'shop_id' => $shop->id,
+            'selected_location_index' => $selectedIndex,
+            'selected_location_id' => $selectedLocationId,
+        ]);
 
         $mappings = ProductMarketplaceMapping::where(
             'shop_id',
@@ -123,7 +135,23 @@ class ShopifyInventoryService
                 $selectedLevel = null;
 
                 foreach ($levels as $level) {
-                    $levelLocationId = (string) ($level['location']['id'] ?? '');
+
+                    $levelLocationId = str_replace(
+                        'gid://shopify/Location/',
+                        '',
+                        (string) ($level['location']['id'] ?? '')
+                    );
+
+                    \Log::info('SHOPIFY LOCATION LEVEL CHECK', [
+                        'shop_id' => $shop->id,
+                        'inventory_item_id' => $variant['inventoryItem']['id'] ?? null,
+                        'selected_location_id' => $selectedLocationId,
+                        'level_location_id' => $levelLocationId,
+                        'matched' => (
+                            $selectedLocationId !== null &&
+                            $levelLocationId === $selectedLocationId
+                        ),
+                    ]);
 
                     if (
                         $selectedLocationId !== null &&

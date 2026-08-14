@@ -770,6 +770,8 @@
     let dtShopify = null;
     let dtAmazon = null;
     let progressTimer = null;
+    let amazonProductsCache = null;
+    let amazonLoading = false;
 
     // Read saved page length from browser memory (default to 10)
     let savedShopifyLength = localStorage.getItem('zeosync_shopify_length') || 10;
@@ -846,13 +848,34 @@
             });
     }
 
-    function loadAmazon() {
+    function loadAmazon(force = false) {
         if (!amazonConnected) return;
 
         activeTab = 'amazon';
 
-        // Show loader only when no Amazon products are currently visible
-        const hasProducts = $('#amazonTable tbody tr').length > 0;
+        // Browser-side cache available
+        if (!force && Array.isArray(amazonProductsCache)) {
+            renderAmazonTable(amazonProductsCache, false);
+
+            requestAnimationFrame(() => {
+                if (dtAmazon) {
+                    dtAmazon.columns.adjust().draw(false);
+                }
+            });
+
+            hideAmazonLoader();
+            return;
+        }
+
+        // Prevent duplicate requests
+        if (amazonLoading) {
+            return;
+        }
+
+        amazonLoading = true;
+
+        const hasProducts = Array.isArray(amazonProductsCache) &&
+            amazonProductsCache.length > 0;
 
         if (!hasProducts) {
             showAmazonLoader();
@@ -868,23 +891,32 @@
             },
 
             success: function(response) {
-
                 console.log('AMAZON RESPONSE:', response);
                 console.log('REFRESHING:', response.status?.refreshing);
 
-                let items = response.products ?? [];
-                let isRefreshing = response.status?.refreshing === true;
+                const items = Array.isArray(response.products) ?
+                    response.products : [];
 
-                // While refresh is running, don't show "No Inventory Found"
+                const isRefreshing = response.status?.refreshing === true;
+
+                // Save response in browser memory
+                amazonProductsCache = items;
+
+                // Render immediately
                 renderAmazonTable(items, isRefreshing);
+
+                // DataTables was possibly initialized while tab was hidden
+                requestAnimationFrame(() => {
+                    if (dtAmazon) {
+                        dtAmazon.columns.adjust().draw(false);
+                    }
+                });
 
                 if (isRefreshing) {
 
-                    // No products yet → keep loader visible
                     if (items.length === 0) {
                         showAmazonLoader();
                     } else {
-                        // Existing products are already visible
                         hideAmazonLoader();
                     }
 
@@ -892,7 +924,6 @@
 
                 } else {
 
-                    // Final response received
                     hideAmazonLoader();
 
                     if (progressTimer) {
@@ -903,7 +934,12 @@
             },
 
             error: function(xhr) {
-                if ($('#amazonTable tbody tr').length === 0) {
+                console.error(
+                    'Failed to load Amazon inventory:',
+                    xhr.responseText
+                );
+
+                if (!amazonProductsCache || amazonProductsCache.length === 0) {
                     renderAmazonTable([], false);
                 }
 
@@ -913,12 +949,30 @@
                     clearInterval(progressTimer);
                     progressTimer = null;
                 }
+            },
+
+            complete: function() {
+                amazonLoading = false;
             }
         });
     }
 
     function switchToAmazonTab() {
         activeTab = 'amazon';
+
+        if (Array.isArray(amazonProductsCache)) {
+            renderAmazonTable(amazonProductsCache, false);
+
+            requestAnimationFrame(() => {
+                if (dtAmazon) {
+                    dtAmazon.columns.adjust().draw(false);
+                }
+            });
+
+            hideAmazonLoader();
+            return;
+        }
+
         loadAmazon();
     }
 
@@ -1200,8 +1254,12 @@
 
         fetch(`{{ route('shopify.inventory.refresh') }}?shop=${encodeURIComponent(shop)}&type=${type}`)
             .then(() => {
-                if (activeTab === 'shopify') loadShopify();
-                else loadAmazon();
+                if (activeTab === 'shopify') {
+                    loadShopify();
+                } else {
+                    amazonProductsCache = null;
+                    loadAmazon(true);
+                }
             })
             .finally(() => {
                 btn.innerHTML = oldHtml;
@@ -1248,8 +1306,11 @@
 
                         hideAmazonLoader();
 
-                        // Final cached data load - only once
-                        loadAmazon();
+                        // Background refresh completed.
+                        // Invalidate browser cache and fetch latest server cache once.
+                        amazonProductsCache = null;
+
+                        loadAmazon(true);
                     }
                 }
             });
@@ -1588,9 +1649,11 @@
             console.error('Failed to load Amazon products:', xhr.responseText);
         });
     });
-    // Boot execution
-    // document.addEventListener('DOMContentLoaded', function() {
-    //     loadShopify();
-    // });
+    document.querySelector('[data-bs-target="#amazonTab"]')
+        ?.addEventListener('shown.bs.tab', function() {
+            if (dtAmazon) {
+                dtAmazon.columns.adjust().draw(false);
+            }
+        });
 </script>
 @endpush
