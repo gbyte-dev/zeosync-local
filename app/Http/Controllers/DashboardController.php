@@ -152,7 +152,7 @@ class DashboardController extends ShopifyController
 
         $amazonLowInventoryProducts = collect($amazonInventory)
             ->filter(function ($item) {
-                return ($item['quantity'] ?? 0) <= 10;
+                return ($item['quantity'] ?? 0) < 10;
             })
             ->sortBy('quantity')
             ->take(7)
