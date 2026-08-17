@@ -266,7 +266,7 @@
     div:where(.swal2-container) div:where(.swal2-html-container) {
         font-size: small;
     }
-    
+
     /* Overriding JS-Rendered Elements */
     .saas-table .product-img {
         width: 34px;
@@ -1525,11 +1525,11 @@
                 shopify_inventory_item_id: variant.data('inventory-item')
             },
             success: function(response) {
-                alert(response.message);
-                // Swal.fire({
-                //     text: response.message,
-                //     confirmButtonText: 'OK'
-                // });
+               // alert(response.message);
+                Swal.fire({
+                    text: response.message,
+                    confirmButtonText: 'OK'
+                });
 
                 $('#mapShopifyProductModal').modal('hide');
                 loadShopify();
@@ -1617,7 +1617,11 @@
                 amazon_sku: $('#amazonProduct').val()
             },
             success: function(response) {
-                alert(response.message);
+                // alert(response.message);
+                Swal.fire({
+                    text: response.message,
+                    confirmButtonText: 'OK'
+                });
                 $('#mapAmazonProductModal').modal('hide');
                 loadShopify();
                 loadAmazon();
