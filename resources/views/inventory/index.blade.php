@@ -1637,27 +1637,22 @@
         $.get("{{ route('shopify.inventory.amazon') }}", {
             shop: shop
         }, function(response) {
-
             let items = response.products ?? [];
-
             let options = '<option value="">Select Amazon Product</option>';
 
-            items
-                .filter(item => !item.is_mapped)
+            items.filter(item => !item.is_mapped)
                 .forEach(item => {
                     let title = item.title || '';
-
                     if (title.length > 40) {
                         title = title.substring(0, 40) + '...';
                     }
 
                     options += `<option value="${item.sku}">
                     ${title} (${item.sku})
-                </option>`;
+                    </option>`;
                 });
 
             $('#amazonProduct').html(options);
-
             $('#amazonProductActionModal').modal('hide');
             $('#mapAmazonProductModal').modal('show');
         }).fail(function(xhr) {
