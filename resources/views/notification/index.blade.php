@@ -217,6 +217,7 @@
                     All Notifications.
                 </p>
             </div>
+            
             <div class="col-6 col-md-6 text-end" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px;">
                 <form id="deleteAllForm" action="{{ route('user.notification.delete.all') }}?shop={{ $request->shop ?? session('active_shop') }}" method="POST" class="d-inline">
                     @csrf
@@ -238,11 +239,19 @@
                 <div class="saas-list-item">
                     <div>
                         <h6 class="saas-notif-title">
-                            {{ $notification->title }}
+                            @if(!$notification->is_read)
+                            <b> {{ str_replace('_',' ',ucFirst($notification->title)) }} </b>
+                            @else
+                            {{ str_replace('_',' ',ucFirst($notification->title)) }}
+                            @endif
                         </h6>
 
                         <p class="saas-notif-desc">
+                            @if(!$notification->is_read)
+                           <b> {{ $notification->message }} </b>
+                            @else
                             {{ $notification->message }}
+                            @endif
                         </p>
 
                         <div class="saas-notif-time">
