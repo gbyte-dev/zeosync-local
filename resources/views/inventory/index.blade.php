@@ -255,6 +255,18 @@
         }
     }
 
+    div:where(.swal2-container) div:where(.swal2-popup) {
+        padding: 0px !important;
+    }
+
+    div:where(.swal2-container) button:where(.swal2-styled):not([disabled]) {
+        font-size: small;
+    }
+
+    div:where(.swal2-container) div:where(.swal2-html-container) {
+        font-size: small;
+    }
+    
     /* Overriding JS-Rendered Elements */
     .saas-table .product-img {
         width: 34px;
@@ -895,22 +907,17 @@
             data: {
                 shop: shop
             },
-
             success: function(response) {
-                console.log('AMAZON RESPONSE:', response);
-
+               // console.log('AMAZON RESPONSE:', response);
                 const items = Array.isArray(response.products) ?
-                    response.products :
-                    [];
+                    response.products : [];
+                const isRefreshing = response.status?.refreshing === true;
 
-                const isRefreshing =
-                    response.status?.refreshing === true;
-
-                console.log('AMAZON LOAD RESULT:', {
-                    count: items.length,
-                    refreshing: isRefreshing,
-                    force: force
-                });
+                // console.log('AMAZON LOAD RESULT:', {
+                //     count: items.length,
+                //     refreshing: isRefreshing,
+                //     force: force
+                // });
 
                 /*
                  * Server sync is still running.
@@ -918,24 +925,20 @@
                  */
                 if (isRefreshing && items.length === 0) {
                     amazonProductsCache = null;
-
                     renderAmazonTable([], true);
                     showAmazonLoader();
-
                     startProgress();
                     return;
                 }
 
-                /*
-                 * Final server result.
-                 */
+                /* Final server result.  */
                 amazonProductsCache = items;
 
-                console.log('AMAZON RENDER START:', {
-                    count: items.length,
-                    tabActive: $('#amazonTab').hasClass('active'),
-                    tabVisible: $('#amazonTab').is(':visible')
-                });
+                // console.log('AMAZON RENDER START:', {
+                //     count: items.length,
+                //     tabActive: $('#amazonTab').hasClass('active'),
+                //     tabVisible: $('#amazonTab').is(':visible')
+                // });
 
                 renderAmazonTable(items, false);
 
@@ -954,7 +957,6 @@
                     clearInterval(progressTimer);
                     progressTimer = null;
                 }
-
             },
 
             error: function(xhr) {
@@ -964,7 +966,6 @@
                 );
 
                 renderAmazonTable([], false);
-
                 hideAmazonLoader();
 
                 if (progressTimer) {
@@ -972,7 +973,6 @@
                     progressTimer = null;
                 }
             },
-
             complete: function() {
                 amazonLoading = false;
             }
@@ -1117,10 +1117,10 @@
     }
 
     function renderAmazonTable(data, isLoading = false) {
-        console.log('RENDER AMAZON CALLED', {
-            count: data?.length,
-            loading: isLoading
-        });
+        // console.log('RENDER AMAZON CALLED', {
+        //     count: data?.length,
+        //     loading: isLoading
+        // });
 
         if (!data || data.length === 0) {
             $('#amazonTableWrapper').hide();
@@ -1331,7 +1331,6 @@
                         clearInterval(progressTimer);
                         progressTimer = null;
 
-                        // Sync completed.
                         // Force fresh Amazon inventory request.
                         amazonProductsCache = null;
 
@@ -1384,28 +1383,17 @@
         $.ajax({
             url: `${window.location.origin}/inventory/amazon/${sku}/update-quantity?shop=${encodeURIComponent(shop)}`,
             type: 'POST',
-
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
-
-            data: {
-                quantity: quantity
-            },
-
+            data: {  quantity: quantity  },
             success: function(response) {
-
                 Swal.fire({
                     text: 'Inventory updated successfully. Latest inventory will reflect in the app in approximately 15 minutes.',
                     confirmButtonText: 'OK'
                 });
-
-                // Do NOT call loadAmazon() here.
-                // Amazon latest inventory comes through the report after ~15 minutes.
             },
-
             error: function(xhr) {
-
                 Swal.fire({
                     icon: 'error',
                     title: 'Update Failed',
@@ -1414,9 +1402,7 @@
                     confirmButtonText: 'OK'
                 });
             },
-
             complete: function() {
-
                 button.prop('disabled', false).text('Update');
                 qtyInput.prop('disabled', false);
             }
@@ -1458,10 +1444,7 @@
                     $.ajax({
                         url: "{{ route('shopify.inventory.shopify') }}",
                         type: 'GET',
-                        data: {
-                            shop: shop
-                        },
-
+                        data: { shop: shop  },
                         success: function(data) {
 
                             const items = Array.isArray(data) ? data : [];
@@ -1469,9 +1452,7 @@
                             // Step 3: Render latest Shopify data
                             renderShopifyTable(items);
                         },
-
                         error: function(xhr) {
-
                             console.error(
                                 'Failed to refresh Shopify products:',
                                 xhr.responseText
@@ -1545,6 +1526,11 @@
             },
             success: function(response) {
                 alert(response.message);
+                // Swal.fire({
+                //     text: response.message,
+                //     confirmButtonText: 'OK'
+                // });
+
                 $('#mapShopifyProductModal').modal('hide');
                 loadShopify();
             },
