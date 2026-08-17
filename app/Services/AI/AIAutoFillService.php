@@ -202,6 +202,43 @@ readonly class AIAutoFillService
         ];
     }
 
+
+    public function generateErrorAutoFill(
+        string $productName,
+        ?string $productDescription,
+        string $category,
+        array $errors
+    ): array {
+        $prompts = $this->promptService->buildErrorAutoFillPrompt(
+            productName: $productName,
+            productDescription: $productDescription,
+            category: $category,
+            errors: $errors
+        );
+
+        $response = $this->listingService->generate(
+            $prompts['system_prompt'],
+            $prompts['user_prompt']
+        );
+
+        if (!$response['success']) {
+            return [
+                'success' => false,
+                'data' => [],
+                'errors' => [
+                    $response['error'] ?? 'AI generation failed.'
+                ],
+                'usage' => null,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'data' => $response['content'] ?? [],
+            'errors' => [],
+            'usage' => $response['usage'] ?? null,
+        ];
+    }
     /**
      * Halts the pipeline safely and returns a standardized, metadata-enriched error response.
      */

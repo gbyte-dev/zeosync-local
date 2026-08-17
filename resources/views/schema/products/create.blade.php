@@ -558,7 +558,10 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                     ]
                                     )
                                     )
-                                    @include('schema.products.field', ['field' => $field])
+                                    @include('schema.products.field', [
+                                    'field' => $field,
+                                    'fieldSuggestions' => $fieldSuggestions
+                                    ])
                                     @endif
                                     @endforeach
                                 </div>
@@ -588,7 +591,10 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                     ]
                                     )
                                     )
-                                    @include('schema.products.field', ['field' => $field])
+                                    @include('schema.products.field', [
+                                    'field' => $field,
+                                    'fieldSuggestions' => $fieldSuggestions
+                                    ])
                                     @endif
                                     @endforeach
                                 </div>
