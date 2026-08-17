@@ -13,6 +13,7 @@ use App\Services\Amazon\SchemaRendererService;
 use App\Http\Controllers\TestController;
 use App\Models\Category;
 use App\Models\Shop;
+use App\Models\AllProduct;
 use App\Models\ProductMarketplaceMapping;
 use App\Models\ProductSyncLog;
 use Illuminate\Support\Facades\Session;
@@ -27,16 +28,19 @@ use App\Services\AI\AIAutoFillService;
 use App\Services\AIFeatureService;
 use Illuminate\Support\Facades\Http;
 use App\Models\AdminSetting;
+use App\Services\AmazonSuccessfulListingService;
 
 class ProductSchemaController extends Controller
 {
     protected $shop;
     private readonly AIAutoFillService $aiAutoFillService;
     private readonly AIFeatureService $aiFeatureService;
+    private AmazonSuccessfulListingService $amazonSuccessfulListingService;
     public function __construct()
     {
         $this->aiAutoFillService = app(AIAutoFillService::class);;
         $this->aiFeatureService = app(AIFeatureService::class);
+        $this->amazonSuccessfulListingService = app(AmazonSuccessfulListingService::class);
         if (session('active_shop')) {
             $this->shop = Shop::where('shop', session('active_shop'))->first();
         } else {
@@ -106,6 +110,64 @@ class ProductSchemaController extends Controller
     {
         $schema = ProductSchema::findOrFail($schemaId);
         $fields = $schema->parsed_json;
+        $suggestions = AllProduct::query()
+            ->where('schema_id', $schema->id)
+            ->where('status', 'ACCEPTED')
+            ->whereNotNull('filled_json')
+            ->latest('id')
+            ->limit(3)
+            ->get(['id', 'schema_id', 'filled_json']);
+
+        $excludedSuggestionFields = [
+            'merchant_suggested_asin',
+            'externally_assigned_product_identifier',
+            'sku',
+            'seller_sku',
+            'seller_id',
+            'shop_id',
+            'user_id',
+            'access_token',
+            'refresh_token',
+            'api_key',
+            'client_secret',
+            'model_number',
+            'manufacturer_part_number',
+            'part_number',
+        ];
+
+        $fieldSuggestions = [];
+
+        foreach ($suggestions as $suggestion) {
+            $filledData = json_decode($suggestion->filled_json, true);
+
+            if (!is_array($filledData)) {
+                continue;
+            }
+
+            foreach ($filledData as $fieldName => $value) {
+                if (in_array(strtolower($fieldName), $excludedSuggestionFields, true)) {
+                    continue;
+                }
+
+                if (
+                    $value === null ||
+                    $value === '' ||
+                    is_array($value)
+                ) {
+                    continue;
+                }
+
+                $fieldSuggestions[$fieldName][] = $value;
+            }
+        }
+
+        foreach ($fieldSuggestions as $fieldName => $values) {
+            $fieldSuggestions[$fieldName] = collect($values)
+                ->unique()
+                ->values()
+                ->take(3)
+                ->all();
+        }
         $tabs = [
             'product' => [],
             'images' => [],
@@ -236,7 +298,9 @@ class ProductSchemaController extends Controller
                 'fields',
                 'requiredFields',
                 'canUseAiAutoFill',
-                'canUseAiSingleField'
+                'canUseAiSingleField',
+                'suggestions',
+                'fieldSuggestions'
             )
         );
     }
@@ -252,6 +316,27 @@ class ProductSchemaController extends Controller
             }
         }
         $prodAttri = ProductAttribute::where('product_id', $productid)->get();
+        $amazonDbAutofill = session('amazon_db_autofill', []);
+        $fieldSuggestions = [];
+
+        foreach ($amazonDbAutofill as $fieldName => $value) {
+
+            $attribute = $prodAttri->firstWhere('attribute_name', $fieldName);
+
+            if ($attribute) {
+                // Replace existing value because this field had an Amazon error.
+                $attribute->attribute_value = $value;
+            } else {
+                // Field does not exist yet, add it only to the current view data.
+                $prodAttri->push(
+                    new ProductAttribute([
+                        'product_id' => $productid,
+                        'attribute_name' => $fieldName,
+                        'attribute_value' => $value,
+                    ])
+                );
+            }
+        }
         $schema = ProductSchema::findOrFail($productshow->schema_id);
         $fields = $schema->parsed_json;
         $tabs = [
@@ -477,7 +562,8 @@ class ProductSchemaController extends Controller
                 'prodAttri',
                 'canUseAiAutoFill',
                 'canUseAiSingleField',
-                'tabErrorCounts'
+                'tabErrorCounts',
+                'fieldSuggestions'
             )
         );
     }
@@ -702,17 +788,100 @@ class ProductSchemaController extends Controller
                 $payload3 = $testcontroller->createOnlyputListing($payload2, $sku);
             }
             if (isset($payload3['status']) && ($payload3['status'] == 'INVALID')) {
+
+                $successfulListing = $this->amazonSuccessfulListingService->findFor($product);
+
+                $failedFields = collect($payload3['issues'] ?? [])
+                    ->pluck('attributeNames')
+                    ->flatten()
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                $filledData = json_decode(
+                    $successfulListing?->filled_json ?? '{}',
+                    true
+                );
+
+                $matchedData = [];
+
+                foreach ($failedFields as $field) {
+                    if (
+                        array_key_exists($field, $filledData) &&
+                        $filledData[$field] !== null &&
+                        $filledData[$field] !== ''
+                    ) {
+                        $matchedData[$field] = $filledData[$field];
+                    }
+                }
+
+                Log::info('AMAZON ERROR FIELD AUTOFILL DATA', [
+                    'product_id' => $product->id,
+                    'successful_listing_id' => $successfulListing?->id,
+                    'failed_fields' => $failedFields,
+                    'matched_data' => $matchedData,
+                ]);
+
+                if (!$successfulListing) {
+
+                    Log::info('AMAZON ERROR AI AUTOFILL FALLBACK START', [
+                        'product_id' => $product->id,
+                        'failed_fields' => $failedFields,
+                    ]);
+
+                    $productName = $product->attributes
+                        ->firstWhere('attribute_name', 'item_name')
+                        ?->attribute_value ?? '';
+
+                    $productDescription = $product->attributes
+                        ->firstWhere('attribute_name', 'product_description')
+                        ?->attribute_value ?? '';
+
+                    $schema = ProductSchema::findOrFail($product->schema_id);
+
+                    $aiResult = $this->aiAutoFillService->generateErrorAutoFill(
+                        productName: $productName,
+                        productDescription: $productDescription,
+                        category: $schema->product_type ?? 'UNKNOWN',
+                        errors: $payload3['issues'] ?? []
+                    );
+
+                    Log::info('AMAZON ERROR AI AUTOFILL FALLBACK RESULT', [
+                        'product_id' => $product->id,
+                        'success' => $aiResult['success'] ?? false,
+                        'failed_fields' => $failedFields,
+                        'ai_fields' => array_keys($aiResult['data'] ?? []),
+                        'usage' => $aiResult['usage'] ?? null,
+                    ]);
+
+                    if (($aiResult['success'] ?? false) === true) {
+                        foreach ($failedFields as $field) {
+                            if (
+                                array_key_exists($field, $aiResult['data']) &&
+                                $aiResult['data'][$field] !== null &&
+                                $aiResult['data'][$field] !== ''
+                            ) {
+                                $matchedData[$field] = $aiResult['data'][$field];
+                            }
+                        }
+                    }
+                }
                 $this->updatelog(
                     $product->id,
                     'amazon',
                     'sync_failed',
                     false,
-                    is_array($payload3['issues'] ?? null) ? json_encode($payload3['issues']) : ($payload3['issues'] ?? 'Amazon listing validation failed.')
+                    is_array($payload3['issues'] ?? null)
+                        ? json_encode($payload3['issues'])
+                        : ($payload3['issues'] ?? 'Amazon listing validation failed.')
                 );
+
                 return redirect()->route('admin.product.productEdit', [
                     'product' => $product->id,
                     'shop' => request('shop'),
-                ])->with('errors_amazon', $payload3['issues']);
+                ])
+                    ->with('errors_amazon', $payload3['issues'])
+                    ->with('amazon_db_autofill', $matchedData);
             }
             $generatejson = $this->generatejson($product->id);
             $prodAttributes['sku'] = $product->sku;

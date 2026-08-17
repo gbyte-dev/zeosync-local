@@ -133,6 +133,60 @@ PROMPT;
         ];
     }
 
+
+    public function buildErrorAutoFillPrompt(
+        string $productName,
+        ?string $productDescription,
+        string $category,
+        array $errors
+    ): array {
+        $errorLines = [];
+
+        foreach ($errors as $error) {
+            $field = $error['attributeNames'][0] ?? null;
+            $message = $error['message'] ?? null;
+
+            if ($field && $message) {
+                $errorLines[] = "{$field}: {$message}";
+            }
+        }
+
+        $systemPrompt = <<<'PROMPT'
+You are an Amazon listing autofill engine.
+
+Generate usable values for the requested missing Amazon fields using the product title, category, description, and validation errors.
+
+RULES:
+- Return JSON only.
+- Use exactly the provided field names; never rename, add, or remove fields.
+- Fill as many requested fields as reasonably possible using strong product/category inference.
+- Match values to the correct field meaning; never confuse attributes such as color, pattern, material, size, quantity, dimensions, or weight.
+- Use reasonable best-effort assumptions when exact values are unavailable.
+- Never return null, empty, placeholder, or unknown values.
+- Never fabricate ASINs, external IDs, or other unique identifiers.
+- Generate category-appropriate values with the required datatype, format, and units.
+- Return only requested fields with usable values.
+PROMPT;
+
+        $userPrompt = <<<PROMPT
+PRODUCT:
+Title: {$productName}
+Category: {$category}
+Description: {$productDescription}
+
+AMAZON VALIDATION ERRORS:
+PROMPT;
+
+        $userPrompt .= "\n- " . implode("\n- ", $errorLines);
+        $userPrompt .= "\n\nReturn ONLY JSON.";
+
+        return [
+            'system_prompt' => $systemPrompt,
+            'user_prompt' => $userPrompt,
+        ];
+    }
+
+    
     public function buildSingleFieldPrompt(
         string $productName,
         string $category,

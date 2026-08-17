@@ -687,15 +687,30 @@
             document.documentElement.classList.add('normal-page');
         }
 
-        (function () {
+        (function() {
             const originalAjax = $.ajax;
 
-            $.ajax = async function (url, options) {
+            $.ajax = async function(url, options) {
                 if (typeof url === 'object') {
                     options = url;
                 } else {
                     options = options || {};
                     options.url = url;
+                }
+
+                const bypassRoutes = [
+                    "{{ route('ai.autofill') }}",
+                    "{{ route('ai.generate-field') }}"
+                ];
+
+                const requestUrl = options.url || '';
+
+                const shouldBypassShopifyAuth = bypassRoutes.some(route =>
+                    requestUrl.includes(route)
+                );
+
+                if (shouldBypassShopifyAuth) {
+                    return originalAjax.call(this, options);
                 }
 
                 try {
@@ -713,13 +728,13 @@
                     };
 
                     return originalAjax.call(this, options);
+
                 } catch (error) {
                     console.error('Failed to get Shopify session token:', error);
                     throw error;
                 }
             };
         })();
-
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>

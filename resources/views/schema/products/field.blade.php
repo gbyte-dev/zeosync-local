@@ -78,6 +78,79 @@ $showAiButton = $canUseAiSingleField && in_array($field['type'], ['text','textar
 $showImagePickerButton = $isImageField;
 @endphp
 
+<style>
+    .amazon-field-suggestions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 5px;
+        line-height: 1.2;
+    }
+
+    .amazon-suggestion-label {
+        flex: 0 0 auto;
+        font-size: 11px;
+        font-weight: 500;
+        color: #6c757d;
+    }
+
+    .amazon-suggestion-list {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 5px;
+        min-width: 0;
+    }
+
+    .amazon-suggestion-text {
+        display: inline-block;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 11px;
+        font-weight: 500;
+        color: #2878c8;
+        cursor: pointer;
+    }
+
+    .amazon-suggestion-text:hover {
+        color: #155fa0;
+        text-decoration: underline;
+    }
+
+    .amazon-suggestion-separator {
+        color: #adb5bd;
+        font-size: 10px;
+    }
+
+    .amazon-suggestion-separator {
+        color: #adb5bd;
+        font-size: 10px;
+        margin: 0 1px;
+    }
+
+    .amazon-custom-tooltip {
+        position: fixed;
+        z-index: 999999;
+        width: auto;
+        max-width: min(360px, calc(100vw - 24px));
+        padding: 7px 9px;
+        background: #212529;
+        color: #fff;
+        border-radius: 4px;
+        font-size: 11px;
+        line-height: 1.4;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        text-align: left;
+        pointer-events: none;
+        box-sizing: border-box;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+    }
+</style>
+
 <div class="card-body p-2 row">
 
     <div class="col-sm-2">
@@ -140,6 +213,30 @@ $showImagePickerButton = $isImageField;
         @else
         <div class="col-sm-8">
             @endif
+            @if(
+            in_array($field['type'], ['text', 'textarea'], true) &&
+            !empty($fieldSuggestions[$field['name']])
+            )
+            <div class="amazon-field-suggestions">
+                <span class="amazon-suggestion-label">Suggestions:</span>
+
+                <div class="amazon-suggestion-list">
+                    @foreach($fieldSuggestions[$field['name']] as $suggestion)
+                    <span
+                        class="amazon-suggestion-text field-suggestion-btn"
+                        data-field="{{ $field['name'] }}"
+                        data-value="{{ $suggestion }}"
+                        data-tooltip="{{ $suggestion }}">
+                        {{ \Illuminate\Support\Str::limit($suggestion, 20) }}
+                    </span>
+
+                    @if(!$loop->last)
+                    <span class="amazon-suggestion-separator">||</span>
+                    @endif
+                    @endforeach
+                </div>
+            </div>
+            @endif
 
             @switch($field['type'])
             @case('select')
@@ -162,7 +259,6 @@ $showImagePickerButton = $isImageField;
             @default
             @include('schema.products.fields.text')
             @endswitch
-
         </div>
 
         <div class="col-sm-2 d-flex align-items-center" style="margin-top: -29px;">
@@ -201,3 +297,85 @@ $showImagePickerButton = $isImageField;
 
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let tooltip = null;
+
+            document.querySelectorAll('.amazon-suggestion-text').forEach(function(element) {
+
+                element.addEventListener('mouseenter', function() {
+                    const text = this.dataset.tooltip;
+
+                    if (!text) {
+                        return;
+                    }
+
+                    if (tooltip) {
+                        tooltip.remove();
+                        tooltip = null;
+                    }
+
+                    tooltip = document.createElement('div');
+                    tooltip.className = 'amazon-custom-tooltip';
+                    tooltip.textContent = text;
+
+                    document.body.appendChild(tooltip);
+
+                    const rect = this.getBoundingClientRect();
+                    const tooltipRect = tooltip.getBoundingClientRect();
+                    const padding = 12;
+
+                    let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+                    let top = rect.top - tooltipRect.height - 8;
+
+                    if (left < padding) {
+                        left = padding;
+                    }
+
+                    if (left + tooltipRect.width > window.innerWidth - padding) {
+                        left = window.innerWidth - tooltipRect.width - padding;
+                    }
+
+                    if (top < padding) {
+                        top = rect.bottom + 8;
+                    }
+
+                    tooltip.style.left = `${left}px`;
+                    tooltip.style.top = `${top}px`;
+                });
+
+                element.addEventListener('mouseleave', function() {
+                    if (tooltip) {
+                        tooltip.remove();
+                        tooltip = null;
+                    }
+                });
+            });
+        });
+
+        document.querySelectorAll('.field-suggestion-btn').forEach(function(suggestion) {
+            suggestion.addEventListener('click', function() {
+                const fieldName = this.dataset.field;
+                const value = this.dataset.value;
+
+                const field = document.querySelector(
+                    '[name="attributes[' + fieldName + ']"]'
+                );
+
+                if (!field) {
+                    return;
+                }
+
+                field.value = value;
+
+                field.dispatchEvent(new Event('input', {
+                    bubbles: true
+                }));
+
+                field.dispatchEvent(new Event('change', {
+                    bubbles: true
+                }));
+            });
+        });
+    </script>
