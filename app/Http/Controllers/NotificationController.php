@@ -55,20 +55,12 @@ class NotificationController extends Controller
 
         return back()->with('success', 'Notification settings updated successfully.');
     }
-
     public function usernotification(Request $request)
     {
         $shop = $request->shop ?? session('active_shop');
+
         $shopModel = \App\Models\Shop::where('shop', $shop)->first();
         $shopId = $shopModel?->id;
-
-        // Mark all unread notifications as read when viewing the page
-        UserNotification::where('shop_id', $shopId)
-            ->where('is_read', 0)
-            ->update([
-                'is_read' => 1,
-                'read_at' => now(),
-            ]);
 
         $latestNotifications = UserNotification::where('shop_id', $shopId)
             ->latest()
@@ -88,6 +80,41 @@ class NotificationController extends Controller
         ));
     }
 
+    public function markViewedUserNotificationsRead(Request $request)
+    {
+        $shop = $request->shop ?? session('active_shop');
+
+        $shopModel = \App\Models\Shop::where('shop', $shop)->first();
+
+        if (!$shopModel) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Shop not found.',
+            ], 404);
+        }
+
+        $notificationIds = $request->input('notification_ids', []);
+
+        if (!is_array($notificationIds) || empty($notificationIds)) {
+            return response()->json([
+                'success' => true,
+                'updated' => 0,
+            ]);
+        }
+
+        $updated = UserNotification::where('shop_id', $shopModel->id)
+            ->whereIn('id', $notificationIds)
+            ->where('is_read', 0)
+            ->update([
+                'is_read' => 1,
+                'read_at' => now(),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'updated' => $updated,
+        ]);
+    }
     public function sendTrialEndingNotifications()
     {
         \Log::info('Trial Ending Button Clicked');
@@ -194,7 +221,6 @@ class NotificationController extends Controller
             ]);
 
         return redirect()->back()->with('success', 'All notifications marked as read successfully.');
-
     }
 
     public function removeUserNotification($id)
@@ -229,7 +255,4 @@ class NotificationController extends Controller
         AdminNotification::query()->delete();
         return redirect()->back()->with('success', 'All notifications removed successfully.');
     }
-
-
-
 }

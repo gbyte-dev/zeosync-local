@@ -27,6 +27,19 @@
         /* Resetting padding to let wrapper handle it */
     }
 
+    .notification-unread {
+        background-color: #f5f9ff;
+        border-left: 3px solid #005BD3;
+    }
+
+    .notification-unread .saas-notif-title {
+        font-weight: 700;
+    }
+
+    .notification-unread .saas-notif-desc {
+        font-weight: 600;
+    }
+
     /* Page Header */
     .saas-page-header {
         background: #FFFFFF;
@@ -217,9 +230,9 @@
                     All Notifications.
                 </p>
             </div>
-            
+
             <div class="col-6 col-md-6 text-end" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px;">
-                 <form id="notificationForm" action="{{ route('user.notification.markAllRead') }}?shop={{ $request->shop ?? session('active_shop') }}" method="POST">
+                <form id="notificationForm" action="{{ route('user.notification.markAllRead') }}?shop={{ $request->shop ?? session('active_shop') }}" method="POST">
                     @csrf
                     <button type="button" id="saveChangesBtn" class="btn btn-link btn-sm">
                         Mark All as Read
@@ -233,7 +246,7 @@
                     </button>
                 </form>
             </div>
-            
+
         </div>
 
         {{-- Notifications List Card --}}
@@ -242,7 +255,10 @@
 
                 @forelse($latestNotifications as $notification)
 
-                <div class="saas-list-item">
+                <div
+                    class="saas-list-item notification-item"
+                    data-notification-id="{{ $notification->id }}"
+                    data-is-read="{{ $notification->is_read ? '1' : '0' }}">
                     <div>
                         <h6 class="saas-notif-title">
                             @if(!$notification->is_read)
@@ -254,7 +270,7 @@
 
                         <p class="saas-notif-desc">
                             @if(!$notification->is_read)
-                           <b> {{ $notification->message }} </b>
+                            <b> {{ $notification->message }} </b>
                             @else
                             {{ $notification->message }}
                             @endif
@@ -266,15 +282,15 @@
                     </div>
 
                     @if(!$notification->is_read)
-                        <span class="saas-badge bg-danger">New</span>
+                    <span class="saas-badge bg-danger">New</span>
                     @else
-                        <form action="{{ route('user.notification.delete', ['id' => $notification->id, 'shop' => $request->shop ?? session('active_shop')]) }}" method="POST" class="d-inline">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-link btn-sm text-danger">
-                                Remove
-                            </button>
-                        </form>
+                    <form action="{{ route('user.notification.delete', ['id' => $notification->id, 'shop' => $request->shop ?? session('active_shop')]) }}" method="POST" class="d-inline">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-link btn-sm text-danger">
+                            Remove
+                        </button>
+                    </form>
                     @endif
                 </div>
 
@@ -308,5 +324,84 @@
     </div>
 </div>
 
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
 
+        const notificationBadge = document.querySelector('.sidebar__badge');
+
+        if (notificationBadge) {
+            notificationBadge.remove();
+        }
+
+        const unreadNotificationIds = [];
+
+        document.querySelectorAll('.notification-item[data-is-read="0"]').forEach(function(notification) {
+            const notificationId = notification.dataset.notificationId;
+
+            if (notificationId) {
+                unreadNotificationIds.push(notificationId);
+            }
+
+            notification.classList.add('notification-unread');
+        });
+
+        if (unreadNotificationIds.length === 0) {
+            return;
+        }
+
+        let markedAsRead = false;
+
+        function markViewedNotificationsAsRead() {
+            if (markedAsRead || unreadNotificationIds.length === 0) {
+                return;
+            }
+
+            markedAsRead = true;
+
+            const formData = new FormData();
+
+            unreadNotificationIds.forEach(function(id) {
+                formData.append('notification_ids[]', id);
+            });
+
+            formData.append(
+                'shop',
+                "{{ $request->shop ?? session('active_shop') }}"
+            );
+
+            formData.append(
+                '_token',
+                "{{ csrf_token() }}"
+            );
+
+            navigator.sendBeacon(
+                "{{ route('user.notifications.markViewed') }}",
+                formData
+            );
+        }
+
+        document.addEventListener('click', function(event) {
+            const link = event.target.closest('a[href]');
+
+            if (link) {
+                markViewedNotificationsAsRead();
+            }
+        }, true);
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') {
+                markViewedNotificationsAsRead();
+            }
+        });
+
+        window.addEventListener('pagehide', function() {
+            markViewedNotificationsAsRead();
+        });
+
+        window.addEventListener('beforeunload', function() {
+            markViewedNotificationsAsRead();
+        });
+
+    });
+</script>
 @endsection
