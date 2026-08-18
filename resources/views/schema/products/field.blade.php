@@ -1,4 +1,23 @@
 @php
+$hiddenFields = [
+'merchant_shipping_group',
+'fulfillment_availability',
+'taa_compliant_country',
+'baa_taa_compliance_acknowledgement',
+'baa_taa_regulation_compliance',
+'government_contract_information',
+'is_green_purchasing_law_compliant',
+];
+
+$hiddenAiFields = [
+'item_name',
+'externally_assigned_product_identifier',
+'merchant_suggested_asin',
+];
+
+if (in_array($field['name'], $hiddenFields, true)) {
+return;
+}
 $idreq = '';
 $php_errormsg = '';
 
@@ -74,7 +93,10 @@ $field['type'] = 'textarea';
 
 $fieldHint = \App\Support\AmazonFieldHint::get($field['name']);
 $isImageField = \Illuminate\Support\Str::contains($field['name'], 'image_locator');
-$showAiButton = $canUseAiSingleField && in_array($field['type'], ['text','textarea']) && !$isImageField;
+$showAiButton = $canUseAiSingleField
+&& in_array($field['type'], ['text', 'textarea'])
+&& !$isImageField
+&& !in_array($field['name'], $hiddenAiFields, true);
 $showImagePickerButton = $isImageField;
 @endphp
 
