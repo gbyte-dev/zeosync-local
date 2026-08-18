@@ -685,7 +685,7 @@ $subscriptionStatus = 'Trialing';
                 </div>
                 <div class="saas-status-row">
                     <span class="saas-status-label">Trial ends</span>
-                    <span class="saas-status-value">{{ $subscription?->trial_ends_at ? $subscription->trial_ends_at->format('d M Y') : 'After approval' }}</span>
+                    <span class="saas-status-value">{{ $subscription?->trial_ends_at ? $subscription->trial_ends_at->format('d M Y') : 'No Trial Plan' }}</span>
                 </div>
                 <div class="saas-status-row">
                     <span class="saas-status-label">Period end</span>
