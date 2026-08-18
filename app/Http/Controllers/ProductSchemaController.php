@@ -1003,11 +1003,11 @@ class ProductSchemaController extends Controller
                     $query->whereNotNull('submission_status')
                         ->orWhere('status', 'draft');
                 })
-                ->paginate(10);
+                ->get();
             $parent_productid = '';
         } else {
             $shop_id = $shop->getidByshop(session('active_shop'));
-            $products = Product::with('attributes', 'schema')->where('user_id', $shop_id)->where('parent_id', $product_id)->paginate(10);
+            $products = Product::with('attributes', 'schema')->where('user_id', $shop_id)->where('parent_id', $product_id)->get();
             $parent_productid = $product_id;
         }
         return view('schema.products.index', compact('products', 'parent_productid', 'productLimitReached'));
