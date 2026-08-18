@@ -170,16 +170,28 @@ class AmazonPayloadTransformer
         ]];
     }
 
+    // private function closure($value): array
+    // {
+    //     $value = $this->normalize($value);
+
+    //     return [[
+    //         'type' => [[
+    //             'value' => $value,
+    //             'marketplace_id' => 'ATVPDKIKX0DER'
+    //         ]],
+    //         'marketplace_id' => 'ATVPDKIKX0DER'
+    //     ]];
+    // }
+
     private function closure($value): array
     {
         $value = $this->normalize($value);
 
         return [[
+            'marketplace_id' => 'ATVPDKIKX0DER',
             'type' => [[
                 'value' => $value,
-                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            'marketplace_id' => 'ATVPDKIKX0DER'
         ]];
     }
     // Language field
