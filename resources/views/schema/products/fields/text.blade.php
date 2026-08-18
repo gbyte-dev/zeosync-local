@@ -4,12 +4,22 @@ $extramsg = '';
 
 if(isset($prodAttri)){
 $value = optional($prodAttri->firstWhere('attribute_name', $field['name']))->attribute_value;
-$value = str_replace('"', '', $value);
+
+if(is_array($value)){
+$value = json_encode($value);
+}
+
+$value = str_replace('"', '', (string) $value);
 }
 
 if(isset($prodAttrijson) && isset($prodAttrijson[$field['name']])){
 $value = $prodAttrijson[$field['name']];
-$value = str_replace('"', '', $value);
+
+if(is_array($value)){
+$value = json_encode($value);
+}
+
+$value = str_replace('"', '', (string) $value);
 }
 
 if($field['name'] == 'child_parent_sku_relationship' && isset($productshow) && $productshow->status != 'draft'){
@@ -75,6 +85,7 @@ $extramsg = "Please use in format like 16GB DDR4 ";
 if($field['name'] == 'memory_type'){
 $extramsg = "Please use in format like DDR4 , DDR5 , LPDDR4X etc ";
 }
+
 if($field['name'] == 'memory_clock_speed'){
 $extramsg = "Please use in format like 3200 MHz ";
 }
@@ -102,21 +113,13 @@ $extramsg = "Please use in format like 'Lithium-Ion ";
 if($field['name'] == 'display'){
 $extramsg = "Please use in format like Full HD 1920 × 1080 IPS Anti-Glare ";
 }
+
 if($field['name'] == 'color_gamut'){
 $extramsg = "Please use in format like 70% NTSC";
 }
 
 $idreq = $field['required'] ? 'required' : '';
 
-@endphp
-
-@php
-if (is_array($value)) {
-$value = implode(', ', array_map(
-fn ($item) => is_scalar($item) ? (string) $item : json_encode($item),
-$value
-));
-}
 @endphp
 
 <div class="mb-2">
@@ -132,8 +135,8 @@ $value
 @if(!empty($php_errormsg))
     border:3px solid #dc3545 !important;
     background:#fff0f0 !important;
-    @else
-     border:1px solid #aaaaeb !important;
+@else
+    border:1px solid #aaaaeb !important;
 @endif
 ">
 
