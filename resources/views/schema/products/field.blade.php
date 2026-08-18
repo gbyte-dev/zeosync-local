@@ -7,12 +7,19 @@ $hiddenFields = [
 'baa_taa_regulation_compliance',
 'government_contract_information',
 'is_green_purchasing_law_compliant',
+'league_name',
+'team_name',
+'government_contract_information',
 ];
 
 $hiddenAiFields = [
 'item_name',
 'externally_assigned_product_identifier',
 'merchant_suggested_asin',
+'list_price',
+'product_tax_code',
+'safety_data_sheet_url',
+'dsa_responsible_party_address',
 ];
 
 if (in_array($field['name'], $hiddenFields, true)) {
