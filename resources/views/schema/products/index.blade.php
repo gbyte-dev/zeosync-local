@@ -385,7 +385,7 @@ table.dataTable.dtr-inline.collapsed>tbody>tr>td.dtr-control:before, table.dataT
     <div class="sp-stat-grid">
         <div class="sp-stat-pill">
             <span class="sp-stat-label">Total Products</span>
-            <span class="sp-stat-value val-default">{{ $products->total() }}</span>
+            <span class="sp-stat-value val-default">{{ $products->count() }}</span>
         </div>
         <div class="sp-stat-pill">
             <span class="sp-stat-label">Active</span>
