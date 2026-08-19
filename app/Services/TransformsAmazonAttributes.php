@@ -154,6 +154,37 @@ class TransformsAmazonAttributes
                 ]];
             }
 
+            // ── L x W x T dimensions ─────────────────────────────────────
+            if ($name === 'item_length_width_thickness') {
+
+                $valueString = str_replace(['×', '*'], 'x', trim((string) $value));
+
+                $regex = '/^\s*([\d.]+)\s*[Ll]?\s*x\s*([\d.]+)\s*[Ww]?\s*x\s*([\d.]+)\s*[Tt]?\s*(.*?)\s*$/i';
+
+                if (!preg_match($regex, $valueString, $m)) {
+                    return null;
+                }
+
+                $unit = strtolower(trim($m[4] ?? 'inches'));
+                $unit = $unitMap[$unit] ?? 'inches';
+
+                return [[
+                    'length' => [
+                        'value' => (float) $m[1],
+                        'unit' => $unit,
+                    ],
+                    'width' => [
+                        'value' => (float) $m[2],
+                        'unit' => $unit,
+                    ],
+                    'thickness' => [
+                        'value' => (float) $m[3],
+                        'unit' => $unit,
+                    ],
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
             if ($name === 'included_components') {
                 $values = array_filter(array_map('trim', explode(',', $value)));
                 return array_map(fn($v) => [
