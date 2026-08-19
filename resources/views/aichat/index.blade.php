@@ -17,9 +17,10 @@
     }
 
     .ai-chat-header .page-title {
-        font-size: 1.4rem;
-        font-weight: 700;
+        font-size: 1.6rem;
+        font-weight: 800;
         margin: 0;
+        letter-spacing: -0.01em;
     }
 
     .ai-chat-header .page-subtitle {
@@ -30,18 +31,18 @@
 
     .ai-chat-grid {
         display: grid;
-        grid-template-columns: 1fr 1.4fr;
-        gap: 18px;
+        grid-template-columns: 1fr 1.6fr;
+        gap: 20px;
         align-items: start;
     }
 
     .ai-chat-card,
     .ai-chat-form {
         background: #ffffff;
-        border: 1px solid #E5E7EB;
-        border-radius: 18px;
-        box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
-        padding: 24px;
+        border: 1px solid #E6EDF8;
+        border-radius: 16px;
+        box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
+        padding: 22px;
     }
 
     .ai-chat-card-header,
@@ -62,31 +63,58 @@
     .ai-chat-log {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
         max-height: 72vh;
         overflow-y: auto;
-        padding-right: 4px;
+        padding-right: 6px;
         min-height: 420px;
     }
 
     .ai-chat-message {
-        padding: 14px 16px;
-        border-radius: 18px;
+        display: flex;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 14px;
         border: 1px solid transparent;
+        align-items: flex-start;
+        max-width: 82%;
     }
 
     .ai-chat-message.user {
-        align-self: flex-end;
-        background: #EFF6FF;
-        border-color: #BFDBFE;
-        color: #1D4ED8;
+        margin-left: auto;
+        background: linear-gradient(180deg,#ECFDF5,#DBFCEC);
+        border-color: #BBF7D0;
+        color: #065F46;
     }
 
     .ai-chat-message.assistant {
-        align-self: flex-start;
-        background: #F9FAFB;
-        border-color: #E5E7EB;
-        color: #111827;
+        margin-right: auto;
+        background: #FFFFFF;
+        border-color: #E6EDF8;
+        color: #0F172A;
+    }
+
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 9999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .message-avatar.user { background: #0ea5a4; }
+    .message-avatar.assistant { background: #2563EB; }
+
+    .message-content { flex: 1; }
+
+    .message-time {
+        font-size: 0.78rem;
+        color: #6B7280;
+        margin-top: 8px;
     }
 
     .ai-chat-message .message-label {
@@ -150,14 +178,14 @@
     }
 
     .ai-chat-form textarea {
-        min-height: 180px;
+        min-height: 140px;
         resize: vertical;
-        border-radius: 16px;
-        border: 1px solid #D1D5DB;
-        padding: 16px;
-        font-size: 0.96rem;
-        color: #111827;
-        transition: border-color 0.2s ease;
+        border-radius: 12px;
+        border: 1px solid #E6EDF8;
+        padding: 14px;
+        font-size: 0.95rem;
+        color: #0F172A;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
     .ai-chat-form textarea:focus {
@@ -176,7 +204,7 @@
         grid-template-columns: 1fr auto;
         align-items: center;
         gap: 14px;
-        margin-top: 18px;
+        margin-top: 12px;
     }
 
     .ai-chat-footer .btn {
@@ -291,7 +319,6 @@
                     @endphp
 
                     <div class="ai-chat-message {{ $message['role'] === 'user' ? 'user' : 'assistant' }}">
-                        <span class="message-label">{{ ucfirst($message['role']) }}</span>
                         {!! $linkedMessage !!}
                     </div>
                 @endforeach
@@ -329,7 +356,7 @@
         const createMessageElement = (role, message) => {
             const item = document.createElement('div');
             item.className = 'ai-chat-message ' + (role === 'user' ? 'user' : 'assistant');
-            item.innerHTML = '<span class="message-label">' + (role === 'user' ? 'User' : 'Assistant') + '</span>' + linkify(message);
+            item.innerHTML = linkify(message);
             return item;
         };
 
