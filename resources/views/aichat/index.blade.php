@@ -2,11 +2,6 @@
 
 @section('content')
 <style>
-    .ai-chat-page {
-        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        color: #111827;
-    }
-
     .ai-chat-header {
         display: flex;
         flex-wrap: wrap;
@@ -67,7 +62,7 @@
 
     .ai-chat-log {
         max-height: calc(75vh - 90px);
-        padding-bottom: 140px;
+        padding-bottom: 110px;
     }
 
     /* Helper label above input */
@@ -119,6 +114,11 @@
         background: linear-gradient(180deg,#ECFDF5,#DBFCEC);
         border-color: #BBF7D0;
         color: #065F46;
+        font-size: 13px;
+    }
+
+    p {
+        font-size: 13px;
     }
 
     .ai-chat-message.assistant {
@@ -126,6 +126,7 @@
         background: #FFFFFF;
         border-color: #E6EDF8;
         color: #0F172A;
+        font-size: 13px;
     }
 
     .message-avatar {
@@ -212,11 +213,11 @@
     }
 
     .ai-chat-form textarea {
-        min-height: 140px;
+        min-height: 90px;
         resize: vertical;
         border-radius: 12px;
-        border: 1px solid #E6EDF8;
-        padding: 14px;
+        border: 1px solid #E5E7EB;
+        padding: 10px 12px;
         font-size: 0.95rem;
         color: #0F172A;
         transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -266,6 +267,24 @@
         border: 1px dashed #D1D5DB;
         text-align: center;
     }
+    .in-iframe .content {
+        padding: 5px !important;
+    }
+    .saas-page-title {
+        font-size: 16px;
+        font-weight: 650;
+        letter-spacing: -0.2px;
+        color: #1A1A1A;
+        margin: 0 0 4px 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .saas-page-subtitle {
+        color: #6D7175;
+        font-size: 12px;
+        margin: 0;
+    }
 
     @media (max-width: 991.98px) {
         .ai-chat-grid {
@@ -278,7 +297,7 @@
     }
 </style>
 
-<div class="ai-chat-page">
+<div class="content">
     <div class="saas-page-header">
         <div>
             <h1 class="saas-page-title">AI Chat</h1>
@@ -330,21 +349,17 @@
 
         <div class="saas-card" id="ai-chat-form-card">
             <div class="saas-card-body ai-chat-form">
-                <div class="ai-chat-form-header">
-                    <h2>Ask the AI</h2>
-                </div>
+            
 
                 <form id="ai-chat-form" method="POST" action="{{ route('shopify.ai.chat.ask', ['shop' => $currentShop]) }}">
                 @csrf
 
                 <div class="mb-3">
-                    <div class="ai-chat-helper">You are chatting with AI — ask product, pricing, or inventory questions.</div>
-                    <label for="prompt" class="form-label">Your question</label>
                     <textarea id="prompt"
                         name="prompt"
                         class="form-control @error('prompt') is-invalid @enderror"
                         placeholder="For example: Which product is selling the most? What is the Shopify and Amazon price of my best seller?"
-                        rows="6">{{ old('prompt') }}</textarea>
+                        rows="3">{{ old('prompt') }}</textarea>
                     @error('prompt')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
