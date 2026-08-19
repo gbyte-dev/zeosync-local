@@ -154,6 +154,10 @@ if ($field['name'] === 'battery') {
 $extramsg = "Please use in format like 'Lithium-Ion";
 }
 
+if ($field['name'] === 'item_length_width_thickness') {
+$extramsg = 'Please use in format 39L x 17.5W x 3T Centimeters';
+}
+
 if ($field['name'] === 'display') {
 $extramsg = 'Please use in format like Full HD 1920 × 1080 IPS Anti-Glare';
 }
