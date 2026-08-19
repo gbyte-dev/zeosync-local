@@ -151,7 +151,7 @@ $extramsg = 'Please use in format like Intel Core i7-1165G7 or AMD Ryzen 5 5600X
 }
 
 if ($field['name'] === 'battery') {
-$extramsg = "Please use in format like 'Lithium-Ion";
+$extramsg = "Please use in format like 'Lithium-Ion 50g 5000mAh";
 }
 
 if ($field['name'] === 'item_length_width_thickness') {
