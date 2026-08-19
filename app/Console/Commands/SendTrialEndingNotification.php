@@ -31,7 +31,7 @@ class SendTrialEndingNotification extends Command
                 'Trial Ending Soon',
                 'Your trial will expire on ' .
                 $subscription->trial_ends_at->format('d M Y h:i A') .
-                '. Please upgrade your plan to continue using AmazonSync.'
+                '. Please upgrade your plan to continue using Zeosync.'
             );
 
             $subscription->update([

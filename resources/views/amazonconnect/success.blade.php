@@ -152,12 +152,12 @@
         <p>
 
             Your Amazon Seller account has been connected successfully with
-            <strong>AmazonSync</strong>.
+            <strong>Zeosync</strong>.
 
             <br><br>
 
             Amazon authorization is completed outside Shopify's embedded application.
-            To continue using AmazonSync, simply return to your Shopify Admin and reopen the app.
+            To continue using Zeosync, simply return to your Shopify Admin and reopen the app.
 
         </p>
 
@@ -174,7 +174,7 @@
 
             <ol>
                 <li>Go back to your Shopify Admin.</li>
-                <li>Open the <strong>AmazonSync</strong> app again.</li>
+                <li>Open the <strong>Zeosync</strong> app again.</li>
                 <li>Your Amazon account is now connected and ready to use.</li>
             </ol>
 
@@ -191,7 +191,7 @@
         <div class="footer">
 
             If this window doesn't close automatically,
-            simply return to your Shopify Admin and reopen AmazonSync.
+            simply return to your Shopify Admin and reopen Zeosync.
 
         </div>
 

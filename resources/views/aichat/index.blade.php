@@ -219,7 +219,7 @@
         align-items: center;
         background: #ffffff;
         border: 1px solid #E5E7EB;
-        padding: 8px 10px;
+        padding: 0px 10px;
         border-radius: 9999px;
     }
 

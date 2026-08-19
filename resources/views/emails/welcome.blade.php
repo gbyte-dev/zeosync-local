@@ -25,7 +25,7 @@
                         <td style="background:linear-gradient(90deg,#2563eb,#1e40af);padding:18px 24px;color:#ffffff;">
                             <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
                                 <tr>
-                                    <td style="font-weight:700;font-size:18px;">{{ config('app.name', env('APP_NAME', 'AmazonSync')) }}</td>
+                                    <td style="font-weight:700;font-size:18px;">{{ config('app.name', env('APP_NAME', 'Zeosync')) }}</td>
                                     <td align="right" style="font-size:13px;color:rgba(255,255,255,0.9);">Welcome</td>
                                 </tr>
                             </table>
@@ -34,9 +34,9 @@
                     <!-- Body -->
                     <tr>
                         <td class="content" style="padding:30px;color:#333333;">
-                            <h1 style="margin:0 0 12px 0;font-size:22px;color:#0f172a;">Welcome to {{ config('app.name', env('APP_NAME', 'AmazonSync')) }}</h1>
+                            <h1 style="margin:0 0 12px 0;font-size:22px;color:#0f172a;">Welcome to {{ config('app.name', env('APP_NAME', 'Zeosync')) }}</h1>
                             <p style="margin:0 0 16px 0;color:#334155;line-height:1.6;">Hello {{ $shop->shop_name }},</p>
-                            <p style="margin:0 0 16px 0;color:#334155;line-height:1.6;">Your store <strong>{{ $shop->shop }}</strong> has been successfully connected to {{ config('app.name', env('APP_NAME', 'AmazonSync')) }}.</p>
+                            <p style="margin:0 0 16px 0;color:#334155;line-height:1.6;">Your store <strong>{{ $shop->shop }}</strong> has been successfully connected to {{ config('app.name', env('APP_NAME', 'Zeosync')) }}.</p>
                             <p style="margin:0 0 20px 0;color:#334155;line-height:1.6;">We're excited to have you on board. You can now start managing your products and sync across multiple channels.</p>
                             <!-- CTA Button -->
                             <table role="presentation" cellpadding="0" cellspacing="0" style="margin:12px 0 20px 0;">
@@ -47,7 +47,7 @@
                                 </tr>
                             </table>
                             <hr style="border:none;border-top:1px solid #e6eef8;margin:18px 0;">
-                            <p style="font-size:13px;color:#6b7280;margin:0;">This is an automated email from {{ config('app.name', env('APP_NAME', 'AmazonSync')) }}.</p>
+                            <p style="font-size:13px;color:#6b7280;margin:0;">This is an automated email from {{ config('app.name', env('APP_NAME', 'Zeosync')) }}.</p>
                             <p style="font-size:12px;color:#94a3b8;margin-top:12px;word-break:break-word;">If the button doesn't work, copy and paste this link: <a href="{{ url('/dashboard?shop='.$shop->shop) }}" style="color:#2563eb;">{{ url('/dashboard?shop='.$shop->shop) }}</a></p>
                         </td>
                     </tr>
@@ -55,7 +55,7 @@
                     <!-- Footer -->
                     <tr>
                         <td style="background:#f8fafc;padding:14px 24px;color:#94a3b8;font-size:12px;" align="center">
-                            <div style="max-width:520px;margin:0 auto;">&copy; {{ date('Y') }} {{ config('app.name', env('APP_NAME', 'AmazonSync')) }}. All rights reserved.</div>
+                            <div style="max-width:520px;margin:0 auto;">&copy; {{ date('Y') }} {{ config('app.name', env('APP_NAME', 'Zeosync')) }}. All rights reserved.</div>
                         </td>
                     </tr>
                 </table>
