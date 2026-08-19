@@ -267,6 +267,30 @@
         opacity: 0.6;
     }
 
+    /* sending spinner state for icon-only button */
+    .ai-send-btn.sending {
+        position: relative;
+        pointer-events: none;
+    }
+
+    .ai-send-btn.sending svg { opacity: 0; }
+
+    .ai-send-btn.sending::after {
+        content: '';
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        animation: btn-spin 0.9s linear infinite;
+    }
+
+    @keyframes btn-spin { to { transform: translateY(-50%) rotate(360deg); } }
+
     .ai-chat-input:focus {
         box-shadow: none;
     }
@@ -560,8 +584,10 @@
                 return;
             }
 
+            // disable and show spinner state on send button
             submitButton.disabled = true;
-            submitButton.textContent = 'Sending...';
+            submitButton.classList.add('sending');
+            submitButton.setAttribute('aria-busy', 'true');
             errorBox.style.display = 'none';
 
             const formData = new FormData(form);
