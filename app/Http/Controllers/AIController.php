@@ -43,7 +43,7 @@ class AIController extends Controller
         $context = $this->buildShopContext($shop);
         $prompt = $request->input('prompt');
 
-        $systemPrompt = "You are AmazonSync AI. Answer user questions about the current Shopify store, product performance, Amazon order cache, and marketplace pricing based on the data provided below. Be concise and factual. If exact data is unavailable, say so clearly. If the user asks for product details, provide the exact product detail link from the store context.";
+        $systemPrompt = "You are Zeosync AI. Answer user questions about the current Shopify store, product performance, Amazon order cache, and marketplace pricing based on the data provided below. Be concise and factual. If exact data is unavailable, say so clearly. If the user asks for product details, provide the exact product detail link from the store context.";
         $userPrompt = "Store context:\n{$context}\n\nUser question: {$prompt}";
 
         $response = $this->sendAiRequest($systemPrompt, $userPrompt);

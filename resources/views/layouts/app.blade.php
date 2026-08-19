@@ -191,7 +191,7 @@
                 <i class="bi bi-list fs-5"></i>
             </button>
 
-            <span class="sp-topbar-brand">AmazonSync</span>
+            <span class="sp-topbar-brand">Zeosync</span>
         </div>
 
         <div class="dropdown">

@@ -108,7 +108,7 @@ class EmailService
 
                 <!-- HEADER -->
                 <div style='background:linear-gradient(90deg,#2563eb,#1e40af); padding:18px 20px; text-align:center; color:#fff;'>
-                    <h1 style='margin:0; font-size:18px; font-weight:700;' >" . config('app.name', env('APP_NAME', 'AmazonSync')) . "</h1>
+                    <h1 style='margin:0; font-size:18px; font-weight:700;' >" . config('app.name', env('APP_NAME', 'Zeosync')) . "</h1>
                 </div>
 
                 <!-- CARD -->
@@ -128,7 +128,7 @@ class EmailService
                     <p style='margin:0; font-weight:600; color:#2563eb;'>{support_email}</p>
 
                     <p style='margin-top:10px;'>
-                        © " . date('Y') . " " . config('app.name', env('APP_NAME', 'AmazonSync')) . ". All rights reserved.
+                        © " . date('Y') . " " . config('app.name', env('APP_NAME', 'Zeosync')) . ". All rights reserved.
                     </p>
 
                 </div>
