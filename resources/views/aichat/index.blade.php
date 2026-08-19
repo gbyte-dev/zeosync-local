@@ -27,6 +27,8 @@
         margin: 6px 0 0;
         color: #6B7280;
         max-width: 760px;
+        font-size: 0.95rem;
+        line-height: 1.35;
     }
 
     .ai-chat-grid {
@@ -50,14 +52,16 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 18px;
+        margin-bottom: 12px;
+        gap: 12px;
     }
 
     .ai-chat-card-header h2,
     .ai-chat-form-header h2 {
-        font-size: 1.05rem;
+        font-size: 1rem;
         margin: 0;
         color: #111827;
+        font-weight: 700;
     }
 
     .ai-chat-log {
@@ -245,10 +249,10 @@
 </style>
 
 <div class="ai-chat-page">
-    <div class="ai-chat-header">
+    <div class="saas-page-header">
         <div>
-            <h1 class="page-title">AI Chat</h1>
-            <p class="page-subtitle">Ask questions about your Shopify/Amazon store, product performance, pricing, and best selling items. This view uses the same app layout and sidebar styling as other pages.</p>
+            <h1 class="saas-page-title">AI Chat</h1>
+            <p class="saas-page-subtitle">Ask about your store, products, pricing and inventory.</p>
         </div>
         <div>
             <a href="{{ route('shopify.ai.chat', ['shop' => $currentShop, 'reset' => 1]) }}"
@@ -259,12 +263,13 @@
     </div>
 
     <div class="ai-chat-grid">
-        <div class="ai-chat-form" id="ai-chat-form-card">
-            <div class="ai-chat-form-header">
-                <h2>Ask the AI</h2>
-            </div>
+        <div class="saas-card" id="ai-chat-form-card">
+            <div class="saas-card-body ai-chat-form">
+                <div class="ai-chat-form-header">
+                    <h2>Ask the AI</h2>
+                </div>
 
-            <form id="ai-chat-form" method="POST" action="{{ route('shopify.ai.chat.ask', ['shop' => $currentShop]) }}">
+                <form id="ai-chat-form" method="POST" action="{{ route('shopify.ai.chat.ask', ['shop' => $currentShop]) }}">
                 @csrf
 
                 <div class="mb-3">
@@ -289,19 +294,22 @@
 
                 <div id="ai-chat-error" class="ai-chat-error"></div>
             </form>
+                </form>
+            </div>
         </div>
 
-        <div class="ai-chat-card" id="ai-chat-history-card">
-            <div class="ai-chat-card-header">
-                <div>
-                    <h2>Conversation</h2>
-                    <p class="text-muted mb-0">AI history stored in this browser session</p>
+        <div class="saas-card" id="ai-chat-history-card">
+            <div class="saas-card-body ai-chat-card">
+                <div class="ai-chat-card-header">
+                    <div>
+                        <h2>Conversation</h2>
+                        <p class="text-muted mb-0">Recent questions &amp; answers</p>
+                    </div>
+                    <span class="text-muted" id="ai-chat-updated">
+                        {{ count($chatHistory) > 0 ? 'Last updated: ' . now()->format('g:i A') : '' }}
+                    </span>
                 </div>
-                <span class="text-muted" id="ai-chat-updated">
-                    {{ count($chatHistory) > 0 ? 'Last updated: ' . now()->format('g:i A') : 'No messages yet' }}
-                </span>
-            </div>
-            <div class="ai-chat-log" id="ai-chat-log">
+                <div class="ai-chat-log" id="ai-chat-log">
                 @if(count($chatHistory) === 0)
                     <div class="ai-chat-empty">
                         Start by asking how your products are performing, which product is selling best, or for a Shopify/Amazon price comparison.
