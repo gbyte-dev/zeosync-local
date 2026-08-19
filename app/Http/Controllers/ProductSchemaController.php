@@ -822,7 +822,9 @@ class ProductSchemaController extends Controller
                     'matched_data' => $matchedData,
                 ]);
 
-                if (!$successfulListing) {
+                // if (!$successfulListing) {
+
+                if (false && !$successfulListing) {
 
                     Log::info('AMAZON ERROR AI AUTOFILL FALLBACK START', [
                         'product_id' => $product->id,
