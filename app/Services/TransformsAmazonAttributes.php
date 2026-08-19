@@ -889,7 +889,7 @@ class TransformsAmazonAttributes
                 return [['value' => $map[strtolower($value)] ?? 'new_new']];
             }
 
-            if ($name === 'battery') {
+       if ($name === 'battery') {
                 $raw = trim((string) $value);
 
                 $cell = 'lithium_ion';
@@ -1217,6 +1217,20 @@ class TransformsAmazonAttributes
                 'marketplace_id' => 'ATVPDKIKX0DER',
             ]],
             'marketplace_id' => 'ATVPDKIKX0DER',
+        ]];
+    }
+
+    // lightsource 
+    private function lightSource($value, $marketplaceId = null): array
+    {
+        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
+
+        return [[
+            'marketplace_id' => $marketplaceId,
+            'type' => [[
+                'value' => trim((string) $value),
+                'language_tag' => 'en_US',
+            ]],
         ]];
     }
 
