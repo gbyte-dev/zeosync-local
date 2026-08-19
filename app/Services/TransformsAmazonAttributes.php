@@ -1138,6 +1138,14 @@ class TransformsAmazonAttributes
                 return $this->lightSource($value, $marketplaceId);
             }
 
+            if ($name === 'maximum_height') {
+                return $this->maximumHeight($value, $marketplaceId);
+            }
+
+            if ($name === 'minimum_height') {
+                return $this->minimumHeight($value, $marketplaceId);
+            }
+
             if ($name === 'runtime') {
                 return $this->runtime($value, $marketplaceId);
             }
@@ -1231,6 +1239,28 @@ class TransformsAmazonAttributes
                 'value' => trim((string) $value),
                 'language_tag' => 'en_US',
             ]],
+        ]];
+    }
+
+    private function maximumHeight($value, $marketplaceId = null): array
+    {
+        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
+
+        return [[
+            'value' => (float) $value,
+            'unit' => 'inches',
+            'marketplace_id' => $marketplaceId,
+        ]];
+    }
+
+    private function minimumHeight($value, $marketplaceId = null): array
+    {
+        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
+
+        return [[
+            'value' => (float) $value,
+            'unit' => 'inches',
+            'marketplace_id' => $marketplaceId,
         ]];
     }
 
