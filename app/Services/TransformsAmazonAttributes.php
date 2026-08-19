@@ -521,66 +521,43 @@ class TransformsAmazonAttributes
 
             if ($name === 'display') {
                 $raw = trim((string) $value);
-                $resolution = '';
+                $displayObject = ['marketplace_id' => $marketplaceId];
 
-                if (preg_match('/(\d{3,4})\s*(?:×|x|X)\s*(\d{3,4})/u', $raw, $resMatch)) {
-                    $resolution = $resMatch[1] . 'x' . $resMatch[2];
+                if (preg_match('/(\d+(?:\.\d+)?)\s*(?:inch|inches|")/i', $raw, $m)) {
+                    $displayObject['size'] = [[
+                        'value' => (float) $m[1],
+                        'unit' => 'inches'
+                    ]];
+                } else {
+                    $displayObject['size'] = [[
+                        'value' => 15.6,
+                        'unit' => 'inches'
+                    ]];
                 }
 
-                $remaining = preg_replace(
-                    '/(\d{3,4})\s*(?:×|x|X)\s*(\d{3,4})/u',
-                    '',
-                    $raw
-                );
+                if (preg_match('/(\d{3,4})\s*[x×]\s*(\d{3,4})/u', $raw, $m)) {
+                    $displayObject['resolution_maximum'] = [[
+                        'value' => $m[1] . 'x' . $m[2],
+                        'language_tag' => 'en_US'
+                    ]];
+                }
 
-                $remaining = preg_replace(
-                    '/\b(Full\s*HD|HD|4K|UHD|QHD|2K)\b/i',
-                    '',
-                    $remaining
-                );
+                if (preg_match('/(\d{2,4})\s*Hz\b/i', $raw, $m)) {
+                    $displayObject['refresh_rate_in_hertz'] = [['value' => (int) $m[1]]];
+                }
 
-                $remaining = trim(preg_replace('/\s+/', ' ', $remaining));
-
-                $knownTech = [
-                    'AMOLED',
-                    'LCD',
-                    'LED',
-                    'OLED',
-                    'IPS',
-                    'TN',
-                    'VA',
-                ];
-
-                $technology = '';
-
-                foreach ($knownTech as $t) {
-                    if (stripos($remaining, $t) !== false) {
-                        $technology = $t;
+                foreach (['AMOLED', 'LCD', 'LED', 'OLED', 'IPS', 'TN', 'VA'] as $tech) {
+                    if (preg_match('/\b' . $tech . '\b/i', $raw)) {
+                        $displayObject['technology'] = [[
+                            'value' => $tech,
+                            'language_tag' => 'en_US'
+                        ]];
+                        $displayObject['type'] = [[
+                            'value' => $tech,
+                            'language_tag' => 'en_US'
+                        ]];
                         break;
                     }
-                }
-
-                $displayObject = [
-                    'marketplace_id' => $marketplaceId,
-                ];
-
-                if ($resolution !== '') {
-                    $displayObject['resolution_maximum'] = [[
-                        'value' => $resolution,
-                        'language_tag' => 'en_US',
-                    ]];
-                }
-
-                if ($technology !== '') {
-                    $displayObject['technology'] = [[
-                        'value' => $technology,
-                        'language_tag' => 'en_US',
-                    ]];
-
-                    $displayObject['type'] = [[
-                        'value' => $technology,
-                        'language_tag' => 'en_US',
-                    ]];
                 }
 
                 return [$displayObject];
