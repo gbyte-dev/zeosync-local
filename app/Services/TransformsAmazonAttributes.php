@@ -889,54 +889,51 @@ class TransformsAmazonAttributes
                 return [['value' => $map[strtolower($value)] ?? 'new_new']];
             }
 
-        if ($name === 'battery') {
-            $raw = trim((string) $value);
+            if ($name === 'battery') {
+                // $value expected shape: ['cell_composition' => 'Lithium-Ion', ...other battery fields if you have them]
+                $validCells = [
+                    'alkaline',
+                    'lead_acid',
+                    'lithium_ion',
+                    'lithium_metal',
+                    'lithium_polymer',
+                    'NiCAD',
+                    'NiMh',
+                    'other_than_listed',
+                    'sodium_ion',
+                    'wet_alkali',
+                ];
 
-            $battery = [
-                'marketplace_id' => $marketplaceId,
-            ];
+                $cellRaw = strtolower(str_replace(['-', ' '], '_', trim((string) ($value ?? ''))));
 
-            // Cell composition
-            foreach ([
-                'Lithium-Ion' => 'lithium_ion',
-                'Lithium-Metal' => 'lithium_metal',
-                'Lithium-Polymer' => 'lithium_polymer',
-                'Alkaline' => 'alkaline',
-                'NiMH' => 'NiMh',
-                'NiCad' => 'NiCAD',
-            ] as $label => $cell) {
-                if (stripos($raw, $label) !== false) {
-                    $battery['cell_composition'] = [['value' => $cell]];
-                    break;
+                $cellMap = [
+                    'alkaline' => 'alkaline',
+                    'lead_acid' => 'lead_acid',
+                    'lithium_ion' => 'lithium_ion',
+                    'liion' => 'lithium_ion',
+                    'li_ion' => 'lithium_ion',
+                    'lithium_metal' => 'lithium_metal',
+                    'lithium_polymer' => 'lithium_polymer',
+                    'lipo' => 'lithium_polymer',
+                    'li_po' => 'lithium_polymer',
+                    'nicad' => 'NiCAD',
+                    'nimh' => 'NiMh',
+                    'sodium_ion' => 'sodium_ion',
+                    'wet_alkali' => 'wet_alkali',
+                ];
+
+                $cellToken = $cellMap[$cellRaw] ?? 'lithium_ion';
+
+                $batteryObject = [
+                    'marketplace_id' => $marketplaceId,
+                ];
+
+                if ($cellToken !== null) {
+                    $batteryObject['cell_composition'] = [['value' => $cellToken]];
                 }
+
+                return [$batteryObject];
             }
-
-            // Battery weight
-            if (preg_match('/(\d+(?:\.\d+)?)\s*(g|grams?|kg)/i', $raw, $m)) {
-                $battery['battery_weight'] = [[
-                    'value' => (float) $m[1],
-                    'unit' => strtolower($m[2]) === 'kg' ? 'kg' : 'grams',
-                ]];
-            }
-
-            // Battery capacity / energy
-            if (preg_match('/(\d+(?:\.\d+)?)\s*(mAh|Ah|Wh|kWh)/i', $raw, $m)) {
-                $unit = strtolower($m[2]);
-
-                $battery['battery_capacity'] = [[
-                    'value' => (float) $m[1],
-                    'unit' => match ($unit) {
-                        'mah' => 'Milliampere Hour (mAh)',
-                        'ah'  => 'Ampere Hours',
-                        'wh'  => 'Watt Hours',
-                        'kwh' => 'Kilowatt Hours',
-                    },
-                ]];
-            }
-
-            return [$battery];
-        }
-
 
             // ── 50 watt_hours | 0.5 grams ─────────────────────────────
             if ($name === 'lithium_battery') {
@@ -1231,6 +1228,20 @@ class TransformsAmazonAttributes
                 'marketplace_id' => 'ATVPDKIKX0DER',
             ]],
             'marketplace_id' => 'ATVPDKIKX0DER',
+        ]];
+    }
+
+    // lightsource 
+    private function lightSource($value, $marketplaceId = null): array
+    {
+        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
+
+        return [[
+            'marketplace_id' => $marketplaceId,
+            'type' => [[
+                'value' => trim((string) $value),
+                'language_tag' => 'en_US',
+            ]],
         ]];
     }
 
