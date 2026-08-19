@@ -62,7 +62,7 @@
 
     .ai-chat-log {
         max-height: calc(75vh - 90px);
-        padding-bottom: 110px;
+        padding-bottom: 40px;
     }
 
     /* Helper label above input */
@@ -93,7 +93,7 @@
         display: flex;
         flex-direction: column;
         gap: 12px;
-        max-height: 72vh;
+        max-height: 62vh;
         overflow-y: auto;
         padding-right: 6px;
         min-height: 420px;
