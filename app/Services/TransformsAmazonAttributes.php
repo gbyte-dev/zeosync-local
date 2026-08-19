@@ -1215,7 +1215,16 @@ class TransformsAmazonAttributes
         ]];
     }
 
-    
+    private function mpaaRating($value, $marketplaceId = null): array
+    {
+        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
+
+        return [[
+            'rating' => strtolower(trim((string) $value)),
+            'descriptors' => ['Not Rated'],
+            'marketplace_id' => $marketplaceId,
+        ]];
+    }
 
     private function parseTwoFieldsOnly(string $value, $marketplaceId): ?array
     {
