@@ -958,6 +958,38 @@ class TransformsAmazonAttributes
                 return [$batteryObject];
             }
 
+            // ── 50 watt_hours | 0.5 grams ─────────────────────────────
+            if ($name === 'lithium_battery') {
+                $valueString = trim((string) $value);
+
+                $regex = '/^\s*([\d.]+)\s*(?:watt[_\s-]*hours?|wh)\s*\|\s*([\d.]+)\s*(grams?|g)\s*$/i';
+
+                if (!preg_match($regex, $valueString, $m)) {
+                    return null;
+                }
+
+                return [[
+                    'energy_content' => [
+                        [
+                            'value' => (float) $m[1],
+                            'unit' => 'watt_hours',
+                        ]
+                    ],
+                    'packaging' => [
+                        [
+                            'value' => 'batteries_contained_in_equipment',
+                        ]
+                    ],
+                    'weight' => [
+                        [
+                            'value' => (float) $m[2],
+                            'unit' => 'grams',
+                        ]
+                    ],
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
             if ($name === 'color_gamut') {
                 $raw = trim((string) $value);
 

@@ -162,6 +162,11 @@ if ($field['name'] === 'display') {
 $extramsg = 'Please use in format like Full HD 1920 × 1080 IPS Anti-Glare';
 }
 
+
+if ($field['name'] === 'lithium_battery') {
+$extramsg = 'Please use format 50 watt_hours | 0.5 grams';
+}
+
 if ($field['name'] === 'color_gamut') {
 $extramsg = 'Please use in format like 70% NTSC';
 }
