@@ -86,8 +86,6 @@ dd([
 
 'extramsg' => $extramsg,
 'extramsg_type' => get_debug_type($extramsg),
-
-'fieldHint' => $fieldHint ?? null,
 'fieldHint_type' => get_debug_type($fieldHint ?? null),
 
 'full_field' => $field,
