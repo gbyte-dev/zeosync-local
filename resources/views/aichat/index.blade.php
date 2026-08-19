@@ -212,20 +212,102 @@
         text-decoration: underline;
     }
 
-    .ai-chat-form textarea {
-        min-height: 90px;
-        resize: vertical;
-        border-radius: 12px;
+    /* Compact pill-style input bar */
+    .ai-chat-input-bar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        background: #ffffff;
         border: 1px solid #E5E7EB;
-        padding: 10px 12px;
-        font-size: 0.95rem;
-        color: #0F172A;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        padding: 8px 10px;
+        border-radius: 9999px;
     }
 
-    .ai-chat-form textarea:focus {
-        border-color: #2563EB;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    .ai-chat-input-bar .input-leading {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 9999px;
+        background: #F3F4F6;
+        color: #111827;
+        font-weight: 600;
+        margin-right: 8px;
+    }
+
+    .ai-chat-input {
+        border: none;
+        outline: none;
+        flex: 1 1 auto;
+        padding: 6px 8px;
+        font-size: 0.95rem;
+        background: transparent;
+        resize: none;
+        min-height: 20px;
+        max-height: 120px;
+        overflow: auto;
+        line-height: 1.25;
+    }
+
+    .ai-send-btn {
+        background: #2563EB;
+        color: #fff;
+        border: none;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 9999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .ai-send-btn:disabled {
+        opacity: 0.6;
+    }
+
+    .ai-chat-input:focus {
+        box-shadow: none;
+    }
+
+    /* Tooltip for keyboard hint */
+    .tooltip-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+
+    .ai-tooltip {
+        position: absolute;
+        bottom: 52px;
+        right: 0;
+        background: rgba(17,24,39,0.95);
+        color: #fff;
+        font-size: 12px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        white-space: nowrap;
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 120ms ease, transform 120ms ease;
+        pointer-events: none;
+        z-index: 60;
+    }
+
+    .ai-tooltip::after {
+        content: '';
+        position: absolute;
+        bottom: -6px;
+        right: 10px;
+        border-width: 6px 6px 0 6px;
+        border-style: solid;
+        border-color: rgba(17,24,39,0.95) transparent transparent transparent;
+    }
+
+    .tooltip-wrapper:hover .ai-tooltip,
+    .tooltip-wrapper:focus-within .ai-tooltip {
+        opacity: 1;
+        transform: translateY(0);
     }
 
     .ai-chat-form .form-text {
@@ -286,6 +368,10 @@
         margin: 0;
     }
 
+    #ai-chat-updated{
+        font-size: 12px;
+    }
+
     @media (max-width: 991.98px) {
         .ai-chat-grid {
             grid-template-columns: 1fr;
@@ -319,7 +405,7 @@
                         <h2>Conversation</h2>
                         <p class="text-muted mb-0">Recent questions &amp; answers</p>
                     </div>
-                    <span class="text-muted" id="ai-chat-updated">
+                    <span class="" id="ai-chat-updated">
                         {{ count($chatHistory) > 0 ? 'Last updated: ' . now()->format('g:i A') : '' }}
                     </span>
                 </div>
@@ -354,23 +440,36 @@
                 <form id="ai-chat-form" method="POST" action="{{ route('shopify.ai.chat.ask', ['shop' => $currentShop]) }}">
                 @csrf
 
-                <div class="mb-3">
-                    <textarea id="prompt"
-                        name="prompt"
-                        class="form-control @error('prompt') is-invalid @enderror"
-                        placeholder="For example: Which product is selling the most? What is the Shopify and Amazon price of my best seller?"
-                        rows="3">{{ old('prompt') }}</textarea>
-                    @error('prompt')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                    <div class="form-text">You can ask about product performance, price comparisons, or inventory insights.</div>
+                <div class="mb-2">
+                    <div class="ai-chat-status" id="ai-chat-status">
+                        {{ count($chatHistory) > 0 ? 'Last activity: ' . now()->format('g:i A') : '' }}
+                    </div>
                 </div>
 
-                <div class="ai-chat-footer">
-                    <div class="ai-chat-status" id="ai-chat-status">
-                        {{ count($chatHistory) > 0 ? 'Last activity: ' . now()->format('g:i A') : 'No messages yet' }}
+                <div class="ai-chat-input-bar">
+                    <div class="input-leading" aria-hidden="true">
+                        <!-- chat bubble SVG -->
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z" stroke="#374151" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
                     </div>
-                    <button type="submit" class="btn btn-primary" id="ai-chat-submit">Send question</button>
+                    <textarea id="prompt"
+                        name="prompt"
+                        class="ai-chat-input @error('prompt') is-invalid @enderror"
+                        placeholder="Ask anything"
+                        aria-label="Message"
+                        autocomplete="off"
+                        rows="1">{{ old('prompt') }}</textarea>
+                    <div class="tooltip-wrapper">
+                        <button type="submit" class="ai-send-btn" id="ai-chat-submit" aria-label="Send message" title="Send message">
+                            <!-- paper plane SVG -->
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path d="M22 2L11 13" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M22 2L15 22l-4-9-9-4 20-7z" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="#2563EB"/>
+                            </svg>
+                        </button>
+                        <div class="ai-tooltip" role="status">Enter to send • Shift+Enter for newline</div>
+                    </div>
                 </div>
 
                 <div id="ai-chat-error" class="ai-chat-error"></div>
@@ -389,6 +488,14 @@
         const errorBox = document.getElementById('ai-chat-error');
         const submitButton = document.getElementById('ai-chat-submit');
         const promptField = document.getElementById('prompt');
+
+        // Auto-resize textarea to fit content
+        const autoResize = (el) => {
+            if (!el) return;
+            el.style.height = 'auto';
+            const h = el.scrollHeight;
+            el.style.height = Math.min(h, 120) + 'px';
+        };
 
         const escapeHtml = (text) => {
             return text
@@ -412,6 +519,19 @@
             item.innerHTML = linkify(message);
             return item;
         };
+
+        // handle Enter to send (without Shift) and Shift+Enter for newline
+        if (promptField) {
+            // initial resize
+            autoResize(promptField);
+            promptField.addEventListener('input', () => autoResize(promptField));
+            promptField.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!submitButton.disabled) submitButton.click();
+                }
+            });
+        }
 
         const scrollToBottom = () => {
             if (!log) return;
@@ -472,6 +592,10 @@
                     log.appendChild(assistantMessage);
                     scrollToBottom();
                     promptField.value = '';
+                    if (promptField) {
+                        promptField.style.height = 'auto';
+                        promptField.focus();
+                    }
                     const now = new Date();
                     status.textContent = 'Last activity: ' + formatTime(now);
                     updated.textContent = 'Last updated: ' + formatTime(now);
