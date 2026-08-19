@@ -907,7 +907,7 @@ class TransformsAmazonAttributes
                 } elseif (preg_match('/alkaline/i', $raw)) {
                     $cell = 'alkaline';
                 }
-
+                $cell = str_replace('-','_', strtolower($cell));
                 $battery = [
                     'marketplace_id' => $marketplaceId,
                     'cell_composition' => [['value' => $cell]],
