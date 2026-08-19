@@ -31,6 +31,11 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
         display: block;
     }
 </style>
+<s-app-nav>
+    <s-link href="/app" rel="home">Home</s-link>
+    <s-link href="/app/templates">Templates</s-link>
+    <s-link href="/app/settings">Settings</s-link>
+</s-app-nav>
 
 <nav id="sidebar" class="sidebar">
     <div class="sidebar__logo">
