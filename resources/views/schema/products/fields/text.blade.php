@@ -163,6 +163,38 @@ $extramsg = 'Please use in format like 70% NTSC';
 }
 
 $idreq = !empty($field['required']) ? 'required' : '';
+
+dd([
+'field_name' => [
+'value' => $field['name'] ?? null,
+'type' => get_debug_type($field['name'] ?? null),
+],
+
+'field_description' => [
+'value' => $field['description'] ?? null,
+'type' => get_debug_type($field['description'] ?? null),
+],
+
+'field_hint' => [
+'value' => $fieldHint ?? null,
+'type' => get_debug_type($fieldHint ?? null),
+],
+
+'field_hint_title' => [
+'value' => $fieldHint['title'] ?? null,
+'type' => get_debug_type($fieldHint['title'] ?? null),
+],
+
+'field_hint_example' => [
+'value' => $fieldHint['example'] ?? null,
+'type' => get_debug_type($fieldHint['example'] ?? null),
+],
+
+'final_value' => [
+'value' => $value,
+'type' => get_debug_type($value),
+],
+]);
 @endphp
 
 <div class="mb-2">
