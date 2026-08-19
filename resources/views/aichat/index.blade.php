@@ -33,18 +33,48 @@
 
     .ai-chat-grid {
         display: grid;
-        grid-template-columns: 1fr 1.6fr;
+        grid-template-columns: 1fr;
         gap: 20px;
         align-items: start;
+        max-width: 980px;
+        margin: 0 auto;
     }
 
     .ai-chat-card,
     .ai-chat-form {
         background: #ffffff;
-        border: 1px solid #E6EDF8;
-        border-radius: 16px;
-        box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
-        padding: 22px;
+        border: 1px solid #E5E7EB;
+        border-radius: 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        padding: 12px 16px;
+    }
+
+    /* Make form sticky at viewport bottom for ChatGPT-like UX */
+    .ai-chat-form {
+        position: sticky;
+        bottom: 16px;
+        z-index: 40;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        padding: 12px 16px;
+        border-top: 1px solid #E5E7EB; /* subtle divider above input */
+        background: #fff;
+    }
+
+    .ai-chat-card {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ai-chat-log {
+        max-height: calc(75vh - 90px);
+        padding-bottom: 140px;
+    }
+
+    /* Helper label above input */
+    .ai-chat-helper {
+        font-size: 12px;
+        color: #6D7175;
+        margin-bottom: 8px;
     }
 
     .ai-chat-card-header,
@@ -263,41 +293,6 @@
     </div>
 
     <div class="ai-chat-grid">
-        <div class="saas-card" id="ai-chat-form-card">
-            <div class="saas-card-body ai-chat-form">
-                <div class="ai-chat-form-header">
-                    <h2>Ask the AI</h2>
-                </div>
-
-                <form id="ai-chat-form" method="POST" action="{{ route('shopify.ai.chat.ask', ['shop' => $currentShop]) }}">
-                @csrf
-
-                <div class="mb-3">
-                    <label for="prompt" class="form-label">Your question</label>
-                    <textarea id="prompt"
-                        name="prompt"
-                        class="form-control @error('prompt') is-invalid @enderror"
-                        placeholder="For example: Which product is selling the most? What is the Shopify and Amazon price of my best seller?"
-                        rows="6">{{ old('prompt') }}</textarea>
-                    @error('prompt')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                    <div class="form-text">You can ask about product performance, price comparisons, or inventory insights.</div>
-                </div>
-
-                <div class="ai-chat-footer">
-                    <div class="ai-chat-status" id="ai-chat-status">
-                        {{ count($chatHistory) > 0 ? 'Last activity: ' . now()->format('g:i A') : 'No messages yet' }}
-                    </div>
-                    <button type="submit" class="btn btn-primary" id="ai-chat-submit">Send question</button>
-                </div>
-
-                <div id="ai-chat-error" class="ai-chat-error"></div>
-            </form>
-                </form>
-            </div>
-        </div>
-
         <div class="saas-card" id="ai-chat-history-card">
             <div class="saas-card-body ai-chat-card">
                 <div class="ai-chat-card-header">
@@ -330,6 +325,41 @@
                         {!! $linkedMessage !!}
                     </div>
                 @endforeach
+            </div>
+        </div>
+
+        <div class="saas-card" id="ai-chat-form-card">
+            <div class="saas-card-body ai-chat-form">
+                <div class="ai-chat-form-header">
+                    <h2>Ask the AI</h2>
+                </div>
+
+                <form id="ai-chat-form" method="POST" action="{{ route('shopify.ai.chat.ask', ['shop' => $currentShop]) }}">
+                @csrf
+
+                <div class="mb-3">
+                    <div class="ai-chat-helper">You are chatting with AI — ask product, pricing, or inventory questions.</div>
+                    <label for="prompt" class="form-label">Your question</label>
+                    <textarea id="prompt"
+                        name="prompt"
+                        class="form-control @error('prompt') is-invalid @enderror"
+                        placeholder="For example: Which product is selling the most? What is the Shopify and Amazon price of my best seller?"
+                        rows="6">{{ old('prompt') }}</textarea>
+                    @error('prompt')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                    <div class="form-text">You can ask about product performance, price comparisons, or inventory insights.</div>
+                </div>
+
+                <div class="ai-chat-footer">
+                    <div class="ai-chat-status" id="ai-chat-status">
+                        {{ count($chatHistory) > 0 ? 'Last activity: ' . now()->format('g:i A') : 'No messages yet' }}
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="ai-chat-submit">Send question</button>
+                </div>
+
+                <div id="ai-chat-error" class="ai-chat-error"></div>
+            </form>
             </div>
         </div>
     </div>
