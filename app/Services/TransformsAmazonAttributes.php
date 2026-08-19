@@ -1105,6 +1105,14 @@ class TransformsAmazonAttributes
                 return $this->closure($value);
             }
 
+            if ($name === 'runtime') {
+                return $this->runtime($value, $marketplaceId);
+            }
+
+            if ($name === 'mpaa_rating') {
+                return $this->mpaaRating($value, $marketplaceId);
+            }
+
             return [['value' => $value]];
         } catch (\Exception $e) {
             return [['value' => $value]];
@@ -1178,6 +1186,36 @@ class TransformsAmazonAttributes
             'marketplace_id' => 'ATVPDKIKX0DER',
         ]];
     }
+
+    private function runtime($value, $marketplaceId = null): array
+    {
+        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
+
+        preg_match(
+            '/([\d.]+)\s*(hours?|minutes?|seconds?)/i',
+            trim((string) $value),
+            $matches
+        );
+
+        $number = (float) ($matches[1] ?? 0);
+
+        $unit = strtolower($matches[2] ?? 'hours');
+
+        $unit = match (rtrim($unit, 's')) {
+            'hour' => 'hours',
+            'minute' => 'minutes',
+            'second' => 'seconds',
+            default => 'hours',
+        };
+
+        return [[
+            'value' => $number,
+            'unit' => $unit,
+            'marketplace_id' => $marketplaceId,
+        ]];
+    }
+
+    
 
     private function parseTwoFieldsOnly(string $value, $marketplaceId): ?array
     {
