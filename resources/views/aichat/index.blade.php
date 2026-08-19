@@ -50,7 +50,7 @@
         bottom: 16px;
         z-index: 40;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-        padding: 12px 16px;
+        padding: 5px 5px;
         border-top: 1px solid #E5E7EB; /* subtle divider above input */
         background: #fff;
     }
@@ -630,7 +630,10 @@
                 })
                 .finally(() => {
                     submitButton.disabled = false;
-                    submitButton.textContent = 'Send question';
+                    submitButton.textContent = ' <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path d="M22 2L11 13" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M22 2L15 22l-4-9-9-4 20-7z" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="#2563EB"/>
+                            </svg> ';
                 });
         });
     });
