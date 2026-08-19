@@ -32,9 +32,9 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
     }
 </style>
 <s-app-nav>
-    <s-link href="/app" rel="home">Home</s-link>
-    <s-link href="/app/templates">Templates</s-link>
-    <s-link href="/app/settings">Settings</s-link>
+    <s-link href="{{ route('dashboard').($currentShop ? '?shop='.$currentShop : '') }}" rel="home">Dashboard</s-link>
+    <s-link href="{{ route('amazon.connect').($currentShop ? '?shop='.$currentShop : '') }}">Account Connected</s-link>
+    <s-link href="{{ route('shopify.inventory.index').($currentShop ? '?shop='.$currentShop : '') }}">Inventory</s-link>
 </s-app-nav>
 
 <nav id="sidebar" class="sidebar">
