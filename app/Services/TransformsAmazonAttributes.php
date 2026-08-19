@@ -1258,7 +1258,27 @@ class TransformsAmazonAttributes
         ]];
     }
 
-    
+    private function maximumHeight($value, $marketplaceId = null): array
+    {
+        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
+
+        return [[
+            'value' => (float) $value,
+            'unit' => 'inches',
+            'marketplace_id' => $marketplaceId,
+        ]];
+    }
+
+    private function minimumHeight($value, $marketplaceId = null): array
+    {
+        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
+
+        return [[
+            'value' => (float) $value,
+            'unit' => 'inches',
+            'marketplace_id' => $marketplaceId,
+        ]];
+    }
 
     private function runtime($value, $marketplaceId = null): array
     {
