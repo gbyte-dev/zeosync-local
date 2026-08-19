@@ -61,7 +61,7 @@
     }
 
     .ai-chat-log {
-        max-height: calc(75vh - 90px);
+        max-height: calc(65vh - 90px);
         padding-bottom: 40px;
     }
 

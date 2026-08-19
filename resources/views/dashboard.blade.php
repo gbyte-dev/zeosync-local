@@ -575,7 +575,7 @@
                                     <td class="fw-medium text-muted">#{{ $log->id }}</td>
                                     <td>
                                         <span class="saas-badge saas-badge-neutral text-capitalize">
-                                            {{ ucfirst($log->type ?? 'System') }}
+                                            {{ str_replace('_', ' ', ucfirst($log->type ?? 'System')) }}
                                         </span>
                                     </td>
                                     <td>
