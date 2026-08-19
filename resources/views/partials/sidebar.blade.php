@@ -35,6 +35,39 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
     <s-link href="{{ route('dashboard').($currentShop ? '?shop='.$currentShop : '') }}" rel="home">Dashboard</s-link>
     <s-link href="{{ route('amazon.connect').($currentShop ? '?shop='.$currentShop : '') }}">Account Connected</s-link>
     <s-link href="{{ route('shopify.inventory.index').($currentShop ? '?shop='.$currentShop : '') }}">Inventory</s-link>
+     <div class="sidebar__item">
+        <s-link class="sidebar__link {{ (request()->routeIs('shopify.products*')|| request()->routeIs('user.product*')) ? 'active' : '' }}"
+            data-bs-toggle="collapse"
+            href="#productsMenu"
+            role="button"
+            aria-expanded="{{ request()->routeIs('shopify.products*') ? 'true' : 'false' }}"
+            aria-controls="productsMenu">
+            <i class="bi bi-box-seam sidebar__icon"></i>
+            <span class="sidebar__text">Products</span>
+            <i class="bi bi-chevron-down sidebar__chevron"></i>
+        </s-link>
+
+        <div class="collapse {{ request()->routeIs('shopify.products*') || request()->routeIs('user.product*') ? 'show' : '' }}"
+            id="productsMenu">
+            <div class="sidebar__submenu">
+                <s-link href="{{ route('shopify.products').($currentShop ? '?shop='.$currentShop : '') }}"
+                    class="sidebar__sublink {{ request()->routeIs('shopify.products') ? 'active' : '' }}">
+                    <i class="bi bi-plus-circle sidebar__subicon"></i>
+                    <span class="sidebar__text">Shopify Products</span>
+                </s-link>
+                <s-link href="{{ route('user.product.showProducts').($currentShop ? '?shop='.$currentShop : '') }}"
+                    class="sidebar__sublink {{ request()->routeIs('user.product*') ? 'active' : '' }}">
+                    <i class="bi bi-eye sidebar__subicon"></i>
+                    <span class="sidebar__text">Amazon Products</span>
+                </s-link>
+            </div>
+        </div>
+    </div>
+    <s-link href="{{ route('shopify.logs').($currentShop ? '?shop='.$currentShop : '') }}">Sync History</s-link>
+    <s-link href="{{ route('user.notification').($currentShop ? '?shop='.$currentShop : '') }}">Notifications</s-link>
+    <s-link href="{{ route('settings.index').($currentShop ? '?shop='.$currentShop : '') }}">Settings</s-link>
+    <s-link href="{{ route('shopify.plans').($currentShop ? '?shop='.$currentShop : '') }}">Plans / Billing</s-link>
+    <s-link href="{{ route('shopify.support').($currentShop ? '?shop='.$currentShop : '') }}">Support</s-link>
 </s-app-nav>
 
 <nav id="sidebar" class="sidebar">
