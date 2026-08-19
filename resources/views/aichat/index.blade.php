@@ -459,7 +459,6 @@
         <div class="saas-card" id="ai-chat-form-card">
             <div class="saas-card-body ai-chat-form">
             
-
                 <form id="ai-chat-form" method="POST" action="{{ route('shopify.ai.chat.ask', ['shop' => $currentShop]) }}">
                 @csrf
 
