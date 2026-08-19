@@ -1145,6 +1145,10 @@ class TransformsAmazonAttributes
                 return $this->closure($value);
             }
 
+            if ($name === 'light_source') {
+                return $this->lightSource($value, $marketplaceId);
+            }
+
             if ($name === 'runtime') {
                 return $this->runtime($value, $marketplaceId);
             }
