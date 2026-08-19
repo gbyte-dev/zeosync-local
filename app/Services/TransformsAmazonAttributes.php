@@ -995,6 +995,14 @@ class TransformsAmazonAttributes
                     'value' => $num,
                 ]];
             }
+           
+            if ($name === 'non_lithium_battery_energy_content') {
+                return [[
+                    'marketplace_id' => $marketplaceId,
+                    'value' => (float) $value,
+                    'unit' => 'Watt Hours',
+                ]];
+            }
 
             if (in_array($name, ['subject', 'subject_code'])) {
                 return [['value' => $value, "type" => "bisac_description", "language_tag" => "en_US"]];
