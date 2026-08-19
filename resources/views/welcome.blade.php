@@ -125,7 +125,7 @@
             <h3 class="fw-bold mb-3">Quick Tutorial</h3>
             <p class="text-muted mb-4">Watch this short video to get started in minutes.</p>
             <div class="ratio ratio-16x9 mb-3">
-                <iframe src="https://www.youtube-nocookie.com/embed/Mhp-LZlHv8k?si=9oT33WJYoC1KBLpr" title="Zeosync tutorial" allowfullscreen></iframe>
+                <iframe src="https://www.youtube.com/embed/-QYseKCaQyc?si=hAVLDgmSd62uo6p6" title="Zeosync tutorial" allowfullscreen></iframe>
             </div>
 
             <p class="small text-muted">Prefer a guided walkthrough? Visit our <a href="{{route('contact')}}">Help Center</a>.</p>
