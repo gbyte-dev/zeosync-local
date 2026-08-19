@@ -159,7 +159,7 @@ $extramsg = 'Please use in format 39L x 17.5W x 3T Centimeters';
 }
 
 if ($field['name'] === 'display') {
-$extramsg = 'Please use in format like Full HD 1920 × 1080 IPS Anti-Glare';
+$extramsg = 'Please use in format like 15.6 inch FHD IPS 1920x1080 144Hz';
 }
 
 
