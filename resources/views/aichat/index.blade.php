@@ -427,7 +427,6 @@
                 <div class="ai-chat-card-header">
                     <div>
                         <h2>Conversation</h2>
-                        <p class="text-muted mb-0">Recent questions &amp; answers</p>
                     </div>
                     <span class="" id="ai-chat-updated">
                         {{ count($chatHistory) > 0 ? 'Last updated: ' . now()->format('g:i A') : '' }}
@@ -464,7 +463,7 @@
                 <form id="ai-chat-form" method="POST" action="{{ route('shopify.ai.chat.ask', ['shop' => $currentShop]) }}">
                 @csrf
 
-                <div class="mb-2">
+                <div class="mb-2" style="display:none;">
                     <div class="ai-chat-status" id="ai-chat-status">
                         {{ count($chatHistory) > 0 ? 'Last activity: ' . now()->format('g:i A') : '' }}
                     </div>
