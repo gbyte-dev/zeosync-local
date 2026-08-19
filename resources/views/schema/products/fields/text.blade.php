@@ -67,31 +67,6 @@ if (!is_string($value)) {
 $value = is_scalar($value) ? (string) $value : '';
 }
 
-if (
-is_array($field['name'] ?? null) ||
-is_array($field['description'] ?? null) ||
-is_array($value ?? null) ||
-is_array($extramsg ?? null) ||
-is_array($fieldHint ?? null)
-) {
-dd([
-'field_name' => $field['name'] ?? null,
-'field_name_type' => get_debug_type($field['name'] ?? null),
-
-'description' => $field['description'] ?? null,
-'description_type' => get_debug_type($field['description'] ?? null),
-
-'value' => $value,
-'value_type' => get_debug_type($value),
-
-'extramsg' => $extramsg,
-'extramsg_type' => get_debug_type($extramsg),
-'fieldHint_type' => get_debug_type($fieldHint ?? null),
-
-'full_field' => $field,
-]);
-}
-
 if ($field['name'] === 'item_package_dimensions') {
 $extramsg = 'Use format 39L x 17.5W x 3H Centimeters';
 }
