@@ -35,7 +35,7 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
     <s-link href="{{ route('dashboard').($currentShop ? '?shop='.$currentShop : '') }}" rel="home">Dashboard</s-link>
     <s-link href="{{ route('amazon.connect').($currentShop ? '?shop='.$currentShop : '') }}">Account Connected</s-link>
     <s-link href="{{ route('shopify.inventory.index').($currentShop ? '?shop='.$currentShop : '') }}">Inventory</s-link>
-    <s-link href="{{ $amazonOrdersUrl) }}">Amazon Orders</s-link>
+    <s-link href="{{ $amazonOrdersUrl }}">Amazon Orders</s-link>
     <s-link href="{{ route('shopify.logs').($currentShop ? '?shop='.$currentShop : '') }}">Sync History</s-link>
     <s-link href="{{ route('user.notification').($currentShop ? '?shop='.$currentShop : '') }}">Notifications</s-link>
     <s-link href="{{ route('settings.index').($currentShop ? '?shop='.$currentShop : '') }}">Settings</s-link>
