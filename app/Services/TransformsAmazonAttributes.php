@@ -1286,6 +1286,26 @@ class TransformsAmazonAttributes
                 return $this->meltingTemperature($value, $marketplaceId);
             }
 
+            if ($name === 'non_lithium_battery_energy_content') {
+                $input = trim($value);
+
+                preg_match( '/^\s*([0-9]+(?:\.[0-9]+)?)\s*(.*?)\s*$/i',
+                    $input, $matches  );
+
+                $energyValue = isset($matches[1])? (float) $matches[1] : 0;
+                $unit = strtolower(trim($matches[2] ?? ''));
+
+                $vunitMap = $this->voltageUnitMap();
+
+                $normalizedUnit = $vunitMap[$unit] ?? null;
+
+                return [[
+                    'value' => $energyValue,
+                    'unit' => $normalizedUnit ?? 'Watt Hours',
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
             return [['value' => $value]];
         } catch (\Exception $e) {
             return [['value' => $value]];
