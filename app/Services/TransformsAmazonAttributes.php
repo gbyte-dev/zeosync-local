@@ -715,14 +715,15 @@ class TransformsAmazonAttributes
 
                 $raw = trim((string) $value);
 
-                // detect manufacturer
-                $manufacturers = ['Intel', 'AMD', 'Apple', 'Qualcomm', 'Ryzen', 'MediaTek', 'Phenom', 'Samsung', 'Xeon', 'Turion'];
-                $manufacturer = '';
-                foreach ($manufacturers as $m) {
-                    if (stripos($raw, $m) !== false) {
-                        $manufacturer = $m;
-                        break;
-                    }
+                $manufacturers = $this->cpuManufacturers();
+
+                $manufacturerPattern = implode(  '|',
+                    array_map(   fn ($manufacturer) => preg_quote($manufacturer, '/'),
+                        $manufacturers  ) );
+
+                if (preg_match( '/^(' . $manufacturerPattern . ')\b/i',
+                    $raw, $manufacturerMatch )) {
+                    $manufacturer = $manufacturerMatch[1];
                 }
 
                 // extract model number (e.g. "i7-1165G7", "5800H", "M2")
@@ -2038,4 +2039,118 @@ class TransformsAmazonAttributes
             'item_depth_height',
         ];
     }
+
+    private function cpuManufacturers(): array
+    {
+        return [
+            // Major CPU manufacturers
+            'Intel',
+            'AMD',
+            'Apple',
+            'Qualcomm',
+            'MediaTek',
+            'Samsung',
+            'NVIDIA',
+            'ARM',
+            'Broadcom',
+            'Marvell',
+            'IBM',
+            'Motorola',
+            'VIA',
+            'Cyrix',
+            'Transmeta',
+            'Sun',
+            'Oracle',
+            'Fujitsu',
+            'Ampere',
+            'Phytium',
+            'Loongson',
+            'HiSilicon',
+            'Unisoc',
+            'Rockchip',
+            'Allwinner',
+            'Amlogic',
+            'Zhaoxin',
+            'Cavium',
+
+            // Intel CPU families / brands
+            'Core',
+            'Core 2',
+            'Pentium',
+            'Celeron',
+            'Xeon',
+            'Atom',
+            'Itanium',
+            'Quark',
+            'Itel',
+
+            // AMD CPU families / brands
+            'Ryzen',
+            'EPYC',
+            'Threadripper',
+            'Threadripper PRO',
+            'Athlon',
+            'Phenom',
+            'Sempron',
+            'FX',
+            'Opteron',
+            'Turion',
+            'Duron',
+            'A-Series',
+            'E-Series',
+            'Geode',
+            'FirePro',
+
+            // Apple
+            'M1',
+            'M2',
+            'M3',
+            'M4',
+            'A-series',
+
+            // Qualcomm
+            'Snapdragon',
+            'Kryo',
+            'Oryon',
+
+            // IBM / Power architecture
+            'PowerPC',
+            'Power',
+            'POWER',
+            'PowerPC G3',
+            'PowerPC G4',
+            'PowerPC G5',
+
+            // ARM families
+            'Cortex',
+            'Cortex-A',
+            'Cortex-R',
+            'Cortex-M',
+            'Neoverse',
+
+            // NVIDIA
+            'Tegra',
+
+            // MIPS
+            'MIPS',
+
+            // SPARC
+            'SPARC',
+
+            // RISC-V
+            'RISC-V',
+
+            // Other/common CPU names
+            'Snapdragon X',
+            'Pentium Gold',
+            'Pentium Silver',
+            'Intel Core Ultra',
+            'Core Ultra',
+            'Core i3',
+            'Core i5',
+            'Core i7',
+            'Core i9',
+        ];
+    }
+
 }
