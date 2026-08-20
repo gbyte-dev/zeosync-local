@@ -767,7 +767,6 @@ class TransformsAmazonAttributes
                 $map = [
                     'battery' => 'battery',
                     'cell' => 'cell',
-                    'battery' => 'contains_battery',
                     'contains_battery' => 'contains_battery',
                     'lithium_ion' => 'contains_lithium_ion_battery',
                     'lithium_metal' => 'contains_lithium_metal_battery',
