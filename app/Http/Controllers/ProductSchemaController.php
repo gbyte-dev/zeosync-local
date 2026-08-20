@@ -691,7 +691,7 @@ class ProductSchemaController extends Controller
             $notreq = [
                 'is_refurbished',
                 'packed_with_equipment',
-                'water_resistance_level',
+                // 'water_resistance_level',
                 'package_level'
             ];
             if (in_array($name, $notreq)) {
