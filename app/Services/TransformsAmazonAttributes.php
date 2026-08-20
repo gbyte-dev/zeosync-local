@@ -1162,6 +1162,10 @@ class TransformsAmazonAttributes
                 return $this->minimumHeight($value, $marketplaceId);
             }
 
+            if ($name === 'data_transfer_rate') {
+                return $this->dataTransferRate($value, $marketplaceId);
+            }
+
             if ($name === 'runtime') {
                 return $this->runtime($value, $marketplaceId);
             }
@@ -1279,6 +1283,8 @@ class TransformsAmazonAttributes
             'marketplace_id' => $marketplaceId,
         ]];
     }
+
+    
 
     private function runtime($value, $marketplaceId = null): array
     {
