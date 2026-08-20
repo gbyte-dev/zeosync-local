@@ -706,6 +706,19 @@ class ProductSchemaController extends Controller
                 default => $name,
             };
 
+            if (in_array($canonicalName, ['seat_depth', 'seat_width', 'seat_height'], true)) {
+                $seatPart = $transformer->transformAttribute($canonicalName, $value);
+
+                if ($seatPart !== null) {
+                    $attributes['seat'][0] = array_merge(
+                        $attributes['seat'][0] ?? [],
+                        $seatPart
+                    );
+                }
+
+                continue;
+            }
+
 
             $transformed = $transformer->transformAttribute($canonicalName, $value);
             if ($transformed === null) {
