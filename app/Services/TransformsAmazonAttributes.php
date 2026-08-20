@@ -315,13 +315,23 @@ class TransformsAmazonAttributes
             // ── seat_* — nested depth array, wide unit enum ─────────────────────
             if (in_array($name, ['seat_depth', 'seat_width', 'seat_height'])) {
                 [$val, $unit] = $this->parseUnitValue($value, $unitMap);
+
                 if ($unit === null) {
                     return null;
                 }
-                return [[
-                    'depth' => [['value' => $val, 'unit' => $unit]],
-                    'marketplace_id' => $marketplaceId,
-                ]];
+
+                $field = match ($name) {
+                    'seat_depth'  => 'depth',
+                    'seat_width'  => 'width',
+                    'seat_height' => 'height',
+                };
+
+                return [
+                    $field => [[
+                        'value' => $val,
+                        'unit' => $unit,
+                    ]],
+                ];
             }
 
             // ── Flat { value, unit, marketplace_id } dimension attributes ──────
