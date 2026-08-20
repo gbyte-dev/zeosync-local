@@ -754,6 +754,8 @@ class TransformsAmazonAttributes
 
             if ($name === 'contains_battery_or_cell') {
                 $map = [
+                    'battery' => 'battery',
+                    'cell' => 'cell',
                     'battery' => 'contains_battery',
                     'contains_battery' => 'contains_battery',
                     'lithium_ion' => 'contains_lithium_ion_battery',
