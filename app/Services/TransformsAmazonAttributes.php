@@ -313,7 +313,7 @@ class TransformsAmazonAttributes
             }
 
             // ── seat_* — nested depth array, wide unit enum ─────────────────────
-            if (in_array($name, ['seat_depth', 'seat_width', 'seat_height'])) {
+            if (in_array($name, ['seat_depth', 'seat_width', 'seat_height' , 'seat'])) {
                 [$val, $unit] = $this->parseUnitValue($value, $unitMap);
                 if ($unit === null) {
                     return null;
