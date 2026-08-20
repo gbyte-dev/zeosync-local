@@ -684,8 +684,22 @@ class TransformsAmazonAttributes
             }
 
             if ($name === 'contains_battery_or_cell') {
-                $map = ['battery' => 'contains_battery', 'contains_battery' => 'contains_battery', 'lithium_ion' => 'contains_lithium_ion_battery', 'lithium_metal' => 'contains_lithium_metal_battery', 'no' => 'does_not_contain_a_battery', 'false' => 'does_not_contain_a_battery', 'does_not_contain_battery' => 'does_not_contain_a_battery', 'none' => 'does_not_contain_a_battery'];
-                return [['value' => $map[strtolower($value)] ?? 'contains_battery']];
+                $value = strtolower(trim((string) $value));
+
+                $value = match ($value) {
+                    'battery',
+                    'batteries' => 'battery',
+
+                    'cell',
+                    'cells' => 'cell',
+
+                    default => 'battery',
+                };
+
+                return [[
+                    'value' => $value,
+                    'marketplace_id' => $marketplaceId,
+                ]];
             }
 
             if ($name === 'sleeve') {
