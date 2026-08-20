@@ -338,6 +338,46 @@ class TransformsAmazonAttributes
                 return $this->parseGenericDimensions($value, $unitMap);
             }
 
+            if ($name === 'seat') {
+                $raw = trim((string) $value);
+
+                preg_match(
+                    '/back(?:_|\s+)?interior(?:_|\s+)?height\s*[:=]?\s*([\d.]+)\s*([a-zA-Z]+)?/i',
+                    $raw,
+                    $back
+                );
+
+                preg_match(
+                    '/depth\s*[:=]?\s*([\d.]+)\s*([a-zA-Z]+)?/i',
+                    $raw,
+                    $depth
+                );
+
+                $seat = [
+                    'marketplace_id' => $marketplaceId,
+                ];
+
+                if (!empty($back)) {
+                    $backUnit = $unitMap[strtolower(trim($back[2] ?? 'inches'))] ?? 'inches';
+
+                    $seat['back_interior_height'] = [[
+                        'value' => (float) $back[1],
+                        'unit' => $backUnit,
+                    ]];
+                }
+
+                if (!empty($depth)) {
+                    $depthUnit = $unitMap[strtolower(trim($depth[2] ?? 'inches'))] ?? 'inches';
+
+                    $seat['depth'] = [[
+                        'value' => (float) $depth[1],
+                        'unit' => $depthUnit,
+                    ]];
+                }
+
+                return [$seat];
+            }
+
 
 
             // ── Frame ────────────────────────────────────────────────────────────
@@ -1231,9 +1271,6 @@ class TransformsAmazonAttributes
                 return $this->waterResistanceLevel($value, $marketplaceId);
             }
 
-            if ($name === 'seat') {
-                return $this->seat($value, $marketplaceId);
-            }
 
             if ($name === 'tank_volume') {
                 return $this->tankVolume($value, $marketplaceId);
@@ -1521,40 +1558,6 @@ class TransformsAmazonAttributes
         ]];
     }
 
-    private function seat($value, $marketplaceId = null): array
-    {
-        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
-
-        $raw = trim((string) $value);
-
-        $seat = [
-            'marketplace_id' => $marketplaceId,
-        ];
-
-        if (preg_match(
-            '/back(?:\s+interior)?\s+height\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*(?:inches?|")?/i',
-            $raw,
-            $m
-        )) {
-            $seat['back_interior_height'] = [[
-                'value' => (float) $m[1],
-                'unit' => 'inches',
-            ]];
-        }
-
-        if (preg_match(
-            '/depth\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*(?:inches?|")?/i',
-            $raw,
-            $m
-        )) {
-            $seat['depth'] = [[
-                'value' => (float) $m[1],
-                'unit' => 'inches',
-            ]];
-        }
-
-        return [$seat];
-    }
 
     private function tankVolume($value, $marketplaceId = null): array
     {
