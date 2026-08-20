@@ -62,6 +62,7 @@ class AmazonFieldHint
 
         // ── Other Formatted Fields ───────────────────────────────────
         'country_of_origin'                  => 'US, CN, or IN',
+        'battery'                  => 'lithium_ion or lithium_metal',
         'contains_battery_or_cell'           => [self::TITLE_VALUE, 'contains_battery or no'],
         'water_resistance_level'             => [self::TITLE_VALUE, 'waterproof or ipx8'],
         'supplier_declared_dg_hz_regulation' => [self::TITLE_VALUE, 'not_applicable or un3480'],

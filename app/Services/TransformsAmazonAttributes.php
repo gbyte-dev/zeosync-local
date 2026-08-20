@@ -902,7 +902,6 @@ class TransformsAmazonAttributes
                 $map = ['new_new' => 'new_new', 'new' => 'new_new', 'used_good' => 'used_good', 'used_very_good' => 'used_very_good', 'used_acceptable' => 'used_acceptable', 'collectible_good' => 'collectible_good'];
                 return [['value' => $map[strtolower($value)] ?? 'new_new']];
             }
-
             if ($name === 'battery') {
                 $raw = trim((string) $value);
 
@@ -910,24 +909,35 @@ class TransformsAmazonAttributes
                     'marketplace_id' => $marketplaceId,
                 ];
 
-                // Cell composition
-                foreach (
-                    [
-                        'Lithium-Ion' => 'lithium_ion',
-                        'Lithium-Metal' => 'lithium_metal',
-                        'Lithium-Polymer' => 'lithium_polymer',
-                        'Alkaline' => 'alkaline',
-                        'NiMH' => 'NiMh',
-                        'NiCad' => 'NiCAD',
-                    ] as $label => $cell
-                ) {
-                    if (stripos($raw, $label) !== false) {
-                        $battery['cell_composition'] = [['value' => $cell]];
-                        break;
-                    }
+                $composition = match (true) {
+                    stripos($raw, 'lithium-ion') !== false,
+                    stripos($raw, 'lithium ion') !== false => 'lithium_ion',
+
+                    stripos($raw, 'lithium-metal') !== false,
+                    stripos($raw, 'lithium metal') !== false => 'lithium_metal',
+
+                    stripos($raw, 'lithium-polymer') !== false,
+                    stripos($raw, 'lithium polymer') !== false => 'lithium_polymer',
+
+                    stripos($raw, 'alkaline') !== false => 'alkaline',
+
+                    stripos($raw, 'nimh') !== false,
+                    stripos($raw, 'ni-mh') !== false => 'NiMh',
+
+                    stripos($raw, 'nicad') !== false,
+                    stripos($raw, 'ni-cad') !== false => 'NiCAD',
+
+                    default => null,
+                };
+
+                if ($composition !== null) {
+                    $battery['cell_composition'] = [
+                        [
+                            'value' => $composition,
+                        ],
+                    ];
                 }
 
-                // Battery weight
                 if (preg_match('/(\d+(?:\.\d+)?)\s*(g|grams?|kg)/i', $raw, $m)) {
                     $battery['battery_weight'] = [[
                         'value' => (float) $m[1],
@@ -935,7 +945,6 @@ class TransformsAmazonAttributes
                     ]];
                 }
 
-                // Battery capacity / energy
                 if (preg_match('/(\d+(?:\.\d+)?)\s*(mAh|Ah|Wh|kWh)/i', $raw, $m)) {
                     $unit = strtolower($m[2]);
 
@@ -943,8 +952,8 @@ class TransformsAmazonAttributes
                         'value' => (float) $m[1],
                         'unit' => match ($unit) {
                             'mah' => 'Milliampere Hour (mAh)',
-                            'ah'  => 'Ampere Hours',
-                            'wh'  => 'Watt Hours',
+                            'ah' => 'Ampere Hours',
+                            'wh' => 'Watt Hours',
                             'kwh' => 'Kilowatt Hours',
                         },
                     ]];
@@ -1192,6 +1201,10 @@ class TransformsAmazonAttributes
                 return $this->runtime($value, $marketplaceId);
             }
 
+            if ($name === 'tank_volume') {
+                return $this->tankVolume($value, $marketplaceId);
+            }
+
             if ($name === 'mpaa_rating') {
                 return $this->mpaaRating($value, $marketplaceId);
             }
@@ -1435,6 +1448,77 @@ class TransformsAmazonAttributes
             'minute' => 'minutes',
             'second' => 'seconds',
             default => 'hours',
+        };
+
+        return [[
+            'value' => $number,
+            'unit' => $unit,
+            'marketplace_id' => $marketplaceId,
+        ]];
+    }
+
+    private function tankVolume($value, $marketplaceId = null): array
+    {
+        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
+
+        $value = trim((string) $value);
+
+        preg_match(
+            '/^\s*([\d.]+)\s*(ml|milliliters?|l|liters?|cl|centiliters?|dl|deciliters?|gal|gallons?|imperial\s*gallons?|fl\s*oz|fluid\s*ounces?|pints?|quarts?)\s*$/i',
+            $value,
+            $matches
+        );
+
+        $number = (float) ($matches[1] ?? 0);
+        $rawUnit = strtolower(trim($matches[2] ?? ''));
+
+        $unit = match (true) {
+            in_array($rawUnit, [
+                'ml',
+                'milliliter',
+                'milliliters',
+            ]) => 'milliliters',
+
+            in_array($rawUnit, [
+                'l',
+                'liter',
+                'liters',
+            ]) => 'liters',
+
+            in_array($rawUnit, [
+                'cl',
+                'centiliter',
+                'centiliters',
+            ]) => 'centiliters',
+
+            in_array($rawUnit, [
+                'dl',
+                'deciliter',
+                'deciliters',
+            ]) => 'deciliters',
+
+            in_array($rawUnit, [
+                'gal',
+                'gallon',
+                'gallons',
+            ]) => 'gallons',
+
+            in_array($rawUnit, [
+                'imperial gallons',
+                'imperial gallon',
+            ]) => 'imperial_gallons',
+
+            in_array($rawUnit, [
+                'fl oz',
+                'fluid ounce',
+                'fluid ounces',
+            ]) => 'fluid_ounces',
+
+            str_starts_with($rawUnit, 'pint') => 'pints',
+
+            str_starts_with($rawUnit, 'quart') => 'quarts',
+
+            default => 'liters',
         };
 
         return [[
