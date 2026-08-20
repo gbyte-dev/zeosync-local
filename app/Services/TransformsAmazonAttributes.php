@@ -1007,7 +1007,7 @@ class TransformsAmazonAttributes
                 }
 
                 if (preg_match('/(\d+(?:\.\d+)?)\s*(g|grams?|kg)/i', $raw, $m)) {
-                    $battery['battery_weight'] = [[
+                    $battery['weight'] = [[
                         'value' => (float) $m[1],
                         'unit' => strtolower($m[2]) === 'kg' ? 'kg' : 'grams',
                     ]];
