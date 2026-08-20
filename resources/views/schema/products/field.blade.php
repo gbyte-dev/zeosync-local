@@ -99,15 +99,6 @@ $field['type'] = 'textarea';
 }
 
 $fieldHint = \App\Support\AmazonFieldHint::get($field['name']);
-if (
-$field['name'] === 'unit_count' &&
-($categoryId ?? null) == 251
-) {
-$fieldHint = [
-'title' => 'Important',
-'example' => 'For this category, use Ounce instead of Count.',
-];
-}
 $isImageField = \Illuminate\Support\Str::contains($field['name'], 'image_locator');
 $showAiButton = $canUseAiSingleField
 && in_array($field['type'], ['text', 'textarea'])

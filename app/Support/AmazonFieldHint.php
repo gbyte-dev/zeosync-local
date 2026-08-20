@@ -58,7 +58,7 @@ class AmazonFieldHint
         'capacity'      => '500 ml',
         'liquid_volume' => '500 ml',
         'fc_shelf_life' => '365 days',
-        'unit_count'    => '50 Count (or 12 Fl Oz)',
+        'unit_count'    => '50 Count or (12 Fl Oz) or (1 ounces)',
 
         // ── Other Formatted Fields ───────────────────────────────────
         'country_of_origin'                  => 'US, CN, or IN',
