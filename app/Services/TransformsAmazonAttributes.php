@@ -777,7 +777,7 @@ class TransformsAmazonAttributes
                     'none' => 'does_not_contain_a_battery'
                 ];
 
-                return [['value' => $map[strtolower($value)] ?? 'contains_battery']];
+                return [['value' => $map[strtolower($value)] ?? 'battery']];
             }
 
             if ($name === 'sleeve') {
