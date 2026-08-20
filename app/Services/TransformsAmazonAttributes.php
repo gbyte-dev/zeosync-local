@@ -684,7 +684,17 @@ class TransformsAmazonAttributes
             }
 
             if ($name === 'contains_battery_or_cell') {
-                $map = ['battery' => 'contains_battery', 'contains_battery' => 'contains_battery', 'lithium_ion' => 'contains_lithium_ion_battery', 'lithium_metal' => 'contains_lithium_metal_battery', 'no' => 'does_not_contain_a_battery', 'false' => 'does_not_contain_a_battery', 'does_not_contain_battery' => 'does_not_contain_a_battery', 'none' => 'does_not_contain_a_battery'];
+                $map = [
+                    'battery' => 'contains_battery',
+                    'contains_battery' => 'contains_battery',
+                    'lithium_ion' => 'contains_lithium_ion_battery',
+                    'lithium_metal' => 'contains_lithium_metal_battery',
+                    'no' => 'does_not_contain_a_battery',
+                    'false' => 'does_not_contain_a_battery',
+                    'does_not_contain_battery' => 'does_not_contain_a_battery',
+                    'none' => 'does_not_contain_a_battery'
+                ];
+
                 return [['value' => $map[strtolower($value)] ?? 'contains_battery']];
             }
 
@@ -909,33 +919,20 @@ class TransformsAmazonAttributes
                     'marketplace_id' => $marketplaceId,
                 ];
 
-                $composition = match (true) {
-                    stripos($raw, 'lithium-ion') !== false,
-                    stripos($raw, 'lithium ion') !== false => 'lithium_ion',
-
-                    stripos($raw, 'lithium-metal') !== false,
-                    stripos($raw, 'lithium metal') !== false => 'lithium_metal',
-
-                    stripos($raw, 'lithium-polymer') !== false,
-                    stripos($raw, 'lithium polymer') !== false => 'lithium_polymer',
-
-                    stripos($raw, 'alkaline') !== false => 'alkaline',
-
-                    stripos($raw, 'nimh') !== false,
-                    stripos($raw, 'ni-mh') !== false => 'NiMh',
-
-                    stripos($raw, 'nicad') !== false,
-                    stripos($raw, 'ni-cad') !== false => 'NiCAD',
-
-                    default => null,
-                };
-
-                if ($composition !== null) {
-                    $battery['cell_composition'] = [
-                        [
-                            'value' => $composition,
-                        ],
-                    ];
+                foreach (
+                    [
+                        'Lithium-Ion' => 'lithium_ion',
+                        'Lithium-Metal' => 'lithium_metal',
+                        'Lithium-Polymer' => 'lithium_polymer',
+                        'Alkaline' => 'alkaline',
+                        'NiMH' => 'NiMh',
+                        'NiCad' => 'NiCAD',
+                    ] as $label => $cell
+                ) {
+                    if (stripos($raw, $label) !== false) {
+                        $battery['cell_composition'] = [['value' => $cell]];
+                        break;
+                    }
                 }
 
                 if (preg_match('/(\d+(?:\.\d+)?)\s*(g|grams?|kg)/i', $raw, $m)) {
@@ -952,8 +949,8 @@ class TransformsAmazonAttributes
                         'value' => (float) $m[1],
                         'unit' => match ($unit) {
                             'mah' => 'Milliampere Hour (mAh)',
-                            'ah' => 'Ampere Hours',
-                            'wh' => 'Watt Hours',
+                            'ah'  => 'Ampere Hours',
+                            'wh'  => 'Watt Hours',
                             'kwh' => 'Kilowatt Hours',
                         },
                     ]];
