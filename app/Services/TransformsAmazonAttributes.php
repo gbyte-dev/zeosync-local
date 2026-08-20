@@ -271,6 +271,41 @@ class TransformsAmazonAttributes
                 ]];
             }
 
+            if ($name === 'item_length_width_depth') {
+                $valueString = trim((string) $value);
+                $valueString = str_replace(['×', '*'], 'x', $valueString);
+
+                // Supports:
+                // 78.7L x 47.2W x 7.5D inches
+                // 78.7 x 47.2 x 7.5 inches
+                if (!preg_match(
+                    '/^\s*([\d.]+)\s*[Ll]?\s*x\s*([\d.]+)\s*[Ww]?\s*x\s*([\d.]+)\s*[Dd]?\s*(.*?)\s*$/i',
+                    $valueString,
+                    $m
+                )) {
+                    return null;
+                }
+
+                // Schema for this field accepts inches only.
+                $unit = 'inches';
+
+                return [[
+                    'length' => [
+                        'value' => (float) $m[1],
+                        'unit' => $unit,
+                    ],
+                    'width' => [
+                        'value' => (float) $m[2],
+                        'unit' => $unit,
+                    ],
+                    'depth' => [
+                        'value' => (float) $m[3],
+                        'unit' => $unit,
+                    ],
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
             // ── L x W  or W*H  or any comination of 2 abeled dimensions ("39L x 17.5W  Centimeters") " ──
 
             if (in_array($name, $this->getTwoFieldDimensionNames(), true)) {
@@ -525,12 +560,6 @@ class TransformsAmazonAttributes
                 $normalized = strtolower(trim((string) $value));
                 $mapped = $this->countryMap()[$normalized] ?? null;
                 return [['value' => $mapped ?? 'US']];
-            }
-
-            if ($name === 'water_resistance_level') {
-                $valid = ['water_resistant', 'waterproof', 'ipx4', 'ipx5', 'ipx6', 'ipx7', 'ipx8', 'ip67', 'ip68', 'not_water_resistant'];
-                $normalized = ['waterproof' => 'ipx8', 'water proof' => 'ipx8'][$value] ?? $value;
-                return in_array($normalized, $valid) ? [['value' => $normalized]] : null;
             }
 
             if ($name === 'display') {
@@ -1198,6 +1227,10 @@ class TransformsAmazonAttributes
                 return $this->runtime($value, $marketplaceId);
             }
 
+            if ($name === 'water_resistance_level') {
+                return $this->waterResistanceLevel($value, $marketplaceId);
+            }
+
             if ($name === 'tank_volume') {
                 return $this->tankVolume($value, $marketplaceId);
             }
@@ -1450,6 +1483,36 @@ class TransformsAmazonAttributes
         return [[
             'value' => $number,
             'unit' => $unit,
+            'marketplace_id' => $marketplaceId,
+        ]];
+    }
+
+    private function waterResistanceLevel($value, $marketplaceId = null): array
+    {
+        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
+
+        $value = strtolower(trim((string) $value));
+
+        $mapped = match ($value) {
+            'moisture resistant',
+            'moisture_resistant' => 'moisture_resistant',
+
+            'not water resistant',
+            'not_water_resistant' => 'not_water_resistant',
+
+            'water repellent',
+            'water_repellent' => 'water_repellent',
+
+            'water resistant',
+            'water_resistant' => 'water_resistant',
+
+            'waterproof' => 'waterproof',
+
+            default => 'water_resistant',
+        };
+
+        return [[
+            'value' => $mapped,
             'marketplace_id' => $marketplaceId,
         ]];
     }
