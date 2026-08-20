@@ -689,7 +689,6 @@ class ProductSchemaController extends Controller
                 continue;
             }
             $notreq = [
-                'contains_battery_or_cell',
                 'is_refurbished',
                 'packed_with_equipment',
                 'water_resistance_level',
