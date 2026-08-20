@@ -1331,34 +1331,22 @@ class TransformsAmazonAttributes
     {
         $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
 
+        $value = trim((string) $value);
+
         preg_match(
-            '/([\d.]+)\s*(centiliters?|cubic[_ ]?centimeters?|cubic[_ ]?feet|cubic[_ ]?inches?|cubic[_ ]?meters?|cubic[_ ]?yards?|cups?|deciliters?|fluid[_ ]?ounces?|gallons?|imperial[_ ]?gallons?|kilograms?|liters?|microliters?|milliliters?|nanoliters?|picoliters?|pints?|quarts?)/i',
-            trim((string) $value),
+            '/^\s*([\d.]+)\s*(ml|milliliters?|millilitres?|l|liters?|litres?|cl|centiliters?|dl|deciliters?)\s*$/i',
+            $value,
             $matches
         );
 
         $number = (float) ($matches[1] ?? 0);
-        $rawUnit = strtolower(trim($matches[2] ?? 'liters'));
+        $rawUnit = strtolower($matches[2] ?? '');
 
         $unit = match (true) {
-            str_contains($rawUnit, 'centiliter') => 'centiliters',
-            str_contains($rawUnit, 'cubic centimeter') || str_contains($rawUnit, 'cubic_centimeter') => 'cubic_centimeters',
-            str_contains($rawUnit, 'cubic feet') => 'cubic_feet',
-            str_contains($rawUnit, 'cubic inch') => 'cubic_inches',
-            str_contains($rawUnit, 'cubic meter') => 'cubic_meters',
-            str_contains($rawUnit, 'cubic yard') => 'cubic_yards',
-            str_contains($rawUnit, 'cup') => 'cups',
-            str_contains($rawUnit, 'deciliter') => 'deciliters',
-            str_contains($rawUnit, 'fluid ounce') || str_contains($rawUnit, 'fluid_ounce') => 'fluid_ounces',
-            str_contains($rawUnit, 'imperial gallon') => 'imperial_gallons',
-            str_contains($rawUnit, 'gallon') => 'gallons',
-            str_contains($rawUnit, 'kilogram') => 'kilograms',
-            str_contains($rawUnit, 'microliter') => 'microliters',
-            str_contains($rawUnit, 'milliliter') => 'milliliters',
-            str_contains($rawUnit, 'nanoliter') => 'nanoliters',
-            str_contains($rawUnit, 'picoliter') => 'picoliters',
-            str_contains($rawUnit, 'pint') => 'pints',
-            str_contains($rawUnit, 'quart') => 'quarts',
+            in_array($rawUnit, ['ml', 'milliliter', 'milliliters', 'millilitre', 'millilitres']) => 'milliliters',
+            in_array($rawUnit, ['l', 'liter', 'liters', 'litre', 'litres']) => 'liters',
+            in_array($rawUnit, ['cl', 'centiliter', 'centiliters']) => 'centiliters',
+            in_array($rawUnit, ['dl', 'deciliter', 'deciliters']) => 'deciliters',
             default => 'liters',
         };
 
