@@ -925,15 +925,21 @@ class TransformsAmazonAttributes
 
                 $composition = match (true) {
                     stripos($raw, 'lithium-ion') !== false,
-                    stripos($raw, 'lithium ion') !== false => 'lithium_ion',
+                    stripos($raw, 'lithium ion') !== false,
+                    stripos($raw, 'lithium_ion') !== false => 'lithium_ion',
 
                     stripos($raw, 'lithium-metal') !== false,
-                    stripos($raw, 'lithium metal') !== false => 'lithium_metal',
+                    stripos($raw, 'lithium metal') !== false,
+                    stripos($raw, 'lithium_metal') !== false => 'lithium_metal',
 
                     stripos($raw, 'lithium-polymer') !== false,
-                    stripos($raw, 'lithium polymer') !== false => 'lithium_polymer',
+                    stripos($raw, 'lithium polymer') !== false,
+                    stripos($raw, 'lithium_polymer') !== false => 'lithium_polymer',
 
                     stripos($raw, 'alkaline') !== false => 'alkaline',
+
+                    stripos($raw, 'lead acid') !== false,
+                    stripos($raw, 'lead_acid') !== false => 'lead_acid',
 
                     stripos($raw, 'nimh') !== false,
                     stripos($raw, 'ni-mh') !== false => 'NiMh',
@@ -941,15 +947,26 @@ class TransformsAmazonAttributes
                     stripos($raw, 'nicad') !== false,
                     stripos($raw, 'ni-cad') !== false => 'NiCAD',
 
-                    default => null,
+                    stripos($raw, 'sodium ion') !== false,
+                    stripos($raw, 'sodium_ion') !== false => 'sodium_ion',
+
+                    stripos($raw, 'wet alkali') !== false,
+                    stripos($raw, 'wet_alkali') !== false => 'wet_alkali',
+
+                    default => 'other_than_listed',
                 };
 
-                if ($composition !== null) {
-                    $battery['cell_composition'] = [
-                        [
-                            'value' => $composition,
-                        ],
-                    ];
+                $battery['cell_composition'] = [
+                    [
+                        'value' => $composition,
+                    ],
+                ];
+
+                if ($composition === 'other_than_listed') {
+                    $battery['cell_composition_other_than_listed'] = [[
+                        'value' => $raw !== '' ? $raw : 'Other',
+                        'language_tag' => 'en_US',
+                    ]];
                 }
 
                 if (preg_match('/(\d+(?:\.\d+)?)\s*(g|grams?|kg)/i', $raw, $m)) {
