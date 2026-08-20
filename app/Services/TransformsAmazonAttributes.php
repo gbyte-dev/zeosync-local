@@ -1182,6 +1182,10 @@ class TransformsAmazonAttributes
                 return $this->mpaaRating($value, $marketplaceId);
             }
 
+            if ($name === 'melting_temperature') {
+                return $this->meltingTemperature($value, $marketplaceId);
+            }
+
             return [['value' => $value]];
         } catch (\Exception $e) {
             return [['value' => $value]];
@@ -1353,6 +1357,34 @@ class TransformsAmazonAttributes
         return [[
             'value' => $number,
             'unit' => $unit,
+            'marketplace_id' => $marketplaceId,
+        ]];
+    }
+
+    private function meltingTemperature($value, $marketplaceId = null): array
+    {
+        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
+
+        $value = trim((string) $value);
+
+        preg_match(
+            '/(-?[\d.]+)\s*°?\s*(c|celsius|f|fahrenheit|k|kelvin)?/i',
+            $value,
+            $matches
+        );
+
+        $number = (float) ($matches[1] ?? 0);
+        $inputUnit = strtolower($matches[2] ?? 'celsius');
+
+        if (in_array($inputUnit, ['f', 'fahrenheit'])) {
+            $number = ($number - 32) * 5 / 9;
+        } elseif (in_array($inputUnit, ['k', 'kelvin'])) {
+            $number = $number - 273.15;
+        }
+
+        return [[
+            'value' => round($number, 2),
+            'unit' => 'degrees_celsius',
             'marketplace_id' => $marketplaceId,
         ]];
     }
