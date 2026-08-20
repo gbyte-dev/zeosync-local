@@ -70,7 +70,8 @@ class TransformsAmazonAttributes
                     'floz',
                     'fluid oz',
                     'fluid ounce',
-                    'fluid ounces' => 'Fl Oz',
+                    'fluid ounces',
+                    'fluid_ounces' => 'Fl Oz',
 
                     'oz',
                     'ounce',
