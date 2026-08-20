@@ -60,27 +60,40 @@ class TransformsAmazonAttributes
             }
 
             if ($name === 'unit_count') {
-                preg_match('/([\d.]+)\s*(.*)/i', trim($value), $m);
+                preg_match('/([\d.]+)\s*(.*)/i', trim((string) $value), $m);
+
+                $number = (float) ($m[1] ?? $value);
+                $rawUnit = strtolower(trim($m[2] ?? ''));
+
+                $type = match ($rawUnit) {
+                    'fl oz',
+                    'floz',
+                    'fluid oz',
+                    'fluid ounce',
+                    'fluid ounces' => 'Fl Oz',
+
+                    'oz',
+                    'ounce',
+                    'ounces' => 'Ounce',
+
+                    'count',
+                    'unit',
+                    'each',
+                    'piece',
+                    'pieces',
+                    'pc',
+                    'pcs' => 'Count',
+
+                    default => 'Count',
+                };
 
                 return [[
-                    'value' => (int)($m[1] ?? $value),
+                    'value' => $number,
                     'type' => [
-                        'value' => [
-                            'count' => 'Count',
-                            'unit' => 'Count',
-                            'each' => 'Count',
-                            'piece' => 'Count',
-                            'pieces' => 'Count',
-                            'pc' => 'Count',
-                            'pcs' => 'Count',
-                            'fl oz' => 'Fl Oz',
-                            'floz' => 'Fl Oz',
-                            'oz' => 'Ounce',
-                            'ounce' => 'Ounce',
-                            'ounces' => 'Ounce'
-                        ][strtolower(trim($m[2] ?? ''))] ?? 'Count',
-                        'language_tag' => 'en_US'
-                    ]
+                        'value' => $type,
+                        'language_tag' => 'en_US',
+                    ],
+                    'marketplace_id' => $marketplaceId,
                 ]];
             }
 
