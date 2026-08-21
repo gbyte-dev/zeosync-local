@@ -774,7 +774,7 @@ class TransformsAmazonAttributes
                         ],
                     ],
                 ]];
-            }
+            } 
 
             if ($name === 'supplier_declared_dg_hz_regulation') {
                 $valid = ['not_applicable', 'un3480', 'un3481', 'un3090', 'un3091', 'iata_section_ii', 'iata_section_ib'];

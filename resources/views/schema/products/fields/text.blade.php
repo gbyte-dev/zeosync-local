@@ -147,7 +147,7 @@ $extramsg = 'Please use in format like 1TB HDD or 512GB SSD';
 }
 
 if ($field['name'] === 'cpu_model') {
-$extramsg = 'Please use in format like Intel Core i7 1165G7 or AMD Ryzen 5 5600X';
+$extramsg = 'Please use in format like `Intel Core i7 1165G7 , 3.2GHz` or `AMD Ryzen 5 5600X , 3.2 GHz` (comma separated )';
 }
 
 if ($field['name'] === 'battery') {
