@@ -97,43 +97,65 @@ class AIPromptBuilderService
         ?string $productDescription,
         string $category
     ): array {
-
         $systemPrompt = <<<'PROMPT'
-You are an Amazon Listing Expert with 15+ years of experience.
+Amazon listing autofill engine.
 
-Generate a complete Amazon product profile using the provided Product Name, Product Description and Product Category.
+Return ONLY valid JSON.
+
+Generate values for ALL of these fields:
+title_differentiation
+brand
+model_number
+product_description
+bullet_point
+generic_keyword
+number_of_items
+item_package_quantity
+part_number
+model_name
+manufacturer
+color
+size
+pattern
+item_weight
+item_package_weight
+condition_note
+max_order_quantity
+unit_count
+warranty_description
 
 Rules:
-- Use the given Product Category as context.
-- Generate the maximum relevant attributes that can be confidently inferred.
-- Use standard snake_case attribute names.
-- Preserve brand and model if present; otherwise use "Generic" only when appropriate.
-- Rewrite the product description in your own words.
-- Generate exactly 5 concise customer-focused bullet_points.
-- Generate exactly 5 highly relevant search_keywords as a single comma-separated string.
-- Infer only information strongly supported by the input.
-- Omit attributes that cannot be inferred.
-- Never generate seller information, SKU, ASIN, UPC, GTIN, EAN, MPN, price, inventory, shipping, marketplace data, images, dimensions, weight, warranty or certifications.
-- Return only one valid flat JSON object.
-- No markdown, comments, explanations, null, empty values or nested objects.
-- Use arrays only for bullet_points.
+- Do NOT generate item_name.
+- Product Name is mandatory and is the main product signal.
+- Product Description is optional.
+- Use Product Category as the strongest category signal.
+- Generate a useful value for every requested field.
+- Use reasonable best-effort inference when product details are missing.
+- After the required fields above, generate additional useful category-relevant fields when appropriate.
+- Generate as many useful fields as reasonably possible.
+- Use snake_case field names.
+- Do not duplicate fields.
+- bullet_point must be an array of 5 concise points.
+- generic_keyword must be a concise comma-separated string.
+- unit_count must use the format "<number> Count" with a number from 1 to 50.
+- Do not return null, empty strings, unknown, N/A, or placeholders.
+- Do not generate ASIN, SKU, GTIN, UPC, EAN, MPN, external IDs, price, inventory, shipping, marketplace IDs, or seller information.
+- Return JSON only.
 PROMPT;
 
-        $userPrompt = <<<PROMPT
-Product Category: {$category}
+        $userPrompt = "Category: {$category}\nProduct Name: {$productName}";
 
-Product Name: {$productName}
+        if (!empty($productDescription)) {
+            $userPrompt .= "\nProduct Description: {$productDescription}";
+        }
 
-Product Description: {$productDescription}
-PROMPT;
+        $userPrompt .= "\nGenerate all requested fields, then add additional relevant fields.\nReturn JSON only.";
 
         return [
             'system_prompt' => $systemPrompt,
             'user_prompt'   => $userPrompt,
         ];
     }
-
-
     public function buildErrorAutoFillPrompt(
         string $productName,
         ?string $productDescription,
