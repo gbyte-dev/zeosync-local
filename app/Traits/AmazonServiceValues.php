@@ -3351,11 +3351,8 @@ trait AmazonServiceValues
 
         $raw = trim((string) $value);
 
-        if (!preg_match(
-            '/^\s*([\d.]+)\s*D\s*[x×]\s*([\d.]+)\s*W\s*[x×]\s*([\d.]+)\s*H\s*([a-zA-Z"]+)?\s*$/i',
-            $raw,
-            $m
-        )) {
+       if (!preg_match( '/^\s*([\d.]+)\s*D\s*[x×]\s*([\d.]+)\s*W\s*[x×]\s*([\d.]+)\s*H\s*([a-zA-Z"]+)?\s*$/i',
+            $raw, $m  )) {
             return null;
         }
 
