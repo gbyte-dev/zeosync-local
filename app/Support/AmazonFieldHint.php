@@ -26,7 +26,7 @@ class AmazonFieldHint
         // ── 3D Dimensions ────────────────────────────────────────────
         'item_length_width_height' => '20L × 10W × 5H cm',
         'item_package_dimensions'  => '39L × 17.5W × 3H cm',
-        'item_depth_width_height'  => '10 × 5 × 2 inches',
+        'item_depth_width_height'  => '10D × 5W × 2H inches',
 
         // ── 2D Dimensions ────────────────────────────────────────────
         'item_length_width'  => '20L × 10W cm',
@@ -36,11 +36,11 @@ class AmazonFieldHint
         'item_length_depth'  => '20L × 10D cm',
         'item_depth_length'  => '10D × 20L cm',
         'item_width_height'  => '10W × 5H cm',
-        'item_height_width'  => '5H × 10W cm',
+        'item_height_width'  => '5H  × 10W cm',
         'item_width_depth'   => '10W × 5D cm',
-        'item_depth_width'   => '5D × 10W cm',
+        'item_depth_width'   => '5D  × 10W cm',
         'item_height_depth'  => '10H × 5D cm',
-        'item_depth_height'  => '5D × 10H cm',
+        'item_depth_height'  => '5D  × 10H cm',
 
         // ── 1D Dimensions / Lengths ──────────────────────────────────
         'item_length'      => '50 cm',

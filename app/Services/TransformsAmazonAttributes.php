@@ -236,43 +236,13 @@ class TransformsAmazonAttributes
             }
 
             // ── item_depth_width_height — schema only accepts "inches" ─────────
-            if ($name === 'item_depth_width_height') {
-                $toInches = [
-                    'inches' => 1,
-                    'in' => 1,
-                    'centimeters' => 0.393701,
-                    'cm' => 0.393701,
-                    'millimeters' => 0.0393701,
-                    'mm' => 0.0393701,
-                    'feet' => 12,
-                    'ft' => 12,
-                    'meters' => 39.3701,
-                    'm' => 39.3701,
-                ];
-
-                if (!preg_match(
-                    '/^\s*([\d.]+)\s*[d]?\s*[x×]\s*([\d.]+)\s*[w]?\s*[x×]\s*([\d.]+)\s*[h]?\s*([a-zA-Z"\']+)?\s*$/i',
-                    $value,
-                    $m
-                )) {
-                    return null;
-                }
-
-                $unit = strtolower(trim($m[4] ?: 'inches'));
-                if (!isset($unitMap[$unit])) {
-                    $unit = 'inches';
-                }
-
-                $f = (int) $toInches[$unit] ?? 1;
-
-                return [[
-                    'depth'  => ['value' => round((int)$m[1] * $f, 2), 'unit' =>  $unitMap[$unit] ?? 'inches'],
-                    'width'  => ['value' => round((int)$m[2] * $f, 2), 'unit' =>  $unitMap[$unit] ?? 'inches'],
-                    'height' => ['value' => round((int)$m[3] * $f, 2), 'unit' =>  $unitMap[$unit] ?? 'inches'],
-                    'marketplace_id' => $marketplaceId,
-                ]];
+            if ($name == 'item_depth_width_height') {
+               
+                $valueString = trim((string) $value);
+                return $this->parseDepthWidthHeight($valueString, $marketplaceId);
             }
 
+            // ── item_length_width_depth — schema only accepts "inches" ─────────
             if ($name === 'item_length_width_depth') {
                 $valueString = trim((string) $value);
                 $valueString = str_replace(['×', '*'], 'x', $valueString);
@@ -351,39 +321,31 @@ class TransformsAmazonAttributes
             }
 
             if ($name === 'seat') {
-                $raw = trim((string) $value);
 
-                preg_match(
-                    '/back(?:_|\s+)?interior(?:_|\s+)?height\s*[:=]?\s*([\d.]+)\s*([a-zA-Z]+)?/i',
-                    $raw,
-                    $back
-                );
+                $raw = strtolower(trim((string) $value));
 
-                preg_match(
-                    '/depth\s*[:=]?\s*([\d.]+)\s*([a-zA-Z]+)?/i',
-                    $raw,
-                    $depth
-                );
+                preg_match('/([\d.]+)\s*h\b\s*\*\s*([\d.]+)\s*d\b\s*([a-z]+)/i', $raw, $m);
 
                 $seat = [
                     'marketplace_id' => $marketplaceId,
                 ];
 
-                if (!empty($back)) {
-                    $backUnit = $unitMap[strtolower(trim($back[2] ?? 'inches'))] ?? 'inches';
+                if (!empty($m)) {
+
+                    $unit = $unitMap[strtolower($m[3])] ?? 'centimeters';
 
                     $seat['back_interior_height'] = [[
-                        'value' => (float) $back[1],
-                        'unit' => $backUnit,
+                        'value' => (float) $m[1],
+                        'unit' => $unit,
                     ]];
-                }
 
-                if (!empty($depth)) {
-                    $depthUnit = $unitMap[strtolower(trim($depth[2] ?? 'inches'))] ?? 'inches';
-
+                    $seat['height'] = [[
+                        'value' => (float) $m[1],
+                        'unit' => $unit,
+                    ]];
                     $seat['depth'] = [[
-                        'value' => (float) $depth[1],
-                        'unit' => $depthUnit,
+                        'value' => (float) $m[2],
+                        'unit' => $unit,
                     ]];
                 }
 
@@ -568,10 +530,18 @@ class TransformsAmazonAttributes
             }
 
             if ($name === 'externally_assigned_product_identifier') {
-                $decoded = json_decode($value, true);
-                return $decoded && isset($decoded['type'], $decoded['value'])
-                    ? [['type' => $decoded['type'], 'value' => $decoded['value']]]
-                    : [['type' => 'upc', 'value' => '09785512' . random_int(1000, 9999)]];
+
+                $value = trim((string) $value);
+
+                if (preg_match('/^(EAN|GTIN|UPC)\s*:\s*(\d+)$/i', $value, $m)) {
+                    return [[
+                        'marketplace_id' => $marketplaceId,
+                        'type' => strtolower($m[1]),
+                        'value' => $m[2],
+                    ]];
+                }
+
+                return [];
             }
 
             if ($name === 'parentage_level') {
@@ -1259,7 +1229,10 @@ class TransformsAmazonAttributes
                 $finalColor = $colorMap[strtolower($normalizedColor)] ?? ucfirst(strtolower($normalizedColor));
                 return [['value' => $finalColor]];
             }
-
+            
+            if ($name === 'item_density') {
+                return $this->parseDensity($value, $marketplaceId);
+            }
             if ($name === 'polarization_type') {
                 // enum unknown — passing raw value through for now
                 return [['value' => strtolower(trim((string) $value))]];
@@ -1680,504 +1653,5 @@ class TransformsAmazonAttributes
         ]];
     }
 
-    private function mpaaRating($value, $marketplaceId = null): array
-    {
-        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
-
-        return [[
-            'rating' => strtolower(trim((string) $value)),
-            'descriptors' => ['Not Rated'],
-            'marketplace_id' => $marketplaceId,
-        ]];
-    }
-
-    private function parseTwoFieldsOnly(string $value, $marketplaceId): ?array
-    {
-        if (!preg_match(
-            '/([\d.]+)\s*(L|W|H|D)\s*[x×*]\s*([\d.]+)\s*(L|W|H|D)\s*(cm|centimeters?|mm|millimeters?|m|meters?|in|inches?|ft|feet|foot)?/i',
-            $value,
-            $m
-        )) {
-            return null;
-        }
-
-        $unit = strtolower($m[5] ?? 'cm');
-        $unitMap = $this->lengthUnitMap();
-        $unit = $unitMap[$unit] ?? 'centimeters';
-        $result = [];
-        $map = ['L' => 'length',  'W' => 'width',  'H' => 'height', 'D' => 'depth',];
-        $result[$map[strtoupper($m[2])]] = [
-            'value' => (float) $m[1],
-            'unit'  => $unit,
-        ];
-
-        $result[$map[strtoupper($m[4])]] = [
-            'value' => (float) $m[3],
-            'unit'  => $unit,
-        ];
-
-        $result['marketplace_id'] = $marketplaceId;
-
-        return $result;
-    }
-
-
-    private function updateRingValue($size = 'Adjustable', $lower = null, $upper = null)
-    {
-
-        $ring = [
-            [
-                "marketplace_id" => "ATVPDKIKX0DER",
-                "size" => [
-                    [
-                        "language_tag" => "en_US",
-                        "value" => $size
-                    ]
-                ]
-            ]
-        ];
-
-        $size = strtolower(trim($size));
-        if (strcasecmp($size, 'adjustable') === 0) {
-            if ($lower !== null) {
-                $ring[0]['sizing_lower_range'] = [
-                    [
-                        "language_tag" => "en_US",
-                        "value" => (string) $lower
-                    ]
-                ];
-            }
-
-            if ($upper !== null) {
-                $ring[0]['sizing_upper_range'] = [
-                    [
-                        "language_tag" => "en_US",
-                        "value" => (string) $upper
-                    ]
-                ];
-            }
-        }
-        return $ring;
-    }
-
-
-    private function booleanFields(): array
-    {
-        return [
-            'supplier_declared_has_product_identifier_exemption',
-            'batteries_required',
-            'batteries_included',
-            'is_refurbished',
-            'has_replaceable_battery',
-            'is_battery_non_spillable',
-            'battery_contains_free_unabsorbed_liquid',
-            'has_multiple_battery_powered_components',
-            'ships_globally',
-            'gpsr_safety_attestation',
-            'is_oem_sourced_product',
-            'is_this_product_subject_to_buyer_age_restrictions',
-            'is_green_purchasing_law_compliant',
-            'has_less_than_30_percent_state_of_charge',
-            'skip_offer',
-        ];
-    }
-
-    private function integerFields(): array
-    {
-        return [
-            'number_of_items',
-            'item_package_quantity',
-            'button_quantity',
-            'number_of_batteries',
-            'number_of_lithium_metal_cells',
-            'number_of_lithium_ion_cells',
-            'number_of_packs',
-            'total_usb_2_0_ports',
-            'unit_count',
-        ];
-    }
-
-    private function languageTagFields(): array
-    {
-        return ['item_name', 'product_description', 'care_instructions', 'generic_keyword'];
-    }
-
-    private function flatDimensionAttributes(): array
-    {
-        return [
-            'item_length',
-            'item_width',
-            'item_height',
-            'adjustable_seat_depth_maximum',
-            'adjustable_seat_depth_minimum',
-            'adjustable_seat_width_maximum',
-            'adjustable_seat_width_minimum',
-            'adjustable_seat_height_maximum',
-            'adjustable_seat_height_minimum',
-        ];
-    }
-
-    private function weightUnitMap(): array
-    {
-        return [
-            'grams' => 'grams',
-            'gram' => 'grams',
-            'g' => 'grams',
-            'gr' => 'grams',
-            'gm' => 'grams',
-            'gms' => 'grams',
-            'kilograms' => 'kilograms',
-            'kilogram' => 'kilograms',
-            'kilo' => 'kilograms',
-            'kilos' => 'kilograms',
-            'kg' => 'kilograms',
-            'kgs' => 'kilograms',
-            'pounds' => 'pounds',
-            'pound' => 'pounds',
-            'lb' => 'pounds',
-            'lbs' => 'pounds',
-            'ounces' => 'ounces',
-            'ounce' => 'ounces',
-            'oz' => 'ounces',
-            'milligrams' => 'milligrams',
-            'mg' => 'milligrams',
-            'micrograms' => 'micrograms',
-            'mcg' => 'micrograms',
-            'metric tons' => 'metric_tons',
-            'tonne' => 'metric_tons',
-            't' => 'metric_tons',
-            'carat' => 'carats',
-            'carats' => 'carats',
-            'ct' => 'carats',
-            'cts' => 'carats',
-            'ctw' => 'carats',
-            'ct.' => 'carats',
-            'karat' => 'carats',
-            'karats' => 'carats',
-            'kt' => 'carats',
-            'kts' => 'carats',
-        ];
-    }
-
-    private function mapGraphicsRamType(string $raw): ?string
-    {
-        $normalized = strtolower(preg_replace('/[^a-z0-9]/i', '', $raw));
-
-        $map = [
-            'gddr3'   => 'gddr3',
-            'gddr4'   => 'gddr4',
-            'gddr5'   => 'gddr5',
-            'gddr5x'  => 'gddr5x',
-            'gddr6'   => 'gddr6',
-            'gddr6x'  => 'gddr6',
-            'gddr7'   => 'gddr7',
-            'ddr3'    => 'ddr3_sdram',
-            'ddr4'    => 'ddr4_sdram',
-            'ddr5'    => 'ddr5_sdram',
-            'lpddr4'  => 'ddr4_sdram',
-            'lpddr5'  => 'ddr5_sdram',
-            'sdram'   => 'sdram',
-            'sram'    => 'sram',
-            'vram'    => 'vram',
-            'shared'  => 'shared',
-            'integrated' => 'shared',
-            'dimm'    => 'dimm',
-            'sodimm'  => 'sodimm',
-        ];
-
-        return $map[$normalized] ?? 'gddr3';
-    }
-
-    private function voltageUnitMap(): array
-    {
-        return [
-            'volt' => 'volts',
-            'volts' => 'volts',
-            'v' => 'volts',
-            'vac' => 'volts_of_alternating_current',
-            'vac.' => 'volts_of_alternating_current',
-            'ac volt' => 'volts_of_alternating_current',
-            'ac volts' => 'volts_of_alternating_current',
-            'volt ac' => 'volts_of_alternating_current',
-            'volts ac' => 'volts_of_alternating_current',
-            'volts of alternating current' => 'volts_of_alternating_current',
-            'vdc' => 'volts_of_direct_current',
-            'vdc.' => 'volts_of_direct_current',
-            'dc volt' => 'volts_of_direct_current',
-            'dc volts' => 'volts_of_direct_current',
-            'volt dc' => 'volts_of_direct_current',
-            'volts dc' => 'volts_of_direct_current',
-            'volts of direct current' => 'volts_of_direct_current',
-            'millivolt' => 'millivolts',
-            'millivolts' => 'millivolts',
-            'mv' => 'millivolts',
-            'microvolt' => 'microvolts',
-            'microvolts' => 'microvolts',
-            'µv' => 'microvolts',
-            'uv' => 'microvolts',
-            'nanovolt' => 'nanovolts',
-            'nanovolts' => 'nanovolts',
-            'nv' => 'nanovolts',
-            'kilovolt' => 'kilovolts',
-            'kilovolts' => 'kilovolts',
-            'kv' => 'kilovolts',
-            // Watts
-            'watt' => 'watts',
-            'watts' => 'watts',
-            'w' => 'watts',
-            'kilowatt' => 'kilowatts',
-            'kilowatts' => 'kilowatts',
-            'kw' => 'kilowatts',
-            'watt hour' => 'watt_hours',
-            'watt hours' => 'watt_hours',
-            'wh' => 'watt_hours',
-            'kilowatt hour' => 'kilowatt_hours',
-            'kilowatt hours' => 'kilowatt_hours',
-            'kwh' => 'kilowatt_hours',
-            'milliwatt' => 'milliwatts',
-            'milliwatts' => 'milliwatts',
-            'mw' => 'milliwatts',
-            'microwatt' => 'microwatts',
-            'microwatts' => 'microwatts',
-            'µw' => 'microwatts',
-            'uw' => 'microwatts',
-            'nanowatt' => 'nanowatts',
-            'nanowatts' => 'nanowatts',
-            'nw' => 'nanowatts',
-            'picowatt' => 'picowatts',
-            'picowatts' => 'picowatts',
-            'pw' => 'picowatts',
-            'mah' => 'milliamp_hours',
-            'milliamp hour' => 'milliamp_hours',
-            'milliamp hours' => 'milliamp_hours',
-        ];
-    }
-
-    private function lengthUnitMap(): array
-    {
-        return [
-
-            // Millimeters
-            'mm' => 'millimeters',
-            'millimeter' => 'millimeters',
-            'millimeters' => 'millimeters',
-            'millimetre' => 'millimeters',
-            'millimetres' => 'millimeters',
-            'millimeters.' => 'millimeters',
-            'millimetre.' => 'millimeters',
-            'mms' => 'millimeters',
-            'milli meter' => 'millimeters',
-            'milli meters' => 'millimeters',
-
-            // Centimeters
-            'cm' => 'centimeters',
-            'cms' => 'centimeters',
-            'centimeter' => 'centimeters',
-            'centimeters' => 'centimeters',
-            'centimetre' => 'centimeters',
-            'centimetres' => 'centimeters',
-            'centi meter' => 'centimeters',
-            'centi meters' => 'centimeters',
-            'cm.' => 'centimeters',
-
-            // Meters
-            'm' => 'meters',
-            'mt' => 'meters',
-            'mts' => 'meters',
-            'mtr' => 'meters',
-            'mtrs' => 'meters',
-            'meter' => 'meters',
-            'meters' => 'meters',
-            'metre' => 'meters',
-            'metres' => 'meters',
-            'meter.' => 'meters',
-            'metre.' => 'meters',
-
-            // Inches
-            'in' => 'inches',
-            'ins' => 'inches',
-            'inch' => 'inches',
-            'inches' => 'inches',
-            'inch.' => 'inches',
-            '"' => 'inches',
-
-            // Feet
-            'ft' => 'feet',
-            'fts' => 'feet',
-            'foot' => 'feet',
-            'feet' => 'feet',
-            'ft.' => 'feet',
-            "'" => 'feet',
-
-            // Yards
-            'yd' => 'yards',
-            'yds' => 'yards',
-            'yard' => 'yards',
-            'yards' => 'yards',
-            'yd.' => 'yards',
-        ];
-    }
-
-    private function countryMap(): array
-    {
-        return [
-            'cn' => 'CN',
-            'china' => 'CN',
-            'us' => 'US',
-            'usa' => 'US',
-            'united states' => 'US',
-            'united states of america' => 'US',
-            'in' => 'IN',
-            'india' => 'IN',
-            'de' => 'DE',
-            'germany' => 'DE',
-            'jp' => 'JP',
-            'japan' => 'JP',
-            'kr' => 'KR',
-            'republic of korea' => 'KR',
-            'tw' => 'TW',
-            'taiwan' => 'TW',
-            'vn' => 'VN',
-            'vietnam' => 'VN',
-            'th' => 'TH',
-            'thailand' => 'TH',
-            'mx' => 'MX',
-            'mexico' => 'MX',
-            'gb' => 'GB',
-            'united kingdom' => 'GB',
-            'united kingdom of great britain and northern ireland' => 'GB',
-        ];
-    }
-
-    private function getTwoFieldDimensionNames(): array
-    {
-        return [
-            'item_length_width',
-            'item_width_length',
-            'item_length_height',
-            'item_height_length',
-            'item_length_depth',
-            'item_depth_length',
-            'item_width_height',
-            'item_height_width',
-            'item_width_depth',
-            'item_depth_width',
-            'item_height_depth',
-            'item_depth_height',
-        ];
-    }
-
-    private function cpuManufacturers(): array
-    {
-        return [
-            // Major CPU manufacturers
-            'Intel',
-            'AMD',
-            'Apple',
-            'Qualcomm',
-            'MediaTek',
-            'Samsung',
-            'NVIDIA',
-            'ARM',
-            'Broadcom',
-            'Marvell',
-            'IBM',
-            'Motorola',
-            'VIA',
-            'Cyrix',
-            'Transmeta',
-            'Sun',
-            'Oracle',
-            'Fujitsu',
-            'Ampere',
-            'Phytium',
-            'Loongson',
-            'HiSilicon',
-            'Unisoc',
-            'Rockchip',
-            'Allwinner',
-            'Amlogic',
-            'Zhaoxin',
-            'Cavium',
-
-            // Intel CPU families / brands
-            'Core',
-            'Core 2',
-            'Pentium',
-            'Celeron',
-            'Xeon',
-            'Atom',
-            'Itanium',
-            'Quark',
-            'Itel',
-
-            // AMD CPU families / brands
-            'Ryzen',
-            'EPYC',
-            'Threadripper',
-            'Threadripper PRO',
-            'Athlon',
-            'Phenom',
-            'Sempron',
-            'FX',
-            'Opteron',
-            'Turion',
-            'Duron',
-            'A-Series',
-            'E-Series',
-            'Geode',
-            'FirePro',
-
-            // Apple
-            'M1',
-            'M2',
-            'M3',
-            'M4',
-            'A-series',
-
-            // Qualcomm
-            'Snapdragon',
-            'Kryo',
-            'Oryon',
-
-            // IBM / Power architecture
-            'PowerPC',
-            'Power',
-            'POWER',
-            'PowerPC G3',
-            'PowerPC G4',
-            'PowerPC G5',
-
-            // ARM families
-            'Cortex',
-            'Cortex-A',
-            'Cortex-R',
-            'Cortex-M',
-            'Neoverse',
-
-            // NVIDIA
-            'Tegra',
-
-            // MIPS
-            'MIPS',
-
-            // SPARC
-            'SPARC',
-
-            // RISC-V
-            'RISC-V',
-
-            // Other/common CPU names
-            'Snapdragon X',
-            'Pentium Gold',
-            'Pentium Silver',
-            'Intel Core Ultra',
-            'Core Ultra',
-            'Core i3',
-            'Core i5',
-            'Core i7',
-            'Core i9',
-        ];
-    }
 
 }
