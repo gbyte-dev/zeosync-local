@@ -266,21 +266,15 @@ $showImagePickerButton = $isImageField;
                 </div>
             </div>
             @endif
-            
-            @php
-            $customMultiselectFields = [];
-            @endphp
-
-            @if(in_array($field['name'], $customMultiselectFields, true))
-
-            @include('schema.products.fields.multiselect')
-
-            @else
 
             @switch($field['type'])
-
             @case('select')
             @include('schema.products.fields.select')
+            @break
+
+            @case('multiselect')
+            @case('array')
+            @include('schema.products.fields.multiselect')
             @break
 
             @case('textarea')
@@ -293,11 +287,7 @@ $showImagePickerButton = $isImageField;
 
             @default
             @include('schema.products.fields.text')
-            @break
-
             @endswitch
-
-            @endif
         </div>
 
         <div class="col-sm-2 d-flex align-items-center" style="margin-top: -29px;">
