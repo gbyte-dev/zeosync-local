@@ -290,7 +290,6 @@ $showImagePickerButton = $isImageField;
             @break
 
             @endswitch
-            @endif
         </div>
 
         <div class="col-sm-2 d-flex align-items-center" style="margin-top: -29px;">
