@@ -3377,4 +3377,125 @@ trait AmazonServiceValues
         ]];
     }
 
+    protected function mpaaRating($value, $marketplaceId = null): array
+    {
+        $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
+
+        return [[
+            'rating' => strtolower(trim((string) $value)),
+            'descriptors' => ['Not Rated'],
+            'marketplace_id' => $marketplaceId,
+        ]];
+    }
+
+    protected function parseTwoFieldsOnly(string $value, $marketplaceId): ?array
+    {
+        if (!preg_match(
+            '/([\d.]+)\s*(L|W|H|D)\s*[x×*]\s*([\d.]+)\s*(L|W|H|D)\s*(cm|centimeters?|mm|millimeters?|m|meters?|in|inches?|ft|feet|foot)?/i',
+            $value,
+            $m
+        )) {
+            return null;
+        }
+
+        $unit = strtolower($m[5] ?? 'cm');
+        $unitMap = $this->lengthUnitMap();
+        $unit = $unitMap[$unit] ?? 'centimeters';
+        $result = [];
+        $map = ['L' => 'length',  'W' => 'width',  'H' => 'height', 'D' => 'depth',];
+        $result[$map[strtoupper($m[2])]] = [
+            'value' => (float) $m[1],
+            'unit'  => $unit,
+        ];
+
+        $result[$map[strtoupper($m[4])]] = [
+            'value' => (float) $m[3],
+            'unit'  => $unit,
+        ];
+
+        $result['marketplace_id'] = $marketplaceId;
+
+        return $result;
+    }
+
+
+    protected function updateRingValue($size = 'Adjustable', $lower = null, $upper = null)
+    {
+        $ring = [
+            [
+                "marketplace_id" => "ATVPDKIKX0DER",
+                "size" => [
+                    [
+                        "language_tag" => "en_US",
+                        "value" => $size
+                    ]
+                ]
+            ]
+        ];
+
+        $size = strtolower(trim($size));
+        if (strcasecmp($size, 'adjustable') === 0) {
+            if ($lower !== null) {
+                $ring[0]['sizing_lower_range'] = [
+                    [
+                        "language_tag" => "en_US",
+                        "value" => (string) $lower
+                    ]
+                ];
+            }
+
+            if ($upper !== null) {
+                $ring[0]['sizing_upper_range'] = [
+                    [
+                        "language_tag" => "en_US",
+                        "value" => (string) $upper
+                    ]
+                ];
+            }
+        }
+        return $ring;
+    }
+
+
+    protected function booleanFields(): array
+    {
+        return [
+            'supplier_declared_has_product_identifier_exemption',
+            'batteries_required',
+            'batteries_included',
+            'is_refurbished',
+            'has_replaceable_battery',
+            'is_battery_non_spillable',
+            'battery_contains_free_unabsorbed_liquid',
+            'has_multiple_battery_powered_components',
+            'ships_globally',
+            'gpsr_safety_attestation',
+            'is_oem_sourced_product',
+            'is_this_product_subject_to_buyer_age_restrictions',
+            'is_green_purchasing_law_compliant',
+            'has_less_than_30_percent_state_of_charge',
+            'skip_offer',
+        ];
+    }
+
+    protected function integerFields(): array
+    {
+        return [
+            'number_of_items',
+            'item_package_quantity',
+            'button_quantity',
+            'number_of_batteries',
+            'number_of_lithium_metal_cells',
+            'number_of_lithium_ion_cells',
+            'number_of_packs',
+            'total_usb_2_0_ports',
+            'unit_count',
+        ];
+    }
+
+    protected function languageTagFields(): array
+    {
+        return ['item_name', 'product_description', 'care_instructions', 'generic_keyword'];
+    }
+
 }
