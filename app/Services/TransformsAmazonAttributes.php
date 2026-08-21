@@ -237,42 +237,11 @@ class TransformsAmazonAttributes
 
             // ── item_depth_width_height — schema only accepts "inches" ─────────
             if ($name === 'item_depth_width_height') {
-                $toInches = [
-                    'inches' => 1,
-                    'in' => 1,
-                    'centimeters' => 0.393701,
-                    'cm' => 0.393701,
-                    'millimeters' => 0.0393701,
-                    'mm' => 0.0393701,
-                    'feet' => 12,
-                    'ft' => 12,
-                    'meters' => 39.3701,
-                    'm' => 39.3701,
-                ];
-
-                if (!preg_match(
-                    '/^\s*([\d.]+)\s*[d]?\s*[x×]\s*([\d.]+)\s*[w]?\s*[x×]\s*([\d.]+)\s*[h]?\s*([a-zA-Z"\']+)?\s*$/i',
-                    $value,
-                    $m
-                )) {
-                    return null;
-                }
-
-                $unit = strtolower(trim($m[4] ?: 'inches'));
-                if (!isset($unitMap[$unit])) {
-                    $unit = 'inches';
-                }
-
-                $f = (int) $toInches[$unit] ?? 1;
-
-                return [[
-                    'depth'  => ['value' => round((int)$m[1] * $f, 2), 'unit' =>  $unitMap[$unit] ?? 'inches'],
-                    'width'  => ['value' => round((int)$m[2] * $f, 2), 'unit' =>  $unitMap[$unit] ?? 'inches'],
-                    'height' => ['value' => round((int)$m[3] * $f, 2), 'unit' =>  $unitMap[$unit] ?? 'inches'],
-                    'marketplace_id' => $marketplaceId,
-                ]];
+                $valueString = trim((string) $value);
+                return $this->parseDepthWidthHeight($valueString, $marketplaceId);
             }
 
+            // ── item_length_width_depth — schema only accepts "inches" ─────────
             if ($name === 'item_length_width_depth') {
                 $valueString = trim((string) $value);
                 $valueString = str_replace(['×', '*'], 'x', $valueString);

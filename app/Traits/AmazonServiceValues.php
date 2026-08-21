@@ -3324,4 +3324,59 @@ trait AmazonServiceValues
         ]];
     }
 
+    protected function parseDepthWidthHeight(string $value, string $marketplaceId): ?array
+    {
+        $toInches = [
+            'inches' => 1,
+            'inch' => 1,
+            'in' => 1,
+            '"' => 1,
+
+            'centimeters' => 0.393701,
+            'centimeter' => 0.393701,
+            'cm' => 0.393701,
+
+            'millimeters' => 0.0393701,
+            'millimeter' => 0.0393701,
+            'mm' => 0.0393701,
+
+            'feet' => 12,
+            'foot' => 12,
+            'ft' => 12,
+
+            'meters' => 39.3701,
+            'meter' => 39.3701,
+            'm' => 39.3701,
+        ];
+
+        $raw = trim((string) $value);
+
+        if (!preg_match(
+            '/^\s*([\d.]+)\s*D\s*[x×]\s*([\d.]+)\s*W\s*[x×]\s*([\d.]+)\s*H\s*([a-zA-Z"]+)?\s*$/i',
+            $raw,
+            $m
+        )) {
+            return null;
+        }
+
+        $unit = strtolower(trim($m[4] ?? 'inches'));
+        $factor = $toInches[$unit] ?? 1;
+
+        return [[
+            'depth' => [
+                'value' => round((float) $m[1] * $factor, 2),
+                'unit' => 'inches',
+            ],
+            'width' => [
+                'value' => round((float) $m[2] * $factor, 2),
+                'unit' => 'inches',
+            ],
+            'height' => [
+                'value' => round((float) $m[3] * $factor, 2),
+                'unit' => 'inches',
+            ],
+            'marketplace_id' => $marketplaceId,
+        ]];
+    }
+
 }
