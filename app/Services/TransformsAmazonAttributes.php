@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Shop;
+use App\Traits\AmazonServiceValues;
 
 /**
  * class TransformsAmazonAttributes
@@ -18,6 +19,7 @@ use App\Models\Shop;
 
 class TransformsAmazonAttributes
 {
+    use AmazonServiceValues;
     /**
      * Transform a raw (name, value) pair into Amazon's expected attribute array.
      * Returns null when the value can't be mapped/validated and should be skipped.
@@ -721,9 +723,18 @@ class TransformsAmazonAttributes
                 return [$ramObject];
             }
 
-          if ($name === 'cpu_model') {
+            if ($name === 'cpu_model') {
 
-                $raw = trim((string) $value);
+                [$cpu, $speed] = array_pad(
+                    array_map('trim', explode(',', (string) $value, 2)),
+                    2,
+                    ''
+                );
+
+                $family = $this->amazonCpuFamily($cpu);
+
+                // Extract manufacturer
+                $manufacturer = '';
                 $manufacturers = $this->cpuManufacturers();
 
                 $pattern = implode('|', array_map(
@@ -731,43 +742,47 @@ class TransformsAmazonAttributes
                     $manufacturers
                 ));
 
-                $manufacturer = '';
-
-                if (preg_match('/^(' . $pattern . ')\b/i', $raw, $m)) {
+                if (preg_match('/^(' . $pattern . ')\b/i', $cpu, $m)) {
                     $manufacturer = $m[1];
-                    $raw = trim(substr($raw, strlen($m[0])));
                 }
 
-                // Prefer Intel-style models: i7-1165G7, i5-1235U, Xeon E5-2699
-                // Then AMD/other numeric models: 5800H, 5600X, 13900H, M2, etc.
+                // Extract model number
                 preg_match(
-                    '/\b((?:[A-Za-z]+\d+[-]?\d+[A-Za-z0-9-]*|\d{3,6}[A-Za-z]{0,4}|[A-Za-z]\d{1,4}))\b/i',
-                    $raw,
+                    '/\b((?:[A-Za-z]+\d+[-]?\d+[A-Za-z0-9-]*|\d{3,6}[A-Za-z]{1,4}|[A-Za-z]\d{1,4}[A-Za-z0-9-]*))\b/i',
+                    $cpu,
                     $m
                 );
 
                 $modelNumber = $m[1] ?? '';
 
-                $family = trim(preg_replace(
-                    '/\b' . preg_quote($modelNumber, '/') . '\b/i',
-                    '',
-                    $raw
-                ));
-                 $family = $raw;
-                $family = preg_replace('/\s+/', ' ', $family);
+                return [
+                    'cpu' => [[
+                        'marketplace_id' => $marketplaceId,
+                        'family' => [
+                            ['value' => $family ?: $cpu],
+                        ],
+                        'manufacturer' => [
+                            [
+                                'value' => $manufacturer,
+                                'language_tag' => 'en_US',
+                            ],
+                        ],
+                        'model_number' => [
+                            [
+                                'value' => $modelNumber,
+                                'language_tag' => 'en_US',
+                            ],
+                        ],
+                    ]],
 
-                return [[
-                    'marketplace_id' => $marketplaceId,
-                    'family' => [['value' => $family]],
-                    'manufacturer' => [[
-                        'value' => $manufacturer,
-                        'language_tag' => 'en_US',
-                    ]],
-                    'model_number' => [[
-                        'value' => $modelNumber,
-                        'language_tag' => 'en_US',
-                    ]],
-                ]];
+                    'speed' => $speed !== '' ? [[
+                        'marketplace_id' => $marketplaceId,
+                        'value' => (float) preg_replace('/[^0-9.]/', '', $speed),
+                        'unit' => preg_match('/MHz|KHz|hertz/i', $speed, $u)
+                            ? $u[0]
+                            : 'GHz',
+                    ]] : [],
+                ];
             }
 
             if ($name === 'supplier_declared_dg_hz_regulation') {
