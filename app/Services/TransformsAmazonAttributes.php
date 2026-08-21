@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Shop;
+use App\Traits\AmazonServiceValues;
 
 /**
  * class TransformsAmazonAttributes
@@ -18,6 +19,7 @@ use App\Models\Shop;
 
 class TransformsAmazonAttributes
 {
+    use AmazonServiceValues;
     /**
      * Transform a raw (name, value) pair into Amazon's expected attribute array.
      * Returns null when the value can't be mapped/validated and should be skipped.
@@ -725,34 +727,44 @@ class TransformsAmazonAttributes
 
                 $raw = trim((string) $value);
 
-                // detect manufacturer
-                $manufacturers = ['Intel', 'AMD', 'Apple', 'Qualcomm', 'Ryzen', 'MediaTek', 'Phenom', 'Samsung', 'Xeon', 'Turion'];
+                $family = $this->amazonCpuFamily($raw);
+
                 $manufacturer = '';
-                foreach ($manufacturers as $m) {
-                    if (stripos($raw, $m) !== false) {
-                        $manufacturer = $m;
-                        break;
-                    }
+                $manufacturers = $this->cpuManufacturers();
+
+                $pattern = implode('|', array_map(
+                    fn($v) => preg_quote($v, '/'),
+                    $manufacturers
+                ));
+
+                if (preg_match('/^(' . $pattern . ')\b/i', $raw, $m)) {
+                    $manufacturer = $m[1];
                 }
 
-                // extract model number (e.g. "i7-1165G7", "5800H", "M2")
-                preg_match('/([A-Za-z]*\d[A-Za-z0-9\-]*)/', $raw, $modelMatch);
-                $modelNumber = $modelMatch[1] ?? '';
+                preg_match(
+                    '/\b((?:[A-Za-z]+\d+[-]?\d+[A-Za-z0-9-]*|\d{3,6}[A-Za-z]{1,4}|[A-Za-z]\d{1,4}[A-Za-z0-9-]*))\b/i',
+                    $raw,
+                    $m
+                );
 
-                // build family token: spaces -> underscores, strip model number if present
-                $familyRaw = trim(str_ireplace($modelNumber, '', $raw));
-                $family = preg_replace('/\s+/', '_', $familyRaw);
+                $modelNumber = $m[1] ?? '';
 
                 return [[
                     'marketplace_id' => $marketplaceId,
                     'family' => [
-                        ['value' => $family],
+                        ['value' => $family ?: $raw],
                     ],
                     'manufacturer' => [
-                        ['value' => $manufacturer, 'language_tag' => 'en_US'],
+                        [
+                            'value' => $manufacturer,
+                            'language_tag' => 'en_US',
+                        ],
                     ],
                     'model_number' => [
-                        ['value' => $modelNumber, 'language_tag' => 'en_US'],
+                        [
+                            'value' => $modelNumber,
+                            'language_tag' => 'en_US',
+                        ],
                     ],
                 ]];
             }
@@ -766,7 +778,6 @@ class TransformsAmazonAttributes
                 $map = [
                     'battery' => 'battery',
                     'cell' => 'cell',
-                    'battery' => 'contains_battery',
                     'contains_battery' => 'contains_battery',
                     'lithium_ion' => 'contains_lithium_ion_battery',
                     'lithium_metal' => 'contains_lithium_metal_battery',
@@ -776,7 +787,7 @@ class TransformsAmazonAttributes
                     'none' => 'does_not_contain_a_battery'
                 ];
 
-                return [['value' => $map[strtolower($value)] ?? 'contains_battery']];
+                return [['value' => $map[strtolower($value)] ?? 'battery']];
             }
 
             if ($name === 'sleeve') {
@@ -2048,4 +2059,118 @@ class TransformsAmazonAttributes
             'item_depth_height',
         ];
     }
+
+    private function cpuManufacturers(): array
+    {
+        return [
+            // Major CPU manufacturers
+            'Intel',
+            'AMD',
+            'Apple',
+            'Qualcomm',
+            'MediaTek',
+            'Samsung',
+            'NVIDIA',
+            'ARM',
+            'Broadcom',
+            'Marvell',
+            'IBM',
+            'Motorola',
+            'VIA',
+            'Cyrix',
+            'Transmeta',
+            'Sun',
+            'Oracle',
+            'Fujitsu',
+            'Ampere',
+            'Phytium',
+            'Loongson',
+            'HiSilicon',
+            'Unisoc',
+            'Rockchip',
+            'Allwinner',
+            'Amlogic',
+            'Zhaoxin',
+            'Cavium',
+
+            // Intel CPU families / brands
+            'Core',
+            'Core 2',
+            'Pentium',
+            'Celeron',
+            'Xeon',
+            'Atom',
+            'Itanium',
+            'Quark',
+            'Itel',
+
+            // AMD CPU families / brands
+            'Ryzen',
+            'EPYC',
+            'Threadripper',
+            'Threadripper PRO',
+            'Athlon',
+            'Phenom',
+            'Sempron',
+            'FX',
+            'Opteron',
+            'Turion',
+            'Duron',
+            'A-Series',
+            'E-Series',
+            'Geode',
+            'FirePro',
+
+            // Apple
+            'M1',
+            'M2',
+            'M3',
+            'M4',
+            'A-series',
+
+            // Qualcomm
+            'Snapdragon',
+            'Kryo',
+            'Oryon',
+
+            // IBM / Power architecture
+            'PowerPC',
+            'Power',
+            'POWER',
+            'PowerPC G3',
+            'PowerPC G4',
+            'PowerPC G5',
+
+            // ARM families
+            'Cortex',
+            'Cortex-A',
+            'Cortex-R',
+            'Cortex-M',
+            'Neoverse',
+
+            // NVIDIA
+            'Tegra',
+
+            // MIPS
+            'MIPS',
+
+            // SPARC
+            'SPARC',
+
+            // RISC-V
+            'RISC-V',
+
+            // Other/common CPU names
+            'Snapdragon X',
+            'Pentium Gold',
+            'Pentium Silver',
+            'Intel Core Ultra',
+            'Core Ultra',
+            'Core i3',
+            'Core i5',
+            'Core i7',
+            'Core i9',
+        ];
+    }
+
 }
