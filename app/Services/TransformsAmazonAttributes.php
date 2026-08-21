@@ -351,39 +351,27 @@ class TransformsAmazonAttributes
             }
 
             if ($name === 'seat') {
-                $raw = trim((string) $value);
 
-                preg_match(
-                    '/back(?:_|\s+)?interior(?:_|\s+)?height\s*[:=]?\s*([\d.]+)\s*([a-zA-Z]+)?/i',
-                    $raw,
-                    $back
-                );
+                $raw = strtolower(trim((string) $value));
 
-                preg_match(
-                    '/depth\s*[:=]?\s*([\d.]+)\s*([a-zA-Z]+)?/i',
-                    $raw,
-                    $depth
-                );
+                preg_match('/([\d.]+)\s*h\b\s*\*\s*([\d.]+)\s*d\b\s*([a-z]+)/i', $raw, $m);
 
                 $seat = [
                     'marketplace_id' => $marketplaceId,
                 ];
 
-                if (!empty($back)) {
-                    $backUnit = $unitMap[strtolower(trim($back[2] ?? 'inches'))] ?? 'inches';
+                if (!empty($m)) {
+
+                    $unit = $unitMap[strtolower($m[3])] ?? 'centimeters';
 
                     $seat['back_interior_height'] = [[
-                        'value' => (float) $back[1],
-                        'unit' => $backUnit,
+                        'value' => (float) $m[1],
+                        'unit' => $unit,
                     ]];
-                }
-
-                if (!empty($depth)) {
-                    $depthUnit = $unitMap[strtolower(trim($depth[2] ?? 'inches'))] ?? 'inches';
 
                     $seat['depth'] = [[
-                        'value' => (float) $depth[1],
-                        'unit' => $depthUnit,
+                        'value' => (float) $m[2],
+                        'unit' => $unit,
                     ]];
                 }
 
