@@ -97,12 +97,25 @@ class AIPromptBuilderService
         ?string $productDescription,
         string $category
     ): array {
-        $systemPrompt = <<<'PROMPT'
+
+        $fieldHints = [
+            'item_weight' => 'e.g. 250 grams',
+            'item_package_weight' => 'e.g. 300 grams',
+        ];
+
+        $hintText = '';
+
+        foreach ($fieldHints as $field => $hint) {
+            $hintText .= "{$field}: {$hint}\n";
+        }
+
+        $systemPrompt = <<<PROMPT
 Amazon listing autofill engine.
 
 Return ONLY valid JSON.
 
 Generate values for ALL of these fields:
+
 title_differentiation
 brand
 model_number
@@ -123,6 +136,9 @@ condition_note
 max_order_quantity
 unit_count
 warranty_description
+
+FORMAT RULES:
+{$hintText}
 
 Rules:
 - Do NOT generate item_name.
@@ -339,30 +355,6 @@ PROMPT;
         array $filledKeys,
         array &$metrics
     ): array {
-        $commonFields = [
-            'title_differentiation',
-            'brand',
-            'model_number',
-            'product_description',
-            'bullet_point',
-            'generic_keyword',
-            'number_of_items',
-            'item_package_quantity',
-            'part_number',
-            'model_name',
-            'manufacturer',
-            'color',
-            'size',
-            'pattern',
-            'item_weight',
-            'item_package_weight',
-            'condition_note',
-            'max_order_quantity',
-            'unit_count',
-            'warranty_description',
-        ];
-
-        // Extract enums and patterns for top-level fields.
         $enums = [];
 
         foreach ($classification['enum_fields'] ?? [] as $f) {
@@ -377,9 +369,9 @@ PROMPT;
             $patterns[$topKey] = $f['pattern'] ?? '';
         }
 
+        $schema = [];
         $seenKeys = [];
 
-        // Existing schema priority groups.
         $req = $this->extractFields(
             $classification['required_fields'] ?? [],
             $filledKeys,
@@ -389,6 +381,10 @@ PROMPT;
             $seenKeys,
             $metrics
         );
+
+        if ($req) {
+            $schema['req'] = $req;
+        }
 
         $rec = $this->extractFields(
             $classification['recommended_fields'] ?? [],
@@ -400,6 +396,10 @@ PROMPT;
             $metrics
         );
 
+        if ($rec) {
+            $schema['rec'] = $rec;
+        }
+
         $opt = $this->extractFields(
             $classification['optional_fields'] ?? [],
             $filledKeys,
@@ -410,76 +410,12 @@ PROMPT;
             $metrics
         );
 
-        // Collect the actual classified fields.
-        $allClassifiedFields = array_merge(
-            $classification['required_fields'] ?? [],
-            $classification['recommended_fields'] ?? [],
-            $classification['optional_fields'] ?? []
-        );
-
-        // Find common fields that exist in this category schema.
-        $common = [];
-
-        foreach ($allClassifiedFields as $field) {
-            $key = $field['key'] ?? null;
-
-            if (!$key || !in_array($key, $commonFields, true)) {
-                continue;
-            }
-
-            $common[$key] = $field;
-        }
-
-        // Build common-field context using a fresh seen-key map.
-        $commonSeenKeys = [];
-
-        $commonContext = $this->extractFields(
-            array_values($common),
-            $filledKeys,
-            $enums,
-            $patterns,
-            false,
-            $commonSeenKeys,
-            $metrics
-        );
-
-        // Only add common fields that were not already included
-        // in required/recommended/optional groups.
-        if ($commonContext) {
-            $uniqueCommon = [];
-
-            foreach ($commonContext as $key => $field) {
-                if (isset($seenKeys[$key])) {
-                    continue;
-                }
-
-                $uniqueCommon[$key] = $field;
-                $seenKeys[$key] = true;
-            }
-
-            if ($uniqueCommon) {
-                $req = array_merge($uniqueCommon, $req);
-            }
-        }
-
-        // Build schema AFTER the common fields are merged.
-        $schema = [];
-
-        if ($req) {
-            $schema['req'] = $req;
-        }
-
-        if ($rec) {
-            $schema['rec'] = $rec;
-        }
-
         if ($opt) {
             $schema['opt'] = $opt;
         }
 
         return $schema;
     }
-
     /**
      * Extracts missing field constraints without duplicating structure.
      */
