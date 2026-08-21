@@ -369,6 +369,10 @@ class TransformsAmazonAttributes
                         'unit' => $unit,
                     ]];
 
+                    $seat['height'] = [[
+                        'value' => (float) $m[1],
+                        'unit' => $unit,
+                    ]];
                     $seat['depth'] = [[
                         'value' => (float) $m[2],
                         'unit' => $unit,
