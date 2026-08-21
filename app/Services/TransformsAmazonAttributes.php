@@ -721,39 +721,53 @@ class TransformsAmazonAttributes
                 return [$ramObject];
             }
 
-            if ($name === 'cpu_model') {
+          if ($name === 'cpu_model') {
 
                 $raw = trim((string) $value);
                 $manufacturers = $this->cpuManufacturers();
-                $manufacturerPattern = implode(  '|',
-                    array_map(   fn ($manufacturer) => preg_quote($manufacturer, '/'),
-                        $manufacturers  ) );
 
-                if (preg_match( '/^(' . $manufacturerPattern . ')\b/i',
-                    $raw, $manufacturerMatch )) {
-                    $manufacturer = $manufacturerMatch[1];
+                $pattern = implode('|', array_map(
+                    fn($v) => preg_quote($v, '/'),
+                    $manufacturers
+                ));
+
+                $manufacturer = '';
+
+                if (preg_match('/^(' . $pattern . ')\b/i', $raw, $m)) {
+                    $manufacturer = $m[1];
+                    $raw = trim(substr($raw, strlen($m[0])));
                 }
 
-                // extract model number (e.g. "i7-1165G7", "5800H", "M2")
-                preg_match('/([A-Za-z]*\d[A-Za-z0-9\-]*)/', $raw, $modelMatch);
-                $modelNumber = $modelMatch[1] ?? '';
+                // Prefer Intel-style models: i7-1165G7, i5-1235U, Xeon E5-2699
+                // Then AMD/other numeric models: 5800H, 5600X, 13900H, M2, etc.
+                preg_match(
+                    '/\b((?:[A-Za-z]+\d+[-]?\d+[A-Za-z0-9-]*|\d{3,6}[A-Za-z]{0,4}|[A-Za-z]\d{1,4}))\b/i',
+                    $raw,
+                    $m
+                );
 
-                // build family token: spaces -> underscores, strip model number if present
-                $familyRaw = trim(str_ireplace($modelNumber, '', $raw));
-                $family = preg_replace('/\s+/', ' ', $familyRaw);
+                $modelNumber = $m[1] ?? '';
 
-               dd( [[
+                $family = trim(preg_replace(
+                    '/\b' . preg_quote($modelNumber, '/') . '\b/i',
+                    '',
+                    $raw
+                ));
+
+                $family = preg_replace('/\s+/', ' ', $family);
+
+                return [[
                     'marketplace_id' => $marketplaceId,
-                    'family' => [
-                        ['value' => $family],
-                    ],
-                    'manufacturer' => [
-                        ['value' => $manufacturer, 'language_tag' => 'en_US'],
-                    ],
-                    'model_number' => [
-                        ['value' => $modelNumber, 'language_tag' => 'en_US'],
-                    ],
-                ]]);
+                    'family' => [['value' => $family]],
+                    'manufacturer' => [[
+                        'value' => $manufacturer,
+                        'language_tag' => 'en_US',
+                    ]],
+                    'model_number' => [[
+                        'value' => $modelNumber,
+                        'language_tag' => 'en_US',
+                    ]],
+                ]];
             }
 
             if ($name === 'supplier_declared_dg_hz_regulation') {
