@@ -725,10 +725,13 @@ class TransformsAmazonAttributes
 
             if ($name === 'cpu_model') {
 
-                $raw = trim((string) $value);
+                [$raw, $speedRaw] = array_pad(
+                    array_map('trim', explode(',', (string) $value, 2)),
+                    2,
+                    ''
+                );
 
                 $family = $this->amazonCpuFamily($raw);
-
                 $manufacturer = '';
                 $manufacturers = $this->cpuManufacturers();
 
@@ -741,12 +744,10 @@ class TransformsAmazonAttributes
                     $manufacturer = $m[1];
                 }
 
-                preg_match(
-                    '/\b((?:[A-Za-z]+\d+[-]?\d+[A-Za-z0-9-]*|\d{3,6}[A-Za-z]{1,4}|[A-Za-z]\d{1,4}[A-Za-z0-9-]*))\b/i',
-                    $raw,
-                    $m
-                );
+                preg_match( '/\b((?:[A-Za-z]+\d+[-]?\d+[A-Za-z0-9-]*|\d{3,6}[A-Za-z]{1,4}|[A-Za-z]\d{1,4}[A-Za-z0-9-]*))\b/i',
+                    $raw,   $m );
 
+                preg_match('/([\d.]+)\s*(GHz|MHz|KHz|hertz)\b/i', $speedRaw??'2.4 Ghz', $m2);
                 $modelNumber = $m[1] ?? '';
 
                 return [[
@@ -768,8 +769,8 @@ class TransformsAmazonAttributes
                     ],
                      'speed' => [
                         [
-                            'value' => 3.2,
-                            'unit' => 'GHz',
+                            'value' => $m2[1] ?? 2.4,
+                            'unit' => $m2[2] ?? 'GHz',
                         ],
                     ],
                 ]];
