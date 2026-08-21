@@ -312,8 +312,11 @@ PROMPT;
     /**
      * Compiles schema constraints into a dense, flat hierarchy mapping strictly to top-level keys.
      */
-    private function buildSchemaContext(array $classification, array $filledKeys, array &$metrics): array
-    {
+    private function buildSchemaContext(
+        array $classification,
+        array $filledKeys,
+        array &$metrics
+    ): array {
         $commonFields = [
             'title_differentiation',
             'brand',
@@ -336,62 +339,120 @@ PROMPT;
             'unit_count',
             'warranty_description',
         ];
-        // Safely extract Enums and Patterns for Top-Level keys to prevent nested duplicate arrays
+
+        // Extract enums and patterns for top-level fields.
         $enums = [];
+
         foreach ($classification['enum_fields'] ?? [] as $f) {
             $topKey = explode('.', $f['path'] ?? $f['key'])[0];
             $enums[$topKey] = $f['values'] ?? [];
         }
 
         $patterns = [];
+
         foreach ($classification['pattern_fields'] ?? [] as $f) {
             $topKey = explode('.', $f['path'] ?? $f['key'])[0];
             $patterns[$topKey] = $f['pattern'] ?? '';
         }
 
-        $schema   = [];
         $seenKeys = [];
 
-        $req = $this->extractFields($classification['required_fields'] ?? [], $filledKeys, $enums, $patterns, true, $seenKeys, $metrics);
-        if ($req) $schema['req'] = $req;
+        // Existing schema priority groups.
+        $req = $this->extractFields(
+            $classification['required_fields'] ?? [],
+            $filledKeys,
+            $enums,
+            $patterns,
+            true,
+            $seenKeys,
+            $metrics
+        );
 
-        $rec = $this->extractFields($classification['recommended_fields'] ?? [], $filledKeys, $enums, $patterns, true, $seenKeys, $metrics);
-        if ($rec) $schema['rec'] = $rec;
+        $rec = $this->extractFields(
+            $classification['recommended_fields'] ?? [],
+            $filledKeys,
+            $enums,
+            $patterns,
+            true,
+            $seenKeys,
+            $metrics
+        );
 
-        $opt = $this->extractFields($classification['optional_fields'] ?? [], $filledKeys, $enums, $patterns, false, $seenKeys, $metrics);
-        if ($opt) $schema['opt'] = $opt;
+        $opt = $this->extractFields(
+            $classification['optional_fields'] ?? [],
+            $filledKeys,
+            $enums,
+            $patterns,
+            false,
+            $seenKeys,
+            $metrics
+        );
 
+        // Collect the actual classified fields.
         $allClassifiedFields = array_merge(
             $classification['required_fields'] ?? [],
             $classification['recommended_fields'] ?? [],
             $classification['optional_fields'] ?? []
         );
 
+        // Find common fields that exist in this category schema.
         $common = [];
 
         foreach ($allClassifiedFields as $field) {
             $key = $field['key'] ?? null;
 
-            if ($key && in_array($key, $commonFields, true)) {
-                $common[] = $field;
-            }
-        }
-
-        $uniqueCommon = [];
-
-        foreach ($common as $field) {
-            $key = $field['key'] ?? null;
-
-            if (!$key || isset($seenKeys[$key])) {
+            if (!$key || !in_array($key, $commonFields, true)) {
                 continue;
             }
 
-            $seenKeys[$key] = true;
-            $uniqueCommon[] = $field;
+            $common[$key] = $field;
         }
 
-        if ($uniqueCommon) {
-            $req = array_merge($uniqueCommon, $req);
+        // Build common-field context using a fresh seen-key map.
+        $commonSeenKeys = [];
+
+        $commonContext = $this->extractFields(
+            array_values($common),
+            $filledKeys,
+            $enums,
+            $patterns,
+            false,
+            $commonSeenKeys,
+            $metrics
+        );
+
+        // Only add common fields that were not already included
+        // in required/recommended/optional groups.
+        if ($commonContext) {
+            $uniqueCommon = [];
+
+            foreach ($commonContext as $key => $field) {
+                if (isset($seenKeys[$key])) {
+                    continue;
+                }
+
+                $uniqueCommon[$key] = $field;
+                $seenKeys[$key] = true;
+            }
+
+            if ($uniqueCommon) {
+                $req = array_merge($uniqueCommon, $req);
+            }
+        }
+
+        // Build schema AFTER the common fields are merged.
+        $schema = [];
+
+        if ($req) {
+            $schema['req'] = $req;
+        }
+
+        if ($rec) {
+            $schema['rec'] = $rec;
+        }
+
+        if ($opt) {
+            $schema['opt'] = $opt;
         }
 
         return $schema;
