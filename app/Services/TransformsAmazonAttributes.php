@@ -742,7 +742,7 @@ class TransformsAmazonAttributes
                 $familyRaw = trim(str_ireplace($modelNumber, '', $raw));
                 $family = preg_replace('/\s+/', ' ', $familyRaw);
 
-               return [[
+               dd( [[
                     'marketplace_id' => $marketplaceId,
                     'family' => [
                         ['value' => $family],
@@ -753,7 +753,7 @@ class TransformsAmazonAttributes
                     'model_number' => [
                         ['value' => $modelNumber, 'language_tag' => 'en_US'],
                     ],
-                ]];
+                ]]);
             }
 
             if ($name === 'supplier_declared_dg_hz_regulation') {
