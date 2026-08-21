@@ -724,9 +724,7 @@ class TransformsAmazonAttributes
             if ($name === 'cpu_model') {
 
                 $raw = trim((string) $value);
-
                 $manufacturers = $this->cpuManufacturers();
-
                 $manufacturerPattern = implode(  '|',
                     array_map(   fn ($manufacturer) => preg_quote($manufacturer, '/'),
                         $manufacturers  ) );
@@ -744,7 +742,7 @@ class TransformsAmazonAttributes
                 $familyRaw = trim(str_ireplace($modelNumber, '', $raw));
                 $family = preg_replace('/\s+/', '_', $familyRaw);
 
-                return [[
+                dd( [[
                     'marketplace_id' => $marketplaceId,
                     'family' => [
                         ['value' => $family],
@@ -755,7 +753,7 @@ class TransformsAmazonAttributes
                     'model_number' => [
                         ['value' => $modelNumber, 'language_tag' => 'en_US'],
                     ],
-                ]];
+                ]]);
             }
 
             if ($name === 'supplier_declared_dg_hz_regulation') {
