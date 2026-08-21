@@ -239,7 +239,7 @@ class TransformsAmazonAttributes
             if ($name == 'item_depth_width_height') {
                
                 $valueString = trim((string) $value);
-                dd($this->parseDepthWidthHeight($valueString, $marketplaceId));
+                return $this->parseDepthWidthHeight($valueString, $marketplaceId);
             }
 
             // ── item_length_width_depth — schema only accepts "inches" ─────────
