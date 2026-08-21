@@ -753,7 +753,7 @@ class TransformsAmazonAttributes
                     '',
                     $raw
                 ));
-
+                 $family = $raw;
                 $family = preg_replace('/\s+/', ' ', $family);
 
                 return [[
