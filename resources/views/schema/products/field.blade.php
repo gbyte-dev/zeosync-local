@@ -266,7 +266,7 @@ $showImagePickerButton = $isImageField;
                 </div>
             </div>
             @endif
-
+            
             @php
             $customMultiselectFields = [];
             @endphp
