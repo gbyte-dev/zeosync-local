@@ -186,7 +186,7 @@ PROMPT;
         ];
     }
 
-    
+
     public function buildSingleFieldPrompt(
         string $productName,
         string $category,
@@ -314,6 +314,28 @@ PROMPT;
      */
     private function buildSchemaContext(array $classification, array $filledKeys, array &$metrics): array
     {
+        $commonFields = [
+            'title_differentiation',
+            'brand',
+            'model_number',
+            'product_description',
+            'bullet_point',
+            'generic_keyword',
+            'number_of_items',
+            'item_package_quantity',
+            'part_number',
+            'model_name',
+            'manufacturer',
+            'color',
+            'size',
+            'pattern',
+            'item_weight',
+            'item_package_weight',
+            'condition_note',
+            'max_order_quantity',
+            'unit_count',
+            'warranty_description',
+        ];
         // Safely extract Enums and Patterns for Top-Level keys to prevent nested duplicate arrays
         $enums = [];
         foreach ($classification['enum_fields'] ?? [] as $f) {
@@ -338,6 +360,39 @@ PROMPT;
 
         $opt = $this->extractFields($classification['optional_fields'] ?? [], $filledKeys, $enums, $patterns, false, $seenKeys, $metrics);
         if ($opt) $schema['opt'] = $opt;
+
+        $allClassifiedFields = array_merge(
+            $classification['required_fields'] ?? [],
+            $classification['recommended_fields'] ?? [],
+            $classification['optional_fields'] ?? []
+        );
+
+        $common = [];
+
+        foreach ($allClassifiedFields as $field) {
+            $key = $field['key'] ?? null;
+
+            if ($key && in_array($key, $commonFields, true)) {
+                $common[] = $field;
+            }
+        }
+
+        $uniqueCommon = [];
+
+        foreach ($common as $field) {
+            $key = $field['key'] ?? null;
+
+            if (!$key || isset($seenKeys[$key])) {
+                continue;
+            }
+
+            $seenKeys[$key] = true;
+            $uniqueCommon[] = $field;
+        }
+
+        if ($uniqueCommon) {
+            $req = array_merge($uniqueCommon, $req);
+        }
 
         return $schema;
     }
