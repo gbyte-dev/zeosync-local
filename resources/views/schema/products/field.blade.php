@@ -268,10 +268,7 @@ $showImagePickerButton = $isImageField;
             @endif
 
             @php
-            $customMultiselectFields = [
-            'NOTE: If you have any custom multiselect fields, add them to this array. For example:
-            'custom_multiselect_field_name',
-            ];
+            $customMultiselectFields = [];
             @endphp
 
             @if(in_array($field['name'], $customMultiselectFields, true))
