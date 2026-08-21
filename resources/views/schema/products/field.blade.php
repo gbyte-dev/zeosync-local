@@ -267,16 +267,6 @@ $showImagePickerButton = $isImageField;
             </div>
             @endif
 
-            @php
-            $customMultiselectFields = [];
-            @endphp
-
-            @if(in_array($field['name'], $customMultiselectFields, true))
-
-            @include('schema.products.fields.multiselect')
-
-            @else
-
             @switch($field['type'])
 
             @case('select')
@@ -300,7 +290,6 @@ $showImagePickerButton = $isImageField;
             @break
 
             @endswitch
-
             @endif
         </div>
 
