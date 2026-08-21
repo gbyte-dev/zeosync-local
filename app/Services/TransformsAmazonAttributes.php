@@ -725,15 +725,10 @@ class TransformsAmazonAttributes
 
             if ($name === 'cpu_model') {
 
-                [$cpu, $speed] = array_pad(
-                    array_map('trim', explode(',', (string) $value, 2)),
-                    2,
-                    ''
-                );
+                $raw = trim((string) $value);
 
-                $family = $this->amazonCpuFamily($cpu);
+                $family = $this->amazonCpuFamily($raw);
 
-                // Extract manufacturer
                 $manufacturer = '';
                 $manufacturers = $this->cpuManufacturers();
 
@@ -742,47 +737,36 @@ class TransformsAmazonAttributes
                     $manufacturers
                 ));
 
-                if (preg_match('/^(' . $pattern . ')\b/i', $cpu, $m)) {
+                if (preg_match('/^(' . $pattern . ')\b/i', $raw, $m)) {
                     $manufacturer = $m[1];
                 }
 
-                // Extract model number
                 preg_match(
                     '/\b((?:[A-Za-z]+\d+[-]?\d+[A-Za-z0-9-]*|\d{3,6}[A-Za-z]{1,4}|[A-Za-z]\d{1,4}[A-Za-z0-9-]*))\b/i',
-                    $cpu,
+                    $raw,
                     $m
                 );
 
                 $modelNumber = $m[1] ?? '';
 
-                return [
-                    'cpu' => [[
-                        'marketplace_id' => $marketplaceId,
-                        'family' => [
-                            ['value' => $family ?: $cpu],
+                return [[
+                    'marketplace_id' => $marketplaceId,
+                    'family' => [
+                        ['value' => $family ?: $raw],
+                    ],
+                    'manufacturer' => [
+                        [
+                            'value' => $manufacturer,
+                            'language_tag' => 'en_US',
                         ],
-                        'manufacturer' => [
-                            [
-                                'value' => $manufacturer,
-                                'language_tag' => 'en_US',
-                            ],
+                    ],
+                    'model_number' => [
+                        [
+                            'value' => $modelNumber,
+                            'language_tag' => 'en_US',
                         ],
-                        'model_number' => [
-                            [
-                                'value' => $modelNumber,
-                                'language_tag' => 'en_US',
-                            ],
-                        ],
-                    ]],
-
-                    'speed' => $speed !== '' ? [[
-                        'marketplace_id' => $marketplaceId,
-                        'value' => (float) preg_replace('/[^0-9.]/', '', $speed),
-                        'unit' => preg_match('/MHz|KHz|hertz/i', $speed, $u)
-                            ? $u[0]
-                            : 'GHz',
-                    ]] : [],
-                ];
+                    ],
+                ]];
             }
 
             if ($name === 'supplier_declared_dg_hz_regulation') {
