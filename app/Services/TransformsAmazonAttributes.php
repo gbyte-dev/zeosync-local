@@ -740,9 +740,9 @@ class TransformsAmazonAttributes
 
                 // build family token: spaces -> underscores, strip model number if present
                 $familyRaw = trim(str_ireplace($modelNumber, '', $raw));
-                $family = preg_replace('/\s+/', '_', $familyRaw);
+                $family = preg_replace('/\s+/', ' ', $familyRaw);
 
-                dd( [[
+               return [[
                     'marketplace_id' => $marketplaceId,
                     'family' => [
                         ['value' => $family],
@@ -753,7 +753,7 @@ class TransformsAmazonAttributes
                     'model_number' => [
                         ['value' => $modelNumber, 'language_tag' => 'en_US'],
                     ],
-                ]]);
+                ]];
             }
 
             if ($name === 'supplier_declared_dg_hz_regulation') {
