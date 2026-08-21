@@ -122,11 +122,6 @@ class SchemaRendererService
             return 'boolean';
         }
         if (!empty($this->extractOptions($property))) {
-
-            if ($this->isMultiple($property)) {
-                return 'multiselect';
-            }
-
             return 'select';
         }
         if (($value['maxLength'] ?? 0) > 500) {
