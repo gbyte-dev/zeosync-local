@@ -766,6 +766,12 @@ class TransformsAmazonAttributes
                             'language_tag' => 'en_US',
                         ],
                     ],
+                     'speed' => [
+                        [
+                            'value' => 3.2,
+                            'unit' => 'GHz',
+                        ],
+                    ],
                 ]];
             }
 
