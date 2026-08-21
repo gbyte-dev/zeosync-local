@@ -3039,7 +3039,6 @@ class ShopifyController extends Controller
         try {
             $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
 
-            dd($response);
             if (!empty($response['error'])) {
                 return back()->with('error', 'Product not found');
             }
@@ -3048,9 +3047,10 @@ class ShopifyController extends Controller
                 return back()->with('error', 'Product not found');
             }
 
+            $product_type = $product['product_type'] ?? '';
+
             $dbProduct = \App\Models\Product::where('shopify_id', $id)
-                ->where('shop_id', $shopModel->id)
-                ->first();
+                ->where('shop_id', $shopModel->id)->first();
             $amazonData = null;
 
             $inventoryItemIds = [];
@@ -3059,10 +3059,10 @@ class ShopifyController extends Controller
                     $inventoryItemIds[] = $variant['inventory_item_id'];
                 }
             }
+
             if (!empty($inventoryItemIds)) {
                 $inventoryRes = $this->shopifyRest(
-                    $shopModel,
-                    'get',
+                    $shopModel, 'get',
                     'inventory_levels.json',
                     [
                         'inventory_item_ids' => implode(',', $inventoryItemIds)
