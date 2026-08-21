@@ -179,6 +179,12 @@ if ($field['name'] === 'item_density') {
 $extramsg = 'Please use in format like 27 lbs per cubic ft';
 }
 
+if ($field['name'] === 'seat') {
+$extramsg = 'Please use in format like 10H * 55D cm';
+}
+
+
+
 $idreq = !empty($field['required']) ? 'required' : '';
 @endphp
 
