@@ -108,12 +108,10 @@ class ShopifyService
     public function shopifyRest(Shop $shop, string $method, string $endpoint, array $payload = []): array
     {
         $method = strtolower($method);
-        $url = sprintf(
-            'https://%s/admin/api/%s/%s',
-            $shop->shop,
-            config('services.shopify.api_version', '2026-07'),
-            ltrim($endpoint, '/')
+        $url = sprintf( 'https://%s/admin/api/%s/%s',  $shop->shop,
+            config('services.shopify.api_version', '2026-07'),  ltrim($endpoint, '/')
         );
+        
         $options = [];
         if ($method === 'get') {
             $options['query'] = $payload;
