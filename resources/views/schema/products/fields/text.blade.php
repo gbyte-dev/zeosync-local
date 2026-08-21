@@ -171,6 +171,10 @@ if ($field['name'] === 'color_gamut') {
 $extramsg = 'Please use in format like 70% NTSC';
 }
 
+if ($field['name'] === 'externally_assigned_product_identifier') {
+$extramsg = 'Please use in format like EAN:1234567890123 or UPC:123456789012 or ISBN:978-3-16-148410-0';
+}
+
 $idreq = !empty($field['required']) ? 'required' : '';
 @endphp
 
