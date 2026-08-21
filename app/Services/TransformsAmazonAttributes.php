@@ -237,9 +237,9 @@ class TransformsAmazonAttributes
 
             // ── item_depth_width_height — schema only accepts "inches" ─────────
             if ($name == 'item_depth_width_height') {
-                die("=======");
+               
                 $valueString = trim((string) $value);
-                return $this->parseDepthWidthHeight($valueString, $marketplaceId);
+                dd($this->parseDepthWidthHeight($valueString, $marketplaceId));
             }
 
             // ── item_length_width_depth — schema only accepts "inches" ─────────
