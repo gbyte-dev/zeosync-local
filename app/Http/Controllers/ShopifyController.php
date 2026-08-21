@@ -714,9 +714,7 @@ class ShopifyController extends Controller
     public function syncToAmazon(Request $request, $id)
     {
         try {
-            Log::info('🟢 STEP 1 START', [
-                'incoming_id' => $id
-            ]);
+
             $shopModel = $this->getActiveShop($request);
             $this->ensureFreshAccessToken($shopModel);
             if (!$shopModel) {
@@ -739,11 +737,7 @@ class ShopifyController extends Controller
                         ->orWhere('shopify_id', $id);
                 })
                 ->first();
-            Log::info('🟢 STEP 3 PRODUCT', [
-                'product_found' => $product ? true : false,
-                'product_id' => $product->id ?? null,
-                'shopify_id' => $product->shopify_id ?? null
-            ]);
+
             if (!$product) {
                 ProductSyncLog::create([
                     'product_id' => null,
@@ -773,13 +767,7 @@ class ShopifyController extends Controller
                 ]);
             }
             $amazon = AmazonProduct::where('product_id', $product->id)->first();
-            Log::info('🟢 STEP 4 AMAZON CHECK', [
-                'product_id' => $product->id,
-                'amazon_found' => $amazon ? true : false,
-            ]);
-            Log::info('🟢 STEP 5 AMAZON DATA', [
-                'amazon_data' => $amazon
-            ]);
+
             if (!$amazon) {
                 return response()->json([
                     'success' => false,
@@ -789,9 +777,7 @@ class ShopifyController extends Controller
             $bulletPoints = json_decode($amazon->bullet_points, true) ?? [];
             $keywords = json_decode($amazon->platinum_keywords, true) ?? [];
             $searchTerms = json_decode($amazon->search_terms, true) ?? [];
-            $images = is_array($product->images)
-                ? $product->images
-                : json_decode($product->images, true) ?? [];
+            $images = is_array($product->images) ? $product->images  : json_decode($product->images, true) ?? [];
             $mainImage = $images[0]['src'] ?? 'https://via.placeholder.com/500';
             Log::info('🟢 STEP 6 IMAGES', [
                 'images_count' => count($images),
@@ -802,16 +788,11 @@ class ShopifyController extends Controller
                 if ($index == 0) continue;
                 $otherImages[] = $img['src'];
             }
-            $variants = is_array($product->variants)
-                ? $product->variants
+            $variants = is_array($product->variants) ? $product->variants
                 : json_decode($product->variants, true) ?? [];
             if (count($variants) > 1) {
                 $amazonService = new \App\Services\AmazonService();
-                $response = $amazonService->buildPayload(
-                    $shopModel,
-                    $product,
-                    $amazon
-                );
+                $response = $amazonService->buildPayload(  $shopModel, $product,  $amazon  );
                 // If service already returned JSON response
                 if ($response instanceof \Illuminate\Http\JsonResponse) {
                     $data = $response->getData(true);
@@ -3057,6 +3038,8 @@ class ShopifyController extends Controller
 
         try {
             $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
+
+            dd($response);
             if (!empty($response['error'])) {
                 return back()->with('error', 'Product not found');
             }
