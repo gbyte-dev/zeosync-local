@@ -3362,7 +3362,7 @@ trait AmazonServiceValues
         $unit = strtolower(trim($m[4] ?? 'inches'));
         $factor = $toInches[$unit] ?? 1;
 
-        dd( [[
+        return [[
             'depth' => [
                 'value' => round((float) $m[1] * $factor, 2),
                 'unit' => 'inches',
@@ -3376,7 +3376,7 @@ trait AmazonServiceValues
                 'unit' => 'inches',
             ],
             'marketplace_id' => $marketplaceId,
-        ]]);
+        ]];
     }
 
 }
