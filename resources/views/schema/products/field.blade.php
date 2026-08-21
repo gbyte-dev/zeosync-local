@@ -272,6 +272,7 @@ $showImagePickerButton = $isImageField;
             @case('select')
             @include('schema.products.fields.select')
             @break
+            
 
             @case('multiselect')
             @include('schema.products.fields.multiselect')
