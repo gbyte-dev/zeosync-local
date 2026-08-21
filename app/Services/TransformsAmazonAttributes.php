@@ -568,10 +568,18 @@ class TransformsAmazonAttributes
             }
 
             if ($name === 'externally_assigned_product_identifier') {
-                $decoded = json_decode($value, true);
-                return $decoded && isset($decoded['type'], $decoded['value'])
-                    ? [['type' => $decoded['type'], 'value' => $decoded['value']]]
-                    : [['type' => 'upc', 'value' => '09785512' . random_int(1000, 9999)]];
+
+                $value = trim((string) $value);
+
+                if (preg_match('/^(EAN|GTIN|UPC)\s*:\s*(\d+)$/i', $value, $m)) {
+                    return [[
+                        'marketplace_id' => $marketplaceId,
+                        'type' => strtolower($m[1]),
+                        'value' => $m[2],
+                    ]];
+                }
+
+                return [];
             }
 
             if ($name === 'parentage_level') {
