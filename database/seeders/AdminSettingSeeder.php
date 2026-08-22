@@ -1,7 +1,10 @@
 <?php
+
 namespace Database\Seeders;
+
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+
 class AdminSettingSeeder extends Seeder
 {
     /**
@@ -77,6 +80,15 @@ class AdminSettingSeeder extends Seeder
             ['option_key' => 'openai_endpoint'],
             [
                 'option_value' => 'https://api.openai.com/v1/chat/completions',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+
+        DB::table('admin_settings')->updateOrInsert(
+            ['option_key' => 'shopify_app_handle'],
+            [
+                'option_value' => 'zeosync',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
