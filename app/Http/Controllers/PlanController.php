@@ -27,6 +27,29 @@ class PlanController extends Controller
         return view('admin.plans.index', compact('plans'));
     }
 
+    public function pricing(Request $request)
+    {
+        $plans = Plan::query()
+            ->where('is_active', true)
+            ->where('is_custom', false)
+            ->whereNull('shop_id')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        // Detect if a shop is connected (via query param or session)
+        $activeShop = null;
+        $shopIdentifier = $request->query('shop') ?? session('active_shop');
+        if ($shopIdentifier) {
+            $shop = \App\Models\Shop::where('shop', $shopIdentifier)->first();
+            if ($shop && (int) $shop->is_active === 1 && !empty($shop->access_token)) {
+                $activeShop = $shop->shop;
+            }
+        }
+
+        return view('pricing', compact('plans', 'activeShop'));
+    }
+
 
 
     public function create()
