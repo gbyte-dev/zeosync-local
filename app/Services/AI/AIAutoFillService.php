@@ -158,11 +158,27 @@ readonly class AIAutoFillService
             $value = $content;
         }
 
-        return [
-            'success' => true,
-            'data'    => $value,
-            'usage'   => $response['usage'] ?? null,
-        ];
+        if (is_string($value) && in_array(strtolower(trim($value)), [
+            'not applicable',
+            'n/a',
+            'na',
+            'not available',
+            'unknown',
+            'not specified',
+            'not provided',
+            'cannot determine',
+        ], true)) {
+            Log::warning('AI Single Field rejected invalid response', [
+                'field' => $field,
+                'value' => $value,
+            ]);
+
+            return [
+                'success' => false,
+                'data' => null,
+                'message' => 'AI returned an invalid value.',
+            ];
+        }
     }
 
     public function generateGenericListing(
