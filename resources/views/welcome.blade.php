@@ -18,7 +18,7 @@
             <form method="GET" action="{{ route('crm.entry') }}" class="d-flex justify-content-center">
                 <div class="input-group" style="max-width: 450px;">
 
-                    <input type="text" name="shop" class="form-control" placeholder="your-store-name" required>
+                    <input type="text" name="shop" class="form-control" placeholder="your-store-name" value="{{session('active_shop')}}" required>
 
                     <span class="input-group-text d-none d-md-inline-flex">.myshopify.com</span>
 
