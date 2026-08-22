@@ -179,6 +179,12 @@ readonly class AIAutoFillService
                 'message' => 'AI returned an invalid value.',
             ];
         }
+
+        return [
+            'success' => true,
+            'data'    => $value,
+            'usage'   => $response['usage'] ?? null,
+        ];
     }
 
     public function generateGenericListing(
