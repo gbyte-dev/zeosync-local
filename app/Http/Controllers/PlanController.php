@@ -21,9 +21,7 @@ class PlanController extends Controller
 
     public function index()
     {
-        $shopModel = Shop::where('shop', session('active_shop'))->first();
-        $subscription = app(ShopifyBillingService::class)->syncSubscriptions($shopModel);
-     dd($subscription);
+
         $plans = Plan::whereNull('shop_id')
             ->orderBy('sort_order')
             ->get();
