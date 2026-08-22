@@ -1391,16 +1391,21 @@ class TransformsAmazonAttributes
         ]];
     }
 
-    private function descriptors($value): array
+    private function esrbRating($value, $marketplaceId): array
     {
-        $values = is_array($value)
-            ? $value
-            : [$value];
-
-        return array_map(fn($item) => [
-            'value' => (string) $item,
-        ], $values);
+        return [[
+            'rating' => [
+                [
+                    'value' => $value['rating'],
+                ],
+            ],
+            'descriptors' => array_map(fn($descriptor) => [
+                'value' => $descriptor,
+            ], $value['descriptors']),
+            'marketplace_id' => $marketplaceId,
+        ]];
     }
+    
 
     // lightsource 
     private function lightSource($value, $marketplaceId = null): array
