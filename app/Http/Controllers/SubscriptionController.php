@@ -33,7 +33,7 @@ class SubscriptionController extends ShopifyController
                 ) )->with('error', 'No shop connected.');
         }
 
-        $subscription = app(ShopifyBillingService::class)->syncSubscriptions($shopModel);
+        $subscription = app(ShopifyBillingService::class);
      dd($subscription);
 
         $plans = Plan::query()
