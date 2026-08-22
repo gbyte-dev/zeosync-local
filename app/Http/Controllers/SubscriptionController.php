@@ -13,13 +13,17 @@ use App\Http\Controllers\ShopifyController;
 use App\Services\ShopifyBillingService;
 use Illuminate\Support\Str;
 use App\Services\ShopifyWebhookService;
+use App\Services\Billing\BillingProvider;
 
 class SubscriptionController extends ShopifyController
 {
-    public function __construct(
-        private readonly ShopifyBillingService $shopifyBilling,
-        private readonly ShopifyWebhookService $shopifyWebhook
-    ) {}
+    protected ShopifyBillingService $shopifyBilling;
+    protected ShopifyWebhookService $shopifyWebhook;
+    
+    public function __construct() {
+        $this->shopifyBilling = app(ShopifyBillingService::class);
+        $this->shopifyWebhook = app(ShopifyWebhookService::class);
+    }
     public function plans(Request $request)
     {
         $shopModel = $this->getActiveShop($request);
@@ -115,7 +119,7 @@ class SubscriptionController extends ShopifyController
             'subscription',
             'activeShop',
             'billingOptions'
-        ));
+        ) + ['billingProvider' => app(BillingProvider::class)->provider()]);
     }
 
     public function subscribeToPlan(Request $request)

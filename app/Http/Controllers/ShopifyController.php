@@ -38,11 +38,16 @@ use App\Http\Controllers\ProductSchemaController;
 
 class ShopifyController extends Controller
 {
-    public function __construct(
-        private readonly ShopifyBillingService $shopifyBilling,
-        private readonly ShopifyWebhookService $shopifyWebhook,
-        private readonly AmazonService $amazonService,
-    ) {}
+     protected ShopifyBillingService $shopifyBilling;
+    protected ShopifyWebhookService $shopifyWebhook;
+    protected AmazonService $amazonService;
+
+
+    public function __construct() {
+        $this->shopifyBilling = app(ShopifyBillingService::class);
+        $this->shopifyWebhook = app(ShopifyWebhookService::class);
+        $this->amazonService = app(AmazonService::class);
+    }
     public function entry(Request $request)
     {
         $shop = null;
@@ -450,7 +455,7 @@ class ShopifyController extends Controller
             ['value' => '1', 'label' => 'Monthly', 'description' => 'Billed every 30 days'],
             ['value' => '30', 'label' => 'Annual', 'description' => 'Billed every 365 days'],
         ];
-        return view('plans', compact('plans', 'subscription', 'activeShop', 'billingOptions'));
+        return view('plans', compact('plans', 'subscription', 'activeShop', 'billingOptions') + ['billingProvider' => app(\App\Services\Billing\BillingProvider::class)->provider()]);
     }
     public function subscribeToPlan(Request $request)
     {
