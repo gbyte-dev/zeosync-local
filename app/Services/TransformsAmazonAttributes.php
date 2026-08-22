@@ -237,7 +237,7 @@ class TransformsAmazonAttributes
 
             // ── item_depth_width_height — schema only accepts "inches" ─────────
             if ($name == 'item_depth_width_height') {
-               
+
                 $valueString = trim((string) $value);
                 return $this->parseDepthWidthHeight($valueString, $marketplaceId);
             }
@@ -714,10 +714,13 @@ class TransformsAmazonAttributes
                     $manufacturer = $m[1];
                 }
 
-                preg_match( '/\b((?:[A-Za-z]+\d+[-]?\d+[A-Za-z0-9-]*|\d{3,6}[A-Za-z]{1,4}|[A-Za-z]\d{1,4}[A-Za-z0-9-]*))\b/i',
-                    $raw,   $m );
+                preg_match(
+                    '/\b((?:[A-Za-z]+\d+[-]?\d+[A-Za-z0-9-]*|\d{3,6}[A-Za-z]{1,4}|[A-Za-z]\d{1,4}[A-Za-z0-9-]*))\b/i',
+                    $raw,
+                    $m
+                );
 
-                preg_match('/([\d.]+)\s*(GHz|MHz|KHz|hertz)\b/i', $speedRaw??'2.4 Ghz', $m2);
+                preg_match('/([\d.]+)\s*(GHz|MHz|KHz|hertz)\b/i', $speedRaw ?? '2.4 Ghz', $m2);
                 $modelNumber = $m[1] ?? '';
 
                 return [[
@@ -737,14 +740,14 @@ class TransformsAmazonAttributes
                             'language_tag' => 'en_US',
                         ],
                     ],
-                     'speed' => [
+                    'speed' => [
                         [
                             'value' => $m2[1] ?? 2.4,
                             'unit' => $m2[2] ?? 'GHz',
                         ],
                     ],
                 ]];
-            } 
+            }
 
             if ($name === 'supplier_declared_dg_hz_regulation') {
                 $valid = ['not_applicable', 'un3480', 'un3481', 'un3090', 'un3091', 'iata_section_ii', 'iata_section_ib'];
@@ -1229,7 +1232,7 @@ class TransformsAmazonAttributes
                 $finalColor = $colorMap[strtolower($normalizedColor)] ?? ucfirst(strtolower($normalizedColor));
                 return [['value' => $finalColor]];
             }
-            
+
             if ($name === 'item_density') {
                 return $this->parseDensity($value, $marketplaceId);
             }
@@ -1240,6 +1243,10 @@ class TransformsAmazonAttributes
 
             if ($name === 'closure') {
                 return $this->closure($value);
+            }
+
+            if ($name === 'descriptors') {
+                return $this->descriptors($value);
             }
 
             if ($name === 'light_source') {
@@ -1290,10 +1297,13 @@ class TransformsAmazonAttributes
             if ($name === 'non_lithium_battery_energy_content') {
                 $input = trim($value);
 
-                preg_match( '/^\s*([0-9]+(?:\.[0-9]+)?)\s*(.*?)\s*$/i',
-                    $input, $matches  );
+                preg_match(
+                    '/^\s*([0-9]+(?:\.[0-9]+)?)\s*(.*?)\s*$/i',
+                    $input,
+                    $matches
+                );
 
-                $energyValue = isset($matches[1])? (float) $matches[1] : 0;
+                $energyValue = isset($matches[1]) ? (float) $matches[1] : 0;
                 $unit = strtolower(trim($matches[2] ?? ''));
 
                 $vunitMap = $this->voltageUnitMap();
@@ -1379,6 +1389,17 @@ class TransformsAmazonAttributes
             ]],
             'marketplace_id' => 'ATVPDKIKX0DER',
         ]];
+    }
+
+    private function descriptors($value): array
+    {
+        $values = is_array($value)
+            ? $value
+            : [$value];
+
+        return array_map(fn($item) => [
+            'value' => (string) $item,
+        ], $values);
     }
 
     // lightsource 
@@ -1652,6 +1673,4 @@ class TransformsAmazonAttributes
             'marketplace_id' => $marketplaceId,
         ]];
     }
-
-
 }
