@@ -12,6 +12,8 @@ use App\Models\ShopifyOrder;
 use App\Models\ShopSubscription;
 use App\Services\ShopifyBillingService;
 use App\Services\ShopifyWebhookService;
+use App\Services\Billing\BillingManager;
+use App\Services\Billing\BillingProvider;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
@@ -42,6 +44,7 @@ class ShopifyController extends Controller
         private readonly ShopifyBillingService $shopifyBilling,
         private readonly ShopifyWebhookService $shopifyWebhook,
         private readonly AmazonService $amazonService,
+        private readonly BillingManager $billingManager,
     ) {}
     public function entry(Request $request)
     {
@@ -426,6 +429,12 @@ class ShopifyController extends Controller
             ->orderBy('id')
             ->get();
 
+        $customPlan = Plan::query()
+            ->where('shop_id', $shopModel->id)
+            ->where('is_custom', true)
+            ->where('is_active', true)
+            ->first();
+
         $subscription = ShopSubscription::with('plan')
             ->where('shop_id', $shopModel->id)
             ->first();
@@ -434,30 +443,30 @@ class ShopifyController extends Controller
                 'plan_id' => $subscription?->plan_id,
                 'requested_plan_id' => $subscription?->requested_plan_id,
             ]);
-            $subscription = $this->shopifyBilling->syncSubscription($shopModel, $subscription);
+            $subscription = $this->billingManager->sync($shopModel, $subscription);
             Log::info('PLANS PAGE AFTER SYNC', [
                 'plan_id' => $subscription?->plan_id,
                 'requested_plan_id' => $subscription?->requested_plan_id,
             ]);
             $subscription?->loadMissing('plan');
         } catch (RuntimeException $exception) {
-            Log::warning('Unable to sync Shopify billing status before rendering plans.', [
+            Log::warning('Unable to sync billing status before rendering plans.', [
                 'shop' => $shopModel->shop,
                 'error' => $exception->getMessage(),
             ]);
         }
         $billingOptions = [
-            ['value' => '1', 'label' => 'Monthly', 'description' => 'Billed every 30 days'],
-            ['value' => '30', 'label' => 'Annual', 'description' => 'Billed every 365 days'],
+            ['value' => 'EVERY_30_DAYS', 'label' => 'Monthly', 'description' => 'Billed every 30 days'],
+            ['value' => 'ANNUAL', 'label' => 'Annual', 'description' => 'Billed every 365 days'],
         ];
-        return view('plans', compact('plans', 'subscription', 'activeShop', 'billingOptions'));
+        return view('plans', compact('plans', 'customPlan', 'subscription', 'activeShop', 'billingOptions'));
     }
     public function subscribeToPlan(Request $request)
     {
         Log::info('Controller shopifycontroller called');
         $request->validate([
             'plan_id' => 'required|exists:plans,id',
-            'billing_interval' => 'required|string|in:EVERY_30_DAYS,ANNUAL',
+            'billing_interval' => 'required|string|in:EVERY_30_DAYS,ANNUAL,1,12',
         ]);
         $shopModel = $this->getActiveShop($request);
         if (!$shopModel) {
@@ -466,7 +475,16 @@ class ShopifyController extends Controller
         $plan = Plan::query()
             ->where('is_active', true)
             ->findOrFail($request->integer('plan_id'));
-        //  TRIAL PLAN HANDLE
+
+        // Normalize billing interval
+        $billingInterval = strtoupper((string) $request->input('billing_interval', 'EVERY_30_DAYS'));
+        if ($billingInterval === '12' || $billingInterval === 'ANNUAL') {
+            $billingInterval = 'ANNUAL';
+        } elseif ($billingInterval === '1' || $billingInterval === 'MONTHLY' || $billingInterval === '') {
+            $billingInterval = 'EVERY_30_DAYS';
+        }
+
+        //  TRIAL PLAN HANDLE (same for both providers)
         if ($plan->is_trial) {
             $trialDays = $plan->trial_days ?? 7;
             ShopSubscription::updateOrCreate(
@@ -480,7 +498,6 @@ class ShopifyController extends Controller
                     'trial_ends_at' => now()->addDays($trialDays),
                     'started_at' => now(),
                     'activated_at' => now(),
-                    //  CLEAN OLD DATA
                     'shopify_subscription_gid' => null,
                     'shopify_confirmation_url' => null,
                     'shopify_return_url' => null,
@@ -492,69 +509,22 @@ class ShopifyController extends Controller
             return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
                 ->with('success', 'Trial activated successfully.');
         }
-        $billingInterval = strtoupper($request->string('billing_interval')->value());
-        $billingCycleMonths = $billingInterval === 'ANNUAL' ? 12 : 1;
-        $existingSubscription = ShopSubscription::with('plan')
-            ->where('shop_id', $shopModel->id)
-            ->first();
-        try {
-            $existingSubscription = $this->shopifyBilling->syncSubscription($shopModel, $existingSubscription);
-        } catch (RuntimeException $exception) {
-            Log::warning('Unable to sync Shopify subscription before creating a new billing request.', [
-                'shop' => $shopModel->shop,
-                'error' => $exception->getMessage(),
-            ]);
+
+        // Delegate to the active billing provider via BillingManager
+        $result = $this->billingManager->subscribe($shopModel, $plan, $billingInterval);
+
+        $redirectUrl = $result['redirect'] ?? $this->shopAwareUrl('/plans', $shopModel->shop);
+
+        if (!empty($result['error'])) {
+            return redirect($redirectUrl)->with('error', $result['error']);
         }
-        if (
-            $existingSubscription &&
-            $this->shopifyBilling->isActivatedStatus($existingSubscription->status) &&
-            (int) $existingSubscription->plan_id === (int) $plan->id &&
-            (string) $existingSubscription->billing_interval === $billingInterval
-        ) {
-            return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
-                ->with('success', "{$plan->name} is already active for {$shopModel->shop}.");
+
+        if (!empty($result['message'])) {
+            return redirect($redirectUrl)->with('success', $result['message']);
         }
-        $returnUrl = $this->shopifyBilling->buildReturnUrl($shopModel);
-        try {
-            $createdSubscription = $this->shopifyBilling->createSubscription(
-                $shopModel,
-                $plan,
-                $billingInterval,
-                $returnUrl
-            );
-        } catch (RuntimeException $exception) {
-            Log::error('Failed to create Shopify app subscription.', [
-                'shop' => $shopModel->shop,
-                'plan_id' => $plan->id,
-                'billing_interval' => $billingInterval,
-                'error' => $exception->getMessage(),
-            ]);
-            return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
-                ->with('error', $exception->getMessage());
-        }
-        ShopSubscription::updateOrCreate(
-            ['shop_id' => $shopModel->id],
-            [
-                'plan_id' => $plan->id,
-                'shopify_subscription_gid' => $createdSubscription['subscription_gid'],
-                'shopify_confirmation_url' => $createdSubscription['confirmation_url'],
-                'shopify_return_url' => $returnUrl,
-                'status' => 'pending',
-                'price' => $createdSubscription['amount'],
-                'billing_cycle_months' => $billingCycleMonths,
-                'billing_interval' => $billingInterval,
-                'currency_code' => $createdSubscription['currency_code'],
-                'trial_days' => (int) config('services.shopify.billing.trial_days', 0),
-                'is_test' => (bool) config('services.shopify.billing.test', false),
-                'trial_ends_at' => null,
-                'started_at' => null,
-                'activated_at' => null,
-                'current_period_end' => null,
-                'ended_at' => null,
-                'cancelled_at' => null,
-            ]
-        );
-        return redirect()->away($createdSubscription['confirmation_url']);
+
+        // Shopify flow returns the confirmation URL directly
+        return redirect()->away($redirectUrl);
     }
     public function billingCallback(Request $request)
     {

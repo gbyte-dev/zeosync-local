@@ -12,12 +12,12 @@ use App\Models\ShopSubscription;
 use App\Models\ShopifySubscription;
 use Illuminate\Support\Facades\Log;
 use App\Services\StripeService;
+use App\Services\Billing\BillingManager;
+use App\Services\Billing\BillingProvider;
 use App\Models\Shop;
 
 class PlanController extends Controller
 {
-
-
     public function index()
     {
         $plans = Plan::whereNull('shop_id')
@@ -40,8 +40,6 @@ class PlanController extends Controller
         return view('pricing', compact('plans'));
     }
 
-
-
     public function create()
     {
         return view('admin.plans.create');
@@ -60,11 +58,8 @@ class PlanController extends Controller
             'trial_days' => 'nullable|integer',
             'sync_limit' => 'required|integer|min:0',
             'product_limit' => 'required|integer|min:0',
-
-            //  IMPORTANT FIX
             'prices' => 'nullable|array',
             'prices.*' => 'nullable|numeric',
-
             'stripe_price_ids' => 'nullable|array',
             'is_trial' => 'nullable|boolean',
             'ai_autofill' => 'nullable|boolean',
@@ -79,17 +74,14 @@ class PlanController extends Controller
         $data['contact_button_text'] = $request->input('contact_button_text');
 
         if ($request->boolean('is_enterprise')) {
-
             $data['prices'] = [];
             $data['stripe_price_ids'] = [];
             $data['is_trial'] = 0;
         } elseif ($request->boolean('is_trial')) {
-
             $data['prices'] = [];
             $data['stripe_price_ids'] = [];
             $data['is_trial'] = 1;
         } else {
-
             $data['prices'] = array_filter($request->prices ?? [], function ($value) {
                 return $value !== null && $value !== '';
             });
@@ -103,7 +95,6 @@ class PlanController extends Controller
             $data['is_trial'] = 0;
         }
 
-        //  slug
         $data['slug'] = Str::slug($request->name);
 
         Plan::create($data);
@@ -144,7 +135,6 @@ class PlanController extends Controller
         $data['is_enterprise'] = $request->boolean('is_enterprise');
         $data['contact_button_text'] = $request->input('contact_button_text');
 
-        //  HANDLE TRIAL PLAN
         if ($request->boolean('is_trial')) {
             $data['prices'] = [];
             $data['stripe_price_ids'] = [];
@@ -154,7 +144,6 @@ class PlanController extends Controller
                 return $value !== null && $value !== '';
             });
 
-            // At least one pricing option is required for non-enterprise plans
             if (!$request->boolean('is_enterprise') && empty($data['prices'])) {
                 return back()->withErrors([
                     'prices' => 'At least one pricing option is required.'
@@ -164,7 +153,6 @@ class PlanController extends Controller
             $data['is_trial'] = 0;
         }
 
-        //  slug update
         $data['slug'] = Str::slug($request->name);
 
         $plan->update($data);
@@ -180,53 +168,32 @@ class PlanController extends Controller
             return back()->with('error', 'Shop not found.');
         }
 
-        $shopifySubscription = ShopifySubscription::where('shop_id', $shop->id)
-            ->where('status', 'active')
-            ->whereNotNull('stripe_subscription_id')
-            ->latest('id')
-            ->first();
-
-        if (!$shopifySubscription) {
-            return back()->with('error', 'No active Stripe subscription found.');
-        }
-
-        Log::info('ACTIVE SUB FROM DB', [
-            'db_row_id' => $shopifySubscription->id,
-            'stripe_subscription_id' => $shopifySubscription->stripe_subscription_id,
-            'status' => $shopifySubscription->status,
-            'payment_status' => $shopifySubscription->payment_status,
-            'created_at' => $shopifySubscription->created_at,
+        Log::info('CANCEL REQUEST VIA BILLING MANAGER', [
+            'shop_id' => $shop->id,
+            'shop' => $shop->shop,
+            'billing_provider' => app(BillingProvider::class)->provider(),
         ]);
 
-        Log::info('SENDING CANCEL REQUEST TO STRIPE', [
-            'subscription_id' => $shopifySubscription->stripe_subscription_id,
-        ]);
+        $billingManager = app(BillingManager::class);
 
-        $stripeService = app(StripeService::class);
-
-        $result = $stripeService->cancelSubscription(
-            $shopifySubscription->stripe_subscription_id
-        );
+        $result = $billingManager->cancel($shop);
 
         if (!$result) {
-
-            Log::error('Stripe cancellation failed', [
-                'subscription_id' => $shopifySubscription->stripe_subscription_id,
+            Log::error('Subscription cancellation failed', [
+                'shop_id' => $shop->id,
+                'shop' => $shop->shop,
             ]);
 
             return back()->with(
                 'error',
-                'Unable to cancel Stripe subscription.'
+                'Unable to cancel subscription.'
             );
         }
 
-        Log::info('Stripe subscription cancellation initiated', [
+        Log::info('Subscription cancellation initiated', [
             'shop_id' => $shop->id,
-            'db_row_id' => $shopifySubscription->id,
-            'subscription_id' => $shopifySubscription->stripe_subscription_id,
+            'shop' => $shop->shop,
         ]);
-
-        // Database update webhook karega
 
         return back()->with(
             'success',
@@ -241,8 +208,7 @@ class PlanController extends Controller
             ->exists();
 
         if ($activeSubscriptionExists) {
-
-            return back()->with( 'error',
+            return back()->with('error',
                 'This plan cannot be deleted because it is currently active for a customer.'
             );
         }
@@ -257,6 +223,6 @@ class PlanController extends Controller
             'plan_name' => $planName,
         ]);
 
-        return back()->with('success', 'Plan deleted successfully.' );
+        return back()->with('success', 'Plan deleted successfully.');
     }
 }
