@@ -1286,7 +1286,7 @@ $subscriptionStatus = 'Trialing';
         document.querySelectorAll('form.plan-subscribe-form').forEach(function (form) {
             form.addEventListener('submit', function (e) {
                 // Only intercept when provider is shopify and modal exists
-                if (provider !== 'shopify' || !confirmModalEl || typeof bootstrap === 'undefined') {
+                if (provider == 'shopify' || !confirmModalEl || typeof bootstrap === 'undefined') {
                     return; // Stripe or fallback: submit directly
                 }
                 e.preventDefault();
