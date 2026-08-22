@@ -245,6 +245,9 @@ Rules:
 - Do not return explanations.
 - Do not return plain text.
 - The JSON must contain ONLY one key named "{$field}".
+- Never return "Not Applicable" or any equivalent.
+- Always return a real, useful value for the requested field.
+- Use the product information to determine the value.
 PROMPT;
         $hintSection = '';
 
