@@ -1154,9 +1154,7 @@ $subscriptionStatus = 'Trialing';
             <form method="POST" action="{{ route('contact.store') }}">
                 @csrf
 
-                <input type="hidden"
-                    name="enquiry_type"
-                    value="enterprise_plan_enquiry">
+                <input type="hidden" name="enquiry_type" value="enterprise_plan_enquiry">
 
                 <div class="modal-header">
                     <h5 class="modal-title">
