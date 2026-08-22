@@ -1245,8 +1245,8 @@ class TransformsAmazonAttributes
                 return $this->closure($value);
             }
 
-            if ($name === 'descriptors') {
-                return $this->descriptors($value);
+            if ($name === 'esrb_rating') {
+                return $this->esrbRating($value, $marketplaceId);
             }
 
             if ($name === 'light_source') {
