@@ -1391,22 +1391,19 @@ class TransformsAmazonAttributes
         ]];
     }
 
-    // private function esrbRating($value, $marketplaceId): array
-    // {
-    //     return [[
-    //         'rating' => [
-    //             [
-    //                 'value' => $value['rating'],
-    //             ],
-    //         ],
-    //         'descriptors' => array_map(fn($descriptor) => [
-    //             'value' => $descriptor,
-    //         ], $value['descriptors']),
-    //         'marketplace_id' => $marketplaceId,
-    //     ]];
-    // }
-
-
+    private function esrbRating($value, $marketplaceId): array
+    {
+        return [[
+            'rating' => [[
+                'value' => $value['rating'],
+            ]],
+            'descriptors' => array_map(
+                fn($descriptor) => ['value' => $descriptor],
+                $value['descriptors']
+            ),
+            'marketplace_id' => $marketplaceId,
+        ]];
+    }
     // lightsource 
     private function lightSource($value, $marketplaceId = null): array
     {
