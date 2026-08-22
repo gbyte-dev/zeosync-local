@@ -40,12 +40,18 @@ use App\Http\Controllers\ProductSchemaController;
 
 class ShopifyController extends Controller
 {
-    public function __construct(
-        private readonly ShopifyBillingService $shopifyBilling,
-        private readonly ShopifyWebhookService $shopifyWebhook,
-        private readonly AmazonService $amazonService,
-        private readonly BillingManager $billingManager,
-    ) {}
+    protected ShopifyBillingService $shopifyBilling;
+    protected ShopifyWebhookService $shopifyWebhook;
+    protected AmazonService $amazonService;
+    protected BillingManager $billingManager;
+
+    public function __construct()
+    {
+        $this->shopifyBilling = app(ShopifyBillingService::class);
+        $this->shopifyWebhook = app(ShopifyWebhookService::class);
+        $this->amazonService = app(AmazonService::class);
+        $this->billingManager = app(BillingManager::class);
+    }
     public function entry(Request $request)
     {
         $shop = null;
