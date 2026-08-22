@@ -118,7 +118,7 @@ class SubscriptionController extends ShopifyController
             'subscription',
             'activeShop',
             'billingOptions'
-        ));
+        ) + ['billingProvider' => app(BillingProvider::class)->provider()]);
     }
 
     public function subscribeToPlan(Request $request)
