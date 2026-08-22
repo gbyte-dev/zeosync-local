@@ -29,12 +29,8 @@ class SubscriptionController extends ShopifyController
         $shopModel = $this->getActiveShop($request);
         $activeShop = $shopModel?->shop;
         if (!$shopModel) {
-            return redirect(
-                $this->shopAwareUrl(
-                    '/',
-                    $request->query('shop') ?? $request->input('shop')
-                )
-            )->with('error', 'No shop connected.');
+            return redirect( $this->shopAwareUrl( '/',  $request->query('shop') ?? $request->input('shop')
+                ) )->with('error', 'No shop connected.');
         }
         $plans = Plan::query()
             ->where('is_active', true)
