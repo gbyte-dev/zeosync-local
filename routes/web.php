@@ -38,7 +38,8 @@ Route::get('/api/shop-status', [ShopifyController::class, 'checkShopStatus'])->n
 
 // Public simple pages
 Route::view('/about', 'about')->name('about');
-Route::view('/pricing', 'pricing')->name('pricing');
+Route::get('/pricing', [PlanController::class, 'pricing'])->name('pricing');
+Route::post('/pricing/subscribe', [ShopifyController::class, 'subscribeToPlan'])->name('pricing.subscribe');
 Route::view('/contact', 'contact')->name('contact');
 Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
 Route::view('/terms', 'terms')->name('terms');
