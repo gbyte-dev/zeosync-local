@@ -5,15 +5,16 @@ namespace App\Services;
 use App\Models\Shop;
 use App\Models\ShopSubscription;
 use Illuminate\Support\Facades\Log;
-use App\Models\ShopifySubscription;
+use App\Services\Billing\BillingManager;
+use App\Services\Billing\BillingProvider;
 
 class SubscriptionCancellationService
 {
-    protected StripeService $stripeService;
+    protected BillingManager $billingManager;
 
     public function __construct()
     {
-        $this->stripeService = app(StripeService::class);
+        $this->billingManager = app(BillingManager::class);
     }
 
     public function cancelAtPeriodEnd(Shop $shop): bool
@@ -25,7 +26,6 @@ class SubscriptionCancellationService
             ->first();
 
         if (!$subscription) {
-
             Log::info('NO ACTIVE SUBSCRIPTION FOUND', [
                 'shop_id' => $shop->id,
             ]);
@@ -35,7 +35,6 @@ class SubscriptionCancellationService
 
         // Already cancellation requested
         if ($subscription->status === 'pending_cancel') {
-
             Log::info('SUBSCRIPTION ALREADY PENDING CANCEL', [
                 'shop_id' => $shop->id,
                 'subscription_id' => $subscription->id,
@@ -44,41 +43,20 @@ class SubscriptionCancellationService
             return true;
         }
 
-        $shopifySubscription = ShopifySubscription::query()
-            ->where('shop_id', $shop->id)
-            ->where('status', 'active')
-            ->latest('id')
-            ->first();
+        Log::info('CANCEL AT PERIOD END VIA BILLING MANAGER', [
+            'shop_id' => $shop->id,
+            'subscription_id' => $subscription->id,
+            'billing_provider' => app(BillingProvider::class)->provider(),
+        ]);
 
-        if (!$shopifySubscription) {
-
-            Log::warning('ACTIVE STRIPE SUBSCRIPTION NOT FOUND', [
-                'shop_id' => $shop->id,
-            ]);
-
-            return false;
-        }
-
-        if (empty($shopifySubscription->stripe_subscription_id)) {
-
-            Log::warning('STRIPE SUBSCRIPTION ID MISSING', [
-                'shop_id' => $shop->id,
-                'shopify_subscription_id' => $shopifySubscription->id,
-            ]);
-
-            return false;
-        }
-
-        $cancelled = $this->stripeService->cancelSubscriptionAtPeriodEnd(
-            $shopifySubscription->stripe_subscription_id
-        );
+        // Delegate to the active billing provider via BillingManager
+        $cancelled = $this->billingManager->cancel($shop);
 
         if (!$cancelled) {
-
-            Log::error('FAILED TO MARK STRIPE SUBSCRIPTION FOR CANCELLATION', [
+            Log::error('FAILED TO CANCEL SUBSCRIPTION VIA BILLING PROVIDER', [
                 'shop_id' => $shop->id,
                 'subscription_id' => $subscription->id,
-                'stripe_subscription_id' => $shopifySubscription->stripe_subscription_id,
+                'billing_provider' => app(BillingProvider::class)->provider(),
             ]);
 
             return false;
@@ -91,7 +69,6 @@ class SubscriptionCancellationService
         Log::info('SUBSCRIPTION MARKED AS PENDING CANCEL', [
             'shop_id' => $shop->id,
             'subscription_id' => $subscription->id,
-            'stripe_subscription_id' => $shopifySubscription->stripe_subscription_id,
         ]);
 
         return true;
