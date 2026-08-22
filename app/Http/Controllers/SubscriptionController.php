@@ -32,6 +32,10 @@ class SubscriptionController extends ShopifyController
             return redirect( $this->shopAwareUrl( '/',  $request->query('shop') ?? $request->input('shop')
                 ) )->with('error', 'No shop connected.');
         }
+
+        $subscription = app(ShopifyBillingService::class)->syncSubscriptions($shopModel);
+     dd($subscription);
+
         $plans = Plan::query()
             ->where('is_active', true)
             ->where('is_custom', false)
