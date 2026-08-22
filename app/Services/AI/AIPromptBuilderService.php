@@ -101,6 +101,8 @@ class AIPromptBuilderService
         $fieldHints = [
             'item_weight' => 'e.g. 250 grams',
             'item_package_weight' => 'e.g. 300 grams',
+            'item_package_dimensions' => '10L*20W*30H centimeters. L=Length, W=Width, H=Height, T=Thickness, D=Depth.',
+            'item_dimensions' => '39L x 17.5W x 3H Centimeters. L=Length, W=Width, H=Height.',
         ];
 
         $hintText = '';
@@ -136,6 +138,8 @@ condition_note
 max_order_quantity
 unit_count
 warranty_description
+item_package_dimensions
+item_dimensions
 
 FORMAT RULES:
 {$hintText}
