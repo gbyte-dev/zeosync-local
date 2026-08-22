@@ -1079,7 +1079,6 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
                 const protectedFields = [
                     'item_name',
-                    'product_description'
                 ];
 
                 $.each(response.data, function(aiKey, value) {
