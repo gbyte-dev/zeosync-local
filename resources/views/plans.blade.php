@@ -23,8 +23,6 @@ $statusLabels = [
 ];
 $subscriptionStatus = $statusLabels[$statusValue] ?? ucfirst($statusValue ?: 'Pending');
 
-$billingProvider = strtolower((string) ($billingProvider ?? 'shopify'));
-
 if (
 $subscription?->is_trial == 1 &&
 $subscription?->status === 'trialing' &&
@@ -807,7 +805,7 @@ $subscriptionStatus = 'Trialing';
             </ul>
 
             <div class="saas-plan-footer mt-auto pt-3 border-top" style="border-color: #E5E7EB;">
-                <form method="POST" action="{{ route('plans.subscribe', $currentShop ? ['shop' => $currentShop] : []) }}" class="plan-subscribe-form" data-provider="{{ $billingProvider }}" data-plan-name="{{ $plan->name }}">
+                <form method="POST" action="{{ route('plans.subscribe', $currentShop ? ['shop' => $currentShop] : []) }}">
                     @csrf
                     <input type="hidden" name="plan_id" value="{{ $plan->id }}">
 
@@ -1017,7 +1015,7 @@ $subscriptionStatus = 'Trialing';
             </ul>
 
             <div class="saas-plan-footer mt-auto pt-3 border-top" style="border-color: #E5E7EB;">
-                <form method="POST" action="{{ route('plans.subscribe', $currentShop ? ['shop' => $currentShop] : []) }}" class="plan-subscribe-form" data-provider="{{ $billingProvider }}" data-plan-name="{{ $plan->name }}">
+                <form method="POST" action="{{ route('plans.subscribe', $currentShop ? ['shop' => $currentShop] : []) }}">
                     @csrf
                     <input type="hidden" name="plan_id" value="{{ $plan->id }}">
 
@@ -1247,77 +1245,6 @@ $subscriptionStatus = 'Trialing';
         </div>
     </div>
 </div>
-
-{{-- Shopify Purchase Confirmation Modal --}}
-<div class="modal fade saas-modal" id="shopifyConfirmModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-shop me-1"></i> Confirm Shopify Purchase</h5>
-                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-2">You are about to purchase the following plan through <strong>Shopify Billing</strong>:</p>
-                <div class="saas-banner saas-banner-info m-0 mb-3">
-                    <div>
-                        <strong id="shopifyConfirmPlanName">Plan</strong><br>
-                        <span id="shopifyConfirmInterval">Billing interval</span>
-                    </div>
-                </div>
-                <p class="mb-0 text-muted" style="font-size: 12px;">
-                    You will be redirected to Shopify's plan purchase page to approve the recurring charge.
-                    Shopify handles proration automatically for upgrades and downgrades.
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="saas-btn saas-btn-outline" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" id="shopifyConfirmProceed" class="saas-btn saas-btn-primary">Continue to Shopify</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var provider = "{{ $billingProvider }}";
-        var pendingForm = null;
-        var confirmModalEl = document.getElementById('shopifyConfirmModal');
-
-        document.querySelectorAll('form.plan-subscribe-form').forEach(function (form) {
-            form.addEventListener('submit', function (e) {
-                // Only intercept when provider is shopify and modal exists
-                if (provider == 'shopify' || !confirmModalEl || typeof bootstrap === 'undefined') {
-                    return; // Stripe or fallback: submit directly
-                }
-                e.preventDefault();
-                pendingForm = form;
-
-                var planName = form.dataset.planName || 'Selected plan';
-                var intervalSelect = form.querySelector('select[name="billing_interval"]');
-                var intervalText = 'Billing interval';
-                if (intervalSelect) {
-                    intervalText = intervalSelect.options[intervalSelect.selectedIndex]
-                        ? intervalSelect.options[intervalSelect.selectedIndex].textContent.trim()
-                        : 'Monthly';
-                }
-
-                document.getElementById('shopifyConfirmPlanName').textContent = planName;
-                document.getElementById('shopifyConfirmInterval').textContent = intervalText;
-
-                bootstrap.Modal.getOrCreateInstance(confirmModalEl).show();
-            });
-        });
-
-        var proceedBtn = document.getElementById('shopifyConfirmProceed');
-        if (proceedBtn) {
-            proceedBtn.addEventListener('click', function () {
-                if (!pendingForm) return;
-                bootstrap.Modal.getOrCreateInstance(confirmModalEl).hide();
-                pendingForm.submit();
-            });
-        }
-    });
-</script>
 
 {{-- Polling Script --}}
 @if(session('success') && str_contains(session('success'), 'activation initiated'))
