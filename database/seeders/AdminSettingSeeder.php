@@ -44,18 +44,18 @@ class AdminSettingSeeder extends Seeder
                 'updated_at' => now(),
             ]
         );
-        DB::table('admin_settings')->updateOrInsert(
+       DB::table('admin_settings')->updateOrInsert(
             ['option_key' => 'openai_api_key'],
             [
-                'option_value' => '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',
+                'option_value' => 'AQ.Ab8RN6Jyk9FrpQbZ6WX24eUi9JXrMw60dJTNLuL_1-grRVHL4w',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
-        );
+        );  
         DB::table('admin_settings')->updateOrInsert(
             ['option_key' => 'ai_provider'],
             [
-                'option_value' => 'openai',
+                'option_value' => 'gemini',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
@@ -63,7 +63,7 @@ class AdminSettingSeeder extends Seeder
         DB::table('admin_settings')->updateOrInsert(
             ['option_key' => 'openai_model'],
             [
-                'option_value' => 'gpt-4.1-mini',
+                'option_value' => 'gemini-3.5-flash-lite',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
@@ -76,10 +76,30 @@ class AdminSettingSeeder extends Seeder
                 'updated_at' => now(),
             ]
         );
+
+        DB::table('admin_settings')->updateOrInsert(
+            ['option_key' => 'app_name'],
+            [
+                'option_value' => 'Zeosync',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+
+        DB::table('admin_settings')->updateOrInsert(
+            ['option_key' => 'currency'],
+            [
+                'option_value' => 'USD',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+        
+
         DB::table('admin_settings')->updateOrInsert(
             ['option_key' => 'openai_endpoint'],
             [
-                'option_value' => 'https://api.openai.com/v1/chat/completions',
+                'option_value' => 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
