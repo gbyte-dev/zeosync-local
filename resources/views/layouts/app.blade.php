@@ -685,6 +685,8 @@
             document.documentElement.classList.add('in-iframe');
         } else {
             document.documentElement.classList.add('normal-page');
+            document.querySelector('s-app-nav').classList.add('d-none');
+            document.querySelector('s-app-nav').style.display = 'none';
         }
 
         (function() {
