@@ -11,6 +11,7 @@ use App\Models\Plan;
 use App\Models\ShopSubscription;
 use App\Http\Controllers\ShopifyController;
 use App\Services\ShopifyBillingService;
+use Illuminate\Support\Str;
 use App\Services\ShopifyWebhookService;
 
 class SubscriptionController extends ShopifyController
@@ -54,7 +55,7 @@ class SubscriptionController extends ShopifyController
         //     'custom_plan_name' => $customPlan?->name,
         // ]);
 
-       
+
 
         $subscription = ShopSubscription::with('plan')
             ->where('shop_id', $shopModel->id)
@@ -368,5 +369,32 @@ class SubscriptionController extends ShopifyController
         return view('payment.success', [
             'shop' => $request->shop,
         ]);
+    }
+
+    private function redirectToShopifyPricing(Shop $shopModel)
+    {
+        $storeHandle = Str::before($shopModel->shop, '.myshopify.com');
+        $appHandle = config('services.shopify.app_handle');
+
+        if (!$appHandle) {
+            Log::error('SHOPIFY APP HANDLE MISSING', [
+                'shop' => $shopModel->shop,
+            ]);
+
+            return redirect()
+                ->back()
+                ->with('error', 'Shopify billing configuration is incomplete.');
+        }
+
+        $pricingUrl = "https://admin.shopify.com/store/{$storeHandle}/charges/{$appHandle}/pricing_plans";
+
+        Log::info('SHOPIFY PRICING REDIRECT', [
+            'shop' => $shopModel->shop,
+            'store_handle' => $storeHandle,
+            'app_handle' => $appHandle,
+            'pricing_url' => $pricingUrl,
+        ]);
+
+        return redirect()->away($pricingUrl);
     }
 }
