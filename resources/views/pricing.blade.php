@@ -7,11 +7,6 @@
             <div class="text-center mb-5">
                 <h5 class="mb-3">Pricing Plans</h5>
                 <p class="text-muted">Simple, transparent pricing to fit your business needs. All plans include core synchronization features.</p>
-                @if($activeShop)
-                    <div class="alert alert-info d-inline-block mt-3">
-                        <i class="bi bi-shop me-1"></i> Connected store: <strong>{{ $activeShop }}</strong>
-                    </div>
-                @endif
             </div>
 
             <div class="row g-4">
@@ -67,40 +62,7 @@
                                 </ul>
                             </div>
                             <div class="card-footer bg-white border-top-0">
-                                @if ($isEnterprise)
-                                    <a href="{{ route('contact') }}" class="btn btn-outline-primary w-100">{{ $plan->contact_button_text ?: 'Contact Sales' }}</a>
-                                @elseif ($activeShop)
-                                    {{-- Shopify Billing API subscription form --}}
-                                    <form method="POST" action="{{ route('pricing.subscribe', ['shop' => $activeShop]) }}">
-                                        @csrf
-                                        <input type="hidden" name="plan_id" value="{{ $plan->id }}">
-
-                                        @if ($isTrial)
-                                            <input type="hidden" name="billing_interval" value="EVERY_30_DAYS">
-                                        @else
-                                            <div class="mb-3">
-                                                <select name="billing_interval" class="form-select form-select-sm" required>
-                                                    @if ($month_price != 0)
-                                                        <option value="EVERY_30_DAYS">Monthly — ${{ number_format((float) $month_price, 0) }}/mo</option>
-                                                    @endif
-                                                    @if ($yearly_price != 0)
-                                                        <option value="ANNUAL">Annual — ${{ number_format((float) $yearly_price, 0) }}/yr</option>
-                                                    @endif
-                                                </select>
-                                            </div>
-                                        @endif
-
-                                        <button type="submit" class="btn {{ $isHighlighted ? 'btn-primary' : 'btn-outline-primary' }} w-100">
-                                            @if ($isTrial)
-                                                Start Free Trial
-                                            @else
-                                                Subscribe via Shopify
-                                            @endif
-                                        </button>
-                                    </form>
-                                @else
-                                    <a href="{{ route('crm.entry') }}" class="btn {{ $isHighlighted ? 'btn-primary' : 'btn-outline-primary' }} w-100">Get Started</a>
-                                @endif
+                                <a href="{{ route('contact') }}" class="btn {{ $isHighlighted ? 'btn-primary' : 'btn-outline-primary' }} w-100">{{ $plan->contact_button_text ?: 'Contact Sales' }}</a>
                             </div>
                         </div>
                     </div>

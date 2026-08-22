@@ -27,7 +27,7 @@ class PlanController extends Controller
         return view('admin.plans.index', compact('plans'));
     }
 
-    public function pricing(Request $request)
+    public function pricing()
     {
         $plans = Plan::query()
             ->where('is_active', true)
@@ -37,17 +37,7 @@ class PlanController extends Controller
             ->orderBy('id')
             ->get();
 
-        // Detect if a shop is connected (via query param or session)
-        $activeShop = null;
-        $shopIdentifier = $request->query('shop') ?? session('active_shop');
-        if ($shopIdentifier) {
-            $shop = \App\Models\Shop::where('shop', $shopIdentifier)->first();
-            if ($shop && (int) $shop->is_active === 1 && !empty($shop->access_token)) {
-                $activeShop = $shop->shop;
-            }
-        }
-
-        return view('pricing', compact('plans', 'activeShop'));
+        return view('pricing', compact('plans'));
     }
 
 
@@ -139,11 +129,8 @@ class PlanController extends Controller
             'trial_days' => 'nullable|integer',
             'sync_limit' => 'required|integer|min:0',
             'product_limit' => 'required|integer|min:0',
-
-            //  FIX
             'prices' => 'nullable|array',
             'prices.*' => 'nullable|numeric',
-
             'stripe_price_ids' => 'nullable|array',
             'is_trial' => 'nullable|boolean',
             'ai_autofill' => 'nullable|boolean',
@@ -200,11 +187,6 @@ class PlanController extends Controller
             ->first();
 
         if (!$shopifySubscription) {
-
-            Log::warning('No active Stripe subscription found', [
-                'shop_id' => $shop->id,
-            ]);
-
             return back()->with('error', 'No active Stripe subscription found.');
         }
 
@@ -225,10 +207,6 @@ class PlanController extends Controller
         $result = $stripeService->cancelSubscription(
             $shopifySubscription->stripe_subscription_id
         );
-
-        Log::info('STRIPE CANCEL RESULT', [
-            'result' => $result,
-        ]);
 
         if (!$result) {
 
@@ -264,8 +242,7 @@ class PlanController extends Controller
 
         if ($activeSubscriptionExists) {
 
-            return back()->with(
-                'error',
+            return back()->with( 'error',
                 'This plan cannot be deleted because it is currently active for a customer.'
             );
         }
