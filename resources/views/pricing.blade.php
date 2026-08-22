@@ -62,7 +62,11 @@
                                 </ul>
                             </div>
                             <div class="card-footer bg-white border-top-0">
-                                <a href="{{ route('contact') }}" class="btn {{ $isHighlighted ? 'btn-primary' : 'btn-outline-primary' }} w-100">{{ $plan->contact_button_text ?: 'Contact Sales' }}</a>
+                                @if ($isEnterprise)
+                                    <a href="{{ route('contact') }}" class="btn btn-outline-primary w-100">{{ $plan->contact_button_text ?: 'Contact Sales' }}</a>
+                                @else
+                                    <a href="{{ route('crm.entry') }}" class="btn {{ $isHighlighted ? 'btn-primary' : 'btn-outline-primary' }} w-100">Get Started</a>
+                                @endif
                             </div>
                         </div>
                     </div>
