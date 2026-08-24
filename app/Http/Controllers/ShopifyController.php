@@ -1216,7 +1216,7 @@ class ShopifyController extends Controller
                 ])
                 ->count();
 
-            $productLimitReached = $productUsed >= $productLimit;
+            $productLimitReached = $productLimit > 0 && $productUsed >= $productLimit;
         }
 
         $outOfStockProducts = $allProducts->filter(function ($product) {

@@ -36,6 +36,15 @@ class ProductLimitService
         }
 
         $limit = (int) ($subscription->plan->product_limit ?? 0);
+        if ($limit === 0) {
+            return [
+                'allowed' => true,
+                'used' => 0,
+                'limit' => 0,
+                'remaining' => 0,
+                'message' => 'Unlimited',
+            ];
+        }
 
         $used = AllProduct::where('user_id', $shopId)
             ->whereBetween('created_at', [
