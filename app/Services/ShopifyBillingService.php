@@ -100,19 +100,21 @@ class ShopifyBillingService
             'billing_interval' => $billingInterval,
         ];
     }
-    public function syncSubscription(Shop $shop, ?ShopSubscription $localSubscription = null): ?ShopSubscription
-    {
-        $shopifySubscription = null;
-        if ($localSubscription?->shopify_subscription_gid) {
-            $shopifySubscription = $this->fetchSubscriptionByGid($shop, $localSubscription->shopify_subscription_gid);
-        }
-        if (!$shopifySubscription) {
-            $shopifySubscription = $this->fetchLatestSubscription($shop);
-        }
+    public function syncSubscription(
+        Shop $shop,
+        ?ShopSubscription $localSubscription = null
+    ): ?ShopSubscription {
+        $shopifySubscription = $this->fetchLatestSubscription($shop);
+
         if (!$shopifySubscription) {
             return $localSubscription;
         }
-        return $this->persistSubscription($shop, $shopifySubscription, $localSubscription);
+
+        return $this->persistSubscription(
+            $shop,
+            $shopifySubscription,
+            $localSubscription
+        );
     }
     public function fetchSubscriptionByGid(Shop $shop, string $gid): ?array
     {
@@ -189,16 +191,43 @@ class ShopifyBillingService
     }
     GRAPHQL
         );
-        $subscriptions = collect(data_get($response, 'data.currentAppInstallation.allSubscriptions.edges', []))
+        $subscriptions = collect(data_get(
+            $response,
+            'data.currentAppInstallation.allSubscriptions.edges',
+            []
+        ))
             ->pluck('node')
             ->map(fn(array $node) => $this->normalizeSubscription($node))
             ->filter()
-            ->sortByDesc(fn(array $node) => $node['created_at']?->getTimestamp() ?? 0)
             ->values();
-        Log::info('LATEST SHOPIFY SUB', [
-            'subscription' => $subscriptions->first(),
+
+        $activeSubscription = $subscriptions
+            ->filter(
+                fn(array $subscription) =>
+                $this->isActivatedStatus($subscription['status'] ?? null)
+            )
+            ->sortByDesc(
+                fn(array $subscription) =>
+                $subscription['created_at']?->getTimestamp() ?? 0
+            )
+            ->first();
+
+        $latestSubscription = $subscriptions
+            ->sortByDesc(
+                fn(array $subscription) =>
+                $subscription['created_at']?->getTimestamp() ?? 0
+            )
+            ->first();
+
+        $selectedSubscription = $activeSubscription ?? $latestSubscription;
+
+        Log::info('SHOPIFY SUBSCRIPTIONS CHECK', [
+            'all' => $subscriptions->values()->all(),
+            'active' => $activeSubscription,
+            'selected' => $selectedSubscription,
         ]);
-        return $subscriptions->first();
+
+        return $selectedSubscription;
     }
     public function isActivatedStatus(?string $status): bool
     {
@@ -376,12 +405,12 @@ class ShopifyBillingService
                 'headers' => $response->headers(),
                 'body' => $response->body(),
             ]);
-            return [    
+            return [
                 'errors' => [
                     'message' => 'Shopify billing request failed with HTTP ' . $response->status() . '.',
                 ],
             ];
-          //  throw new RuntimeException('Shopify billing request failed with HTTP ' . $response->status() . '.');
+            //  throw new RuntimeException('Shopify billing request failed with HTTP ' . $response->status() . '.');
         }
         $payload = $response->json();
         if (!empty($payload['errors'])) {
@@ -393,7 +422,7 @@ class ShopifyBillingService
                     return (string) $error;
                 })
                 ->implode(' ');
-            return [    
+            return [
                 'errors' => [
                     'message' => $message !== '' ? $message : 'Shopify billing request failed.',
                 ],
