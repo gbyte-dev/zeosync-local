@@ -19,8 +19,9 @@ class SubscriptionController extends ShopifyController
 {
     protected ShopifyBillingService $shopifyBilling;
     protected ShopifyWebhookService $shopifyWebhook;
-    
-    public function __construct() {
+
+    public function __construct()
+    {
         $this->shopifyBilling = app(ShopifyBillingService::class);
         $this->shopifyWebhook = app(ShopifyWebhookService::class);
     }
@@ -29,8 +30,10 @@ class SubscriptionController extends ShopifyController
         $shopModel = $this->getActiveShop($request);
         $activeShop = $shopModel?->shop;
         if (!$shopModel) {
-            return redirect( $this->shopAwareUrl( '/',  $request->query('shop') ?? $request->input('shop')
-                ) )->with('error', 'No shop connected.');
+            return redirect($this->shopAwareUrl(
+                '/',
+                $request->query('shop') ?? $request->input('shop')
+            ))->with('error', 'No shop connected.');
         }
 
 
@@ -211,33 +214,7 @@ class SubscriptionController extends ShopifyController
         if ($trialEndsAt->greaterThan($endedAt)) {
             $trialEndsAt = $endedAt->copy();
         }
-        if ($billingCycleMonths == 1) {
-            $price = $plan->prices['EVERY_30_DAYS'];
-            $priceid = $plan->stripe_price_ids['EVERY_30_DAYS'] ?? '';
-            $interval = 'month';
-        } else {
-            $price = $plan->prices['ANNUAL'];
-            $priceid = $plan->stripe_price_ids['ANNUAL'] ?? '';
-            $interval = 'year';
-        }
-        $result = sendPaymentLink($shopModel, [
-            'name' => $plan->name,
-            'description' => $plan->description,
-            'amount' => $price,
-            'currency' => 'usd',
-            'mode' => 'subscription',
-            'interval' => $interval,
-            'price_id' => $priceid,
-            'trialdays' => $trialDays,
-            // 'success_url' => route('payment.success'),
-            // 'cancel_url' => route('payment.cancel'),
-            'success_url' => route('payment.success', [
-                'shop' => $shopModel->shop
-            ]),
-            'cancel_url' => route('payment.cancel', [
-                'shop' => $shopModel->shop
-            ]),
-        ], $shopModel->email, 'Payment Reminder');
+        return $this->redirectToShopifyPricing($shopModel);
         $subscription = ShopSubscription::firstOrCreate(
             ['shop_id' => $shopModel->id], // Argument 1: Search criteria
             ['plan_id' => $request->plan_id] // Argument 2: Data to add if NOT found
