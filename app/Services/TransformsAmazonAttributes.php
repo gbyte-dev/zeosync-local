@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\Shop;
 use App\Traits\AmazonServiceValues;
-
+use App\Traits\AmzonNormalizerTrait;
 /**
  * class TransformsAmazonAttributes
  *
@@ -19,12 +19,12 @@ use App\Traits\AmazonServiceValues;
 
 class TransformsAmazonAttributes
 {
-    use AmazonServiceValues;
+    use AmazonServiceValues,AmzonNormalizerTrait;
     /**
      * Transform a raw (name, value) pair into Amazon's expected attribute array.
      * Returns null when the value can't be mapped/validated and should be skipped.
      */
-    public function transformAttribute(string $name, mixed $value): ?array
+    public function transformAttribute(string $name, mixed $value , mixed $productAttributes = null): ?array
     {
         if (session('active_shop')) {
             $shop = Shop::where('shop', session('active_shop'))->first();
@@ -565,7 +565,17 @@ class TransformsAmazonAttributes
 
                 return [[
                     'value' => (float) ($m[1] ?? 0),
-                    'unit' => ucfirst(strtolower($m[2] ?? 'GB')),
+                    'unit' => ucfirst(strtoupper($m[2] ?? 'GB')),
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
+            if ($name === 'effective_still_resolution') {
+                preg_match('/([\d.]+)/', (string) $value, $m);
+
+                return [[
+                    'value' => (float) ($m[1] ?? 0),
+                    'unit' => 'megapixels',
                     'marketplace_id' => $marketplaceId,
                 ]];
             }
@@ -983,16 +993,13 @@ class TransformsAmazonAttributes
                     'marketplace_id' => $marketplaceId,
                 ];
 
-                foreach (
-                    [
-                        'Lithium-Ion' => 'lithium_ion',
-                        'Lithium-Metal' => 'lithium_metal',
-                        'Lithium-Polymer' => 'lithium_polymer',
-                        'Alkaline' => 'alkaline',
-                        'NiMH' => 'NiMh',
-                        'NiCad' => 'NiCAD',
-                    ] as $label => $cell
-                ) {
+                $compostiton = $this->getAttributeValueAmz($productAttributes,'battery_installation_device_type');
+               
+                foreach ( [ 'Lithium-Ion' => 'lithium_ion', 'Lithium-Metal' => 'lithium_metal',
+                        'Lithium-Polymer' => 'lithium_polymer', 'Alkaline' => 'alkaline',
+                        'NiMH' => 'NiMh',  'NiCad' => 'NiCAD',  ] as $label => $cell ) 
+                {
+                    
                     if (stripos($raw, $label) !== false) {
                         $battery['cell_composition'] = [['value' => $cell]];
                         break;
@@ -1019,6 +1026,8 @@ class TransformsAmazonAttributes
                         },
                     ]];
                 }
+
+                
 
                 return [$battery];
             }
