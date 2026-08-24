@@ -374,6 +374,8 @@ class SubscriptionController extends ShopifyController
             'pricing_url' => $pricingUrl,
         ]);
 
-        return redirect()->away($pricingUrl);
+        return response()->view('billing.shopify-redirect', [
+            'pricingUrl' => $pricingUrl,
+        ]);
     }
 }
