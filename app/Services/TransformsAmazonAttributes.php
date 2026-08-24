@@ -994,7 +994,7 @@ class TransformsAmazonAttributes
                 ];
 
                 $compostiton = $this->getAttributeValueAmz($productAttributes,'battery_installation_device_type');
-                dd($compostiton);
+               
                 foreach ( [ 'Lithium-Ion' => 'lithium_ion', 'Lithium-Metal' => 'lithium_metal',
                         'Lithium-Polymer' => 'lithium_polymer', 'Alkaline' => 'alkaline',
                         'NiMH' => 'NiMh',  'NiCad' => 'NiCAD',  ] as $label => $cell ) 
