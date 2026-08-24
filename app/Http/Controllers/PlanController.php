@@ -182,57 +182,56 @@ class PlanController extends Controller
             return back()->with('error', 'Shop not found.');
         }
 
-        $shopifySubscription = ShopifySubscription::where('shop_id', $shop->id)
-            ->where('status', 'active')
-            ->whereNotNull('stripe_subscription_id')
+        $subscription = ShopSubscription::where('shop_id', $shop->id)
+            ->whereIn('status', ['active', 'accepted'])
+            ->whereNotNull('shopify_subscription_gid')
             ->latest('id')
             ->first();
 
-        if (!$shopifySubscription) {
-            return back()->with('error', 'No active Stripe subscription found.');
+        if (!$subscription) {
+            return back()->with('error', 'No active Shopify subscription found.');
         }
 
-        Log::info('ACTIVE SUB FROM DB', [
-            'db_row_id' => $shopifySubscription->id,
-            'stripe_subscription_id' => $shopifySubscription->stripe_subscription_id,
-            'status' => $shopifySubscription->status,
-            'payment_status' => $shopifySubscription->payment_status,
-            'created_at' => $shopifySubscription->created_at,
+        Log::info('SHOPIFY PLAN CANCELLATION REQUEST', [
+            'shop_id' => $shop->id,
+            'shop' => $shop->shop,
+            'subscription_id' => $subscription->id,
+            'subscription_gid' => $subscription->shopify_subscription_gid,
         ]);
 
-        Log::info('SENDING CANCEL REQUEST TO STRIPE', [
-            'subscription_id' => $shopifySubscription->stripe_subscription_id,
-        ]);
+        $billingService = app(ShopifyBillingService::class);
 
-        $stripeService = app(StripeService::class);
-
-        $result = $stripeService->cancelSubscription(
-            $shopifySubscription->stripe_subscription_id
+        $result = $billingService->cancelSubscription(
+            $shop,
+            $subscription->shopify_subscription_gid
         );
 
         if (!$result) {
-
-            Log::error('Stripe cancellation failed', [
-                'subscription_id' => $shopifySubscription->stripe_subscription_id,
+            Log::error('SHOPIFY PLAN CANCELLATION FAILED', [
+                'shop_id' => $shop->id,
+                'subscription_gid' => $subscription->shopify_subscription_gid,
             ]);
 
             return back()->with(
                 'error',
-                'Unable to cancel Stripe subscription.'
+                'Unable to cancel Shopify subscription.'
             );
         }
 
-        Log::info('Stripe subscription cancellation initiated', [
-            'shop_id' => $shop->id,
-            'db_row_id' => $shopifySubscription->id,
-            'subscription_id' => $shopifySubscription->stripe_subscription_id,
+        $subscription->update([
+            'status' => 'cancelled',
+            'cancelled_at' => now(),
         ]);
 
-        // Database update webhook karega
+        Log::info('SHOPIFY PLAN CANCELLED', [
+            'shop_id' => $shop->id,
+            'subscription_id' => $subscription->id,
+            'subscription_gid' => $subscription->shopify_subscription_gid,
+        ]);
 
         return back()->with(
             'success',
-            'Subscription cancellation initiated successfully.'
+            'Subscription cancelled successfully.'
         );
     }
 
@@ -244,7 +243,8 @@ class PlanController extends Controller
 
         if ($activeSubscriptionExists) {
 
-            return back()->with( 'error',
+            return back()->with(
+                'error',
                 'This plan cannot be deleted because it is currently active for a customer.'
             );
         }
@@ -259,6 +259,6 @@ class PlanController extends Controller
             'plan_name' => $planName,
         ]);
 
-        return back()->with('success', 'Plan deleted successfully.' );
+        return back()->with('success', 'Plan deleted successfully.');
     }
 }
