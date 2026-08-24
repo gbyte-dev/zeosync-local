@@ -6,10 +6,16 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\View;
 use Symfony\Component\HttpFoundation\Response;
+use App\Models\Shop;
+use App\Services\ShopifyPlanSyncService;
 
 class ResolveActiveShop
 {
-    public function handle(Request $request, Closure $next): Response
+    public function handle(
+    Request $request,
+    Closure $next,
+    ShopifyPlanSyncService $planSyncService
+): Response
     {
         $activeShop = $this->resolveShopDomain($request);
 
@@ -22,6 +28,16 @@ class ResolveActiveShop
         if ($activeShop) {
             $request->attributes->set('active_shop', $activeShop);
         }
+
+        if ($activeShop) {
+    $request->attributes->set('active_shop', $activeShop);
+
+    $shopModel = Shop::where('shop', $activeShop)->first();
+
+    if ($shopModel) {
+        $planSyncService->sync($shopModel);
+    }
+}
 
         // ✅ global view share
         View::share('activeShop', $activeShop);

@@ -572,12 +572,12 @@ class ShopifyController extends Controller
         $subscription = ShopSubscription::with('plan')
             ->where('shop_id', $shopModel->id)
             ->first();
-        if (!$subscription?->shopify_subscription_gid) {
-            return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
-                ->with('error', 'No pending Shopify billing request was found for this shop.');
-        }
+
         try {
-            $subscription = $this->shopifyBilling->syncSubscription($shopModel, $subscription);
+            $subscription = $this->shopifyBilling->syncSubscription(
+                $shopModel,
+                $subscription
+            );
             $subscription?->loadMissing('plan');
         } catch (RuntimeException $exception) {
             Log::error('Failed to confirm Shopify billing callback.', [
