@@ -312,17 +312,15 @@ class ShopifyBillingService
         ]);
         return $subscription;
     }
-    private function resolvePlan(array $shopifySubscription, ?ShopSubscription $localSubscription = null): ?Plan
-    {
-        if ($localSubscription?->relationLoaded('plan') && $localSubscription->plan) {
-            return $localSubscription->plan;
-        }
-        if ($localSubscription?->plan_id) {
-            return Plan::find($localSubscription->plan_id);
-        }
+    private function resolvePlan(
+        array $shopifySubscription,
+        ?ShopSubscription $localSubscription = null
+    ): ?Plan {
         $name = trim((string) ($shopifySubscription['name'] ?? ''));
+
         if ($name !== '') {
             $slug = Str::slug($name);
+
             $plan = Plan::query()
                 ->where('is_active', true)
                 ->where(function ($query) use ($name, $slug) {
@@ -330,21 +328,34 @@ class ShopifyBillingService
                         ->orWhere('slug', $slug);
                 })
                 ->first();
+
             if ($plan) {
                 return $plan;
             }
         }
+
         $amount = (float) ($shopifySubscription['amount'] ?? 0);
+
         if ($amount > 0) {
             $monthlyPrice = ($shopifySubscription['billing_interval'] ?? null) === 'ANNUAL'
                 ? round($amount / 12, 2)
                 : round($amount, 2);
-            return Plan::query()
+
+            $plan = Plan::query()
                 ->where('is_active', true)
                 ->where('price', number_format($monthlyPrice, 2, '.', ''))
                 ->orderBy('sort_order')
                 ->first();
+
+            if ($plan) {
+                return $plan;
+            }
         }
+
+        if ($localSubscription?->plan_id) {
+            return Plan::find($localSubscription->plan_id);
+        }
+
         return null;
     }
     private function normalizeSubscription(?array $node): ?array
