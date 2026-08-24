@@ -24,7 +24,7 @@ class VerifyShopifySubscription
         if (config('app.disable_subscription')) {
           //  return $next($request);
         }
-
+        print_r('VerifyShopifySubscription middleware hit');
         // Shop resolved by ResolveActiveShop middleware, fallback to ?shop= param
         /** @var Shop|null $shop */
         $shop = $request->attributes->get('active_shop_model');
