@@ -699,7 +699,7 @@ class ProductSchemaController extends Controller
             };
 
             if (in_array($canonicalName, ['seat_depth', 'seat_width', 'seat_height'], true)) {
-                $seatPart = $transformer->transformAttribute($canonicalName, $value);
+                $seatPart = $transformer->transformAttribute($canonicalName, $value,$product->attributes);
 
                 if ($seatPart !== null) {
                     $attributes['seat'][0] = array_merge(
@@ -712,14 +712,14 @@ class ProductSchemaController extends Controller
             }
 
 
-            $transformed = $transformer->transformAttribute($canonicalName, $value);
+            $transformed = $transformer->transformAttribute($canonicalName, $value,$product->attributes);
             if ($transformed === null) {
                 continue;
             }
             $attributes[$canonicalName] = $transformed;
         }
         if (!empty($lensData)) {
-            $lensTransformed = $transformer->transformAttribute('lens', $lensData);
+            $lensTransformed = $transformer->transformAttribute('lens', $lensData,$product->attributes);
             if ($lensTransformed !== null) {
                 $attributes['lens'] = $lensTransformed;
             }

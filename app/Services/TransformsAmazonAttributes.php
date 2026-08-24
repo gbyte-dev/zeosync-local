@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\Shop;
 use App\Traits\AmazonServiceValues;
-
+use App\Traits\AmzonNormalizerTrait;
 /**
  * class TransformsAmazonAttributes
  *
@@ -19,12 +19,12 @@ use App\Traits\AmazonServiceValues;
 
 class TransformsAmazonAttributes
 {
-    use AmazonServiceValues;
+    use AmazonServiceValues,AmzonNormalizerTrait;
     /**
      * Transform a raw (name, value) pair into Amazon's expected attribute array.
      * Returns null when the value can't be mapped/validated and should be skipped.
      */
-    public function transformAttribute(string $name, mixed $value): ?array
+    public function transformAttribute(string $name, mixed $value , mixed $productAttributes = null): ?array
     {
         if (session('active_shop')) {
             $shop = Shop::where('shop', session('active_shop'))->first();
@@ -993,16 +993,13 @@ class TransformsAmazonAttributes
                     'marketplace_id' => $marketplaceId,
                 ];
 
-                foreach (
-                    [
-                        'Lithium-Ion' => 'lithium_ion',
-                        'Lithium-Metal' => 'lithium_metal',
-                        'Lithium-Polymer' => 'lithium_polymer',
-                        'Alkaline' => 'alkaline',
-                        'NiMH' => 'NiMh',
-                        'NiCad' => 'NiCAD',
-                    ] as $label => $cell
-                ) {
+                $compostiton = $this->getAttributeValueAmz($productAttributes,'battery_installation_device_type');
+                dd($compostiton);
+                foreach ( [ 'Lithium-Ion' => 'lithium_ion', 'Lithium-Metal' => 'lithium_metal',
+                        'Lithium-Polymer' => 'lithium_polymer', 'Alkaline' => 'alkaline',
+                        'NiMH' => 'NiMh',  'NiCad' => 'NiCAD',  ] as $label => $cell ) 
+                {
+                    
                     if (stripos($raw, $label) !== false) {
                         $battery['cell_composition'] = [['value' => $cell]];
                         break;
@@ -1029,6 +1026,8 @@ class TransformsAmazonAttributes
                         },
                     ]];
                 }
+
+                
 
                 return [$battery];
             }
