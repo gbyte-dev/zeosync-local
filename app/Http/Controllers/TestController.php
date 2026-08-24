@@ -1686,4 +1686,24 @@ class TestController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    public function testroute()
+    {
+        try {
+            $shop = Shop::where('shop', session('active_shop'))->first();
+            $plan = Plan::where('id', 2)->first();
+            $subscription = ShopifySubscription::where('shop_id', $shop->id)->first();
+            return response()->json([
+                'shop' => $shop,
+                'plan' => $plan,
+                'subscription' => $subscription
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    }
 }
