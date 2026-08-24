@@ -533,3 +533,16 @@ Route::get(
     '/shopify/categories/search',
     [ShopifyController::class, 'searchCategories']
 )->name('shopify.categories.search');
+
+
+Route::get('/test-plan-sync/{shop}', function (string $shop) {
+    $shopModel = \App\Models\Shop::where('shop', $shop)->firstOrFail();
+
+    $result = app(\App\Services\ShopifyPlanSyncService::class)
+        ->sync($shopModel);
+
+    return response()->json([
+        'success' => $result !== null,
+        'subscription' => $result,
+    ]);
+});
