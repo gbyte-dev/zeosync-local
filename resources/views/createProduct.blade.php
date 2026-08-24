@@ -35,6 +35,69 @@
         gap: 12px;
     }
 
+    .subcategory-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        width: 100%;
+        box-sizing: border-box;
+
+        z-index: 99999;
+
+        display: none;
+        background: #fff;
+        border: 1px solid #D1D5DB;
+        border-radius: 6px;
+
+        box-shadow:
+            0 4px 6px rgba(0, 0, 0, 0.08),
+            0 10px 20px rgba(0, 0, 0, 0.06);
+
+        max-height: 240px;
+        overflow-y: auto;
+        padding: 4px 0;
+    }
+
+    .subcategory-dropdown .list-group-item {
+        display: block;
+        width: 100%;
+
+        padding: 8px 10px;
+
+        border: 0;
+        border-bottom: 1px solid #F3F4F6;
+
+        background: #fff;
+        color: #111827;
+
+        font-size: 13px;
+        text-align: left;
+
+        cursor: pointer;
+    }
+
+    .subcategory-dropdown .list-group-item:last-child {
+        border-bottom: 0;
+    }
+
+    .subcategory-dropdown .list-group-item:hover {
+        background: #F9FAFB;
+    }
+
+    .subcategory-dropdown .list-group-item:focus {
+        background: #F3F4F6;
+        outline: none;
+    }
+
+    .subcategory-dropdown::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .subcategory-dropdown::-webkit-scrollbar-thumb {
+        background: #D1D5DB;
+        border-radius: 10px;
+    }
+
     .panel {
         background: #FFFFFF;
         padding: 16px;
@@ -414,7 +477,12 @@
                     @php $n = old('category',0); @endphp
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Product Category</label>
-                        <select name="category" class="form-select" onchange="updatecategory(this.value)" required>
+                        <select
+                            name="category"
+                            id="category"
+                            class="form-select"
+                            onchange="updatecategory(this.value)"
+                            required>
                             <option value="">Select Category</option>
                             @foreach(getCategorires() as $categories)
                             @php if($n == 0){ $n = $categories['id']; } @endphp
@@ -422,14 +490,31 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label">Sub Category</label>
-                        <select name="sub_category" id="sub_category" class="form-select" required>
-                            <option value="">Select Sub Category</option>
-                            @foreach(getCategorires($n) as $categories)
-                            <option value="<?= $categories['id'] ?>" {{ old('sub_category') == $categories['id'] ? 'selected' : '' }}><?= $categories['name'] ?></option>
-                            @endforeach
-                        </select>
+                    <div class="mb-3 col-md-4">
+                        <label for="sub_category_search" class="form-label">
+                            Sub Category
+                        </label>
+
+                        <div class="position-relative">
+                            <input
+                                type="text"
+                                id="sub_category_search"
+                                class="form-control"
+                                placeholder="Search sub category..."
+                                autocomplete="off"
+                                disabled>
+
+                            <input
+                                type="hidden"
+                                name="sub_category"
+                                id="sub_category"
+                                value="{{ old('sub_category') }}">
+
+                            <div
+                                id="sub_category_results"
+                                class="subcategory-dropdown">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -609,6 +694,7 @@
     const amazonTitleInput = document.getElementById('amazonTitle');
     const currency = @json($currency);
 
+
     // Amazon Title Sync Logic Restored
     if (productTitleInput && amazonTitleInput) {
         const syncAmazonTitle = () => {
@@ -631,6 +717,140 @@
             reader.readAsDataURL(file);
         });
     });
+
+    const subCategorySearch = document.getElementById('sub_category_search');
+    const subCategoryInput = document.getElementById('sub_category');
+    const subCategoryResults = document.getElementById('sub_category_results');
+
+    let subCategoryTimer = null;
+
+
+    subCategorySearch.addEventListener('input', function() {
+
+        const search = this.value.trim();
+
+        clearTimeout(subCategoryTimer);
+
+        subCategoryResults.innerHTML = '';
+        subCategoryResults.style.display = 'none';
+
+        subCategoryInput.value = '';
+
+        if (search.length < 2) {
+            return;
+        }
+
+        subCategoryTimer = setTimeout(() => {
+            searchSubCategories(search);
+        }, 500);
+    });
+
+    function searchSubCategories(search) {
+
+        console.log('SEARCH:', search);
+
+        const categoryElement = document.getElementById('category');
+
+        if (!categoryElement) {
+            console.error('Category element not found');
+            return;
+        }
+
+        const categoryId = categoryElement.value;
+
+        if (!categoryId) {
+            console.warn('No category selected');
+            return;
+        }
+
+        const url =
+            "{{ route('shopify.categories.search') }}" +
+            "?parent_id=" + encodeURIComponent(categoryId) +
+            "&search=" + encodeURIComponent(search);
+
+        console.log('REQUEST URL:', url);
+
+        const xhr = new XMLHttpRequest();
+
+        xhr.open('GET', url, true);
+
+        xhr.setRequestHeader('Accept', 'application/json');
+
+        xhr.onreadystatechange = function() {
+
+            if (xhr.readyState !== XMLHttpRequest.DONE) {
+                return;
+            }
+
+            console.log('XHR STATUS:', xhr.status);
+            console.log('XHR RESPONSE:', xhr.responseText);
+
+            if (xhr.status !== 200) {
+                console.error('Subcategory request failed:', xhr.status);
+                return;
+            }
+
+            let categories;
+
+            try {
+                categories = JSON.parse(xhr.responseText);
+            } catch (error) {
+                console.error('Invalid JSON response:', error);
+                return;
+            }
+
+            subCategoryResults.innerHTML = '';
+
+            if (!Array.isArray(categories) || categories.length === 0) {
+                subCategoryResults.innerHTML = `
+                <div class="list-group-item text-muted">
+                    No sub category found
+                </div>
+            `;
+
+                subCategoryResults.style.display = 'block';
+                return;
+            }
+
+            categories.forEach(category => {
+
+                const item = document.createElement('button');
+
+                item.type = 'button';
+                item.className = 'list-group-item list-group-item-action';
+                item.textContent = category.name;
+
+                item.addEventListener('click', function() {
+
+                    subCategorySearch.value = category.name;
+                    subCategoryInput.value = category.id;
+
+                    subCategoryResults.innerHTML = '';
+                    subCategoryResults.style.display = 'none';
+                });
+
+                subCategoryResults.appendChild(item);
+            });
+
+            subCategoryResults.style.display = 'block';
+
+            console.log('RESULTS:', categories.length);
+        };
+
+        xhr.onerror = function() {
+            console.error('XHR NETWORK ERROR');
+        };
+
+        xhr.ontimeout = function() {
+            console.error('XHR TIMEOUT');
+        };
+
+        xhr.timeout = 10000;
+
+        xhr.send();
+    }
+
+
 
     function addVariantType() {
         const container = document.getElementById('variantTypesContainer');
@@ -764,32 +984,12 @@
     }
 
     function updatecategory(category) {
-        const shop = document.getElementById('activeShop')?.value;
-        fetch(
-                `{{ route('shopify.product.category') }}?parent_id=${category}&shop=${encodeURIComponent(shop)}`, {
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                }
-            )
-            .then(async response => {
-                const text = await response.text();
-                return JSON.parse(text);
-            })
-            .then(data => {
-                let subSelect = document.getElementById('sub_category');
-                subSelect.innerHTML = '<option value="">Select Sub Category</option>';
-                data.forEach(item => {
-                    let option = document.createElement('option');
-                    option.value = item.id;
-                    option.textContent = item.name;
-                    subSelect.appendChild(option);
-                });
-            })
-            .catch(error => {
-                console.error('Error fetching subcategories:', error);
-            });
+        subCategorySearch.value = '';
+        subCategoryInput.value = '';
+        subCategoryResults.innerHTML = '';
+        subCategoryResults.style.display = 'none';
+
+        subCategorySearch.disabled = !category;
     }
 
     document.addEventListener('DOMContentLoaded', function() {

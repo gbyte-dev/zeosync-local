@@ -38,12 +38,13 @@ use App\Http\Controllers\ProductSchemaController;
 
 class ShopifyController extends Controller
 {
-     protected ShopifyBillingService $shopifyBilling;
+    protected ShopifyBillingService $shopifyBilling;
     protected ShopifyWebhookService $shopifyWebhook;
     protected AmazonService $amazonService;
 
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->shopifyBilling = app(ShopifyBillingService::class);
         $this->shopifyWebhook = app(ShopifyWebhookService::class);
         $this->amazonService = app(AmazonService::class);
@@ -797,7 +798,7 @@ class ShopifyController extends Controller
                 : json_decode($product->variants, true) ?? [];
             if (count($variants) > 1) {
                 $amazonService = new \App\Services\AmazonService();
-                $response = $amazonService->buildPayload(  $shopModel, $product,  $amazon  );
+                $response = $amazonService->buildPayload($shopModel, $product,  $amazon);
                 // If service already returned JSON response
                 if ($response instanceof \Illuminate\Http\JsonResponse) {
                     $data = $response->getData(true);
@@ -3067,7 +3068,8 @@ class ShopifyController extends Controller
 
             if (!empty($inventoryItemIds)) {
                 $inventoryRes = $this->shopifyRest(
-                    $shopModel, 'get',
+                    $shopModel,
+                    'get',
                     'inventory_levels.json',
                     [
                         'inventory_item_ids' => implode(',', $inventoryItemIds)
@@ -3238,5 +3240,30 @@ class ShopifyController extends Controller
                 'message' => 'Unexpected error while refreshing token: ' . $e->getMessage(),
             ];
         }
+    }
+
+    public function searchCategories(Request $request)
+    {
+        $search = trim($request->query('search', ''));
+        $parentId = $request->query('parent_id');
+
+        if ($search === '') {
+            return response()->json([]);
+        }
+
+        $query = Category::query()
+            ->where('name', 'like', '%' . $search . '%');
+
+        if ($parentId !== null) {
+            $query->where('parent_id', (int) $parentId);
+        } else {
+            $query->whereNull('parent_id');
+        }
+
+        return response()->json(
+            $query->orderBy('name')
+                ->limit(20)
+                ->get(['id', 'name'])
+        );
     }
 }

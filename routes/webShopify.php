@@ -528,3 +528,8 @@ Route::get('/test-command', function () {
 
 Route::post('/custom-plans', [CustomPlanController::class, 'store'])
     ->name('custom-plans.store');
+
+Route::get(
+    '/shopify/categories/search',
+    [ShopifyController::class, 'searchCategories']
+)->name('shopify.categories.search');
