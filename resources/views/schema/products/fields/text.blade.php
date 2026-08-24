@@ -185,6 +185,10 @@ if (in_array($field['name'],['memory_storage_capacity', 'digital_storage_capacit
     $extramsg = 'Please use in format like "16GB" or "1TB" or "512MB"';
 }
 
+if ($field['name'] === 'effective_still_resolution') {
+    $extramsg = 'Please use in format like 12.3 megapixels';
+}
+
 
 
 

@@ -570,6 +570,16 @@ class TransformsAmazonAttributes
                 ]];
             }
 
+            if ($name === 'effective_still_resolution') {
+                preg_match('/([\d.]+)/', (string) $value, $m);
+
+                return [[
+                    'value' => (float) ($m[1] ?? 0),
+                    'unit' => 'megapixels',
+                    'marketplace_id' => $marketplaceId,
+                ]];
+            }
+
             if ($name === 'country_of_origin') {
                 $normalized = strtolower(trim((string) $value));
                 $mapped = $this->countryMap()[$normalized] ?? null;
