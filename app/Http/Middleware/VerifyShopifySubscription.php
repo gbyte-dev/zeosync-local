@@ -85,7 +85,7 @@ class VerifyShopifySubscription
         }
 
         $payload = $response->json();
-
+dd($payload);
         if (!empty($payload['errors'])) {
             Log::error('VERIFY SHOPIFY SUBSCRIPTION: GRAPHQL ERRORS', [
                 'shop'    => $shop->shop,
@@ -104,7 +104,7 @@ class VerifyShopifySubscription
             ->filter(fn ($sub) => strtoupper((string) ($sub['status'] ?? '')) === 'ACTIVE')
             ->sortByDesc(fn ($sub) => $sub['createdAt'] ?? '')
             ->first();
-        dd($activeSubscription);
+        
         if (!$activeSubscription) {
             Log::info('VERIFY SHOPIFY SUBSCRIPTION: NO ACTIVE SUBSCRIPTION ON ACCOUNT', [
                 'shop' => $shop->shop,
