@@ -28,7 +28,7 @@ return [
         'redirect_uri' => env('SHOPIFY_REDIRECT_URI'),
         'app_url' => env('SHOPIFY_APP_URL'),
         'api_version' => env('SHOPIFY_API_VERSION', '2026-07'),
-        'app_handle' => env('SHOPIFY_APP_HANDLE'),
+        'app_handle' => env('SHOPIFY_APP'),
     ],
 
     'ses' => [
