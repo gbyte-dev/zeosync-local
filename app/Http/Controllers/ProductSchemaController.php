@@ -673,6 +673,21 @@ class ProductSchemaController extends Controller
             $value = $attribute->attribute_value;
 
             if (is_string($value)) {
+                $value = trim($value);
+                if ($value !== '' && str_starts_with($value, '[')) {
+                    $decoded = json_decode($value, true);
+                    if (is_array($decoded)) {
+                        $value = $decoded;
+                    }
+                }
+
+                if(is_string($value)) {
+                    $value = str_replace('"', '', $value);
+                    $value = trim($value);
+                }
+            }
+
+            if (is_string($value)) {
                 $trimmed = trim($value);
                 if ($trimmed !== '' && str_starts_with($trimmed, '[')) {
                     $decoded = json_decode($trimmed, true);
