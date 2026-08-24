@@ -119,6 +119,8 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::get('/sync-shopify-to-amazon/{id}', [ShopifyController::class, 'syncShopifyToAmazon'])->name('user.product.syncShopifyToAmazon');
     Route::post('/remove_drafts/{product}', [ProductSchemaController::class, 'removeDrafts'])->name('user.product.removeDraft');
     Route::get('/amazonView/{sku}', [TestController::class, 'amazonView'])->name('user.product.amazonView');
+    Route::get('/testroute', [TestController::class, 'testroute'])->middleware('subscription.check')->name('user.product.amazonView');
+
 });
 Route::get('/test-amazon', [ShopifyController::class, 'testAmazon']);
 Route::get('/get-seller-id', [ShopifyController::class, 'getSellerIdFull']);
@@ -137,9 +139,7 @@ Route::post('/inventory/amazon/sync', [InventoryController::class, 'syncAmazonIn
 Route::post('/webhooks/app-uninstalled', [ShopifyController::class, 'handleAppUninstalledWebhook'])
     ->name('shopify.webhooks.app.uninstalled');
 
-Route::get('/support_front', function () {
-    return view('support_front');
-})->name('shopify.support_front');
+Route::get('/support_front', function () {    return view('support_front'); })->name('shopify.support_front');
 Route::get('/test/{type}', [TestController::class, 'test'])->name('test.by.productype');
 
 Route::get('/logout', [SettingsController::class, 'logout'])->name('site.logout');

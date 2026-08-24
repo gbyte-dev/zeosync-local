@@ -32,6 +32,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\ResolveActiveShop::class,
         ]);
 
+        $middleware->alias([
+            'shopify.subscription' => \App\Http\Middleware\VerifyShopifySubscription::class,
+            'subscription.check'   => \App\Http\Middleware\CheckSubscription::class,
+        ]);
+
         $middleware->validateCsrfTokens(except: [
             'webhooks/*',
             'shopify/webhooks/*',
