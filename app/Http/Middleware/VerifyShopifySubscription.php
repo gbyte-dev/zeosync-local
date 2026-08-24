@@ -22,7 +22,7 @@ class VerifyShopifySubscription
     {
         // Global bypass switch
         if (config('app.disable_subscription')) {
-            return $next($request);
+          //  return $next($request);
         }
 
         // Shop resolved by ResolveActiveShop middleware, fallback to ?shop= param
@@ -33,16 +33,16 @@ class VerifyShopifySubscription
             $shop = Shop::where('shop', $request->get('shop'))->first();
         }
 
-        if (!$shop || empty($shop->access_token)) {
-            Log::warning('VERIFY SHOPIFY SUBSCRIPTION: NO SHOP/TOKEN', [
-                'route' => optional($request->route())->getName(),
-                'url'   => $request->fullUrl(),
-            ]);
+        // if (!$shop || empty($shop->access_token)) {
+        //     Log::warning('VERIFY SHOPIFY SUBSCRIPTION: NO SHOP/TOKEN', [
+        //         'route' => optional($request->route())->getName(),
+        //         'url'   => $request->fullUrl(),
+        //     ]);
 
-            return redirect()
-                ->route('plans.index', ['shop' => $request->get('shop')])
-                ->with('error', 'Shop could not be verified. Please reinstall the app.');
-        }
+        //     return redirect()
+        //         ->route('plans.index', ['shop' => $request->get('shop')])
+        //         ->with('error', 'Shop could not be verified. Please reinstall the app.');
+        // }
 
         // ---- Query Shopify directly for the account's active subscriptions ----
         $response = Http::withHeaders([
@@ -72,6 +72,8 @@ class VerifyShopifySubscription
             ]
         );
 
+        dd($response->json());
+
         if (!$response->successful()) {
             Log::error('VERIFY SHOPIFY SUBSCRIPTION: API REQUEST FAILED', [
                 'shop'   => $shop->shop,
@@ -85,7 +87,7 @@ class VerifyShopifySubscription
         }
 
         $payload = $response->json();
-dd($payload);
+
         if (!empty($payload['errors'])) {
             Log::error('VERIFY SHOPIFY SUBSCRIPTION: GRAPHQL ERRORS', [
                 'shop'    => $shop->shop,
