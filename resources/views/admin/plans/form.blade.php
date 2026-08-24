@@ -231,7 +231,7 @@
                 </div>
             </div>
 
-            {{-- Recurring Fields --}}
+            <!-- {{-- Recurring Fields --}}
             <div class="mb-4">
 
                 <div id="billing_section">
@@ -309,7 +309,7 @@
                     </div>
                 </div>
 
-            </div>
+            </div> -->
 
             {{-- Features --}}
             <div class="mb-4">
