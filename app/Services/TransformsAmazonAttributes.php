@@ -565,7 +565,7 @@ class TransformsAmazonAttributes
 
                 return [[
                     'value' => (float) ($m[1] ?? 0),
-                    'unit' => ucfirst(strtolower($m[2] ?? 'GB')),
+                    'unit' => ucfirst(strtoupper($m[2] ?? 'GB')),
                     'marketplace_id' => $marketplaceId,
                 ]];
             }
