@@ -502,35 +502,24 @@ class ProductSchemaController extends Controller
                     foreach ($tabFields as $field) {
 
                         $fieldName = strtolower($field['name'] ?? '');
-
                         if (!$fieldName) {
                             continue;
                         }
 
                         $aliases = $fieldAlias[$fieldName] ?? [];
-
                         $matched = false;
 
                         foreach ($attributeNames as $attribute) {
 
-                            if (
-                                $attribute === $fieldName ||
-                                in_array($attribute, $aliases, true)
+                            if ( $attribute === $fieldName || in_array($attribute, $aliases, true)
                             ) {
                                 $matched = true;
                                 break;
                             }
                         }
 
-                        if (
-                            $matched ||
-                            $path === $fieldName
-                        ) {
-                            // Store field name instead of incrementing.
-                            // This prevents duplicate errors for the same field
-                            // from increasing the badge count.
+                        if ( $matched || $path === $fieldName ) {
                             $tabErrorFields[$tabName][$fieldName] = true;
-
                             break 2;
                         }
                     }
@@ -553,26 +542,14 @@ class ProductSchemaController extends Controller
 
         return view(
             'schema.products.create',
-            compact(
-                'tabs',
-                'schema',
-                'fields',
-                'requiredFields',
-                'productshow',
-                'prodAttri',
-                'canUseAiAutoFill',
-                'canUseAiSingleField',
-                'tabErrorCounts',
-                'fieldSuggestions'
-            )
-        );
+            compact( 'tabs', 'schema', 'fields',  'requiredFields', 'productshow',
+                'prodAttri', 'canUseAiAutoFill', 'canUseAiSingleField',
+                'tabErrorCounts', 'fieldSuggestions'  )
+            );
     }
 
-    public function productstore(
-        Request $request,
-        ProductLimitService $productLimitService,
-        $product_id = null
-    ) {
+    public function productstore( Request $request,  ProductLimitService $productLimitService,
+        $product_id = null ) {
         $activeShop = $request->attributes->get('active_shop_model');
         if (!$activeShop) {
             return back()->with('error', 'Active shop not found.');
