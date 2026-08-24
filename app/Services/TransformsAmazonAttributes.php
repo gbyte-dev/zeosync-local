@@ -1289,6 +1289,12 @@ class TransformsAmazonAttributes
             if ($name === 'melting_temperature') {
                 return $this->meltingTemperature($value, $marketplaceId);
             }
+    
+            if ($name === 'esrb_rating') {
+                return $this->createEsrbRating($value, [], $marketplaceId);
+            }
+
+            // createEsrbRating($rating, $descriptors, $marketplaceId)
 
             if ($name === 'non_lithium_battery_energy_content') {
                 $input = trim($value);
@@ -1533,16 +1539,11 @@ class TransformsAmazonAttributes
     {
         $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
 
-        preg_match(
-            '/([\d.]+)\s*(hours?|minutes?|seconds?)/i',
-            trim((string) $value),
-            $matches
-        );
+        preg_match( '/([\d.]+)\s*(hours?|minutes?|seconds?)/i',
+            trim((string) $value),  $matches     );
 
         $number = (float) ($matches[1] ?? 0);
-
         $unit = strtolower($matches[2] ?? 'hours');
-
         $unit = match (rtrim($unit, 's')) {
             'hour' => 'hours',
             'minute' => 'minutes',
@@ -1560,24 +1561,18 @@ class TransformsAmazonAttributes
     private function waterResistanceLevel($value, $marketplaceId = null): array
     {
         $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
-
         $value = strtolower(trim((string) $value));
 
         $mapped = match ($value) {
             'moisture resistant',
             'moisture_resistant' => 'moisture_resistant',
-
             'not water resistant',
             'not_water_resistant' => 'not_water_resistant',
-
             'water repellent',
             'water_repellent' => 'water_repellent',
-
             'water resistant',
             'water_resistant' => 'water_resistant',
-
             'waterproof' => 'waterproof',
-
             default => 'water_resistant',
         };
 
@@ -1591,64 +1586,23 @@ class TransformsAmazonAttributes
     private function tankVolume($value, $marketplaceId = null): array
     {
         $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
-
         $value = trim((string) $value);
-
-        preg_match(
-            '/^\s*([\d.]+)\s*(ml|milliliters?|l|liters?|cl|centiliters?|dl|deciliters?|gal|gallons?|imperial\s*gallons?|fl\s*oz|fluid\s*ounces?|pints?|quarts?)\s*$/i',
-            $value,
-            $matches
-        );
+        preg_match('/^\s*([\d.]+)\s*(ml|milliliters?|l|liters?|cl|centiliters?|dl|deciliters?|gal|gallons?|imperial\s*gallons?|fl\s*oz|fluid\s*ounces?|pints?|quarts?)\s*$/i',
+            $value,  $matches  );
 
         $number = (float) ($matches[1] ?? 0);
         $rawUnit = strtolower(trim($matches[2] ?? ''));
 
         $unit = match (true) {
-            in_array($rawUnit, [
-                'ml',
-                'milliliter',
-                'milliliters',
-            ]) => 'milliliters',
-
-            in_array($rawUnit, [
-                'l',
-                'liter',
-                'liters',
-            ]) => 'liters',
-
-            in_array($rawUnit, [
-                'cl',
-                'centiliter',
-                'centiliters',
-            ]) => 'centiliters',
-
-            in_array($rawUnit, [
-                'dl',
-                'deciliter',
-                'deciliters',
-            ]) => 'deciliters',
-
-            in_array($rawUnit, [
-                'gal',
-                'gallon',
-                'gallons',
-            ]) => 'gallons',
-
-            in_array($rawUnit, [
-                'imperial gallons',
-                'imperial gallon',
-            ]) => 'imperial_gallons',
-
-            in_array($rawUnit, [
-                'fl oz',
-                'fluid ounce',
-                'fluid ounces',
-            ]) => 'fluid_ounces',
-
+            in_array($rawUnit, [ 'ml', 'milliliter', 'milliliters',  ]) => 'milliliters',
+            in_array($rawUnit, [ 'l', 'liter',  'liters', ]) => 'liters',
+            in_array($rawUnit, [ 'cl', 'centiliter', 'centiliters', ]) => 'centiliters',
+            in_array($rawUnit, [ 'dl', 'deciliter', 'deciliters', ]) => 'deciliters',
+            in_array($rawUnit, [ 'gal', 'gallon','gallons',  ]) => 'gallons',
+            in_array($rawUnit, [ 'imperial gallons', 'imperial gallon', ]) => 'imperial_gallons',
+            in_array($rawUnit, [ 'fl oz', 'fluid ounce', 'fluid ounces', ]) => 'fluid_ounces',
             str_starts_with($rawUnit, 'pint') => 'pints',
-
             str_starts_with($rawUnit, 'quart') => 'quarts',
-
             default => 'liters',
         };
 
@@ -1658,4 +1612,147 @@ class TransformsAmazonAttributes
             'marketplace_id' => $marketplaceId,
         ]];
     }
+
+    function createEsrbRating($rating, $descriptors, $marketplaceId) 
+    {
+        $ratings = [
+            'adults_only' => 'Adults Only',
+            'early_childhood' => 'Early Childhood',
+            'everyone' => 'Everyone',
+            'everyone_10_plus' => 'Everyone 10+',
+            'kids_to_adults' => 'Kids to Adults',
+            'mature' => 'Mature',
+            'rating_pending' => 'Rating Pending',
+            'rating_pending_mature' => 'Rating Pending - Mature',
+            'teen' => 'Teen'
+        ];
+
+        $descriptorsList = [
+            'alcohol_and_tobacco_reference' => 'Alcohol & Tobacco Reference',
+            'alcohol_reference' => 'Alcohol Reference',
+            'animated_blood' => 'Animated Blood',
+            'animated_blood_and_gore' => 'Animated Blood & Gore',
+            'animated_violence' => 'Animated Violence',
+            'blood' => 'Blood',
+            'blood_and_gore' => 'Blood & Gore',
+            'cartoon_violence' => 'Cartoon Violence',
+            'comic_mischief' => 'Comic Mischief',
+            'crude_humor' => 'Crude Humor',
+            'drug_and_alcohol_reference' => 'Drug & Alcohol Reference',
+            'drug_reference' => 'Drug Reference',
+            'edutainment' => 'Edutainment',
+            'fantasy_violence' => 'Fantasy Violence',
+            'gambling' => 'Gambling',
+            'gaming' => 'Gaming',
+            'graphic_violence' => 'Graphic Violence',
+            'informational' => 'Informational',
+            'intense_violence' => 'Intense Violence',
+            'language' => 'Language',
+            'lyrics' => 'Lyrics',
+            'mature_humor' => 'Mature Humor',
+            'mature_sexual_themes' => 'Mature Sexual Themes',
+            'mild_animated_blood' => 'Mild Animated Blood',
+            'mild_animated_violence' => 'Mild Animated Violence',
+            'mild_blood' => 'Mild Blood',
+            'mild_cartoon_violence' => 'Mild Cartoon Violence',
+            'mild_fantasy_violence' => 'Mild Fantasy Violence',
+            'mild_language' => 'Mild Language',
+            'mild_lyrics' => 'Mild Lyrics',
+            'mild_realistic_violence' => 'Mild Realistic Violence',
+            'mild_sexual_themes' => 'Mild Sexual Themes',
+            'mild_suggestive_themes' => 'Mild Suggestive Themes',
+            'mild_violence' => 'Mild Violence',
+            'nudity' => 'Nudity',
+            'partial_nudity' => 'Partial Nudity',
+            'real_gambling' => 'Real Gambling',
+            'realistic_blood' => 'Realistic Blood',
+            'realistic_blood_and_gore' => 'Realistic Blood & Gore',
+            'realistic_violence' => 'Realistic Violence',
+            'sexual_content' => 'Sexual Content',
+            'sexual_themes' => 'Sexual Themes',
+            'sexual_violence' => 'Sexual Violence',
+            'simulated_gambling' => 'Simulated Gambling',
+            'some_adult_assistance_may_be_needed' => 'Some Adult Assistance May be Needed',
+            'strong_language' => 'Strong Language',
+            'strong_lyrics' => 'Strong Lyrics',
+            'strong_sexual_content' => 'Strong Sexual Content',
+            'suggestive_themes' => 'Suggestive Themes',
+            'suitable_for_all_users' => 'Suitable For All Users',
+            'suitable_for_mature_users' => 'Suitable For Mature Users',
+            'tobacco_reference' => 'Tobacco Reference',
+            'use_of_alcohol' => 'Use of Alcohol',
+            'use_of_alcohol_and_tobacco' => 'Use of Alcohol & Tobacco',
+            'use_of_drugs' => 'Use of Drugs',
+            'use_of_drugs_and_alcohol' => 'Use of Drugs & Alcohol',
+            'use_of_tobacco' => 'Use of Tobacco',
+            'violence' => 'Violence',
+            'violent_references' => 'Violent References'
+        ];
+
+        $normalize = function (string $string): string {
+            $string = strtolower($string);
+            $string = str_replace(['&', '+'], [' and ', ' plus '], $string);
+            $string = preg_replace('/[_-]/', ' ', $string);
+            $string = preg_replace('/[^a-z0-9\s]/', '', $string);
+            $string = preg_replace('/\s+/', ' ', $string);
+            return trim($string);
+        };
+
+        // Helper closure: receives $input as a parameter when called below
+        $matchText = function (string $input, array $options) use ($normalize): ?string {
+            if (array_key_exists($input, $options)) {
+                return $input;
+            }
+
+            $normalizedInput = $normalize($input);
+            if (empty($normalizedInput)) return null;
+
+            $words = array_unique(explode(' ', $normalizedInput));
+            $wordsSize = count($words);
+            $best = ['key' => null, 'score' => 0];
+
+            foreach ($options as $key => $value) {
+                $target = array_unique(explode(' ', $normalize($value)));
+                $targetSize = count($target);
+
+                $common = count(array_intersect($words, $target));
+                $score = ($wordsSize && $targetSize) 
+                    ? (2 * $common) / ($wordsSize + $targetSize) 
+                    : 0;
+
+                if ($score > $best['score']) {
+                    $best = ['key' => $key, 'score' => $score];
+                }
+            }
+
+            return $best['score'] >= 0.8 ? $best['key'] : null;
+        };
+
+        // 1. Process $rating input
+        $matchedRating = $matchText((string) $rating, $ratings) ?: 'everyone';
+
+        // 2. Process $descriptors input
+        if (is_string($descriptors)) {
+            $descriptors = array_filter(array_map('trim', explode(',', $descriptors)));
+        } elseif (!is_array($descriptors)) {
+            $descriptors = [];
+        }
+
+        $matchedDescriptors = [];
+        foreach ($descriptors as $desc) {
+            $match = $matchText((string) $desc, $descriptorsList);
+            if ($match) {
+                $matchedDescriptors[] = $match;
+            }
+        }
+
+        $matchedDescriptors = array_slice(array_values(array_unique($matchedDescriptors)), 0, 8);
+
+        return [[
+            'rating' => $matchedRating,
+            'descriptors' => !empty($matchedDescriptors) ? $matchedDescriptors : ['suitable_for_all_users'],
+            'marketplace_id' => $marketplaceId,
+        ]];
+    }
+    
 }
