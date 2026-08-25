@@ -1492,19 +1492,34 @@ class ShopifyController extends Controller
         $localMetafields = [];
 
         foreach ($metaNames as $index => $name) {
-            $name = trim($name);
-            $value = isset($metaValues[$index]) ? trim($metaValues[$index]) : '';
+            $name = trim((string) $name);
+            $value = isset($metaValues[$index]) ? trim((string) $metaValues[$index]) : '';
 
-            if ($name !== '' && $value !== '') {
-                $metafields[] = [
-                    'ownerId'   => "gid://shopify/Product/{$productId}",
-                    'namespace' => 'custom', // Default namespace for custom attributes
-                    'key'       => $name,
-                    'type'      => 'single_line_text_field', // Best default for text/string
-                    'value'     => (string)$value,
-                ];
-                $localMetafields[$name] = $value;
+            if ($name === '' || $value === '') {
+                continue;
             }
+
+            // Shopify keys must match ^[a-z0-9_]+$ - sanitize user input
+            // (e.g. "Material Type" -> "material_type")
+            $key = strtolower(preg_replace('/[^A-Za-z0-9_]+/', '_', $name));
+            $key = trim($key, '_');
+
+            if ($key === '') {
+                continue;
+            }
+
+            // Avoid duplicate keys in a single metafieldsSet call (whole batch fails otherwise)
+            $localMetafields[$key] = $value;
+        }
+
+        foreach ($localMetafields as $key => $value) {
+            $metafields[] = [
+                'ownerId'   => "gid://shopify/Product/{$productId}",
+                'namespace' => 'custom', // Default namespace for custom attributes
+                'key'       => $key,
+                'type'      => 'single_line_text_field', // Best default for text/string
+                'value'     => (string)$value,
+            ];
         }
 
         if (empty($metafields)) {
@@ -1534,7 +1549,7 @@ class ShopifyController extends Controller
                     'X-Shopify-Access-Token' => $shopModel->access_token,
                     'Content-Type' => 'application/json',
                 ])
-                ->post("https://{$shopModel->shop}/admin/api/2026-01/graphql.json", [
+                ->post("https://{$shopModel->shop}/admin/api/" . config('services.shopify.api_version', '2026-01') . "/graphql.json", [
                     'query' => $query,
                     'variables' => [
                         'metafields' => $metafields
