@@ -920,6 +920,55 @@ class TransformsAmazonAttributes
                 return [$graphicsRam];
             }
 
+                        if ($name === 'battery') {
+
+                if(is_array($value)){
+                    dd($value);
+                    return $this->parseBatteryInfo($value,$marketplaceId );
+                }
+
+                $raw = trim((string) $value);
+                $battery = [
+                    'marketplace_id' => $marketplaceId,
+                ];
+               
+                foreach ( [ 'Lithium-Ion' => 'lithium_ion', 'Lithium-Metal' => 'lithium_metal',
+                        'Lithium-Polymer' => 'lithium_polymer', 'Alkaline' => 'alkaline',
+                        'NiMH' => 'NiMh',  'NiCad' => 'NiCAD',  ] as $label => $cell ) 
+                {
+                    
+                    if (stripos($raw, $label) !== false) {
+                        $battery['cell_composition'] = [['value' => $cell]];
+                        break;
+                    }
+                }
+
+                if (preg_match('/(\d+(?:\.\d+)?)\s*(g|grams?|kg)/i', $raw, $m)) {
+                    $battery['weight'] = [[
+                        'value' => (float) $m[1],
+                        'unit' => strtolower($m[2]) === 'kg' ? 'kg' : 'grams',
+                    ]];
+                }
+
+                if (preg_match('/(\d+(?:\.\d+)?)\s*(mAh|Ah|Wh|kWh)/i', $raw, $m)) {
+                    $unit = strtolower($m[2]);
+
+                    $battery['battery_capacity'] = [[
+                        'value' => (float) $m[1],
+                        'unit' => match ($unit) {
+                            'mah' => 'Milliampere Hour (mAh)',
+                            'ah'  => 'Ampere Hours',
+                            'wh'  => 'Watt Hours',
+                            'kwh' => 'Kilowatt Hours',
+                        },
+                    ]];
+                }
+
+                
+            
+                return [$battery];
+            }
+            
             if ($name === 'hard_disk') {
                 $raw = trim((string) $value);
 
@@ -985,54 +1034,6 @@ class TransformsAmazonAttributes
             if ($name === 'condition_type') {
                 $map = ['new_new' => 'new_new', 'new' => 'new_new', 'used_good' => 'used_good', 'used_very_good' => 'used_very_good', 'used_acceptable' => 'used_acceptable', 'collectible_good' => 'collectible_good'];
                 return [['value' => $map[strtolower($value)] ?? 'new_new']];
-            }
-            if ($name === 'battery') {
-
-                if(is_array($value)){
-                    dd($value);
-                    return $this->parseBatteryInfo($value,$marketplaceId );
-                }
-
-                $raw = trim((string) $value);
-                $battery = [
-                    'marketplace_id' => $marketplaceId,
-                ];
-               
-                foreach ( [ 'Lithium-Ion' => 'lithium_ion', 'Lithium-Metal' => 'lithium_metal',
-                        'Lithium-Polymer' => 'lithium_polymer', 'Alkaline' => 'alkaline',
-                        'NiMH' => 'NiMh',  'NiCad' => 'NiCAD',  ] as $label => $cell ) 
-                {
-                    
-                    if (stripos($raw, $label) !== false) {
-                        $battery['cell_composition'] = [['value' => $cell]];
-                        break;
-                    }
-                }
-
-                if (preg_match('/(\d+(?:\.\d+)?)\s*(g|grams?|kg)/i', $raw, $m)) {
-                    $battery['weight'] = [[
-                        'value' => (float) $m[1],
-                        'unit' => strtolower($m[2]) === 'kg' ? 'kg' : 'grams',
-                    ]];
-                }
-
-                if (preg_match('/(\d+(?:\.\d+)?)\s*(mAh|Ah|Wh|kWh)/i', $raw, $m)) {
-                    $unit = strtolower($m[2]);
-
-                    $battery['battery_capacity'] = [[
-                        'value' => (float) $m[1],
-                        'unit' => match ($unit) {
-                            'mah' => 'Milliampere Hour (mAh)',
-                            'ah'  => 'Ampere Hours',
-                            'wh'  => 'Watt Hours',
-                            'kwh' => 'Kilowatt Hours',
-                        },
-                    ]];
-                }
-
-                
-            
-                return [$battery];
             }
 
 
