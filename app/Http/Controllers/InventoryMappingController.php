@@ -153,6 +153,23 @@ class InventoryMappingController extends Controller
         ]);
     }
 
+    public function mappings(Request $request)
+    {
+        $shop = Shop::where('shop', $request->query('shop'))->firstOrFail();
+
+        $mappings = ProductMarketplaceMapping::where('shop_id', $shop->id)
+            ->get([
+                'id',
+                'shopify_variant_id',
+                'amazon_sku',
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'mappings' => $mappings,
+        ]);
+    }
+
 
     public function saveAmazonMapping(Request $request)
     {
