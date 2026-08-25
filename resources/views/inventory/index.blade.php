@@ -929,7 +929,8 @@
 
     function loadShopify() {
         activeTab = 'shopify';
-        fetch(`{{ route('shopify.inventory.shopify') }}?shop={{ $shop->shop }}`)
+
+        return fetch(`{{ route('shopify.inventory.shopify') }}?shop={{ $shop->shop }}`)
             .then(res => res.json())
             .then(data => {
                 let items = Array.isArray(data) ? data : [];
@@ -1598,15 +1599,17 @@
                 shopify_inventory_item_id: variant.data('inventory-item')
             },
             success: function(response) {
-                // alert(response.message);
                 Swal.fire({
                     text: response.message,
                     confirmButtonText: 'OK'
                 });
 
                 $('#mapShopifyProductModal').modal('hide');
-                refreshMappingUI();
-            },
+
+                loadShopify().then(function() {
+                    return refreshMappingUI();
+                });
+            }
             error: function(xhr) {
                 alert(xhr.responseJSON.message);
             }
