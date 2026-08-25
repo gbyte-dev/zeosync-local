@@ -338,46 +338,47 @@
         border-collapse: collapse !important;
     }
 
-      @media (max-width: 768px) {
-        .content{
-            padding:0px!important;
+    @media (max-width: 768px) {
+        .content {
+            padding: 0px !important;
         }
     }
 
-table.dataTable.dtr-inline.collapsed>tbody>tr>td.dtr-control:before, table.dataTable.dtr-inline.collapsed>tbody>tr>th.dtr-control:before{
-    background:white;
-}
+    table.dataTable.dtr-inline.collapsed>tbody>tr>td.dtr-control:before,
+    table.dataTable.dtr-inline.collapsed>tbody>tr>th.dtr-control:before {
+        background: white;
+    }
 </style>
 
 @if(!checkAmazonConnected())
-    <div class="alert alert-warning">
-        Please connect your Amazon account first.
-        <a href="{{ route('amazon.connect') }}">Connect Amazon</a>
-    </div>
+<div class="alert alert-warning">
+    Please connect your Amazon account first.
+    <a href="{{ route('amazon.connect') }}">Connect Amazon</a>
+</div>
 @else
 <div class="sp-page">
 
     <!-- Header Section -->
     <div class="sp-header-section">
         <div class="saas-page-header">
-        <div class="col-md-7 col-sm-12">
-            <h1 class="sp-title">Amazon Products Under Progress</h1>
-        </div>
-        <div class="sp-actions col-md-5 col-sm-12">
-            <button id="refreshBtn" style="float: right;" class="sp-btn sp-btn-secondary" data-url="{{ route('shopify.products', ['shop' => $activeShop]) }}">
-                <i class="bi bi-arrow-clockwise"></i> Refresh
-            </button>
+            <div class="col-md-7 col-sm-12">
+                <h1 class="sp-title">Amazon Products Under Progress</h1>
+            </div>
+            <div class="sp-actions col-md-5 col-sm-12">
+                <button id="refreshBtn" style="float: right;" class="sp-btn sp-btn-secondary" data-url="{{ route('shopify.products', ['shop' => $activeShop]) }}">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
 
-            @if(!$productLimitReached)
-            <a style="float: right;" href="{{ route('user.addProductCategory', ['shop' => session('active_shop')]) }}" class="sp-btn sp-btn-primary">
-                <i class="bi bi-send"></i> Add To Amazon
-            </a>
-            @else
-            <a style="float: right;" href="javascript:void(0)" onclick="showProductLimitAlert()" class="sp-btn sp-btn-primary">
-                <i class="bi bi-send"></i> Add To Amazon
-            </a>
-            @endif
-        </div>
+                @if(!$productLimitReached)
+                <a style="float: right;" href="{{ route('user.addProductCategory', ['shop' => session('active_shop')]) }}" class="sp-btn sp-btn-primary">
+                    <i class="bi bi-send"></i> Add To Amazon
+                </a>
+                @else
+                <a style="float: right;" href="javascript:void(0)" onclick="showProductLimitAlert()" class="sp-btn sp-btn-primary">
+                    <i class="bi bi-send"></i> Add To Amazon
+                </a>
+                @endif
+            </div>
         </div>
     </div>
 
@@ -424,33 +425,37 @@ table.dataTable.dtr-inline.collapsed>tbody>tr>td.dtr-control:before, table.dataT
                     @foreach($products as $product)
                     @php
                     if(isset($product->filled_json)){
-                        $proddata = json_decode($product->filled_json, true);
-                        $item_name = $proddata['item_name'] ?? '';
-                        $main_product_image = $proddata['main_product_image_locator'] ?? '';
-                        $schema_id = $product->schema_id ?? '';
-                        $quantity = $proddata['number_of_items'] ?? 0;
-                        $category = $product->schema->product_type ?? 'Uncategorized';
-                        $status = $product['status'] ?? 'draft';
-                        $manufacturer = $proddata['manufacturer'] ?? '';
-                        $price = $proddata['price'] ?? 0;
-                        $parentage_level = $proddata['parentage_level']??'';
+                    $proddata = json_decode($product->filled_json, true);
+                    $item_name = $proddata['item_name'] ?? '';
+                    $main_product_image = $proddata['main_product_image_locator'] ?? '';
+                    $schema_id = $product->schema_id ?? '';
+                    $quantity = $proddata['number_of_items'] ?? 0;
+                    $category = $product->schema->product_type ?? 'Uncategorized';
+                    $status = $product['status'] ?? 'draft';
+                    $manufacturer = $proddata['manufacturer'] ?? '';
+                    $price = $proddata['price'] ?? 0;
+                    $parentage_level = $proddata['parentage_level']??'';
                     }
                     elseif(isset($product->attributes)){
-                        $item_name = optional($product->attributes->firstWhere('attribute_name', 'item_name'))->attribute_value;
-                        $main_product_image = optional($product->attributes->firstWhere('attribute_name', 'main_product_image_locator'))->attribute_value;
-                        $schema_id = $product->schema_id ?? '';
-                        $quantity = optional($product->attributes->firstWhere('attribute_name', 'number_of_items'))->attribute_value ?? 0;
-                        $category = $product->schema->product_type ?? 'Uncategorized';
-                        $status = $product['status'] ?? 'draft';
-                        $manufacturer = optional($product->attributes->firstWhere('attribute_name', 'manufacturer'))->attribute_value ?? '';
-                        $price = optional($product->attributes->firstWhere('attribute_name', 'price'))->attribute_value ?? 0;
-                        $parentage_level = optional($product->attributes->firstWhere('attribute_name', 'parentage_level'))->attribute_value ?? '';
+                    $item_name = optional($product->attributes->firstWhere('attribute_name', 'item_name'))->attribute_value;
+                    $main_product_image = optional($product->attributes->firstWhere('attribute_name', 'main_product_image_locator'))->attribute_value;
+                    $schema_id = $product->schema_id ?? '';
+                    $quantity = optional($product->attributes->firstWhere('attribute_name', 'number_of_items'))->attribute_value ?? 0;
+                    $category = $product->schema->product_type ?? 'Uncategorized';
+                    $status = $product['status'] ?? 'draft';
+                    $manufacturer = optional($product->attributes->firstWhere('attribute_name', 'manufacturer'))->attribute_value ?? '';
+                    $price = optional($product->attributes->firstWhere('attribute_name', 'price'))->attribute_value ?? 0;
+                    $parentage_level = optional($product->attributes->firstWhere('attribute_name', 'parentage_level'))->attribute_value ?? '';
 
                     }
                     @endphp
                     <tr data-product-id="{{ $product['id'] }}">
                         <td>
-                            <img src="{{ $main_product_image??'' }}" alt="{{ $item_name??'' }}" class="sp-product-img">
+                            <img
+                                src="{{ $main_product_image ?: asset('b6.png') }}"
+                                alt="{{ $item_name ?? '' }}"
+                                class="sp-product-img"
+                                onerror="this.onerror=null; this.src='{{ asset('b6.png') }}';">
                         </td>
                         <td>
                             <span class="sp-fw-600 sp-text-truncate" title="{{ $item_name??'N/A' }}">{{ $item_name??'N/A' }}</span>
@@ -477,14 +482,14 @@ table.dataTable.dtr-inline.collapsed>tbody>tr>td.dtr-control:before, table.dataT
                             <div class="sp-actions" style="gap: 4px;">
                                 @if( strtolower($status) != 'draft')
                                 @if($product->parent_id == null)
-                                
+
                                 @if(!checkIsProductSynced($product->sku,'amazon'))
-                                    @if($parentage_level)
-                                    <a href="{{ route('admin.product.product.child', ['product' => $product->id, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Add Variation">
-                                        <i class="bi bi-plus-lg"></i>
-                                        <span class="d-none d-md-inline">Add Variation</span>
-                                    </a>
-                                    @endif
+                                @if($parentage_level)
+                                <a href="{{ route('admin.product.product.child', ['product' => $product->id, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Add Variation">
+                                    <i class="bi bi-plus-lg"></i>
+                                    <span class="d-none d-md-inline">Add Variation</span>
+                                </a>
+                                @endif
                                 @endif
 
                                 <!-- <a href="{{ route('user.product.showProducts.child', ['parent_id' => $product->id, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Show Variation">
@@ -498,7 +503,7 @@ table.dataTable.dtr-inline.collapsed>tbody>tr>td.dtr-control:before, table.dataT
                                     <span class="d-none d-md-inline">View</span>
                                 </a>
 
-                                
+
 
                                 @if(!checkIsProductSynced($product->sku,'amazon'))
                                 <a href="{{ route('user.product.syncAmazonToShopify', ['sku' => $product->sku, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Add to Shopify">

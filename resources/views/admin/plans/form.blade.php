@@ -260,7 +260,7 @@
                                     value="{{ $plan->prices['EVERY_30_DAYS'] ?? '' }}">
                             </div>
 
-                            <div class="col-md-8">
+                            <!-- <div class="col-md-8">
                                 <label class="form-label">Stripe Price ID</label>
                                 <input type="text"
                                     name="stripe_price_ids[EVERY_30_DAYS]"
@@ -268,7 +268,7 @@
                                     class="form-control"
                                     placeholder="price_1234567890abcdef"
                                     value="{{ $plan->stripe_price_ids['EVERY_30_DAYS'] ?? '' }}">
-                            </div>
+                            </div> -->
                         </div>
                     </div>
 
@@ -296,7 +296,7 @@
                                     value="{{ $plan->prices['ANNUAL'] ?? '' }}">
                             </div>
 
-                            <div class="col-md-8">
+                            <!-- <div class="col-md-8">
                                 <label class="form-label">Stripe Price ID</label>
                                 <input type="text"
                                     name="stripe_price_ids[ANNUAL]"
@@ -304,7 +304,7 @@
                                     class="form-control"
                                     placeholder="price_1234567890abcdef"
                                     value="{{ $plan->stripe_price_ids['ANNUAL'] ?? '' }}">
-                            </div>
+                            </div> -->
                         </div>
                     </div>
                 </div>
