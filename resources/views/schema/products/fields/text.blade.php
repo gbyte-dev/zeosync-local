@@ -197,7 +197,7 @@ $batterydata = [ 'cell' => 'Lithium-Ion',  'weight' => '50g', 'capacity' => '500
     ];
     
 @endphp
-
+ 
 <div class="mb-2">
 @if($field['name'] !== 'battery')
     <input {{ $idreq }} type="text" name="attributes[{{ $field['name'] }}]"
