@@ -774,7 +774,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-    const amazonConnected = @json(!empty($shop -> amazon_refresh_token));
+    const amazonConnected = @json(!empty($shop - > amazon_refresh_token));
     let selectedAmazonSku = null;
     let selectedShopifyVariantId = null;
     let selectedShopifyProductId = null;
@@ -830,6 +830,62 @@
                 _: Date.now()
             },
             cache: false
+        });
+    }
+
+    function refreshMappingUI() {
+        return refreshMappingState().then(function(response) {
+
+            if (!response.success) {
+                return;
+            }
+
+            const mappings = response.mappings || [];
+
+            const shopifyMappings = {};
+            const amazonMappings = {};
+
+            mappings.forEach(function(mapping) {
+                shopifyMappings[String(mapping.shopify_variant_id)] = mapping;
+
+                if (mapping.amazon_sku) {
+                    amazonMappings[String(mapping.amazon_sku)] = mapping;
+                }
+            });
+
+            // Update Shopify DataTable rows
+            if (dtShopify) {
+                dtShopify.rows().every(function() {
+                    const row = this.data();
+                    const mapping = shopifyMappings[String(row.vid)];
+
+                    row.is_mapped = !!mapping;
+                    row.mapping_id = mapping ? mapping.id : null;
+                    row.mapped_sku = mapping ? mapping.amazon_sku : null;
+
+                    this.data(row);
+                });
+
+                dtShopify.draw(false);
+            }
+
+            // Update Amazon DataTable rows
+            if (dtAmazon) {
+                dtAmazon.rows().every(function() {
+                    const row = this.data();
+                    const mapping = amazonMappings[String(row.sku)];
+
+                    row.is_mapped = !!mapping;
+                    row.mapping_id = mapping ? mapping.id : null;
+                    row.mapped_shopify_variant_id = mapping ?
+                        mapping.shopify_variant_id :
+                        null;
+
+                    this.data(row);
+                });
+
+                dtAmazon.draw(false);
+            }
         });
     }
 
@@ -1372,8 +1428,7 @@
             },
             success: function(response) {
                 alert(response.message);
-                loadShopify();
-                loadAmazon();
+                refreshMappingUI();
             },
             error: function(xhr) {
                 alert(xhr.responseJSON?.message ?? 'Failed to unmap product.');
@@ -1550,7 +1605,7 @@
                 });
 
                 $('#mapShopifyProductModal').modal('hide');
-                loadShopify();
+                refreshMappingUI();
             },
             error: function(xhr) {
                 alert(xhr.responseJSON.message);
@@ -1641,8 +1696,7 @@
                     confirmButtonText: 'OK'
                 });
                 $('#mapAmazonProductModal').modal('hide');
-                loadShopify();
-                loadAmazon();
+                refreshMappingUI();
             },
             error: function(xhr) {
                 alert(xhr.responseJSON.message);
