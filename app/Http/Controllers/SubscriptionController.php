@@ -214,7 +214,17 @@ class SubscriptionController extends ShopifyController
         if ($trialEndsAt->greaterThan($endedAt)) {
             $trialEndsAt = $endedAt->copy();
         }
-        return $this->redirectToShopifyPricing($shopModel);
+        $billingInterval = (int) $request->input('billing_interval', 1);
+
+        $shopifyInterval = $billingInterval === 12
+            ? 'ANNUAL'
+            : 'EVERY_30_DAYS';
+
+        return $this->redirectToShopifyPricing(
+            $shopModel,
+            $plan->slug,
+            $shopifyInterval
+        );
         $subscription = ShopSubscription::firstOrCreate(
             ['shop_id' => $shopModel->id], // Argument 1: Search criteria
             ['plan_id' => $request->plan_id] // Argument 2: Data to add if NOT found
@@ -350,9 +360,13 @@ class SubscriptionController extends ShopifyController
         ]);
     }
 
-    private function redirectToShopifyPricing(Shop $shopModel)
-    {
+    private function redirectToShopifyPricing(
+        Shop $shopModel,
+        string $planHandle,
+        string $billingInterval = 'EVERY_30_DAYS'
+    ) {
         $storeHandle = Str::before($shopModel->shop, '.myshopify.com');
+
         $appHandle = config('services.shopify.app_handle');
 
         if (!$appHandle) {
@@ -365,12 +379,16 @@ class SubscriptionController extends ShopifyController
                 ->with('error', 'Shopify billing configuration is incomplete.');
         }
 
-        $pricingUrl = "https://admin.shopify.com/store/{$storeHandle}/charges/{$appHandle}/pricing_plans";
+        $billingInterval = strtoupper($billingInterval);
 
-        Log::info('SHOPIFY PRICING REDIRECT', [
+        $pricingUrl = "https://admin.shopify.com/store/{$storeHandle}/charges/{$appHandle}/plans/{$planHandle}?interval={$billingInterval}";
+
+        Log::info('SHOPIFY PLAN REDIRECT', [
             'shop' => $shopModel->shop,
             'store_handle' => $storeHandle,
             'app_handle' => $appHandle,
+            'plan_handle' => $planHandle,
+            'billing_interval' => $billingInterval,
             'pricing_url' => $pricingUrl,
         ]);
 
