@@ -149,7 +149,7 @@ if ($field['name'] === 'cpu_model') {
 }
 
 if ($field['name'] === 'battery') {
-    $extramsg = "Please use in format like 'Lithium-Ion, 50g, 5000mAh";
+    $extramsg = "Please use in format like '";
 }
 
 if ($field['name'] === 'item_length_width_thickness') {
@@ -220,11 +220,12 @@ $batterydata = [ 'cell' => 'Lithium-Ion',  'weight' => '50g', 'capacity' => '500
         ) {
             $value = $prodAttrijson['battery'][$key];
         }
-        $extramsg = 'like '.$val;
+        $extramsgn = 'like '.$val;
+        $extramsg = $extramsg . ' ' .$val.' ,';
     @endphp
     <input {{ $idreq }} type="text" name="attributes[battery][{{ $key }}]"
         class="form-control form-control-sm"  value="{{ $value }}"
-        placeholder="{{ \Illuminate\Support\Str::limit(trim(($field['description'] ?? '') . ' ' . ($extramsg ?? '')), 55) }}"
+        placeholder="{{ \Illuminate\Support\Str::limit(trim(($field['description'] ?? '') . ' ' . ($extramsgn ?? '')), 55) }}"
         style="font-size: small;
         @if(!empty($php_errormsg))
             border:3px solid #dc3545 !important;
