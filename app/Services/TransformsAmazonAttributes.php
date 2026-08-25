@@ -920,7 +920,7 @@ class TransformsAmazonAttributes
                 return [$graphicsRam];
             }
 
-                        if ($name === 'battery') {
+        if ($name === 'battery') {
 
                 if(is_array($value)){
                     dd($value);
@@ -968,7 +968,7 @@ class TransformsAmazonAttributes
             
                 return [$battery];
             }
-            
+
             if ($name === 'hard_disk') {
                 $raw = trim((string) $value);
 

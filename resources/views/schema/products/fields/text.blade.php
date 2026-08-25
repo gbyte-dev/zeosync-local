@@ -219,9 +219,8 @@ $batterydata = [ 'cell' => 'Lithium-Ion',  'weight' => '50g', 'capacity' => '500
             is_array($prodAttrijson['battery']) && array_key_exists($key, $prodAttrijson['battery'])
         ) {
             $value = $prodAttrijson['battery'][$key];
-        }else {
-            $value = $val;
         }
+        $extramsg = 'like '.$val;
     @endphp
     <input {{ $idreq }} type="text" name="attributes[battery][{{ $key }}]"
         class="form-control form-control-sm"  value="{{ $value }}"
