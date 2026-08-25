@@ -149,10 +149,7 @@ class ProductSchemaController extends Controller
                     continue;
                 }
 
-                if (
-                    $value === null ||
-                    $value === '' ||
-                    is_array($value)
+                if ( $value === null || $value === '' ||  is_array($value)
                 ) {
                     continue;
                 }
@@ -645,10 +642,13 @@ class ProductSchemaController extends Controller
                 array_push($requireddata, $requiredField['name']);
             }
         }
+        
         foreach ($product->attributes as $attribute) {
             $name  = $attribute->attribute_name;
             $value = $attribute->attribute_value;
-
+            if($name=='battery'){
+                dd($product->attributes);
+            }
             if (is_string($value)) {
                 $value = trim($value);
                 if ($value !== '' && str_starts_with($value, '[')) {

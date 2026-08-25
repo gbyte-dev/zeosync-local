@@ -987,6 +987,10 @@ class TransformsAmazonAttributes
                 return [['value' => $map[strtolower($value)] ?? 'new_new']];
             }
             if ($name === 'battery') {
+
+         
+                return $this->parseBatteryInfo($value,$marketplaceId );
+
                 $raw = trim((string) $value);
 
                 $battery = [
@@ -1753,5 +1757,140 @@ class TransformsAmazonAttributes
             'marketplace_id' => $marketplaceId,
         ]];
     }
-    
+
+    private function parseBatteryInfo($value, $marketplaceId = null): array
+    {
+        $battery = [
+            'marketplace_id' => $marketplaceId,
+        ];
+
+        foreach ((array) $value as $raw) {
+
+            $raw = trim((string) $raw);
+
+            if ($raw === '') {
+                continue;
+            }
+
+            // Cell
+            $cells = [
+                'Lithium-Ion'     => 'lithium_ion',
+                'Lithium-Metal'   => 'lithium_metal',
+                'Lithium-Polymer' => 'lithium_polymer',
+                'Alkaline'        => 'alkaline',
+                'NiMH'            => 'NiMh',
+                'NiCad'           => 'NiCAD',
+                'Lead Acid'       => 'lead_acid',
+                'Sodium-Ion'      => 'sodium_ion',
+                'Wet Alkali'      => 'wet_alkali',
+            ];
+
+            foreach ($cells as $label => $cell) {
+                if (stripos($raw, $label) !== false) {
+                    $battery['cell_composition'] = [['value' => $cell]];
+                    break;
+                }
+            }
+
+            // Weight
+            if (preg_match(
+                '/(\d+(?:\.\d+)?)\s*(mg|milligrams?|g|grams?|kg|kilograms?|oz|ounces?|lb|lbs|pounds?)/i',
+                $raw,
+                $m
+            )) {
+                $battery['weight'] = [[
+                    'value' => (float) $m[1],
+                    'unit' => match (strtolower($m[2])) {
+                        'mg', 'milligram', 'milligrams' => 'milligrams',
+                        'kg', 'kilogram', 'kilograms' => 'kilograms',
+                        'oz', 'ounce', 'ounces' => 'ounces',
+                        'lb', 'lbs', 'pound', 'pounds' => 'pounds',
+                        default => 'grams',
+                    },
+                ]];
+            }
+
+            // Capacity
+            if (preg_match('/(\d+(?:\.\d+)?)\s*(mAh|Ah)\b/i', $raw, $m)) {
+                $battery['capacity'] = [[
+                    'value' => (float) $m[1],
+                    'unit' => strtolower($m[2]) === 'mah'
+                        ? 'milliamp_hours'
+                        : 'amp_hours',
+                ]];
+            }
+
+            // Power
+            if (preg_match('/(\d+(?:\.\d+)?)\s*(kWh|Wh|mAh|Ah|VA|V)\b/i', $raw, $m)) {
+                $battery['power'] = [[
+                    'value' => (float) $m[1],
+                    'unit' => match (strtolower($m[2])) {
+                        'mah' => 'milliamp_hours',
+                        'ah' => 'amp_hours',
+                        'wh', 'kwh' => 'watt_hours',
+                        'va' => 'volt_amperes',
+                        'v' => 'volts',
+                    },
+                ]];
+            }
+
+            // Average life
+            if (preg_match(
+                '/(?:average\s+life|battery\s+life)\s*:?\s*(\d+(?:\.\d+)?)\s*(seconds?|minutes?|hours?|days?|weeks?|months?|years?)/i',
+                $raw,
+                $m
+            )) {
+                $battery['average_life'] = [[
+                    'value' => (float) $m[1],
+                    'unit' => strtolower($m[2]),
+                ]];
+            }
+
+            // Talk time
+            if (preg_match(
+                '/talk\s*time\s*:?\s*(\d+(?:\.\d+)?)\s*(seconds?|minutes?|hours?|days?|weeks?|months?|years?)/i',
+                $raw,
+                $m
+            )) {
+                $battery['average_life_talk_time'] = [[
+                    'value' => (float) $m[1],
+                    'unit' => strtolower($m[2]),
+                ]];
+            }
+
+            // Charge time
+            if (preg_match(
+                '/(?:charge\s*time|charging\s*time|charging)\s*:?\s*(\d+(?:\.\d+)?)\s*(cycles?|days?|hours?|minutes?|months?|seconds?|weeks?|years?)/i',
+                $raw,
+                $m
+            )) {
+                $battery['charge_time'] = [[
+                    'value' => (float) $m[1],
+                    'unit' => strtolower($m[2]),
+                ]];
+            }
+
+            // IEC
+            $iec = '14500|18650|CR1025|CR11108|CR1216|CR1220|CR1225|CR123A|CR14250|CR1612|CR1616|CR1620|CR1632|CR17450|CR2|CR2012|CR2016|CR2020|CR2025|CR2032|CR2034|CR2320|CR2430|CR2450|CR927|FR03-AAA|FR6-AA|HR14-C|HR20-D|HR22-E|HR3-AAA|HR6-AA|LR03-AAA|LR1-N|LR14-C|LR20-D|LR41|LR43|LR44|LR48|LR54|LR55|LR6|R03-AAA|R14|R20|R6-AA|U9VL';
+
+            if (preg_match(
+                '/(?<![A-Z0-9])(' . $iec . ')(?![A-Z0-9])/i',
+                $raw,
+                $m
+            )) {
+                $battery['iec_code'] = [
+                    ['value' => strtolower($m[1])]
+                ];
+            }
+
+            // Description
+            $battery['description'] = [[
+                'value' => implode(', ', (array) $value),
+                'language_tag' => 'en_US',
+            ]];
+        }
+
+        return [$battery];
+    }
+
 }
