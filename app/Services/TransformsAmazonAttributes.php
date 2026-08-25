@@ -987,6 +987,10 @@ class TransformsAmazonAttributes
                 return [['value' => $map[strtolower($value)] ?? 'new_new']];
             }
             if ($name === 'battery') {
+
+         
+                return $this->parseBatteryInfo($value,$marketplaceId );
+
                 $raw = trim((string) $value);
 
                 $battery = [
