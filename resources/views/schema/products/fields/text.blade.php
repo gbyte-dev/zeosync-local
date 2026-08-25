@@ -193,10 +193,9 @@ $idreq = !empty($field['required']) ? 'required' : '';
 
 $batterydata = [ 'cell' => 'Lithium-Ion',  'weight' => '50g', 'capacity' => '5000mAh',
         'power' => '18.5Wh', 'average_life' => '5 hours', 'average_life_talk_time' => '6 hours',
-        'charge_time' => '2 hours', 'iec_code' => 'CR2032',
+        'charge_time' => '2 hours'
     ];
     
-
 @endphp
 
 <div class="mb-2">
