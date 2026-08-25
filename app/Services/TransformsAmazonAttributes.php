@@ -989,6 +989,7 @@ class TransformsAmazonAttributes
             if ($name === 'battery') {
 
                 if(is_array($value)){
+                    dd($value);
                     return $this->parseBatteryInfo($value,$marketplaceId );
                 }
 
