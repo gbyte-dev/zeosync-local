@@ -992,8 +992,6 @@ class TransformsAmazonAttributes
                 $battery = [
                     'marketplace_id' => $marketplaceId,
                 ];
-
-                $compostiton = $this->getAttributeValueAmz($productAttributes,'battery_installation_device_type');
                
                 foreach ( [ 'Lithium-Ion' => 'lithium_ion', 'Lithium-Metal' => 'lithium_metal',
                         'Lithium-Polymer' => 'lithium_polymer', 'Alkaline' => 'alkaline',
@@ -1028,7 +1026,7 @@ class TransformsAmazonAttributes
                 }
 
                 
-
+            dd($battery);
                 return [$battery];
             }
 
