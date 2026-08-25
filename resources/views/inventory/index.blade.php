@@ -819,6 +819,20 @@
         return 'error';
     }
 
+    function refreshMappingState() {
+        const shop = new URLSearchParams(window.location.search).get('shop');
+
+        return $.ajax({
+            url: "{{ route('inventory.mappings') }}",
+            type: "GET",
+            data: {
+                shop: shop,
+                _: Date.now()
+            },
+            cache: false
+        });
+    }
+
     function calculateStats(dtInstance, tab) {
         if (!dtInstance) return;
 
@@ -908,7 +922,7 @@
                 shop: shop
             },
             success: function(response) {
-               // console.log('AMAZON RESPONSE:', response);
+                // console.log('AMAZON RESPONSE:', response);
                 const items = Array.isArray(response.products) ?
                     response.products : [];
                 const isRefreshing = response.status?.refreshing === true;
@@ -1386,7 +1400,9 @@
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
-            data: {  quantity: quantity  },
+            data: {
+                quantity: quantity
+            },
             success: function(response) {
                 Swal.fire({
                     text: 'Inventory updated successfully. Latest inventory will reflect in the app in approximately 15 minutes.',
@@ -1444,7 +1460,9 @@
                     $.ajax({
                         url: "{{ route('shopify.inventory.shopify') }}",
                         type: 'GET',
-                        data: { shop: shop  },
+                        data: {
+                            shop: shop
+                        },
                         success: function(data) {
 
                             const items = Array.isArray(data) ? data : [];
@@ -1525,7 +1543,7 @@
                 shopify_inventory_item_id: variant.data('inventory-item')
             },
             success: function(response) {
-               // alert(response.message);
+                // alert(response.message);
                 Swal.fire({
                     text: response.message,
                     confirmButtonText: 'OK'

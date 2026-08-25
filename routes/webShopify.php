@@ -112,6 +112,11 @@ Route::post(
     [InventoryMappingController::class, 'updateShopifyInventory']
 )->name('inventory.shopify.update');
 
+Route::get(
+    '/inventory/mappings',
+    [InventoryMappingController::class, 'mappings']
+)->name('inventory.mappings');
+
 
 
 Route::get('/clear-cache-temp', function () {
