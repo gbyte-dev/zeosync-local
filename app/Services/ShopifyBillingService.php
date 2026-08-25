@@ -60,7 +60,9 @@ class ShopifyBillingService
                 'name' => $plan->name,
                 'returnUrl' => $returnUrl,
                 // 'trialDays' => (int) config('services.shopify.billing.trial_days', 0),
-                'trialDays' => 0,
+                'trialDays' => $plan->is_trial
+                    ? (int) $plan->trial_days
+                    : 0,
                 'test' => (bool) config('services.shopify.billing.test', false),
                 'replacementBehavior' => 'STANDARD',
                 'lineItems' => [[
@@ -233,6 +235,7 @@ class ShopifyBillingService
     {
         return in_array(strtoupper((string) $status), ['ACTIVE', 'ACCEPTED'], true);
     }
+
     private function persistSubscription(Shop $shop, array $shopifySubscription, ?ShopSubscription $localSubscription = null): ShopSubscription
     {
         Log::info('PERSIST START', [
@@ -242,13 +245,59 @@ class ShopifyBillingService
             'local_status' => $localSubscription?->status,
         ]);
         $plan = $this->resolvePlan($shopifySubscription, $localSubscription);
+
+        // Already-used trial protection.
+        // If Shopify is currently returning the trial plan again,
+        // never overwrite the existing local subscription.
+        if ($plan?->is_trial && (int) ($localSubscription?->trial_used ?? 0) === 1) {
+            Log::warning('SHOPIFY TRIAL REUSE BLOCKED', [
+                'shop_id' => $shop->id,
+                'shop' => $shop->shop,
+                'incoming_plan_id' => $plan->id,
+                'incoming_plan_name' => $plan->name,
+                'local_plan_id' => $localSubscription?->plan_id,
+                'local_status' => $localSubscription?->status,
+                'trial_used' => $localSubscription?->trial_used,
+                'shopify_subscription_gid' => $shopifySubscription['gid'] ?? null,
+            ]);
+
+            return $localSubscription;
+        }
+
         Log::info('RESOLVE PLAN RESULT', [
             'resolved_plan_id' => $plan?->id,
             'resolved_plan_name' => $plan?->name,
         ]);
         $startedAt = $shopifySubscription['created_at'] ?? null;
-        $trialDays = (int) ($localSubscription?->trial_days ?? config('services.shopify.billing.trial_days', 0));
-        $trialEndsAt = $startedAt && $trialDays > 0 ? $startedAt->copy()->addDays($trialDays) : null;
+        $isTrial = (bool) ($plan?->is_trial ?? $localSubscription?->is_trial ?? false);
+
+        $trialDays = $isTrial
+            ? (int) ($plan?->trial_days ?? $localSubscription?->trial_days ?? 0)
+            : 0;
+
+        $trialEndsAt = $isTrial && $startedAt && $trialDays > 0
+            ? $startedAt->copy()->addDays($trialDays)
+            : null;
+
+        $trialUsed = (int) ($localSubscription?->trial_used ?? 0);
+
+        $storedTrialEndsAt = $localSubscription?->trial_ends_at;
+
+        if (
+            $trialUsed === 0 &&
+            $storedTrialEndsAt &&
+            now()->greaterThanOrEqualTo($storedTrialEndsAt)
+        ) {
+            $trialUsed = 1;
+
+            Log::info('SHOPIFY TRIAL ENDED - MARKED USED', [
+                'shop_id' => $shop->id,
+                'shop' => $shop->shop,
+                'trial_ends_at' => $storedTrialEndsAt,
+                'shopify_subscription_gid' => $shopifySubscription['gid'] ?? null,
+            ]);
+        }
+
         Log::info('SHOPIFY PERIOD DEBUG', [
             'created_at' => $shopifySubscription['created_at'] ?? null,
             'current_period_end' => $shopifySubscription['current_period_end'] ?? null,
@@ -290,6 +339,8 @@ class ShopifyBillingService
                 'currency_code' => $shopifySubscription['currency_code']
                     ?? config('services.shopify.billing.currency', 'USD'),
                 'trial_days' => $trialDays,
+                'is_trial' => $isTrial,
+                'trial_used' => $trialUsed,
                 'is_test' => (bool) ($shopifySubscription['test']
                     ?? $localSubscription?->is_test
                     ?? false),
@@ -312,6 +363,8 @@ class ShopifyBillingService
         ]);
         return $subscription;
     }
+
+
     private function resolvePlan(
         array $shopifySubscription,
         ?ShopSubscription $localSubscription = null

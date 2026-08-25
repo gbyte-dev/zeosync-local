@@ -786,7 +786,7 @@
     let amazonProductsCache = null;
     let amazonLoading = false;
 
-    // Read saved page length from browser memory (default to 10)
+    // Read saved page length from browser memory (default to 10)   
     let savedShopifyLength = localStorage.getItem('zeosync_shopify_length') || 10;
     let savedAmazonLength = localStorage.getItem('zeosync_amazon_length') || 10;
 
