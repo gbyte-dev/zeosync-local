@@ -1026,7 +1026,7 @@ class TransformsAmazonAttributes
                 }
 
                 
-            dd($battery);
+            
                 return [$battery];
             }
 
