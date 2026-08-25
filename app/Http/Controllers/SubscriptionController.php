@@ -164,35 +164,43 @@ class SubscriptionController extends ShopifyController
                 'trial_used' => 1,
             ]);
         }
+        // if ($plan->is_trial) {
+        //     $trialDays = $plan->trial_days ?? 4;
+        //     $now = now();
+        //     Log::info('TRIAL DAYS DEBUG', [
+        //         'value' => $trialDays,
+        //         'type' => gettype($trialDays),
+        //     ]);
+        //     $trialEnd = $now->copy()->addDays($trialDays);
+        //     ShopSubscription::updateOrCreate(
+        //         ['shop_id' => $shopModel->id],
+        //         [
+        //             'plan_id' => $plan->id,
+        //             'status' => 'trialing',
+        //             'price' => 0,
+        //             'billing_cycle_months' => 1,
+        //             'trial_days' => $trialDays,
+        //             'is_trial' => 1,
+        //             'trial_used' => 0,
+        //             'started_at' => $now,
+        //             'activated_at' => $now,
+        //             'trial_ends_at' => $trialEnd,
+        //             'current_period_end' => $trialEnd,
+        //             'ended_at' => $trialEnd,
+        //             'shopify_return_url' => null,
+        //             'shopify_confirmation_url' => null,
+        //         ]
+        //     );
+        //     return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
+        //         ->with('success', 'Trial activated successfully.');
+        // }
+
         if ($plan->is_trial) {
-            $trialDays = $plan->trial_days ?? 4;
-            $now = now();
-            Log::info('TRIAL DAYS DEBUG', [
-                'value' => $trialDays,
-                'type' => gettype($trialDays),
-            ]);
-            $trialEnd = $now->copy()->addDays($trialDays);
-            ShopSubscription::updateOrCreate(
-                ['shop_id' => $shopModel->id],
-                [
-                    'plan_id' => $plan->id,
-                    'status' => 'trialing',
-                    'price' => 0,
-                    'billing_cycle_months' => 1,
-                    'trial_days' => $trialDays,
-                    'is_trial' => 1,
-                    'trial_used' => 0,
-                    'started_at' => $now,
-                    'activated_at' => $now,
-                    'trial_ends_at' => $trialEnd,
-                    'current_period_end' => $trialEnd,
-                    'ended_at' => $trialEnd,
-                    'shopify_return_url' => null,
-                    'shopify_confirmation_url' => null,
-                ]
+            return $this->redirectToShopifyPricing(
+                $shopModel,
+                $plan->slug,
+                'EVERY_30_DAYS'
             );
-            return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
-                ->with('success', 'Trial activated successfully.');
         }
 
         $billingCycleMonths = (int) $request->input('billing_interval', 1);
@@ -214,7 +222,17 @@ class SubscriptionController extends ShopifyController
         if ($trialEndsAt->greaterThan($endedAt)) {
             $trialEndsAt = $endedAt->copy();
         }
-        return $this->redirectToShopifyPricing($shopModel);
+        $billingInterval = (int) $request->input('billing_interval', 1);
+
+        $shopifyInterval = $billingInterval === 12
+            ? 'ANNUAL'
+            : 'EVERY_30_DAYS';
+
+        return $this->redirectToShopifyPricing(
+            $shopModel,
+            $plan->slug,
+            $shopifyInterval
+        );
         $subscription = ShopSubscription::firstOrCreate(
             ['shop_id' => $shopModel->id], // Argument 1: Search criteria
             ['plan_id' => $request->plan_id] // Argument 2: Data to add if NOT found
@@ -350,9 +368,13 @@ class SubscriptionController extends ShopifyController
         ]);
     }
 
-    private function redirectToShopifyPricing(Shop $shopModel)
-    {
+    private function redirectToShopifyPricing(
+        Shop $shopModel,
+        string $planHandle,
+        string $billingInterval = 'EVERY_30_DAYS'
+    ) {
         $storeHandle = Str::before($shopModel->shop, '.myshopify.com');
+
         $appHandle = config('services.shopify.app_handle');
 
         if (!$appHandle) {
@@ -365,12 +387,16 @@ class SubscriptionController extends ShopifyController
                 ->with('error', 'Shopify billing configuration is incomplete.');
         }
 
-        $pricingUrl = "https://admin.shopify.com/store/{$storeHandle}/charges/{$appHandle}/pricing_plans";
+        $billingInterval = strtoupper($billingInterval);
 
-        Log::info('SHOPIFY PRICING REDIRECT', [
+        $pricingUrl = "https://admin.shopify.com/store/{$storeHandle}/charges/{$appHandle}/plans/{$planHandle}?interval={$billingInterval}";
+
+        Log::info('SHOPIFY PLAN REDIRECT', [
             'shop' => $shopModel->shop,
             'store_handle' => $storeHandle,
             'app_handle' => $appHandle,
+            'plan_handle' => $planHandle,
+            'billing_interval' => $billingInterval,
             'pricing_url' => $pricingUrl,
         ]);
 
