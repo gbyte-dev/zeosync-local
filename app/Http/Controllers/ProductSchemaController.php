@@ -642,10 +642,13 @@ class ProductSchemaController extends Controller
                 array_push($requireddata, $requiredField['name']);
             }
         }
+        
         foreach ($product->attributes as $attribute) {
             $name  = $attribute->attribute_name;
             $value = $attribute->attribute_value;
-
+            if($name=='battery'){
+                dd($product->attributes);
+            }
             if (is_string($value)) {
                 $value = trim($value);
                 if ($value !== '' && str_starts_with($value, '[')) {
