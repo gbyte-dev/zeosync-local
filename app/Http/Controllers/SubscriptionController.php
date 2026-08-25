@@ -164,35 +164,43 @@ class SubscriptionController extends ShopifyController
                 'trial_used' => 1,
             ]);
         }
+        // if ($plan->is_trial) {
+        //     $trialDays = $plan->trial_days ?? 4;
+        //     $now = now();
+        //     Log::info('TRIAL DAYS DEBUG', [
+        //         'value' => $trialDays,
+        //         'type' => gettype($trialDays),
+        //     ]);
+        //     $trialEnd = $now->copy()->addDays($trialDays);
+        //     ShopSubscription::updateOrCreate(
+        //         ['shop_id' => $shopModel->id],
+        //         [
+        //             'plan_id' => $plan->id,
+        //             'status' => 'trialing',
+        //             'price' => 0,
+        //             'billing_cycle_months' => 1,
+        //             'trial_days' => $trialDays,
+        //             'is_trial' => 1,
+        //             'trial_used' => 0,
+        //             'started_at' => $now,
+        //             'activated_at' => $now,
+        //             'trial_ends_at' => $trialEnd,
+        //             'current_period_end' => $trialEnd,
+        //             'ended_at' => $trialEnd,
+        //             'shopify_return_url' => null,
+        //             'shopify_confirmation_url' => null,
+        //         ]
+        //     );
+        //     return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
+        //         ->with('success', 'Trial activated successfully.');
+        // }
+
         if ($plan->is_trial) {
-            $trialDays = $plan->trial_days ?? 4;
-            $now = now();
-            Log::info('TRIAL DAYS DEBUG', [
-                'value' => $trialDays,
-                'type' => gettype($trialDays),
-            ]);
-            $trialEnd = $now->copy()->addDays($trialDays);
-            ShopSubscription::updateOrCreate(
-                ['shop_id' => $shopModel->id],
-                [
-                    'plan_id' => $plan->id,
-                    'status' => 'trialing',
-                    'price' => 0,
-                    'billing_cycle_months' => 1,
-                    'trial_days' => $trialDays,
-                    'is_trial' => 1,
-                    'trial_used' => 0,
-                    'started_at' => $now,
-                    'activated_at' => $now,
-                    'trial_ends_at' => $trialEnd,
-                    'current_period_end' => $trialEnd,
-                    'ended_at' => $trialEnd,
-                    'shopify_return_url' => null,
-                    'shopify_confirmation_url' => null,
-                ]
+            return $this->redirectToShopifyPricing(
+                $shopModel,
+                $plan->slug,
+                'EVERY_30_DAYS'
             );
-            return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
-                ->with('success', 'Trial activated successfully.');
         }
 
         $billingCycleMonths = (int) $request->input('billing_interval', 1);
