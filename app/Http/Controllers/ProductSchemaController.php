@@ -149,10 +149,7 @@ class ProductSchemaController extends Controller
                     continue;
                 }
 
-                if (
-                    $value === null ||
-                    $value === '' ||
-                    is_array($value)
+                if ( $value === null || $value === '' ||  is_array($value)
                 ) {
                     continue;
                 }

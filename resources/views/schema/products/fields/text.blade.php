@@ -189,21 +189,20 @@ if ($field['name'] === 'effective_still_resolution') {
     $extramsg = 'Please use in format like 12.3 megapixels';
 }
 
-
-
-
-
 $idreq = !empty($field['required']) ? 'required' : '';
+
+$batterydata = [ 'cell' => 'Lithium-Ion',  'weight' => '50g', 'capacity' => '5000mAh',
+        'power' => '18.5Wh', 'average_life' => '5 hours', 'average_life_talk_time' => '6 hours',
+        'charge_time' => '2 hours', 'iec_code' => 'CR2032',
+    ];
+    
+
 @endphp
 
 <div class="mb-2">
-
-    <input
-        {{ $idreq }}
-        type="text"
-        name="attributes[{{ $field['name'] }}]"
-        class="form-control form-control-sm"
-        value="{{ $value }}"
+@if($field['name'] !== 'battery')
+    <input {{ $idreq }} type="text" name="attributes[{{ $field['name'] }}]"
+        class="form-control form-control-sm"  value="{{ $value }}"
         placeholder="{{ \Illuminate\Support\Str::limit(trim(($field['description'] ?? '') . ' ' . ($extramsg ?? '')), 55) }}"
         style="font-size: small;
         @if(!empty($php_errormsg))
@@ -213,6 +212,32 @@ $idreq = !empty($field['required']) ? 'required' : '';
             border:1px solid #aaaaeb !important;
         @endif
         ">
+@else
+@foreach($batterydata as $key => $val)
+    @php
+        $value = '';
+        if ( isset($prodAttrijson) && array_key_exists('battery', $prodAttrijson) &&
+            is_array($prodAttrijson['battery']) && array_key_exists($key, $prodAttrijson['battery'])
+        ) {
+            $value = $prodAttrijson['battery'][$key];
+        }else {
+            $value = $val;
+        }
+    @endphp
+    <input {{ $idreq }} type="text" name="attributes[battery][{{ $key }}]"
+        class="form-control form-control-sm"  value="{{ $value }}"
+        placeholder="{{ \Illuminate\Support\Str::limit(trim(($field['description'] ?? '') . ' ' . ($extramsg ?? '')), 55) }}"
+        style="font-size: small;
+        @if(!empty($php_errormsg))
+            border:3px solid #dc3545 !important;
+            background:#fff0f0 !important;
+        @else
+            border:1px solid #aaaaeb !important;
+        @endif
+        ">
+@endforeach
+
+@endif
 
     @if(!empty($field['description']) || !empty($extramsg) || !empty($fieldHint))
     <div class="form-text text-dark mt-1 clearfix">
