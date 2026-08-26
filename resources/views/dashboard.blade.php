@@ -134,6 +134,10 @@
         color: #9CA3AF;
     }
 
+    .in-iframe .saas-badge{
+        padding: 4px 7px;
+    }
+
     /* Badges */
     .saas-badge {
         display: inline-flex;
