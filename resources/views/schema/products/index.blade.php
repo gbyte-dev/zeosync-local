@@ -338,6 +338,10 @@
         border-collapse: collapse !important;
     }
 
+    .in-iframe .content {
+        padding: 1px;
+    }
+
     @media (max-width: 768px) {
         .content {
             padding: 0px !important;

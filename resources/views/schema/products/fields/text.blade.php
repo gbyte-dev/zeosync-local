@@ -220,7 +220,7 @@ $batterydata = [ 'cell' => 'Lithium-Ion',  'weight' => '50g', 'capacity' => '500
         ) {
             $value = $prodAttrijson['battery'][$key];
         }
-        $extramsgn = 'like '.$val;
+        $extramsgn = 'for battery '.$key. ' like '.$val;
         $extramsg = $extramsg . ' ' .$val.' ,';
     @endphp
     <input {{ $idreq }} type="text" name="attributes[battery][{{ $key }}]"
