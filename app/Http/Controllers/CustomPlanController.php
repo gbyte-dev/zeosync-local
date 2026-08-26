@@ -56,7 +56,7 @@ class CustomPlanController extends Controller
                 ->fetchLatestSubscription($shop);
 
             if ($shopifySubscription) {
-                $shopifyGid = $shopifySubscription['id'] ?? null;
+                $shopifyGid = $shopifySubscription['gid'] ?? null;
 
                 if (!$shopifyGid) {
                     throw new \Exception(
