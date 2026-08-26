@@ -381,6 +381,9 @@
     </div>
 
     <style>
+        .in-iframe .global-loader-overlay{
+           left: 200px; 
+        }
         .global-loader-overlay {
             position: fixed;
             top: 0;
@@ -679,7 +682,6 @@
                 });
             });
         });
-    </script>
     <script>
         if (window.self !== window.top) {
             document.documentElement.classList.add('in-iframe');
