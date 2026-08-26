@@ -92,23 +92,41 @@ class CustomPlanController extends Controller
                 }
             }
 
+            $prices = $plan->prices ?? [];
+
+            $billingInterval = !empty($prices['ANNUAL'])
+                ? 'ANNUAL'
+                : 'EVERY_30_DAYS';
+
+            $currentPeriodEnd = $billingInterval === 'ANNUAL'
+                ? now()->addDays(365)
+                : now()->addDays(30);
+
             $subscription->update([
                 'plan_id' => $plan->id,
                 'status' => 'active',
                 'price' => $plan->price,
-                'billing_cycle_months' => 1,
-                'billing_interval' => 'EVERY_30_DAYS',
+
+                'billing_cycle_months' =>
+                $billingInterval === 'ANNUAL' ? 12 : 1,
+
+                'billing_interval' => $billingInterval,
                 'currency_code' => 'USD',
+
                 'started_at' => now(),
                 'activated_at' => now(),
-                'current_period_end' => null,
+                'current_period_end' => $currentPeriodEnd,
+
                 'ended_at' => null,
                 'cancelled_at' => null,
+
                 'trial_days' => 0,
                 'trial_used' => 0,
                 'trial_ends_at' => null,
+
                 'is_trial' => false,
                 'is_test' => false,
+
                 'shopify_subscription_gid' => null,
                 'shopify_confirmation_url' => null,
                 'shopify_return_url' => null,
@@ -120,6 +138,8 @@ class CustomPlanController extends Controller
                 'shop_id' => $shop->id,
                 'plan_id' => $plan->id,
                 'subscription_id' => $subscription->id,
+                'billing_interval' => $billingInterval,
+                'current_period_end' => $currentPeriodEnd,
             ]);
 
             return redirect()
