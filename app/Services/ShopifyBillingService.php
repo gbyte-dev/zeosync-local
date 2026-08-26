@@ -255,12 +255,29 @@ class ShopifyBillingService
             $localSubscription->plan &&
             $localSubscription->plan->is_custom
         ) {
-            Log::info('CUSTOM PLAN ACTIVE - SHOPIFY SYNC SKIPPED', [
-                'shop_id' => $shop->id,
-                'plan_id' => $localSubscription->plan_id,
-            ]);
+            $shopifyStatus = strtolower(
+                (string) ($shopifySubscription['status'] ?? '')
+            );
 
-            return $localSubscription;
+            if (!$this->isActivatedStatus($shopifyStatus)) {
+                Log::info('CUSTOM PLAN KEPT - NO ACTIVE SHOPIFY PLAN', [
+                    'shop_id' => $shop->id,
+                    'custom_plan_id' => $localSubscription->plan_id,
+                    'shopify_status' => $shopifyStatus,
+                    'shopify_subscription_gid' =>
+                    $shopifySubscription['gid'] ?? null,
+                ]);
+
+                return $localSubscription;
+            }
+
+            Log::info('SHOPIFY PLAN REPLACED CUSTOM PLAN', [
+                'shop_id' => $shop->id,
+                'old_custom_plan_id' => $localSubscription->plan_id,
+                'shopify_subscription_gid' =>
+                $shopifySubscription['gid'] ?? null,
+                'shopify_status' => $shopifyStatus,
+            ]);
         }
 
         $plan = $this->resolvePlan($shopifySubscription, $localSubscription);
