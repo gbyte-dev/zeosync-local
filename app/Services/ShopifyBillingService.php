@@ -106,6 +106,11 @@ class ShopifyBillingService
         Shop $shop,
         ?ShopSubscription $localSubscription = null
     ): ?ShopSubscription {
+
+        $localSubscription ??= ShopSubscription::with('plan')
+            ->where('shop_id', $shop->id)
+            ->first();
+
         $shopifySubscription = $this->fetchLatestSubscription($shop);
 
         if (!$shopifySubscription) {
@@ -244,6 +249,20 @@ class ShopifyBillingService
             'local_requested_plan_id' => $localSubscription?->requested_plan_id,
             'local_status' => $localSubscription?->status,
         ]);
+
+        if (
+            $localSubscription &&
+            $localSubscription->plan &&
+            $localSubscription->plan->is_custom
+        ) {
+            Log::info('CUSTOM PLAN ACTIVE - SHOPIFY SYNC SKIPPED', [
+                'shop_id' => $shop->id,
+                'plan_id' => $localSubscription->plan_id,
+            ]);
+
+            return $localSubscription;
+        }
+
         $plan = $this->resolvePlan($shopifySubscription, $localSubscription);
 
         // Already-used trial protection.
@@ -363,6 +382,8 @@ class ShopifyBillingService
         ]);
         return $subscription;
     }
+
+
 
 
     private function resolvePlan(
