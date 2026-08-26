@@ -40,26 +40,32 @@ class CustomPlanController extends Controller
 
         try {
             /*
-             * Find the currently active subscription for this shop.
-             */
-            $currentSubscription = ShopSubscription::where('shop_id', $shop->id)
-                ->whereIn('status', ['active', 'accepted', 'trialing'])
-                ->latest('id')
+         * One shop has only one ShopSubscription record.
+         */
+            $subscription = ShopSubscription::where('shop_id', $shop->id)
                 ->first();
 
+            if (!$subscription) {
+                throw new \Exception(
+                    'No subscription record found for this shop.'
+                );
+            }
+
             /*
-             * If the current subscription is connected to Shopify,
-             * cancel it on Shopify before activating the internal plan.
-             */
+         * If the current plan is connected to Shopify,
+         * cancel it on Shopify first.
+         */
             if (
-                $currentSubscription &&
-                $currentSubscription->shopify_subscription_gid
+                $subscription->plan_id != $plan->id &&
+                !empty($subscription->shopify_subscription_gid)
             ) {
-                $shopifyBillingService = app(\App\Services\ShopifyBillingService::class);
+                $shopifyBillingService = app(
+                    \App\Services\ShopifyBillingService::class
+                );
 
                 $cancelled = $shopifyBillingService->cancelSubscription(
                     $shop,
-                    $currentSubscription->shopify_subscription_gid
+                    $subscription->shopify_subscription_gid
                 );
 
                 if (!$cancelled) {
@@ -70,37 +76,22 @@ class CustomPlanController extends Controller
             }
 
             /*
-             * Cancel the existing local subscription.
-             *
-             * We keep the old record for subscription history.
-             */
-            if ($currentSubscription) {
-                $currentSubscription->update([
-                    'status' => 'cancelled',
-                    'cancelled_at' => now(),
-                    'ended_at' => now(),
-                ]);
-            }
-
-            /*
-             * Create a NEW local subscription for the custom plan.
-             *
-             * This plan is internal only.
-             * No Shopify subscription is created.
-             */
-            $subscription = ShopSubscription::create([
-                'shop_id' => $shop->id,
+         * Reuse the existing ShopSubscription row.
+         * Do NOT create a new row because shop_id is UNIQUE.
+         */
+            $subscription->update([
                 'plan_id' => $plan->id,
-
                 'status' => 'active',
 
                 'price' => $plan->price,
+
                 'billing_cycle_months' => 1,
                 'billing_interval' => 'EVERY_30_DAYS',
                 'currency_code' => 'USD',
 
                 'started_at' => now(),
                 'activated_at' => now(),
+
                 'current_period_end' => null,
 
                 'ended_at' => null,
@@ -114,9 +105,9 @@ class CustomPlanController extends Controller
                 'is_test' => false,
 
                 /*
-                 * Internal custom plan:
-                 * no Shopify subscription attached.
-                 */
+             * Custom plan is internal.
+             * Remove any previous Shopify connection.
+             */
                 'shopify_subscription_gid' => null,
                 'shopify_confirmation_url' => null,
                 'shopify_return_url' => null,
@@ -128,9 +119,6 @@ class CustomPlanController extends Controller
                 'shop_id' => $shop->id,
                 'plan_id' => $plan->id,
                 'subscription_id' => $subscription->id,
-                'previous_subscription_id' => $currentSubscription?->id,
-                'previous_shopify_subscription_gid' =>
-                $currentSubscription?->shopify_subscription_gid,
             ]);
 
             return redirect()
