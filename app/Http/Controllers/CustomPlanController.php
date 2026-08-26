@@ -39,9 +39,6 @@ class CustomPlanController extends Controller
         DB::beginTransaction();
 
         try {
-            /*
-         * One shop has only one ShopSubscription record.
-         */
             $subscription = ShopSubscription::where('shop_id', $shop->id)
                 ->first();
 
@@ -51,21 +48,25 @@ class CustomPlanController extends Controller
                 );
             }
 
-            /*
-         * If the current plan is connected to Shopify,
-         * cancel it on Shopify first.
-         */
-            if (
-                $subscription->plan_id != $plan->id &&
-                !empty($subscription->shopify_subscription_gid)
-            ) {
-                $shopifyBillingService = app(
-                    \App\Services\ShopifyBillingService::class
-                );
+            $shopifyBillingService = app(
+                \App\Services\ShopifyBillingService::class
+            );
+
+            $shopifySubscription = $shopifyBillingService
+                ->fetchLatestSubscription($shop);
+
+            if ($shopifySubscription) {
+                $shopifyGid = $shopifySubscription['id'] ?? null;
+
+                if (!$shopifyGid) {
+                    throw new \Exception(
+                        'Active Shopify subscription ID is missing.'
+                    );
+                }
 
                 $cancelled = $shopifyBillingService->cancelSubscription(
                     $shop,
-                    $subscription->shopify_subscription_gid
+                    $shopifyGid
                 );
 
                 if (!$cancelled) {
@@ -73,41 +74,41 @@ class CustomPlanController extends Controller
                         'Unable to cancel the existing Shopify subscription.'
                     );
                 }
+
+                $cancelledSubscription =
+                    $shopifyBillingService->fetchSubscriptionByGid(
+                        $shop,
+                        $shopifyGid
+                    );
+
+                $shopifyStatus = strtoupper(
+                    (string) ($cancelledSubscription['status'] ?? '')
+                );
+
+                if ($shopifyStatus !== 'CANCELLED') {
+                    throw new \Exception(
+                        'Shopify subscription cancellation could not be verified.'
+                    );
+                }
             }
 
-            /*
-         * Reuse the existing ShopSubscription row.
-         * Do NOT create a new row because shop_id is UNIQUE.
-         */
             $subscription->update([
                 'plan_id' => $plan->id,
                 'status' => 'active',
-
                 'price' => $plan->price,
-
                 'billing_cycle_months' => 1,
                 'billing_interval' => 'EVERY_30_DAYS',
                 'currency_code' => 'USD',
-
                 'started_at' => now(),
                 'activated_at' => now(),
-
                 'current_period_end' => null,
-
                 'ended_at' => null,
                 'cancelled_at' => null,
-
                 'trial_days' => 0,
                 'trial_used' => 0,
                 'trial_ends_at' => null,
-
                 'is_trial' => false,
                 'is_test' => false,
-
-                /*
-             * Custom plan is internal.
-             * Remove any previous Shopify connection.
-             */
                 'shopify_subscription_gid' => null,
                 'shopify_confirmation_url' => null,
                 'shopify_return_url' => null,
@@ -115,7 +116,7 @@ class CustomPlanController extends Controller
 
             DB::commit();
 
-            Log::info('Internal Custom Plan Activated', [
+            Log::info('INTERNAL CUSTOM PLAN ACTIVATED', [
                 'shop_id' => $shop->id,
                 'plan_id' => $plan->id,
                 'subscription_id' => $subscription->id,
@@ -128,7 +129,7 @@ class CustomPlanController extends Controller
 
             DB::rollBack();
 
-            Log::error('Internal Custom Plan Activation Failed', [
+            Log::error('INTERNAL CUSTOM PLAN ACTIVATION FAILED', [
                 'shop_id' => $shop->id,
                 'plan_id' => $plan->id,
                 'message' => $e->getMessage(),
