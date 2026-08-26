@@ -17,8 +17,8 @@ class CustomPlanService
         $prices = $data['prices'] ?? [];
 
         $features = collect($data['features'] ?? [])
-            ->map(fn ($feature) => trim((string) $feature))
-            ->filter(fn ($feature) => $feature !== '')
+            ->map(fn($feature) => trim((string) $feature))
+            ->filter(fn($feature) => $feature !== '')
             ->values()
             ->all();
 
@@ -28,20 +28,30 @@ class CustomPlanService
 
         $planData = [
             'shop_id' => $shop->id,
+
             'name' => $shop->shop_name . ' Custom Plan',
-            'slug' => Str::slug($shop->shop_name . '-custom-plan') . '-' . Str::lower(Str::random(6)),
+
+            'slug' => Str::slug($shop->shop_name . '-custom-plan')
+                . '-' . Str::lower(Str::random(6)),
+
             'price' => $price,
             'prices' => $prices,
+
+            // Internal plan. No Stripe product/price.
             'stripe_price_ids' => [],
+
             'product_limit' => (int) ($data['product_limit'] ?? 0),
             'sync_limit' => (int) ($data['sync_limit'] ?? 0),
+
             'badge' => null,
             'description' => null,
             'features' => $features ?: null,
             'contact_button_text' => null,
+
             'is_active' => true,
             'is_enterprise' => true,
             'is_custom' => true,
+
             'ai_autofill' => !empty($data['ai_autofill']),
             'ai_single_field' => !empty($data['ai_single_field']),
         ];
@@ -50,52 +60,12 @@ class CustomPlanService
 
         try {
 
-            $stripeService = app(StripeService::class);
-
-            $product = $stripeService->createProduct([
-                'name'        => $planData['name'],
-                'description' => $planData['description'],
-                'shop_id'     => $shop->id,
-            ]);
-
-            if (!$product) {
-                throw new \Exception('Unable to create Stripe product.');
-            }
-
-            $stripePriceIds = [];
-
-            if (!empty($prices['EVERY_30_DAYS'])) {
-
-                $monthlyPrice = $stripeService->createPrice(
-                    $product->id,
-                    (float) $prices['EVERY_30_DAYS'],
-                    'month'
-                );
-
-                if (!$monthlyPrice) {
-                    throw new \Exception('Unable to create monthly Stripe price.');
-                }
-
-                $stripePriceIds['EVERY_30_DAYS'] = $monthlyPrice->id;
-            }
-
-            if (!empty($prices['ANNUAL'])) {
-
-                $yearlyPrice = $stripeService->createPrice(
-                    $product->id,
-                    (float) $prices['ANNUAL'],
-                    'year'
-                );
-
-                if (!$yearlyPrice) {
-                    throw new \Exception('Unable to create yearly Stripe price.');
-                }
-
-                $stripePriceIds['ANNUAL'] = $yearlyPrice->id;
-            }
-
-            $planData['stripe_price_ids'] = $stripePriceIds;
+            /*
+             * Custom plan is internal only.
+             * No Stripe Product or Stripe Price is created here.
+             */
             $plan = Plan::create($planData);
+
             DB::commit();
 
             return $plan;
@@ -103,7 +73,8 @@ class CustomPlanService
 
             DB::rollBack();
 
-            Log::error('Custom Plan Creation Failed', [
+            Log::error('Custom Internal Plan Creation Failed', [
+                'shop_id' => $shop->id,
                 'message' => $e->getMessage(),
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),

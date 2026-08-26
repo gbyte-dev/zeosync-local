@@ -534,6 +534,12 @@ Route::get('/test-command', function () {
 Route::post('/custom-plans', [CustomPlanController::class, 'store'])
     ->name('custom-plans.store');
 
+Route::post('/custom-plans/{plan}/activate', [CustomPlanController::class, 'activate'])
+    ->name('custom-plans.activate');
+
+Route::post('/custom-plans/{plan}/cancel', [CustomPlanController::class, 'cancel'])
+    ->name('custom-plans.cancel');
+
 Route::get(
     '/shopify/categories/search',
     [ShopifyController::class, 'searchCategories']
