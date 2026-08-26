@@ -225,7 +225,7 @@ $batterydata = [ 'cell' => 'Lithium-Ion',  'weight' => '50g', 'capacity' => '500
     @endphp
     <input {{ $idreq }} type="text" name="attributes[battery][{{ $key }}]"
         class="form-control form-control-sm"  value="{{ $value }}"
-        placeholder="{{ \Illuminate\Support\Str::limit(trim(($field['description'] ?? '') . ' ' . ($extramsgn ?? '')), 55) }}"
+        placeholder="{{ \Illuminate\Support\Str::limit(trim(($field['description'] ?? '') . ' ' . ($extramsgn ?? '')), 80) }}"
         style="font-size: small;
         @if(!empty($php_errormsg))
             border:3px solid #dc3545 !important;
