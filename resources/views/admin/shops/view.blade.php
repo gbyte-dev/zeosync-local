@@ -249,37 +249,42 @@
         <div class="pro-card">
             <div class="pro-card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"> Subscription Details</h5>
-                <div class="d-flex align-items-center gap-2">
-                    @if(!isset($customPlan) && $customPlan)
+                <div class="d-flex align-items-center gap-2 flex-nowrap">
+
+                    @if(!$customPlan)
                     <button
                         type="button"
-                        class="btn btn-dark btn-sm"
+                        class="btn btn-primary btn-sm text-nowrap"
                         data-bs-toggle="modal"
                         data-bs-target="#customEnterpriseModal">
                         Add Custom Plan
                     </button>
                     @endif
+
                     @if($shop->subscription && $shop->subscription->status !== 'cancelled')
                     <form
                         action="{{ route('admin.shops.cancel', $shop->id) }}"
                         method="POST"
+                        class="m-0 flex-shrink-0"
                         onsubmit="return confirm('Are you sure you want to cancel this subscription?')">
                         @csrf
+
                         <button
                             type="submit"
-                            class="btn btn-danger btn-sm">
+                            class="btn btn-danger btn-sm text-nowrap">
                             Cancel Subscription
                         </button>
                     </form>
                     @else
                     <button
                         type="button"
-                        class="btn btn-primary btn-sm"
+                        class="btn btn-primary btn-sm text-nowrap"
                         data-bs-toggle="modal"
                         data-bs-target="#addPlanToShopModal">
                         Add Plan
                     </button>
                     @endif
+
                 </div>
             </div>
             @if($shop->subscription)
@@ -389,33 +394,90 @@
                             {{ $customPlan->sync_limit == 0 ? 'Unlimited' : number_format($customPlan->sync_limit) }}
                         </td>
                         <td>
-                            <span class="badge bg-success">Assigned</span>
+                            @if(
+                            $shop->subscription &&
+                            $shop->subscription->plan_id == $customPlan->id &&
+                            $shop->subscription->status === 'active'
+                            )
+                            <span class="badge bg-success">Active</span>
+                            @else
+                            <span class="badge bg-secondary">Inactive</span>
+                            @endif
                         </td>
+
                         <td class="text-center">
-                            <button
-                                type="button"
-                                class="btn btn-sm btn-outline-primary"
-                                data-bs-toggle="modal"
-                                data-bs-target="#customPlanDetailsModal">
-                                <i class="bi bi-eye me-1"></i>
-                                Details
-                            </button>
+                            <div class="d-flex justify-content-center align-items-center gap-1">
 
-                            <form
-                                action="{{ route('admin.plans.delete', $customPlan->id) }}"
-                                method="POST"
-                                class="d-inline"
-                                onsubmit="return confirm('Are you sure you want to delete this custom plan?')">
-                                @csrf
-                                @method('DELETE')
+                                {{-- Activate --}}
+                                @if(
+                                !$shop->subscription ||
+                                $shop->subscription->plan_id != $customPlan->id ||
+                                $shop->subscription->status !== 'active'
+                                )
+                                <form
+                                    action="{{ route('custom-plans.activate', $customPlan->id) }}"
+                                    method="POST"
+                                    class="d-inline"
+                                    onsubmit="return confirm('Are you sure you want to activate this custom plan?')">
+                                    @csrf
 
+                                    <button
+                                        type="submit"
+                                        class="btn btn-sm btn-outline-success"
+                                        title="Activate Custom Plan"
+                                        data-bs-toggle="tooltip">
+                                        <i class="bi bi-play-fill"></i>
+                                    </button>
+                                </form>
+                                @else
+
+                                {{-- Cancel --}}
+                                <form
+                                    action="{{ route('custom-plans.cancel', $customPlan->id) }}"
+                                    method="POST"
+                                    class="d-inline"
+                                    onsubmit="return confirm('Are you sure you want to cancel this custom plan?')">
+                                    @csrf
+
+                                    <button
+                                        type="submit"
+                                        class="btn btn-sm btn-outline-danger"
+                                        title="Cancel Custom Plan"
+                                        data-bs-toggle="tooltip">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+
+                                @endif
+
+                                {{-- Details --}}
                                 <button
-                                    type="submit"
-                                    class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash me-1"></i>
-                                    Delete
+                                    type="button"
+                                    class="btn btn-sm btn-outline-primary"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#customPlanDetailsModal"
+                                    title="View Details">
+                                    <i class="bi bi-eye"></i>
                                 </button>
-                            </form>
+
+                                {{-- Delete --}}
+                                <form
+                                    action="{{ route('admin.plans.delete', $customPlan->id) }}"
+                                    method="POST"
+                                    class="d-inline"
+                                    onsubmit="return confirm('Are you sure you want to delete this custom plan?')">
+                                    @csrf
+                                    @method('DELETE')
+
+                                    <button
+                                        type="submit"
+                                        class="btn btn-sm btn-outline-danger"
+                                        title="Delete Custom Plan">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+
+                            </div>
                         </td>
                     </tr>
                 </tbody>
