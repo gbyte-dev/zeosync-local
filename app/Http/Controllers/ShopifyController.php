@@ -622,6 +622,23 @@ class ShopifyController extends Controller
             //     );
             // }
 
+            $amazonConnected = !empty($shopModel->amazon_refresh_token);
+
+            if (!$amazonConnected) {
+                return view('orders', [
+                    'source' => 'amazon',
+                    'orders' => [],
+                    'activeShop' => $activeShop,
+                    'totalOrders' => 0,
+                    'paidOrders' => 0,
+                    'pendingOrders' => 0,
+                    'cancelledOrders' => 0,
+                    'search' => $search,
+                    'status' => $status,
+                    'amazonConnected' => false,
+                ]);
+            }
+
             $amazonOrders = $this->fetchAmazonOrders($refresh ? true : false);
             // if ($refresh) {
             //     UserNotificationService::send(
@@ -2639,72 +2656,121 @@ class ShopifyController extends Controller
 
     private function fetchAmazonOrders($forceRefresh = false)
     {
-        $cacheKey = 'amazon_orders_' . session('active_shop');
+        $activeShop = session('active_shop');
+
+        $shop = \App\Models\Shop::where('shop', $activeShop)->first();
+
+        if (!$shop || empty($shop->amazon_refresh_token)) {
+            Log::info('Amazon orders skipped: Amazon not connected.', [
+                'shop' => $activeShop,
+            ]);
+
+            return [];
+        }
+
+        $cacheKey = 'amazon_orders_' . $activeShop;
+
         if ($forceRefresh) {
             Cache::forget($cacheKey);
         }
+
         $date = now()->subDays(30)->toDateTimeString();
-        if (session('active_shop')) {
-            $shop = \App\Models\Shop::where('shop', session('active_shop'))->first();
-            $createdAfter = \Carbon\Carbon::parse($shop->created_at, 'UTC')->toAtomString();
+
+        if ($shop) {
+            $createdAfter = \Carbon\Carbon::parse(
+                $shop->created_at,
+                'UTC'
+            )->toAtomString();
         } else {
             $createdAfter = now()->subDays(30)->toDateTimeString();
         }
 
-        return Cache::remember($cacheKey, now()->addHours(24), function () {
-            try {
-                $connector = \SellingPartnerApi\SellingPartnerApi::seller(
-                    clientId: AdminSetting::get(
-                        'production_client_id',
-                        config('amazon.client_id')
-                    ),
-                    clientSecret: AdminSetting::get(
-                        'production_client_secret',
-                        config('amazon.client_secret')
-                    ),
-                    refreshToken: AdminSetting::get(
-                        'amazon_refresh_token',
-                        config('amazon.refresh_token')
-                    ),
-                    endpoint: \SellingPartnerApi\Enums\Endpoint::NA_SANDBOX
-                );
-                $response = $connector->ordersV0()->getOrders(
-                    marketplaceIds: ['ATVPDKIKX0DER'],
-                    createdAfter: 'TEST_CASE_200'
-                );
-                $data = json_decode($response->body(), true);
-                $orders = $data['payload']['Orders'] ?? [];
-                //   YAHI MAGIC HAI
-                foreach ($orders as $order) {
-                    $orderId = $order['AmazonOrderId'] ?? null;
-                    if ($orderId) {
-                        Cache::put(
-                            'amazon_order_' . $orderId,
-                            $order,
-                            now()->addHours(24)
-                        );
-                    }
-                }
-                return $orders;
-            } catch (\Exception $e) {
+        return Cache::remember(
+            $cacheKey,
+            now()->addHours(24),
+            function () use ($shop, $createdAfter) {
+                try {
 
-                return [];
+                    $connector = \SellingPartnerApi\SellingPartnerApi::seller(
+                        clientId: AdminSetting::get(
+                            'production_client_id',
+                            config('amazon.client_id')
+                        ),
+                        clientSecret: AdminSetting::get(
+                            'production_client_secret',
+                            config('amazon.client_secret')
+                        ),
+                        refreshToken: $shop->amazon_refresh_token,
+                        endpoint: \SellingPartnerApi\Enums\Endpoint::NA_SANDBOX
+                    );
+
+                    $response = $connector->ordersV0()->getOrders(
+                        marketplaceIds: ['ATVPDKIKX0DER'],
+                        createdAfter: 'TEST_CASE_200'
+                    );
+
+                    $data = json_decode($response->body(), true);
+
+                    $orders = $data['payload']['Orders'] ?? [];
+
+                    foreach ($orders as $order) {
+                        $orderId = $order['AmazonOrderId'] ?? null;
+
+                        if ($orderId) {
+                            Cache::put(
+                                'amazon_order_' . $orderId,
+                                $order,
+                                now()->addHours(24)
+                            );
+                        }
+                    }
+
+                    return $orders;
+                } catch (\Exception $e) {
+
+                    Log::error('Amazon orders fetch failed', [
+                        'shop' => $shop->shop,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    return [];
+                }
             }
-        });
+        );
     }
 
     public function getAmazonOrders()
     {
         try {
+            $activeShop = session('active_shop');
+
+            $shop = Shop::where('shop', $activeShop)->first();
+
+            // Amazon is not connected for this shop
+            if (!$shop || empty($shop->amazon_refresh_token)) {
+                return response()->json([
+                    'success' => true,
+                    'amazonConnected' => false,
+                    'orders' => [],
+                ]);
+            }
+
             $orders = $this->fetchAmazonOrders();
+
             return response()->json([
                 'success' => true,
-                'orders' => $orders
+                'amazonConnected' => true,
+                'orders' => $orders,
             ]);
         } catch (\Exception $e) {
+            \Log::error('AMAZON ORDERS FETCH ERROR', [
+                'shop' => session('active_shop'),
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
