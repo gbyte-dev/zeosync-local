@@ -406,7 +406,20 @@ $shopLabel = $currentShop ?: 'your connected store';
         {{-- Desktop Table --}}
         <div class="table-responsive desktop-orders-table">
             @if($source === 'amazon')
-            @if(!empty($ordersData) && count($ordersData) > 0)
+            @if(!$amazonConnected)
+            <div class="p-3">
+                <div class="alert alert-warning mb-0 border-0"
+                    style="border-radius: 8px; font-size: 13px;">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Please connect your Amazon account first.
+                    <a href="{{ route('amazon.connect') }}"
+                        class="fw-bold ms-1 text-dark text-decoration-underline">
+                        Connect Amazon
+                    </a>
+                </div>
+            </div>
+
+            @elseif(!empty($ordersData) && count($ordersData) > 0)
             <table class="saas-table">
                 <thead>
                     <tr>

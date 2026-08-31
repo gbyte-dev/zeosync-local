@@ -14,6 +14,7 @@ use App\Http\Controllers\ShopifyController;
 use Illuminate\Support\Facades\Crypt;
 use App\Models\MailTemplate;
 use App\Services\EmailService;
+use Illuminate\Support\Facades\Cache;
 use App\Models\AdminSetting;
 
 class AmazonConnect extends ShopifyController
@@ -313,6 +314,8 @@ class AmazonConnect extends ShopifyController
         $shop->update([
             'amazon_refresh_token'  => null,
         ]);
+
+        Cache::forget('amazon_orders_' . $activeShop);
 
         NotificationService::send(
             'amazon_account_status',
