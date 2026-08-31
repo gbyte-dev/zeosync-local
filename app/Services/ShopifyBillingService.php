@@ -259,23 +259,25 @@ class ShopifyBillingService
                 (string) ($shopifySubscription['status'] ?? '')
             );
 
+            // Shopify plan is not active yet.
+            // Keep the custom plan active.
             if (!$this->isActivatedStatus($shopifyStatus)) {
                 Log::info('CUSTOM PLAN KEPT - NO ACTIVE SHOPIFY PLAN', [
                     'shop_id' => $shop->id,
                     'custom_plan_id' => $localSubscription->plan_id,
                     'shopify_status' => $shopifyStatus,
-                    'shopify_subscription_gid' =>
-                    $shopifySubscription['gid'] ?? null,
+                    'shopify_subscription_gid' => $shopifySubscription['gid'] ?? null,
                 ]);
 
                 return $localSubscription;
             }
 
-            Log::info('SHOPIFY PLAN REPLACED CUSTOM PLAN', [
+            // A new real Shopify plan is now active.
+            // The custom plan must be replaced by the real plan.
+            Log::info('CUSTOM PLAN REPLACED BY SHOPIFY PLAN', [
                 'shop_id' => $shop->id,
                 'old_custom_plan_id' => $localSubscription->plan_id,
-                'shopify_subscription_gid' =>
-                $shopifySubscription['gid'] ?? null,
+                'shopify_subscription_gid' => $shopifySubscription['gid'] ?? null,
                 'shopify_status' => $shopifyStatus,
             ]);
         }
