@@ -574,17 +574,29 @@ class ShopifyController extends Controller
             ->first();
 
         try {
-            $subscription = $this->shopifyBilling->syncSubscription(
+            $chargeId = $request->query('charge_id');
+
+            if (!$chargeId) {
+                return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
+                    ->with('error', 'Shopify billing charge ID is missing.');
+            }
+
+            $subscriptionGid = 'gid://shopify/AppSubscription/' . $chargeId;
+
+            $subscription = $this->shopifyBilling->syncSubscriptionByGid(
                 $shopModel,
+                $subscriptionGid,
                 $subscription
             );
+
             $subscription?->loadMissing('plan');
         } catch (RuntimeException $exception) {
             Log::error('Failed to confirm Shopify billing callback.', [
                 'shop' => $shopModel->shop,
-                'subscription_gid' => $subscription->shopify_subscription_gid,
+                'subscription_gid' => $subscriptionGid ?? null,
                 'error' => $exception->getMessage(),
             ]);
+
             return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
                 ->with('error', 'Shopify billing confirmation failed: ' . $exception->getMessage());
         }

@@ -123,6 +123,42 @@ class ShopifyBillingService
             $localSubscription
         );
     }
+
+    public function syncSubscriptionByGid(
+        Shop $shop,
+        string $gid,
+        ?ShopSubscription $localSubscription = null
+    ): ?ShopSubscription {
+        $localSubscription ??= ShopSubscription::with('plan')
+            ->where('shop_id', $shop->id)
+            ->first();
+
+        $shopifySubscription = $this->fetchSubscriptionByGid($shop, $gid);
+
+        if (!$shopifySubscription) {
+            Log::error('SHOPIFY SUBSCRIPTION NOT FOUND BY GID', [
+                'shop_id' => $shop->id,
+                'subscription_gid' => $gid,
+            ]);
+
+            return $localSubscription;
+        }
+
+        Log::info('SHOPIFY SUBSCRIPTION FOUND BY GID', [
+            'shop_id' => $shop->id,
+            'subscription_gid' => $gid,
+            'name' => $shopifySubscription['name'] ?? null,
+            'status' => $shopifySubscription['status'] ?? null,
+            'amount' => $shopifySubscription['amount'] ?? null,
+        ]);
+
+        return $this->persistSubscription(
+            $shop,
+            $shopifySubscription,
+            $localSubscription
+        );
+    }
+
     public function fetchSubscriptionByGid(Shop $shop, string $gid): ?array
     {
         $response = $this->graphQl(
