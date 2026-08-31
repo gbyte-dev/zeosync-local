@@ -564,7 +564,7 @@ class ShopifyController extends Controller
     }
     public function billingCallback(Request $request)
     {
-        dd($request->all());
+        
         $shopModel = $this->getActiveShop($request);
         $this->ensureFreshAccessToken($shopModel);
         if (!$shopModel) {
@@ -576,11 +576,6 @@ class ShopifyController extends Controller
 
         try {
             $chargeId = $request->query('charge_id');
-
-            dd([
-                'charge_id' => $chargeId,
-                'subscription_gid' => 'gid://shopify/AppSubscription/' . $chargeId,
-            ]);
 
             if (!$chargeId) {
                 return redirect($this->shopAwareUrl('/plans', $shopModel->shop))

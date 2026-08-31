@@ -89,17 +89,15 @@ class ShopifyBillingService
         }
         $gid = data_get($payload, 'appSubscription.id');
         $confirmationUrl = data_get($payload, 'confirmationUrl');
-
-        dd([
-            'gid' => $gid,
-            'confirmation_url' => $confirmationUrl,
-            'return_url' => $returnUrl,
-            'plan_name' => $plan->name,
-            'amount' => $amount,
-        ]);
         if (!$gid || !$confirmationUrl) {
             throw new RuntimeException('Shopify billing response was missing the subscription ID or confirmation URL.');
         }
+
+        Log::info('SHOPIFY BILLING CREATED', [
+            'subscription_gid' => $gid,
+            'confirmation_url' => $confirmationUrl,
+            'return_url' => $returnUrl,
+        ]);
         return [
             'subscription_gid' => $gid,
             'confirmation_url' => $confirmationUrl,
