@@ -559,6 +559,7 @@ Route::get('/test-plan-sync/{shop}', function (string $shop) {
         'subscription' => $result,
     ]);
 });
+
 Route::get('/debug/shopify-subscription/{chargeId}', function (
     Request $request,
     string $chargeId
