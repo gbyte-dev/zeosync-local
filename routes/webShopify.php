@@ -23,6 +23,7 @@ use App\Http\Controllers\InventoryMappingController;
 use App\Http\Controllers\AmazonWebhookController;
 use App\Models\Shop;
 use App\Services\AmazonService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use App\Jobs\SyncAmazonInventoryJob;
@@ -556,4 +557,56 @@ Route::get('/test-plan-sync/{shop}', function (string $shop) {
         'success' => $result !== null,
         'subscription' => $result,
     ]);
+});
+
+Route::get('/debug/shopify-subscription/{gid}', function (
+    Request $request,
+    string $gid
+) {
+    $shop = $request->query('shop');
+
+    if (!$shop) {
+        return response()->json([
+            'success' => false,
+            'message' => 'shop parameter is required',
+        ], 400);
+    }
+
+    $shopModel = \App\Models\Shop::where('shop', $shop)->first();
+
+    if (!$shopModel) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Shop not found',
+            'shop' => $shop,
+        ], 404);
+    }
+
+    try {
+        $billing = app(\App\Services\ShopifyBillingService::class);
+
+        $subscription = $billing->fetchSubscriptionByGid(
+            $shopModel,
+            $gid
+        );
+
+        return response()->json([
+            'success' => true,
+            'requested_gid' => $gid,
+            'subscription' => $subscription,
+        ]);
+    } catch (\Throwable $e) {
+        Log::error('DEBUG SUBSCRIPTION ROUTE FAILED', [
+            'shop_id' => $shopModel->id,
+            'shop' => $shopModel->shop,
+            'gid' => $gid,
+            'error' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'requested_gid' => $gid,
+            'error' => $e->getMessage(),
+        ], 500);
+    }
 });
