@@ -61,14 +61,15 @@ class NotificationController extends Controller
 
         $shopModel = \App\Models\Shop::where('shop', $shop)->first();
         $shopId = $shopModel?->id;
+        $notificationIds = $request->input('notification_ids', []);
         
-        $updated = UserNotification::where('shop_id', $shopModel->id)
-            ->whereIn('id', $notificationIds)
-            ->where('is_read', 0)
-            ->update([
-                'is_read' => 1,
-                'read_at' => now(),
-            ]);
+        // $updated = UserNotification::where('shop_id', $shopModel->id)
+        //     ->whereIn('id', $notificationIds)
+        //     ->where('is_read', 0)
+        //     ->update([
+        //         'is_read' => 1,
+        //         'read_at' => now(),
+        //     ]);
 
         $latestNotifications = UserNotification::where('shop_id', $shopId)
             ->latest()
