@@ -209,7 +209,7 @@ class ShopifyBillingService
             <<<'GRAPHQL'
     query AppSubscriptions {
     currentAppInstallation {
-        allSubscriptions(first: 20) {
+       allSubscriptions(first: 20, reverse: true) {
         edges {
             node {
             id
