@@ -406,7 +406,7 @@ $shopLabel = $currentShop ?: 'your connected store';
         {{-- Desktop Table --}}
         <div class="table-responsive desktop-orders-table">
             @if($source === 'amazon')
-            @if(!($amazonConnected ?? false))
+            @if(!$amazonConnected)
             <div class="p-3">
                 <div class="alert alert-warning mb-0 border-0"
                     style="border-radius: 8px; font-size: 13px;">

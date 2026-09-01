@@ -704,6 +704,7 @@ class ShopifyController extends Controller
         $search = $request->input('search');
         $status = $request->input('status');
         $perPage = $request->input('per_page', 10);
+        $amazonConnected = !empty($shopModel->amazon_refresh_token);
         // =========================
         //   AMAZON FLOW
         // =========================
@@ -730,7 +731,7 @@ class ShopifyController extends Controller
                     'cancelledOrders' => 0,
                     'search' => $search,
                     'status' => $status,
-                    'amazonConnected' => false,
+                    'amazonConnected' => $amazonConnected,
                 ]);
             }
 
