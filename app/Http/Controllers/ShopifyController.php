@@ -93,6 +93,46 @@ class ShopifyController extends Controller
                 ]);
             }
             session(['active_shop' => $shop]);
+
+            if ($request->filled('charge_id')) {
+                $chargeId = $request->query('charge_id');
+
+                $subscriptionGid = 'gid://shopify/AppSubscription/' . $chargeId;
+
+                Log::info('MANAGED PRICING RETURN', [
+                    'shop' => $shop,
+                    'charge_id' => $chargeId,
+                    'subscription_gid' => $subscriptionGid,
+                ]);
+
+                $subscription = ShopSubscription::with('plan')
+                    ->where('shop_id', $shopModel->id)
+                    ->first();
+
+                try {
+                    $subscription = $this->shopifyBilling->syncSubscriptionByGid(
+                        $shopModel,
+                        $subscriptionGid,
+                        $subscription
+                    );
+                } catch (\Throwable $e) {
+                    Log::error('MANAGED PRICING SYNC FAILED', [
+                        'shop_id' => $shopModel->id,
+                        'charge_id' => $chargeId,
+                        'subscription_gid' => $subscriptionGid,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                if (
+                    $subscription &&
+                    $this->shopifyBilling->isActivatedStatus($subscription->status)
+                ) {
+                    return redirect($this->shopAwareUrl('/planview', $shopModel->shop))
+                        ->with('success', ($subscription->plan?->name ?? 'Selected') . ' plan is now active.');
+                }
+            }
+
             return redirect()->route('dashboard', [
                 'shop' => $shop
             ]);
@@ -564,25 +604,40 @@ class ShopifyController extends Controller
     }
     public function billingCallback(Request $request)
     {
-        
         $shopModel = $this->getActiveShop($request);
-        $this->ensureFreshAccessToken($shopModel);
+
         if (!$shopModel) {
-            return redirect('/')->with('error', 'No shop connected.');
+            return redirect('/')
+                ->with('error', 'No shop connected.');
         }
-        $subscription = ShopSubscription::with('plan')
-            ->where('shop_id', $shopModel->id)
-            ->first();
 
         try {
+            $this->ensureFreshAccessToken($shopModel);
+
+            $subscription = ShopSubscription::with('plan')
+                ->where('shop_id', $shopModel->id)
+                ->first();
+
             $chargeId = $request->query('charge_id');
 
             if (!$chargeId) {
-                return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
-                    ->with('error', 'Shopify billing charge ID is missing.');
+                return redirect(
+                    $this->shopAwareUrl('/plans', $shopModel->shop)
+                )->with(
+                    'error',
+                    'Shopify billing charge ID is missing.'
+                );
             }
 
-            $subscriptionGid = 'gid://shopify/AppSubscription/' . $chargeId;
+            $subscriptionGid =
+                'gid://shopify/AppSubscription/' . $chargeId;
+
+            Log::info('SHOPIFY BILLING CALLBACK', [
+                'shop_id' => $shopModel->id,
+                'shop' => $shopModel->shop,
+                'charge_id' => $chargeId,
+                'subscription_gid' => $subscriptionGid,
+            ]);
 
             $subscription = $this->shopifyBilling->syncSubscriptionByGid(
                 $shopModel,
@@ -591,22 +646,49 @@ class ShopifyController extends Controller
             );
 
             $subscription?->loadMissing('plan');
-        } catch (RuntimeException $exception) {
-            Log::error('Failed to confirm Shopify billing callback.', [
+        } catch (\Throwable $exception) {
+            Log::error('FAILED TO CONFIRM SHOPIFY BILLING CALLBACK', [
+                'shop_id' => $shopModel->id,
                 'shop' => $shopModel->shop,
+                'charge_id' => $request->query('charge_id'),
                 'subscription_gid' => $subscriptionGid ?? null,
                 'error' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
             ]);
 
-            return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
-                ->with('error', 'Shopify billing confirmation failed: ' . $exception->getMessage());
+            return redirect(
+                $this->shopAwareUrl('/plans', $shopModel->shop)
+            )->with(
+                'error',
+                'Shopify billing confirmation failed: ' .
+                    $exception->getMessage()
+            );
         }
-        if (!$subscription || !$this->shopifyBilling->isActivatedStatus($subscription->status)) {
-            return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
-                ->with('error', 'Shopify did not activate the subscription. Please approve the charge to continue.');
+
+        if (
+            !$subscription ||
+            !$this->shopifyBilling->isActivatedStatus(
+                $subscription->status
+            )
+        ) {
+            return redirect(
+                $this->shopAwareUrl('/plans', $shopModel->shop)
+            )->with(
+                'error',
+                'Shopify did not activate the subscription. Please approve the charge to continue.'
+            );
         }
-        return redirect($this->shopAwareUrl('/plans', $shopModel->shop))
-            ->with('success', ($subscription->plan?->name ?? 'Selected') . ' plan is now active for ' . $shopModel->shop . '.');
+
+        return redirect(
+            $this->shopAwareUrl('/plans', $shopModel->shop)
+        )->with(
+            'success',
+            ($subscription->plan?->name ?? 'Selected') .
+                ' plan is now active for ' .
+                $shopModel->shop .
+                '.'
+        );
     }
     public function orders(Request $request)
     {
