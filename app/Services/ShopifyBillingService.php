@@ -204,7 +204,7 @@ class ShopifyBillingService
     }
     public function fetchLatestSubscription(Shop $shop): ?array
     {
-        Log::info('FETCH SUBSCRIPTION START', [
+        Log::info('=== FETCH SUBSCRIPTION START ===', [
             'shop_id' => $shop->id,
             'shop' => $shop->shop,
             'has_access_token' => !empty($shop->access_token),
@@ -218,7 +218,7 @@ class ShopifyBillingService
             <<<'GRAPHQL'
 query AppSubscriptions {
     currentAppInstallation {
-        allSubscriptions(first: 20, reverse: true) {
+        allSubscriptions(first: 50, reverse: true) {
             edges {
                 node {
                     id
@@ -250,7 +250,7 @@ query AppSubscriptions {
 GRAPHQL
         );
 
-        Log::info('SHOPIFY RAW GRAPHQL RESPONSE', [
+        Log::info('=== SHOPIFY RAW GRAPHQL RESPONSE ===', [
             'shop_id' => $shop->id,
             'has_data' => isset($response['data']),
             'has_errors' => !empty($response['errors']),
@@ -258,7 +258,7 @@ GRAPHQL
         ]);
 
         if (!empty($response['errors'])) {
-            Log::error('SHOPIFY SUBSCRIPTION GRAPHQL ERROR', [
+            Log::error('=== SHOPIFY SUBSCRIPTION GRAPHQL ERROR ===', [
                 'shop_id' => $shop->id,
                 'shop' => $shop->shop,
                 'errors' => $response['errors'],
@@ -273,7 +273,7 @@ GRAPHQL
             []
         );
 
-        Log::info('SHOPIFY RAW SUBSCRIPTION EDGES', [
+        Log::info('=== RAW SUBSCRIPTION EDGES ===', [
             'shop_id' => $shop->id,
             'edge_count' => count($edges),
             'edges' => $edges,
@@ -284,10 +284,11 @@ GRAPHQL
             ->map(function (array $node) {
                 $normalized = $this->normalizeSubscription($node);
 
-                Log::info('SHOPIFY SUBSCRIPTION NORMALIZED', [
+                Log::info('=== SUBSCRIPTION NORMALIZED ===', [
                     'raw_gid' => $node['id'] ?? null,
                     'raw_name' => $node['name'] ?? null,
                     'raw_status' => $node['status'] ?? null,
+                    'raw_created_at' => $node['createdAt'] ?? null,
                     'normalized' => $normalized,
                 ]);
 
@@ -296,7 +297,7 @@ GRAPHQL
             ->filter()
             ->values();
 
-        Log::info('SHOPIFY ALL NORMALIZED SUBSCRIPTIONS', [
+        Log::info('=== ALL NORMALIZED SUBSCRIPTIONS ===', [
             'shop_id' => $shop->id,
             'count' => $subscriptions->count(),
             'subscriptions' => $subscriptions->map(function ($subscription) {
@@ -306,27 +307,32 @@ GRAPHQL
                     'status' => $subscription['status'] ?? null,
                     'test' => $subscription['test'] ?? null,
                     'created_at' => $subscription['created_at'] ?? null,
-                    'current_period_end' =>
-                    $subscription['current_period_end'] ?? null,
-                    'billing_interval' =>
-                    $subscription['billing_interval'] ?? null,
+                    'current_period_end' => $subscription['current_period_end'] ?? null,
+                    'billing_interval' => $subscription['billing_interval'] ?? null,
                     'amount' => $subscription['amount'] ?? null,
-                    'currency_code' =>
-                    $subscription['currency_code'] ?? null,
+                    'currency_code' => $subscription['currency_code'] ?? null,
                 ];
             })->all(),
         ]);
 
+        /*
+     * ACTIVE SUBSCRIPTION CHECK
+     */
         $activeCandidates = $subscriptions
             ->filter(function (array $subscription) {
-                $status = $subscription['status'] ?? null;
+
+                $status = strtoupper(
+                    (string) ($subscription['status'] ?? '')
+                );
+
                 $isActive = $this->isActivatedStatus($status);
 
-                Log::info('SUBSCRIPTION STATUS CHECK', [
+                Log::info('=== SUBSCRIPTION STATUS CHECK ===', [
                     'gid' => $subscription['gid'] ?? null,
                     'name' => $subscription['name'] ?? null,
                     'status' => $status,
                     'is_activated_status' => $isActive,
+                    'created_at' => $subscription['created_at'] ?? null,
                 ]);
 
                 return $isActive;
@@ -336,7 +342,7 @@ GRAPHQL
             })
             ->values();
 
-        Log::info('SHOPIFY ACTIVE CANDIDATES', [
+        Log::info('=== ACTIVE CANDIDATES ===', [
             'shop_id' => $shop->id,
             'count' => $activeCandidates->count(),
             'candidates' => $activeCandidates->map(function ($subscription) {
@@ -349,17 +355,23 @@ GRAPHQL
             })->all(),
         ]);
 
-        $activeSubscription = $activeCandidates->first();
-
+        /*
+     * LATEST SUBSCRIPTION
+     */
         $latestSubscription = $subscriptions
             ->sortByDesc(function (array $subscription) {
                 return $subscription['created_at']?->getTimestamp() ?? 0;
             })
             ->first();
 
+        $activeSubscription = $activeCandidates->first();
+
+        /*
+     * FINAL SELECTION
+     */
         $selectedSubscription = $activeSubscription ?? $latestSubscription;
 
-        Log::info('SHOPIFY SUBSCRIPTION CANDIDATES', [
+        Log::info('=== FINAL SUBSCRIPTION SELECTION ===', [
             'shop_id' => $shop->id,
 
             'active_gid' => $activeSubscription['gid'] ?? null,
@@ -371,34 +383,15 @@ GRAPHQL
             'latest_name' => $latestSubscription['name'] ?? null,
             'latest_status' => $latestSubscription['status'] ?? null,
             'latest_created_at' => $latestSubscription['created_at'] ?? null,
-        ]);
 
-        Log::info('SHOPIFY SUBSCRIPTION FINAL SELECTION', [
-            'shop_id' => $shop->id,
             'selected_gid' => $selectedSubscription['gid'] ?? null,
             'selected_name' => $selectedSubscription['name'] ?? null,
             'selected_status' => $selectedSubscription['status'] ?? null,
-            'selected_created_at' =>
-            $selectedSubscription['created_at'] ?? null,
+            'selected_created_at' => $selectedSubscription['created_at'] ?? null,
+
             'selection_source' => $activeSubscription
                 ? 'ACTIVE'
                 : ($latestSubscription ? 'LATEST_FALLBACK' : 'NONE'),
-        ]);
-
-        $targetGid = 'gid://shopify/AppSubscription/36927078716';
-
-        $targetSubscription = $subscriptions->first(
-            fn(array $subscription) => ($subscription['gid'] ?? null) === $targetGid
-        );
-
-        Log::info('TARGET NEW SUBSCRIPTION CHECK', [
-            'shop_id' => $shop->id,
-            'target_gid' => $targetGid,
-            'found' => $targetSubscription !== null,
-            'target_subscription' => $targetSubscription,
-            'target_status' => $targetSubscription['status'] ?? null,
-            'target_created_at' =>
-            $targetSubscription['created_at'] ?? null,
         ]);
 
         return $selectedSubscription;
@@ -413,68 +406,91 @@ GRAPHQL
         array $shopifySubscription,
         ?ShopSubscription $localSubscription = null
     ): ShopSubscription {
-        Log::info('TEST PERSIST START', [
+        Log::info('=== PERSIST START ===', [
             'shop_id' => $shop->id,
             'shop' => $shop->shop,
+
             'incoming_gid' => $shopifySubscription['gid'] ?? null,
-            'incoming_status' => $shopifySubscription['status'] ?? null,
             'incoming_name' => $shopifySubscription['name'] ?? null,
+            'incoming_status' => $shopifySubscription['status'] ?? null,
+            'incoming_created_at' => $shopifySubscription['created_at'] ?? null,
+
+            'local_subscription_exists' => $localSubscription !== null,
             'local_plan_id' => $localSubscription?->plan_id,
             'local_status' => $localSubscription?->status,
             'local_gid' => $localSubscription?->shopify_subscription_gid,
         ]);
 
         /*
-     * TEST ONLY:
-     * Keep only the subscription -> plan resolution -> DB persistence.
-     * All custom-plan/trial-specific logic is intentionally bypassed.
+     * Resolve plan only.
      */
-
         $plan = $this->resolvePlan(
             $shopifySubscription,
             $localSubscription
         );
 
-        Log::info('TEST RESOLVE PLAN', [
+        Log::info('=== PERSIST PLAN RESOLUTION ===', [
             'shop_id' => $shop->id,
+
             'incoming_gid' => $shopifySubscription['gid'] ?? null,
-            'incoming_status' => $shopifySubscription['status'] ?? null,
             'incoming_name' => $shopifySubscription['name'] ?? null,
+            'incoming_status' => $shopifySubscription['status'] ?? null,
+
             'resolved_plan_id' => $plan?->id,
             'resolved_plan_name' => $plan?->name,
+
             'local_plan_id' => $localSubscription?->plan_id,
         ]);
-
-        $status = strtolower(
-            (string) ($shopifySubscription['status'] ?? 'pending')
-        );
 
         $gid = $shopifySubscription['gid'] ?? null;
 
         if (!$gid) {
-            Log::error('TEST PERSIST ABORTED - NO SHOPIFY GID', [
+            Log::error('=== PERSIST ABORTED: GID MISSING ===', [
                 'shop_id' => $shop->id,
                 'shop' => $shop->shop,
                 'subscription' => $shopifySubscription,
             ]);
 
             return $localSubscription
-                ?? throw new \RuntimeException('Shopify subscription GID is missing.');
+                ?? throw new \RuntimeException(
+                    'Shopify subscription GID is missing.'
+                );
         }
+
+        $status = strtolower(
+            (string) ($shopifySubscription['status'] ?? 'pending')
+        );
 
         $finalPlanId = $plan?->id ?? $localSubscription?->plan_id;
 
-        Log::info('TEST FINAL UPDATE DATA', [
+        /*
+     * Critical checkpoint:
+     * This is EXACTLY what will be written to DB.
+     */
+        Log::info('=== PERSIST DB WRITE INPUT ===', [
             'shop_id' => $shop->id,
-            'shop' => $shop->shop,
-            'shopify_gid' => $gid,
-            'shopify_status' => $status,
+
+            'incoming_gid' => $gid,
+            'incoming_status' => $status,
+
             'resolved_plan_id' => $plan?->id,
             'final_plan_id' => $finalPlanId,
+
+            'price' => $shopifySubscription['amount'] ?? 0,
+            'billing_interval' => $shopifySubscription['billing_interval']
+                ?? 'EVERY_30_DAYS',
+            'currency_code' => $shopifySubscription['currency_code']
+                ?? config('services.shopify.billing.currency', 'USD'),
+
+            'started_at' => $shopifySubscription['created_at'] ?? null,
+            'current_period_end' =>
+            $shopifySubscription['current_period_end'] ?? null,
         ]);
 
         $subscription = ShopSubscription::updateOrCreate(
-            ['shop_id' => $shop->id],
+            [
+                'shop_id' => $shop->id,
+            ],
             [
                 'plan_id' => $finalPlanId,
                 'shopify_subscription_gid' => $gid,
@@ -485,21 +501,55 @@ GRAPHQL
                 'currency_code' => $shopifySubscription['currency_code']
                     ?? config('services.shopify.billing.currency', 'USD'),
                 'started_at' => $shopifySubscription['created_at'] ?? null,
-                'current_period_end' => $shopifySubscription['current_period_end'] ?? null,
+                'current_period_end' =>
+                $shopifySubscription['current_period_end'] ?? null,
             ]
         );
 
-        Log::info('TEST PERSIST COMPLETE', [
+        /*
+     * Critical checkpoint:
+     * Compare incoming GID with actual DB value.
+     */
+        Log::info('=== PERSIST DB WRITE RESULT ===', [
             'shop_id' => $subscription->shop_id,
+
             'incoming_gid' => $gid,
             'saved_gid' => $subscription->shopify_subscription_gid,
+
+            'gid_match' =>
+            $gid === $subscription->shopify_subscription_gid,
+
             'incoming_status' => $status,
             'saved_status' => $subscription->status,
+
             'resolved_plan_id' => $plan?->id,
             'saved_plan_id' => $subscription->plan_id,
+
+            'subscription_id' => $subscription->id,
         ]);
 
-        return $subscription;
+        /*
+     * Force fresh DB read.
+     */
+        $freshSubscription = ShopSubscription::query()
+            ->where('shop_id', $shop->id)
+            ->first();
+
+        Log::info('=== PERSIST FRESH DB VERIFICATION ===', [
+            'shop_id' => $shop->id,
+
+            'db_subscription_id' => $freshSubscription?->id,
+            'db_gid' => $freshSubscription?->shopify_subscription_gid,
+            'db_status' => $freshSubscription?->status,
+            'db_plan_id' => $freshSubscription?->plan_id,
+
+            'expected_gid' => $gid,
+
+            'db_gid_matches_expected' =>
+            $freshSubscription?->shopify_subscription_gid === $gid,
+        ]);
+
+        return $freshSubscription ?? $subscription;
     }
 
 
