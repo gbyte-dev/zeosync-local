@@ -23,6 +23,7 @@ use App\Http\Controllers\InventoryMappingController;
 use App\Http\Controllers\AmazonWebhookController;
 use App\Models\Shop;
 use App\Services\AmazonService;
+use App\Services\ShopifyBillingService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -558,55 +559,23 @@ Route::get('/test-plan-sync/{shop}', function (string $shop) {
         'subscription' => $result,
     ]);
 });
-
-Route::get('/debug/shopify-subscription/{gid}', function (
+Route::get('/debug/shopify-subscription/{chargeId}', function (
     Request $request,
-    string $gid
+    string $chargeId
 ) {
-    $shop = $request->query('shop');
+    $shop = Shop::where(
+        'shop',
+        $request->query('shop')
+    )->firstOrFail();
 
-    if (!$shop) {
-        return response()->json([
-            'success' => false,
-            'message' => 'shop parameter is required',
-        ], 400);
-    }
+    $gid = 'gid://shopify/AppSubscription/' . $chargeId;
 
-    $shopModel = \App\Models\Shop::where('shop', $shop)->first();
+    $subscription = app(ShopifyBillingService::class)
+        ->fetchSubscriptionByGid($shop, $gid);
 
-    if (!$shopModel) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Shop not found',
-            'shop' => $shop,
-        ], 404);
-    }
-
-    try {
-        $billing = app(\App\Services\ShopifyBillingService::class);
-
-        $subscription = $billing->fetchSubscriptionByGid(
-            $shopModel,
-            $gid
-        );
-
-        return response()->json([
-            'success' => true,
-            'requested_gid' => $gid,
-            'subscription' => $subscription,
-        ]);
-    } catch (\Throwable $e) {
-        Log::error('DEBUG SUBSCRIPTION ROUTE FAILED', [
-            'shop_id' => $shopModel->id,
-            'shop' => $shopModel->shop,
-            'gid' => $gid,
-            'error' => $e->getMessage(),
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'requested_gid' => $gid,
-            'error' => $e->getMessage(),
-        ], 500);
-    }
+    return response()->json([
+        'requested_charge_id' => $chargeId,
+        'requested_gid' => $gid,
+        'subscription' => $subscription,
+    ]);
 });
