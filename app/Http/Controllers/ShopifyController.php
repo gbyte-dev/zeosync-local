@@ -756,7 +756,8 @@ class ShopifyController extends Controller
                 'pendingOrders' => 0,
                 'cancelledOrders' => 0,
                 'search' => $search,
-                'status' => $status
+                'status' => $status,
+                'amazonConnected' => $amazonConnected,
             ]);
         }
         // =========================
@@ -797,7 +798,8 @@ class ShopifyController extends Controller
             'pendingOrders' => $pendingOrders,
             'cancelledOrders' => $cancelledOrders,
             'search' => $search,
-            'status' => $status
+            'status' => $status,
+            'amazonConnected' => $amazonConnected,
         ]);
     }
     public function showOrder(Request $request, ShopifyOrder $order)
