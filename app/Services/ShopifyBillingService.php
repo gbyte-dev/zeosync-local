@@ -283,21 +283,261 @@ class ShopifyBillingService
         return in_array(strtoupper((string) $status), ['ACTIVE', 'ACCEPTED'], true);
     }
 
-    private function persistSubscription(
-        Shop $shop,
-        array $shopifySubscription,
-        ?ShopSubscription $localSubscription = null
-    ): ShopSubscription {
-        Log::info('TEST PERSIST START', [
+  private function persistSubscription(
+    Shop $shop,
+    array $shopifySubscription,
+    ?ShopSubscription $localSubscription = null
+): ShopSubscription {
+    Log::info('TEST PERSIST START', [
+        'shop_id' => $shop->id,
+        'shop' => $shop->shop,
+
+        // Shopify se exactly kya aa raha hai
+        'incoming_gid' => $shopifySubscription['gid'] ?? null,
+        'incoming_status' => $shopifySubscription['status'] ?? null,
+        'incoming_name' => $shopifySubscription['name'] ?? null,
+        'incoming_created_at' => $shopifySubscription['created_at'] ?? null,
+        'incoming_current_period_end' => $shopifySubscription['current_period_end'] ?? null,
+
+        // Existing local subscription
+        'local_subscription_id' => $localSubscription?->id,
+        'local_plan_id' => $localSubscription?->plan_id,
+        'local_status' => $localSubscription?->status,
+        'local_gid' => $localSubscription?->shopify_subscription_gid,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 1. Resolve Shopify subscription to local plan
+    |--------------------------------------------------------------------------
+    */
+
+    $plan = $this->resolvePlan(
+        $shopifySubscription,
+        $localSubscription
+    );
+
+    Log::info('TEST RESOLVE PLAN', [
+        'shop_id' => $shop->id,
+
+        'shopify_gid' => $shopifySubscription['gid'] ?? null,
+        'shopify_status' => $shopifySubscription['status'] ?? null,
+        'shopify_name' => $shopifySubscription['name'] ?? null,
+
+        'resolved_plan_id' => $plan?->id,
+        'resolved_plan_name' => $plan?->name,
+
+        'local_plan_id' => $localSubscription?->plan_id,
+        'local_plan_name' => $localSubscription?->plan?->name,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. Validate Shopify GID
+    |--------------------------------------------------------------------------
+    */
+
+    $gid = $shopifySubscription['gid'] ?? null;
+
+    if (!$gid) {
+        Log::error('TEST PERSIST ABORTED - SHOPIFY GID MISSING', [
             'shop_id' => $shop->id,
             'shop' => $shop->shop,
-            'incoming_gid' => $shopifySubscription['gid'] ?? null,
-            'incoming_status' => $shopifySubscription['status'] ?? null,
-            'incoming_name' => $shopifySubscription['name'] ?? null,
-            'local_plan_id' => $localSubscription?->plan_id,
-            'local_status' => $localSubscription?->status,
-            'local_gid' => $localSubscription?->shopify_subscription_gid,
+            'shopify_subscription' => $shopifySubscription,
         ]);
+
+        if ($localSubscription) {
+            return $localSubscription;
+        }
+
+        throw new \RuntimeException(
+            'Shopify subscription GID is missing.'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 3. Prepare final values
+    |--------------------------------------------------------------------------
+    */
+
+    $status = strtolower(
+        (string) ($shopifySubscription['status'] ?? 'pending')
+    );
+
+    $finalPlanId = $plan?->id ?? $localSubscription?->plan_id;
+
+    $amount = $shopifySubscription['amount']
+        ?? (float) ($plan?->price ?? 0);
+
+    $billingInterval = $shopifySubscription['billing_interval']
+        ?? 'EVERY_30_DAYS';
+
+    $billingCycleMonths = $billingInterval === 'ANNUAL'
+        ? 12
+        : 1;
+
+    $startedAt = $shopifySubscription['created_at'] ?? null;
+
+    $currentPeriodEnd = $shopifySubscription['current_period_end']
+        ?? null;
+
+    Log::info('TEST FINAL UPDATE DATA', [
+        'shop_id' => $shop->id,
+        'shop' => $shop->shop,
+
+        // MOST IMPORTANT
+        'incoming_gid' => $gid,
+
+        'incoming_status' => $status,
+
+        'resolved_plan_id' => $plan?->id,
+        'resolved_plan_name' => $plan?->name,
+
+        'final_plan_id' => $finalPlanId,
+
+        'amount' => $amount,
+        'billing_interval' => $billingInterval,
+        'billing_cycle_months' => $billingCycleMonths,
+
+        'started_at' => $startedAt,
+        'current_period_end' => $currentPeriodEnd,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 4. BEFORE DB SAVE
+    |--------------------------------------------------------------------------
+    */
+
+    $before = ShopSubscription::where(
+        'shop_id',
+        $shop->id
+    )->first();
+
+    Log::info('TEST DB BEFORE SAVE', [
+        'shop_id' => $shop->id,
+
+        'db_id' => $before?->id,
+        'db_plan_id' => $before?->plan_id,
+        'db_status' => $before?->status,
+        'db_gid' => $before?->shopify_subscription_gid,
+        'db_updated_at' => $before?->updated_at,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 5. DATABASE UPDATE
+    |--------------------------------------------------------------------------
+    */
+
+    $subscription = ShopSubscription::updateOrCreate(
+        ['shop_id' => $shop->id],
+        [
+            'plan_id' => $finalPlanId,
+
+            // MOST IMPORTANT FIELD
+            'shopify_subscription_gid' => $gid,
+
+            'status' => $status,
+
+            'price' => $amount,
+
+            'billing_interval' => $billingInterval,
+
+            'billing_cycle_months' => $billingCycleMonths,
+
+            'currency_code' => $shopifySubscription['currency_code']
+                ?? config('services.shopify.billing.currency', 'USD'),
+
+            'started_at' => $startedAt,
+
+            'current_period_end' => $currentPeriodEnd,
+        ]
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | 6. Refresh model from database
+    |--------------------------------------------------------------------------
+    */
+
+    $subscription->refresh();
+
+    /*
+    |--------------------------------------------------------------------------
+    | 7. AFTER DB SAVE
+    |--------------------------------------------------------------------------
+    */
+
+    Log::info('TEST DB AFTER SAVE', [
+        'shop_id' => $subscription->shop_id,
+
+        'db_id' => $subscription->id,
+
+        'saved_plan_id' => $subscription->plan_id,
+
+        'saved_status' => $subscription->status,
+
+        // MOST IMPORTANT
+        'saved_gid' => $subscription->shopify_subscription_gid,
+
+        'saved_updated_at' => $subscription->updated_at,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 8. VERIFY DIRECTLY FROM DATABASE
+    |--------------------------------------------------------------------------
+    */
+
+    $dbCheck = ShopSubscription::where(
+        'shop_id',
+        $shop->id
+    )->first();
+
+    Log::info('TEST DIRECT DB VERIFICATION', [
+        'shop_id' => $shop->id,
+
+        'db_id' => $dbCheck?->id,
+
+        'db_plan_id' => $dbCheck?->plan_id,
+
+        'db_status' => $dbCheck?->status,
+
+        'db_gid' => $dbCheck?->shopify_subscription_gid,
+
+        'expected_gid' => $gid,
+
+        'gid_match' => $dbCheck?->shopify_subscription_gid === $gid,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 9. FINAL RESULT
+    |--------------------------------------------------------------------------
+    */
+
+    Log::info('TEST PERSIST COMPLETE', [
+        'shop_id' => $shop->id,
+
+        'incoming_gid' => $gid,
+
+        'saved_gid' => $subscription->shopify_subscription_gid,
+
+        'gid_match' => $subscription->shopify_subscription_gid === $gid,
+
+        'incoming_status' => $status,
+
+        'saved_status' => $subscription->status,
+
+        'resolved_plan_id' => $plan?->id,
+
+        'saved_plan_id' => $subscription->plan_id,
+    ]);
+
+    return $subscription;
+}
 
         /*
      * TEST ONLY:
