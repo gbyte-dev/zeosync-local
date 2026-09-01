@@ -276,8 +276,6 @@ class ShopifyBillingService
             'selected' => $selectedSubscription,
         ]);
 
-        dd($response);
-
         return $selectedSubscription;
     }
     public function isActivatedStatus(?string $status): bool
