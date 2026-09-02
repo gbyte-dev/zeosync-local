@@ -116,6 +116,7 @@
         display: block;
         max-width: 240px;
         font-weight: 500;
+        font-size: 12px !important;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -194,10 +195,19 @@
         outline: none;
     }
 
+    .dataTables_wrapper .dataTables_filter {
+        width: 100%;
+    }
+
+    .dataTables_wrapper .dataTables_filter label {
+        width: 100%;
+    }
+
     .dataTables_wrapper .dataTables_filter input {
         margin-left: 8px;
-        width: 180px;
-        height: 26px;
+        width: calc(100% - 8px);
+        height: 34px;
+        box-sizing: border-box;
         border: 1px solid #d1d5db;
         border-radius: 4px;
         padding: 0 8px;
@@ -223,7 +233,6 @@
 
     .dataTables_wrapper .dataTables_paginate .paginate_button {
         border-radius: 4px !important;
-        padding: 2px 8px !important;
         margin-left: 2px !important;
         border: 1px solid transparent !important;
         font-size: 12px !important;
