@@ -7,68 +7,79 @@
     .zeo-inventory-page {
         background-color: #f4f6f8;
         min-height: 100vh;
-        padding: 32px 40px;
+        padding: 24px 32px;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    /* Page Level Header */
+    /* Page Header */
     .zeo-page-header {
-        margin-bottom: 24px;
+        margin-bottom: 20px;
     }
 
     .zeo-page-header h1 {
-        margin: 0 0 6px 0;
-        font-size: 24px;
+        margin: 0 0 4px 0;
+        font-size: 20px;
         font-weight: 600;
         color: #111827;
-        line-height: 1.2;
     }
 
     .zeo-page-header p {
         margin: 0;
         color: #6b7280;
-        font-size: 14px;
+        font-size: 13px;
     }
 
-    /* Main Card */
+    /* Stats Card */
+    .zeo-stats-row {
+        display: flex;
+        margin-bottom: 16px;
+    }
+
+    .zeo-stat-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 12px 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 32px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    .zeo-stat-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .zeo-stat-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #111827;
+        line-height: 1;
+    }
+
+    /* Main Table Card */
     .zeo-card {
         background: #ffffff;
         border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        border-radius: 8px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
         overflow: hidden;
     }
 
-    .zeo-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px 24px 0 24px;
-    }
-
-    .zeo-card-title {
-        margin: 0;
-        font-size: 16px;
-        font-weight: 600;
-        color: #111827;
-    }
-
-    .zeo-product-count {
-        font-size: 13px;
-        color: #6b7280;
-        font-weight: 500;
-    }
-
     .zeo-card-body {
-        padding: 16px 24px 24px 24px;
+        padding: 12px 16px 16px 16px;
     }
 
-    /* Table Styles */
+    /* Table Styles - Vertically Tight */
     #amazonLowInventoryTable {
         width: 100% !important;
         border-collapse: collapse;
-        margin-top: 10px !important;
-        margin-bottom: 16px !important;
+        margin-top: 4px !important;
+        margin-bottom: 12px !important;
     }
 
     #amazonLowInventoryTable thead th {
@@ -78,15 +89,15 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        padding: 12px 16px 12px 0;
+        padding: 8px 12px 8px 0;
         border-top: none;
         border-bottom: 1px solid #e5e7eb;
         white-space: nowrap;
     }
 
     #amazonLowInventoryTable tbody td {
-        padding: 14px 16px 14px 0;
-        font-size: 14px;
+        padding: 8px 12px 8px 0;
+        font-size: 13px;
         color: #111827;
         border-bottom: 1px solid #f3f4f6;
         vertical-align: middle;
@@ -103,9 +114,8 @@
     /* Truncated Product Title */
     .product-title {
         display: block;
-        max-width: 260px;
-        font-size: 14px;
-        color: #374151;
+        max-width: 240px;
+        font-weight: 500;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -115,7 +125,7 @@
     /* SKU Text */
     .sku-text {
         color: #4b5563;
-        font-size: 13px;
+        font-size: 12px;
     }
 
     /* Quantity Badge */
@@ -123,12 +133,12 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 24px;
-        height: 24px;
-        padding: 0 8px;
-        border-radius: 12px;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        border-radius: 11px;
         font-weight: 600;
-        font-size: 12px;
+        font-size: 11px;
     }
 
     .quantity-danger {
@@ -144,36 +154,41 @@
     /* Empty State */
     .empty-state {
         text-align: center;
-        padding: 60px 20px;
+        padding: 40px 20px;
         color: #6b7280;
-        font-size: 14px;
+        font-size: 13px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
     }
 
-    /* DataTables Overrides for a clean UI */
+    /* DataTables Overrides - Compact Controls */
     .dataTables_wrapper .row {
         align-items: center;
     }
 
     .dataTables_wrapper .dataTables_length,
     .dataTables_wrapper .dataTables_filter {
-        margin-bottom: 16px;
+        margin-bottom: 10px;
     }
 
     .dataTables_wrapper .dataTables_length label,
     .dataTables_wrapper .dataTables_filter label {
         color: #4b5563;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 400;
         display: flex;
         align-items: center;
+        margin: 0;
     }
 
     .dataTables_wrapper .dataTables_length select {
         margin: 0 8px;
         border: 1px solid #d1d5db;
-        border-radius: 6px;
-        padding: 4px 24px 4px 8px;
-        font-size: 13px;
+        border-radius: 4px;
+        padding: 2px 20px 2px 8px;
+        font-size: 12px;
+        height: 26px;
         color: #374151;
         background-color: #fff;
         outline: none;
@@ -181,15 +196,14 @@
 
     .dataTables_wrapper .dataTables_filter input {
         margin-left: 8px;
-        width: 220px;
-        height: 32px;
+        width: 180px;
+        height: 26px;
         border: 1px solid #d1d5db;
-        border-radius: 6px;
-        padding: 0 12px;
-        font-size: 13px;
+        border-radius: 4px;
+        padding: 0 8px;
+        font-size: 12px;
         color: #374151;
         outline: none;
-        transition: border-color 0.15s ease-in-out;
     }
 
     .dataTables_wrapper .dataTables_filter input:focus {
@@ -199,20 +213,20 @@
 
     .dataTables_wrapper .dataTables_info {
         color: #6b7280;
-        font-size: 13px;
-        padding-top: 16px !important;
+        font-size: 12px;
+        padding-top: 8px !important;
     }
 
     .dataTables_wrapper .dataTables_paginate {
-        padding-top: 12px !important;
+        padding-top: 4px !important;
     }
 
     .dataTables_wrapper .dataTables_paginate .paginate_button {
-        border-radius: 6px !important;
-        padding: 4px 10px !important;
-        margin-left: 4px !important;
+        border-radius: 4px !important;
+        padding: 2px 8px !important;
+        margin-left: 2px !important;
         border: 1px solid transparent !important;
-        font-size: 13px !important;
+        font-size: 12px !important;
         color: #4b5563 !important;
     }
 
@@ -232,19 +246,16 @@
     /* Responsive */
     @media (max-width: 768px) {
         .zeo-inventory-page {
-            padding: 24px 16px;
-        }
-
-        .zeo-card-header {
-            padding: 16px 16px 0 16px;
-        }
-
-        .zeo-card-body {
             padding: 16px;
         }
 
         .dataTables_wrapper .dataTables_filter input {
-            width: 160px;
+            width: 140px;
+        }
+
+        .zeo-stat-card {
+            width: 100%;
+            justify-content: space-between;
         }
     }
 </style>
@@ -256,13 +267,16 @@
         <p>Products with Amazon inventory below 10 units</p>
     </div>
 
-    <div class="zeo-card">
-        @if($amazonLowInventoryProducts->isNotEmpty())
-        <div class="zeo-card-header">
-            <h2 class="zeo-card-title">Low Inventory Products</h2>
-            <span class="zeo-product-count">{{ $amazonLowInventoryProducts->count() }} products</span>
-        </div>
+    @if($amazonLowInventoryProducts->isNotEmpty())
 
+    <div class="zeo-stats-row">
+        <div class="zeo-stat-card">
+            <span class="zeo-stat-label">Low Inventory Products</span>
+            <span class="zeo-stat-value">{{ $amazonLowInventoryProducts->count() }}</span>
+        </div>
+    </div>
+
+    <div class="zeo-card">
         <div class="zeo-card-body">
             <div class="table-responsive">
                 <table id="amazonLowInventoryTable" class="table" style="width:100%">
@@ -279,8 +293,8 @@
                             <td>
                                 @php
                                 $title = $product['title'] ?? '-';
-                                $shortTitle = mb_strlen($title) > 20
-                                ? mb_substr($title, 0, 20) . '...'
+                                $shortTitle = mb_strlen($title) > 25
+                                ? mb_substr($title, 0, 25) . '...'
                                 : $title;
                                 @endphp
                                 <div class="product-title" title="{{ $title }}">
@@ -307,12 +321,13 @@
                 </table>
             </div>
         </div>
-        @else
-        <div class="empty-state">
-            No product inventory is low.
-        </div>
-        @endif
     </div>
+
+    @else
+    <div class="empty-state">
+        No product inventory is low.
+    </div>
+    @endif
 
 </div>
 
@@ -345,7 +360,7 @@
                 ],
                 columnDefs: [{
                         targets: 0,
-                        width: '50%'
+                        width: '55%'
                     },
                     {
                         targets: 1,
@@ -353,7 +368,7 @@
                     },
                     {
                         targets: 2,
-                        width: '15%',
+                        width: '10%',
                         type: 'num'
                     }
                 ],
