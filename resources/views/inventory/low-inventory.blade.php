@@ -374,10 +374,10 @@
                                     data-sku="{{ $product['sku'] ?? '' }}">
                             </td>
                             <td class="text-end">
-                                <button type="button"
+                                <button
                                     class="btn btn-primary btn-sm update-amazon-qty"
-                                    data-sku="{{ $product['sku'] ?? '' }}"
-                                    title="Update Stock">
+                                    data-sku="{{ $product['sku'] }}"
+                                    data-shop="{{ $shop->shop }}">
                                     Update
                                 </button>
                             </td>
@@ -458,8 +458,7 @@
 
         const sku = button.data('sku');
         const quantity = qtyInput.val();
-
-        const shop = new URLSearchParams(window.location.search).get('shop');
+        const shop = button.data('shop');
 
         button.prop('disabled', true).text('Updating...');
         qtyInput.prop('disabled', true);
@@ -467,18 +466,22 @@
         $.ajax({
             url: `${window.location.origin}/inventory/amazon/${encodeURIComponent(sku)}/update-quantity?shop=${encodeURIComponent(shop)}`,
             type: 'POST',
+
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
+
             data: {
                 quantity: quantity
             },
+
             success: function(response) {
                 Swal.fire({
                     text: 'Inventory updated successfully. Latest inventory will reflect in the app in approximately 15 minutes.',
                     confirmButtonText: 'OK'
                 });
             },
+
             error: function(xhr) {
                 Swal.fire({
                     icon: 'error',
@@ -487,11 +490,13 @@
                     confirmButtonText: 'OK'
                 });
             },
+
             complete: function() {
                 button.prop('disabled', false).text('Update');
                 qtyInput.prop('disabled', false);
             }
         });
+
     });
 </script>
 
