@@ -83,7 +83,7 @@
     }
 
     #amazonLowInventoryTable tbody td {
-        padding: 15px 14px;
+        padding: 11px 14px;
         font-size: 14px;
         color: #111827;
         border-bottom: 1px solid #eef0f2;
@@ -95,8 +95,13 @@
     }
 
     .product-title {
+        max-width: 320px;
+        font-size: 14px;
         font-weight: 500;
         color: #111827;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .sku-text {
@@ -245,8 +250,16 @@
 
                         <tr>
                             <td>
-                                <div class="product-title">
-                                    {{ $product['title'] ?? '-' }}
+                                @php
+                                $title = $product['title'] ?? '-';
+                                $shortTitle = mb_strlen($title) > 20
+                                ? mb_substr($title, 0, 20) . '...'
+                                : $title;
+                                @endphp
+
+                                <div class="product-title"
+                                    title="{{ $title }}">
+                                    {{ $shortTitle }}
                                 </div>
                             </td>
 
