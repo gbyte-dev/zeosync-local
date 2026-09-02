@@ -458,18 +458,8 @@
 
         const sku = button.data('sku');
         const quantity = qtyInput.val();
+
         const shop = new URLSearchParams(window.location.search).get('shop');
-
-        if (quantity === '' || quantity < 0) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Quantity',
-                text: 'Please enter a valid quantity.',
-                confirmButtonText: 'OK'
-            });
-
-            return;
-        }
 
         button.prop('disabled', true).text('Updating...');
         qtyInput.prop('disabled', true);
@@ -483,33 +473,25 @@
             data: {
                 quantity: quantity
             },
-
             success: function(response) {
-
                 Swal.fire({
                     text: 'Inventory updated successfully. Latest inventory will reflect in the app in approximately 15 minutes.',
                     confirmButtonText: 'OK'
                 });
-
             },
-
             error: function(xhr) {
-
                 Swal.fire({
                     icon: 'error',
                     title: 'Update Failed',
                     text: xhr.responseJSON?.message ?? 'Inventory update failed.',
                     confirmButtonText: 'OK'
                 });
-
             },
-
             complete: function() {
                 button.prop('disabled', false).text('Update');
                 qtyInput.prop('disabled', false);
             }
         });
-
     });
 </script>
 
