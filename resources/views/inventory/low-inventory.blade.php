@@ -16,7 +16,7 @@
         background: #ffffff;
         border: 1px solid #e5e7eb;
         border-radius: 8px;
-        padding: 20px 24px;
+        padding: 5px 24px;
         margin-bottom: 16px;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
     }
@@ -46,7 +46,7 @@
         background: #ffffff;
         border: 1px solid #e5e7eb;
         border-radius: 8px;
-        padding: 16px 20px;
+        padding: 10px 20px;
         display: flex;
         justify-content: space-between;
         align-items: center;
