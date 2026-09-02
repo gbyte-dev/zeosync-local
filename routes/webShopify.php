@@ -580,3 +580,6 @@ Route::get('/debug/shopify-subscription/{chargeId}', function (
         'subscription' => $subscription,
     ]);
 });
+
+Route::get('/amazon/low-inventory', [InventoryController::class, 'lowInventory'])
+    ->name('view-all-amazon-low-inventory');

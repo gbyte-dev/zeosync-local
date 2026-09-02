@@ -134,7 +134,7 @@
         color: #9CA3AF;
     }
 
-    .in-iframe .saas-badge{
+    .in-iframe .saas-badge {
         padding: 4px 7px;
     }
 
@@ -544,8 +544,13 @@
 
                     <div class="card-divider"></div>
 
-                    <div class="card-footer-custom">
-                        Updated from Amazon Inventory Cache
+                    <div class="card-footer-custom d-flex justify-content-between align-items-center">
+                        <span>Updated from Amazon Inventory Cache</span>
+
+                        <a href="{{ route('view-all-amazon-low-inventory') }}"
+                            class="btn btn-sm btn-primary">
+                            View All Low Inventory
+                        </a>
                     </div>
 
                 </div>

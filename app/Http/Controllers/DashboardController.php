@@ -176,4 +176,42 @@ class DashboardController extends ShopifyController
             'amazonLowInventoryProducts'
         ));
     }
+
+    public function lowInventory(Request $request)
+    {
+        $shop = $request->attributes->get('active_shop_model');
+
+        if (!$shop) {
+            $activeShop = $request->attributes->get('active_shop')
+                ?? $request->query('shop');
+
+            if (!$activeShop) {
+                abort(404, 'Active shop not found.');
+            }
+
+            $shop = Shop::where('shop', $activeShop)
+                ->where('is_active', 1)
+                ->first();
+
+            if (!$shop) {
+                abort(404, 'Active shop not found.');
+            }
+        }
+
+        $amazonInventory = [];
+
+        if (!empty($shop->amazon_marketplace_id)) {
+            $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_marketplace_id}";
+            $amazonInventory = Cache::get($cacheKey, []);
+        }
+
+        $amazonLowInventoryProducts = collect($amazonInventory)
+            ->filter(function ($item) {
+                return ($item['quantity'] ?? 0) < 10;
+            })
+            ->sortBy('quantity')
+            ->values();
+
+        return view('amazon.low-inventory', compact('amazonLowInventoryProducts'));
+    }
 }

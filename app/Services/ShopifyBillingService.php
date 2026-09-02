@@ -340,13 +340,6 @@ GRAPHQL
 
     private function persistSubscription(Shop $shop, array $shopifySubscription, ?ShopSubscription $localSubscription = null): ShopSubscription
     {
-        Log::info('PERSIST START', [
-            'shop_id' => $shop->id,
-            'local_plan_id' => $localSubscription?->plan_id,
-            'local_requested_plan_id' => $localSubscription?->requested_plan_id,
-            'local_status' => $localSubscription?->status,
-        ]);
-
         if (
             $localSubscription &&
             $localSubscription->plan &&
@@ -440,12 +433,6 @@ GRAPHQL
             ]);
         }
 
-        Log::info('SHOPIFY PERIOD DEBUG', [
-            'created_at' => $shopifySubscription['created_at'] ?? null,
-            'current_period_end' => $shopifySubscription['current_period_end'] ?? null,
-            'trial_days' => $trialDays,
-            'is_trial' => $localSubscription?->is_trial,
-        ]);
         $currentPeriodEnd = $shopifySubscription['current_period_end'] ?? null;
         $status = strtolower((string) ($shopifySubscription['status'] ?? 'pending'));
         $billingInterval = $shopifySubscription['billing_interval'] ?? 'EVERY_30_DAYS';
