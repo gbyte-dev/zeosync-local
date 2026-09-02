@@ -11,9 +11,14 @@
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    /* Page Header */
+    /* Page Header Card */
     .zeo-page-header {
-        margin-bottom: 20px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 20px 24px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
     }
 
     .zeo-page-header h1 {
@@ -29,9 +34,11 @@
         font-size: 13px;
     }
 
-    /* Stats Card */
-    .zeo-stats-row {
-        display: flex;
+    /* Stats Grid */
+    .zeo-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
         margin-bottom: 16px;
     }
 
@@ -39,10 +46,10 @@
         background: #ffffff;
         border: 1px solid #e5e7eb;
         border-radius: 8px;
-        padding: 12px 20px;
-        display: inline-flex;
+        padding: 16px 20px;
+        display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 32px;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
     }
 
@@ -55,10 +62,18 @@
     }
 
     .zeo-stat-value {
-        font-size: 20px;
+        font-size: 22px;
         font-weight: 700;
         color: #111827;
         line-height: 1;
+    }
+
+    .zeo-stat-status {
+        font-size: 14px;
+        font-weight: 600;
+        color: #059669;
+        display: flex;
+        align-items: center;
     }
 
     /* Main Table Card */
@@ -163,18 +178,17 @@
         border-radius: 8px;
     }
 
-    /* DataTables Overrides - Compact Controls */
+    /* DataTables Overrides - Compact Controls & Full Width Search */
     .dataTables_wrapper .row {
         align-items: center;
     }
 
     .dataTables_wrapper .dataTables_length,
     .dataTables_wrapper .dataTables_filter {
-        margin-bottom: 10px;
+        margin-bottom: 12px;
     }
 
-    .dataTables_wrapper .dataTables_length label,
-    .dataTables_wrapper .dataTables_filter label {
+    .dataTables_wrapper .dataTables_length label {
         color: #4b5563;
         font-size: 12px;
         font-weight: 400;
@@ -189,7 +203,7 @@
         border-radius: 4px;
         padding: 2px 20px 2px 8px;
         font-size: 12px;
-        height: 26px;
+        height: 28px;
         color: #374151;
         background-color: #fff;
         outline: none;
@@ -201,19 +215,22 @@
 
     .dataTables_wrapper .dataTables_filter label {
         width: 100%;
+        display: flex;
+        margin: 0;
     }
 
     .dataTables_wrapper .dataTables_filter input {
-        margin-left: 8px;
-        width: calc(100% - 8px);
+        width: 100%;
+        margin-left: 0;
         height: 34px;
         box-sizing: border-box;
         border: 1px solid #d1d5db;
         border-radius: 4px;
-        padding: 0 8px;
+        padding: 0 12px;
         font-size: 12px;
         color: #374151;
         outline: none;
+        transition: border-color 0.15s ease-in-out;
     }
 
     .dataTables_wrapper .dataTables_filter input:focus {
@@ -253,18 +270,19 @@
     }
 
     /* Responsive */
+    @media (max-width: 1024px) {
+        .zeo-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
     @media (max-width: 768px) {
         .zeo-inventory-page {
             padding: 16px;
         }
 
-        .dataTables_wrapper .dataTables_filter input {
-            width: 140px;
-        }
-
-        .zeo-stat-card {
-            width: 100%;
-            justify-content: space-between;
+        .zeo-stats-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>
@@ -278,10 +296,22 @@
 
     @if($amazonLowInventoryProducts->isNotEmpty())
 
-    <div class="zeo-stats-row">
+    <div class="zeo-stats-grid">
         <div class="zeo-stat-card">
-            <span class="zeo-stat-label">Low Inventory Products</span>
+            <span class="zeo-stat-label">Low Inventory</span>
             <span class="zeo-stat-value">{{ $amazonLowInventoryProducts->count() }}</span>
+        </div>
+        <div class="zeo-stat-card">
+            <span class="zeo-stat-label">Mapped Products</span>
+            <span class="zeo-stat-value">3</span>
+        </div>
+        <div class="zeo-stat-card">
+            <span class="zeo-stat-label">Orders</span>
+            <span class="zeo-stat-value">0</span>
+        </div>
+        <div class="zeo-stat-card">
+            <span class="zeo-stat-label">Sync Status</span>
+            <span class="zeo-stat-status">● Connected</span>
         </div>
     </div>
 
