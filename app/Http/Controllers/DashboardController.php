@@ -212,6 +212,6 @@ class DashboardController extends ShopifyController
             ->sortBy('quantity')
             ->values();
 
-        return view('amazon.low-inventory', compact('amazonLowInventoryProducts'));
+        return view('inventory.low-inventory', compact('amazonLowInventoryProducts'));
     }
 }
