@@ -144,6 +144,22 @@
         font-size: 12px;
     }
 
+    .qty-input {
+        width: 70px;
+        height: 30px;
+        padding: 2px 6px;
+        text-align: center;
+        border-radius: 6px;
+        border: 1px solid #C9CCCF;
+        font-size: 13px;
+    }
+
+    .qty-input:focus {
+        border-color: #2C6ECB;
+        box-shadow: 0 0 0 2px rgba(44, 110, 203, 0.2);
+        outline: none;
+    }
+
     /* Quantity Badge */
     .quantity-badge {
         display: inline-flex;
@@ -324,6 +340,7 @@
                             <th>Product</th>
                             <th>SKU</th>
                             <th>Quantity</th>
+                            <th class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -350,9 +367,19 @@
                                 $qty = $product['quantity'] ?? 0;
                                 $badgeClass = $qty == 0 ? 'quantity-danger' : 'quantity-warning';
                                 @endphp
-                                <span class="quantity-badge {{ $badgeClass }}">
-                                    {{ $qty }}
-                                </span>
+                                <input type="number"
+                                    class="form-control form-control-sm qty-input amazon-qty"
+                                    value="{{ $product['quantity'] ?? 0 }}"
+                                    min="0"
+                                    data-sku="{{ $product['sku'] ?? '' }}">
+                            </td>
+                            <td class="text-end">
+                                <button type="button"
+                                    class="btn btn-primary btn-sm update-amazon-qty"
+                                    data-sku="{{ $product['sku'] ?? '' }}"
+                                    title="Update Stock">
+                                    Update
+                                </button>
                             </td>
                         </tr>
                         @endforeach
@@ -422,5 +449,69 @@
             });
         }
     });
+
+    $(document).on('click', '.update-amazon-qty', function() {
+
+        const button = $(this);
+        const row = button.closest('tr');
+        const qtyInput = row.find('.amazon-qty');
+
+        const sku = button.data('sku');
+        const quantity = qtyInput.val();
+        const shop = new URLSearchParams(window.location.search).get('shop');
+
+        if (quantity === '' || quantity < 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Quantity',
+                text: 'Please enter a valid quantity.',
+                confirmButtonText: 'OK'
+            });
+
+            return;
+        }
+
+        button.prop('disabled', true).text('Updating...');
+        qtyInput.prop('disabled', true);
+
+        $.ajax({
+            url: `${window.location.origin}/inventory/amazon/${encodeURIComponent(sku)}/update-quantity?shop=${encodeURIComponent(shop)}`,
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                quantity: quantity
+            },
+
+            success: function(response) {
+
+                Swal.fire({
+                    text: 'Inventory updated successfully. Latest inventory will reflect in the app in approximately 15 minutes.',
+                    confirmButtonText: 'OK'
+                });
+
+            },
+
+            error: function(xhr) {
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Update Failed',
+                    text: xhr.responseJSON?.message ?? 'Inventory update failed.',
+                    confirmButtonText: 'OK'
+                });
+
+            },
+
+            complete: function() {
+                button.prop('disabled', false).text('Update');
+                qtyInput.prop('disabled', false);
+            }
+        });
+
+    });
 </script>
+
+
 @endpush
