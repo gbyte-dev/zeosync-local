@@ -380,6 +380,23 @@ GRAPHQL
                 );
         }
         $plan = $this->resolvePlan($shopifySubscription, $localSubscription);
+        $trialUsed = (int) ($localSubscription?->trial_used ?? 0);
+
+        if (
+            $localSubscription &&
+            (int) $localSubscription->is_trial === 1 &&
+            !$plan?->is_trial
+        ) {
+            $trialUsed = 1;
+
+            Log::info('PREVIOUS TRIAL MARKED USED BEFORE PAID PLAN OVERWRITE', [
+                'shop_id' => $shop->id,
+                'old_plan_id' => $localSubscription->plan_id,
+                'new_plan_id' => $plan?->id,
+                'old_is_trial' => $localSubscription->is_trial,
+                'old_trial_used' => $localSubscription->trial_used,
+            ]);
+        }
 
         // Already-used trial protection.
         // If Shopify is currently returning the trial plan again,
@@ -414,7 +431,7 @@ GRAPHQL
             ? $startedAt->copy()->addDays($trialDays)
             : null;
 
-        $trialUsed = (int) ($localSubscription?->trial_used ?? 0);
+        // $trialUsed = (int) ($localSubscription?->trial_used ?? 0);
 
         $storedTrialEndsAt = $localSubscription?->trial_ends_at;
 
