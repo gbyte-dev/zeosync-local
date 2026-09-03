@@ -19,7 +19,6 @@ $currentPlan = $hasActivePlan
 $rawInterval = $subscription?->billing_interval ?? 'EVERY_30_DAYS';
 $selectedInterval = $rawInterval === 'ANNUAL' ? 12 : 1;
 
-<!-- $statusValue = strtolower((string) ($subscription?->status ?? 'pending')); -->
 $statusLabels = [
 'pending' => 'Pending approval',
 'active' => 'Active',
