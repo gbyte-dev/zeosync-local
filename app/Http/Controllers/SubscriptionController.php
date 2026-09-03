@@ -376,7 +376,7 @@ class SubscriptionController extends ShopifyController
                 ->with('error', 'Shopify billing configuration is incomplete.');
         }
 
-        $pricingUrl = "https://admin.shopify.com/store/{$storeHandle}/charges/{$appHandle}/plans";
+        $pricingUrl = "https://admin.shopify.com/store/{$storeHandle}/charges/{$appHandle}/pricing_plans";
 
         Log::info('SHOPIFY PLAN REDIRECT', [
             'shop' => $shopModel->shop,
