@@ -196,11 +196,7 @@ class SubscriptionController extends ShopifyController
         // }
 
         if ($plan->is_trial) {
-            return $this->redirectToShopifyPricing(
-                $shopModel,
-                $plan->slug,
-                'EVERY_30_DAYS'
-            );
+            return $this->redirectToShopifyPricing($shopModel);
         }
 
         $billingCycleMonths = (int) $request->input('billing_interval', 1);
@@ -228,11 +224,7 @@ class SubscriptionController extends ShopifyController
             ? 'ANNUAL'
             : 'EVERY_30_DAYS';
 
-        return $this->redirectToShopifyPricing(
-            $shopModel,
-            $plan->slug,
-            $shopifyInterval
-        );
+        return $this->redirectToShopifyPricing($shopModel);
         $subscription = ShopSubscription::firstOrCreate(
             ['shop_id' => $shopModel->id], // Argument 1: Search criteria
             ['plan_id' => $request->plan_id] // Argument 2: Data to add if NOT found
@@ -368,11 +360,8 @@ class SubscriptionController extends ShopifyController
         ]);
     }
 
-    private function redirectToShopifyPricing(
-        Shop $shopModel,
-        string $planHandle,
-        string $billingInterval = 'EVERY_30_DAYS'
-    ) {
+    private function redirectToShopifyPricing(Shop $shopModel)
+    {
         $storeHandle = Str::before($shopModel->shop, '.myshopify.com');
 
         $appHandle = config('services.shopify.app_handle');
@@ -387,16 +376,12 @@ class SubscriptionController extends ShopifyController
                 ->with('error', 'Shopify billing configuration is incomplete.');
         }
 
-        $billingInterval = strtoupper($billingInterval);
-
-        $pricingUrl = "https://admin.shopify.com/store/{$storeHandle}/charges/{$appHandle}/plans/{$planHandle}?interval={$billingInterval}";
+        $pricingUrl = "https://admin.shopify.com/store/{$storeHandle}/charges/{$appHandle}/plans";
 
         Log::info('SHOPIFY PLAN REDIRECT', [
             'shop' => $shopModel->shop,
             'store_handle' => $storeHandle,
             'app_handle' => $appHandle,
-            'plan_handle' => $planHandle,
-            'billing_interval' => $billingInterval,
             'pricing_url' => $pricingUrl,
         ]);
 
