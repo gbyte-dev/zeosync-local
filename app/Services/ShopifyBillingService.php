@@ -351,7 +351,10 @@ GRAPHQL
 
             // Shopify plan is not active yet.
             // Keep the custom plan active.
-            if (!$this->isActivatedStatus($shopifyStatus)) {
+            if (
+                !$this->isActivatedStatus($shopifyStatus)
+                && $shopifyStatus !== 'cancelled'
+            ) {
                 Log::info('CUSTOM PLAN KEPT - NO ACTIVE SHOPIFY PLAN', [
                     'shop_id' => $shop->id,
                     'custom_plan_id' => $localSubscription->plan_id,
@@ -385,23 +388,25 @@ GRAPHQL
         if (
             $localSubscription &&
             (int) $localSubscription->is_trial === 1 &&
-            !$plan?->is_trial
+            $plan &&
+            !$plan->is_trial
         ) {
             $trialUsed = 1;
 
             Log::info('PREVIOUS TRIAL MARKED USED BEFORE PAID PLAN OVERWRITE', [
                 'shop_id' => $shop->id,
                 'old_plan_id' => $localSubscription->plan_id,
-                'new_plan_id' => $plan?->id,
+                'new_plan_id' => $plan->id,
                 'old_is_trial' => $localSubscription->is_trial,
                 'old_trial_used' => $localSubscription->trial_used,
             ]);
         }
 
+
         // Already-used trial protection.
         // If Shopify is currently returning the trial plan again,
         // never overwrite the existing local subscription.
-        if ($plan?->is_trial && (int) ($localSubscription?->trial_used ?? 0) === 1) {
+        if ($plan?->is_trial && $trialUsed === 1) {
             Log::warning('SHOPIFY TRIAL REUSE BLOCKED', [
                 'shop_id' => $shop->id,
                 'shop' => $shop->shop,
@@ -409,7 +414,7 @@ GRAPHQL
                 'incoming_plan_name' => $plan->name,
                 'local_plan_id' => $localSubscription?->plan_id,
                 'local_status' => $localSubscription?->status,
-                'trial_used' => $localSubscription?->trial_used,
+                'trial_used' => $trialUsed,
                 'shopify_subscription_gid' => $shopifySubscription['gid'] ?? null,
             ]);
 

@@ -7,11 +7,19 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
 $shop = \App\Models\Shop::where('shop', $currentShop)->first();
 $shopLabel = $currentShop ?: 'your connected store';
 
-$currentPlan = $subscription?->plan;
+$statusValue = strtolower((string) ($subscription?->status ?? 'pending'));
+
+$hasActivePlan = $subscription
+&& in_array($statusValue, ['active', 'accepted', 'trialing'], true);
+
+$currentPlan = $hasActivePlan
+? $subscription->plan
+: null;
+
 $rawInterval = $subscription?->billing_interval ?? 'EVERY_30_DAYS';
 $selectedInterval = $rawInterval === 'ANNUAL' ? 12 : 1;
 
-$statusValue = strtolower((string) ($subscription?->status ?? 'pending'));
+<!-- $statusValue = strtolower((string) ($subscription?->status ?? 'pending')); -->
 $statusLabels = [
 'pending' => 'Pending approval',
 'active' => 'Active',
@@ -113,7 +121,8 @@ $subscriptionStatus = 'Trialing';
         justify-content: space-between;
     }
 
-    textarea , input[type="text"] {
+    textarea,
+    input[type="text"] {
         font-size: small !important;
     }
 
@@ -736,13 +745,13 @@ $subscriptionStatus = 'Trialing';
         $hasNoPlan = !$subscription || $subscription->plan_id == 0 || !in_array($statusValue, ['active', 'accepted']);
 
         if ($plan->is_trial) {
-            $buttonText = 'Claim Free Trial';
+        $buttonText = 'Claim Free Trial';
         } else {
-            $buttonText = 'Subscribe';
+        $buttonText = 'Subscribe';
         }
 
         if (!$hasNoPlan && $isCurrentPlan) {
-            $buttonText = 'Active';
+        $buttonText = 'Active';
         }
         @endphp
 
@@ -1130,19 +1139,19 @@ $subscriptionStatus = 'Trialing';
                     @endif
                 </form>
             </div>
-        </div>
-        @empty
-        <div class="saas-card p-4 text-center w-100">
-            <h2 class="saas-plan-name justify-content-center">No plans found</h2>
-            <p class="saas-plan-desc m-0">Run the latest migrations so the plans table can be created and populated.</p>
-        </div>
-        @endforelse
     </div>
+    @empty
+    <div class="saas-card p-4 text-center w-100">
+        <h2 class="saas-plan-name justify-content-center">No plans found</h2>
+        <p class="saas-plan-desc m-0">Run the latest migrations so the plans table can be created and populated.</p>
+    </div>
+    @endforelse
+</div>
 
-    {{-- Footnote --}}
-    <div class="saas-footnote mb-3">
-        <strong class="text-dark">Billing note:</strong> By subscribing, you agree to recurring charges based on the selected plan. Charges are processed securely through Shopify. Your subscription will automatically renew unless canceled before the billing cycle ends. You can manage or cancel your subscription anytime from your Shopify admin dashboard. No refunds will be issued for partial billing periods.
-    </div>
+{{-- Footnote --}}
+<div class="saas-footnote mb-3">
+    <strong class="text-dark">Billing note:</strong> By subscribing, you agree to recurring charges based on the selected plan. Charges are processed securely through Shopify. Your subscription will automatically renew unless canceled before the billing cycle ends. You can manage or cancel your subscription anytime from your Shopify admin dashboard. No refunds will be issued for partial billing periods.
+</div>
 
 </div>
 
@@ -1171,7 +1180,7 @@ $subscriptionStatus = 'Trialing';
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">  Full Name </label>
+                            <label class="form-label"> Full Name </label>
 
                             <input type="text" name="name" class="form-control"
                                 value="{{ old('name', $shop->shop_name ?? '') }}"
@@ -1179,24 +1188,24 @@ $subscriptionStatus = 'Trialing';
                         </div>
 
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">  Email Address </label>
+                            <label class="form-label"> Email Address </label>
 
-                            <input  type="email" name="email" class="form-control"
+                            <input type="email" name="email" class="form-control"
                                 value="{{ old('email', $shop->email ?? '') }}"
                                 required>
                         </div>
 
                         <div class="col-12 mb-3">
-                            <label class="form-label">  Subject </label>
-                            <input type="text"  name="subject" class="form-control"
+                            <label class="form-label"> Subject </label>
+                            <input type="text" name="subject" class="form-control"
                                 value="{{ old('subject') }}"
                                 placeholder="Example: Need higher product and sync limits"
                                 required>
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label">  Describe Your Requirements </label>
-                            <textarea  name="message" rows="5" class="form-control"
+                            <label class="form-label"> Describe Your Requirements </label>
+                            <textarea name="message" rows="5" class="form-control"
                                 placeholder="Describe your enterprise requirements, such as higher product limits, sync limits, mapping limits, dedicated support, custom integrations, or any other business requirements."
                                 required>{{ old('message') }}</textarea>
                         </div>
@@ -1205,9 +1214,9 @@ $subscriptionStatus = 'Trialing';
 
                 <div class="modal-footer">
                     <button type="button" class="saas-btn saas-btn-outline"
-                        data-bs-dismiss="modal">  Cancel </button>
+                        data-bs-dismiss="modal"> Cancel </button>
 
-                    <button  type="submit"  class="saas-btn saas-btn-primary">
+                    <button type="submit" class="saas-btn saas-btn-primary">
                         Send Request
                     </button>
 
