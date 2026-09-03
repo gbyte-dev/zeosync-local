@@ -251,7 +251,7 @@
                 <h5 class="mb-0"> Subscription Details</h5>
                 <div class="d-flex align-items-center gap-2 flex-nowrap">
 
-                    @if(!$customPlan)
+                    <!-- @if(!$customPlan)
                     <button
                         type="button"
                         class="btn btn-primary btn-sm text-nowrap"
@@ -259,7 +259,7 @@
                         data-bs-target="#customEnterpriseModal">
                         Add Custom Plan
                     </button>
-                    @endif
+                    @endif -->
 
                     @if($shop->subscription && $shop->subscription->status !== 'cancelled')
                     <form
