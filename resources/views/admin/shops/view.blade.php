@@ -341,7 +341,7 @@
             <div class="info-value">#{{ $shop->id }}</div>
         </div>
     </div> -->
-    @if($customPlan)
+    <!-- @if($customPlan)
 
     <h5 class="mt-3" style="padding-left: 8px; padding-right: 8px;">
         Custom Plan Overview
@@ -497,7 +497,7 @@
         </div>
     </div>
 
-    @endif
+    @endif -->
 </div>
 <!-- Add Plan to Shop Modal -->
 <div class="modal fade" id="addPlanToShopModal" tabindex="-1" aria-labelledby="addPlanToShopModalLabel" aria-hidden="true">
