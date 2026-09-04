@@ -629,14 +629,17 @@ $subscriptionStatus = 'Trialing';
         <div class="saas-hero-section">
             <div>
                 <span class="saas-kicker"><i class="bi bi-shop me-1"></i> Shopify Managed Billing</span>
+
                 <p class="saas-hero-copy">
-                    Plans still come from your local database for <strong>{{ $shopLabel }}</strong>,
-                    but checkout approval now happens through Shopify and the local record is synced from the live subscription state.
+                    Choose a subscription plan for <strong>{{ $shopLabel }}</strong>.
+                    Your selected plan will be billed securely through Shopify, with your subscription status
+                    automatically synchronized with your account.
                 </p>
+
                 <div class="saas-hero-pills">
-                    <span class="saas-pill">Plans from DB</span>
-                    <span class="saas-pill">Per-store subscription</span>
-                    <span class="saas-pill">Monthly or annual</span>
+                    <span class="saas-pill">Secure Shopify Billing</span>
+                    <span class="saas-pill">Per-store Subscription</span>
+                    <span class="saas-pill">Monthly or Annual Plans</span>
                 </div>
             </div>
 
@@ -644,8 +647,11 @@ $subscriptionStatus = 'Trialing';
             <div class="saas-banner saas-banner-warning mt-3 mb-0">
                 <i class="bi bi-exclamation-triangle-fill mt-1"></i>
                 <div>
-                    <strong>Important:</strong> Uninstalling this app will cancel your subscription immediately and no refund will be issued.
-                    <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">This policy follows Shopify billing rules.</div>
+                    <strong>Important:</strong> Uninstalling this app will immediately cancel your active subscription.
+                    Subscription charges are managed through Shopify according to Shopify's billing policies.
+                    <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">
+                        Please review your subscription before uninstalling the app.
+                    </div>
                 </div>
             </div>
             @endif
