@@ -1067,12 +1067,10 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             success: function(response) {
 
                 if (!response.success) {
-                    if (response.admin_notification_sent) {
-                        showToast(
-                            'AI is currently under maintenance. Please try again after some time.',
-                            'danger'
-                        );
-                    }
+                    showToast(
+                        'AI is currently under maintenance. Please try again after some time.',
+                        'danger'
+                    );
 
                     return;
                 }
@@ -1129,12 +1127,10 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             },
 
             error: function(xhr) {
-                if (xhr.responseJSON?.admin_notification_sent) {
-                    showToast(
-                        'AI is currently under maintenance. Please try again after some time.',
-                        'danger'
-                    );
-                }
+                showToast(
+                    'AI is currently under maintenance. Please try again after some time.',
+                    'danger'
+                );
             },
 
             complete: function() {
@@ -1235,9 +1231,10 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             success: function(response) {
 
                 if (!response.success) {
-
-                    showAiError(response.message ?? 'Unable to generate.');
-
+                    showToast(
+                        'AI is currently under maintenance. Please try again after some time.',
+                        'danger'
+                    );
                     return;
                 }
 
@@ -1270,12 +1267,10 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             },
 
             error: function(xhr) {
-
-                showAiError(
-                    xhr.responseJSON?.message ??
-                    'Something went wrong.'
+                showToast(
+                    'AI is currently under maintenance. Please try again after some time.',
+                    'danger'
                 );
-
             },
 
             complete: function() {
