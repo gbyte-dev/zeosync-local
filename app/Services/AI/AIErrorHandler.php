@@ -7,6 +7,11 @@ namespace App\Services\AI;
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
 use Illuminate\Support\Facades\Cache;
+use App\Models\AdminSetting;
+use App\Models\MailTemplate;
+use App\Models\NotificationSetting;
+use App\Services\EmailService;
+use App\Services\UserNotificationService;
 use Throwable;
 
 class AIErrorHandler
@@ -59,6 +64,8 @@ class AIErrorHandler
             $title,
             $message
         );
+
+        $this->createUserNotification($context);
 
         return [
             'success' => false,
@@ -237,6 +244,43 @@ class AIErrorHandler
         ];
     }
 
+    private function createUserNotification(array $context): void
+    {
+        try {
+            $shopId = $context['shop_id'] ?? null;
+
+            if (!$shopId) {
+                Log::warning('AI user notification skipped: shop ID missing');
+                return;
+            }
+
+            $cacheKey = 'ai_maintenance_notification_' . $shopId;
+
+            if (Cache::has($cacheKey)) {
+                return;
+            }
+
+            UserNotificationService::send(
+                $shopId,
+                'ai_maintenance',
+                'AI Temporarily Unavailable',
+                'AI is temporarily under maintenance. Please try again after 2 hours.'
+            );
+
+            Cache::put(
+                $cacheKey,
+                true,
+                now()->addHours(2)
+            );
+        } catch (Throwable $exception) {
+            Log::error('Failed to send AI user notification', [
+                'shop_id' => $shopId ?? null,
+                'exception' => get_class($exception),
+                'technical_message' => $exception->getMessage(),
+            ]);
+        }
+    }
+
     /**
      * Detect timeout/network exceptions without depending
      * on one specific HTTP client implementation.
@@ -270,11 +314,37 @@ class AIErrorHandler
                 return;
             }
 
+            // In-app notification
             NotificationService::send(
                 self::NOTIFICATION_KEY,
                 $title,
                 $message
             );
+
+            // Admin email
+            $adminEmail = \App\Models\AdminSetting::get('admin_email');
+
+            if ($adminEmail) {
+                $template = \App\Models\MailTemplate::active()
+                    ->where('slug', 'ai-error')
+                    ->first();
+
+                if ($template) {
+                    app(\App\Services\EmailService::class)
+                        ->sendDynamicEmailTo(
+                            $template,
+                            [
+                                'title' => $title,
+                                'message' => $message,
+                            ],
+                            $adminEmail
+                        );
+                } else {
+                    Log::warning('AI error mail template not found', [
+                        'template_slug' => 'ai-error',
+                    ]);
+                }
+            }
 
             Cache::put(
                 $cacheKey,

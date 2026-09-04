@@ -48,6 +48,22 @@ class UserNotificationService
             ]);
         }
 
+        if ($key === 'ai_maintenance') {
+
+            UserNotification::create([
+                'shop_id' => $shopId,
+                'notification_key' => $key,
+                'title' => $title,
+                'message' => $message,
+            ]);
+
+            Log::info('Mandatory AI maintenance notification created', [
+                'shop_id' => $shopId,
+            ]);
+
+            return;
+        }
+
         if (!$setting) {
             Log::warning('Notification setting not found', [
                 'key' => $key,
