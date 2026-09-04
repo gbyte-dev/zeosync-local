@@ -306,6 +306,7 @@ readonly class AIListingService
             'raw' => null,
             'usage' => null,
             'error' => $result['message'],
+            'admin_notification_sent' => $result['admin_notification_sent'] ?? false,
         ];
     }
 }
