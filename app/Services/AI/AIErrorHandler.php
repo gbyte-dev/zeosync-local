@@ -6,6 +6,7 @@ namespace App\Services\AI;
 
 use Illuminate\Support\Facades\Log;
 use App\Services\NotificationService;
+use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 class AIErrorHandler
@@ -54,8 +55,9 @@ class AIErrorHandler
          * human-readable information.
          */
         $this->createAdminNotification(
-            title: $title,
-            message: $message,
+            $category,
+            $title,
+            $message
         );
 
         return [
@@ -257,14 +259,27 @@ class AIErrorHandler
      * Create the admin in-app notification.
      */
     private function createAdminNotification(
+        string $category,
         string $title,
         string $message
     ): void {
         try {
+            $cacheKey = 'ai_error_notification_throttle_' . $category;
+
+            if (Cache::has($cacheKey)) {
+                return;
+            }
+
             NotificationService::send(
                 self::NOTIFICATION_KEY,
                 $title,
                 $message
+            );
+
+            Cache::put(
+                $cacheKey,
+                true,
+                now()->addHours(2)
             );
         } catch (Throwable $exception) {
             Log::error('Failed to send AI admin notification', [
@@ -273,7 +288,6 @@ class AIErrorHandler
             ]);
         }
     }
-
     /**
      * Prevent huge or sensitive provider responses from entering logs.
      *
