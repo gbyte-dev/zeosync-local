@@ -73,7 +73,13 @@ $groups = [
                                 <div class="mb-2">
 
                                     <label class="form-label small mb-1">
-                                        {{ ucfirst(str_replace('_',' ', $key)) }}  {{$key === 'openai_api_key' ? '<a href="https://aistudio.google.com/api-keys" target="_blank">Get API Key</a>' : ''}}
+                                        {{ ucfirst(str_replace('_', ' ', $key)) }}
+
+                                        @if($key === 'openai_api_key')
+                                        <a href="https://aistudio.google.com/api-keys" target="_blank">
+                                            Get API Key
+                                        </a>
+                                        @endif
                                     </label>
 
                                     @if($key === 'admin_email')
