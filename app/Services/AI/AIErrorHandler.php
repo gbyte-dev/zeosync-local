@@ -250,8 +250,7 @@ class AIErrorHandler
             $shopId = $context['shop_id'] ?? null;
 
             if (!$shopId) {
-                Log::warning('AI user notification skipped: shop ID missing');
-                return;
+                $shopId = request()->attributes->get('active_shop')?->id;
             }
 
             $cacheKey = 'ai_maintenance_notification_' . $shopId;
