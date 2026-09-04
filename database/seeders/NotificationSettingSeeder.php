@@ -50,6 +50,11 @@ class NotificationSettingSeeder extends Seeder
                 'title' => 'New Contact Enquiry',
                 'description' => 'Send a notification when a user submits a contact or enterprise enquiry.',
             ],
+            [
+                'notification_key' => 'ai_error',
+                'title' => 'AI Service Error',
+                'description' => 'Send a notification when an AI provider, configuration, quota, rate limit, authentication, or generation error occurs.',
+            ],
         ];
 
         foreach ($notifications as $item) {

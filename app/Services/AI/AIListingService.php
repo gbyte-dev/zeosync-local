@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use App\Services\AI\AIErrorHandler;
 use App\Services\AIConfigurationService;
 use Illuminate\Support\Facades\Cache;
 use JsonException;
@@ -99,16 +100,19 @@ readonly class AIListingService
                 'error'   => null,
             ];
         } catch (Throwable $e) {
-
             Log::error('AI Listing Generation Failed', [
-                'message'   => $e->getMessage(),
-                'raw_text'  => $rawText,
+                'message' => $e->getMessage(),
+                'raw_text' => $rawText,
                 'json_text' => $jsonText,
             ]);
 
             $duration = round((microtime(true) - $startTime) * 1000, 2);
 
-            return $this->handleFailure($e, $duration);
+            return $this->handleFailure($e, $duration, [
+                'provider' => $config['provider'] ?? null,
+                'model' => $config['model'] ?? null,
+                'feature' => 'ai_listing_generation',
+            ]);
         }
     }
 
@@ -269,31 +273,39 @@ readonly class AIListingService
     /**
      * Intercepts failures, logs critical non-sensitive metadata, and normalizes the return array.
      */
-    private function handleFailure(Throwable $e, float $duration): array
-    {
-        $errorType = 'General API Error';
+    private function handleFailure(
+        Throwable $e,
+        float $duration,
+        array $context = []
+    ): array {
+        $providerError = null;
+        $httpStatus = null;
 
-        if ($e instanceof ConnectionException) {
-            $errorType = 'Network Timeout/Connection Failure';
-        } elseif ($e instanceof RequestException) {
-            $errorType = 'HTTP Request Error (e.g. 4xx/5xx)';
-        } elseif ($e instanceof JsonException) {
-            $errorType = 'JSON Parsing Failure';
+        if ($e instanceof RequestException) {
+            $httpStatus = $e->response?->status();
+
+            $providerError = $e->response?->json();
+
+            if ($providerError === null) {
+                $providerError = $e->response?->body();
+            }
         }
 
-        Log::error('AI Listing Generation Failed', [
-            'type'        => $errorType,
-            'message'     => $e->getMessage(),
+        $errorHandler = app(AIErrorHandler::class);
+
+        $result = $errorHandler->handle($e, [
+            ...$context,
+            'http_status' => $httpStatus,
+            'provider_error' => $providerError,
             'duration_ms' => $duration,
-            'exception'   => get_class($e),
         ]);
 
         return [
             'success' => false,
             'content' => null,
-            'raw'     => null,
-            'usage'   => null,
-            'error'   => "[{$errorType}]: " . $e->getMessage(),
+            'raw' => null,
+            'usage' => null,
+            'error' => $result['message'],
         ];
     }
 }
