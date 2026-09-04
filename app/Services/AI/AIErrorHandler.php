@@ -59,13 +59,12 @@ class AIErrorHandler
          * Admin-facing notification contains only
          * human-readable information.
          */
-        $this->createAdminNotification(
+        $adminNotificationSent = $this->createAdminNotification(
             $category,
             $title,
             $message
         );
 
-        $this->createUserNotification($context);
 
         return [
             'success' => false,
@@ -73,6 +72,7 @@ class AIErrorHandler
             'title' => $title,
             'message' => $message,
             'trace_id' => $traceId,
+            'admin_notification_sent' => $adminNotificationSent,
         ];
     }
 
@@ -244,41 +244,6 @@ class AIErrorHandler
         ];
     }
 
-    private function createUserNotification(array $context): void
-    {
-        try {
-            $shopId = $context['shop_id'] ?? null;
-
-            if (!$shopId) {
-                $shopId = request()->attributes->get('active_shop')?->id;
-            }
-
-            $cacheKey = 'ai_maintenance_notification_' . $shopId;
-
-            if (Cache::has($cacheKey)) {
-                return;
-            }
-
-            UserNotificationService::send(
-                $shopId,
-                'ai_maintenance',
-                'AI Temporarily Unavailable',
-                'AI is temporarily under maintenance. Please try again after 2 hours.'
-            );
-
-            Cache::put(
-                $cacheKey,
-                true,
-                now()->addHours(2)
-            );
-        } catch (Throwable $exception) {
-            Log::error('Failed to send AI user notification', [
-                'shop_id' => $shopId ?? null,
-                'exception' => get_class($exception),
-                'technical_message' => $exception->getMessage(),
-            ]);
-        }
-    }
 
     /**
      * Detect timeout/network exceptions without depending
@@ -305,12 +270,12 @@ class AIErrorHandler
         string $category,
         string $title,
         string $message
-    ): void {
+    ): bool {
         try {
             $cacheKey = 'ai_error_notification_throttle_' . $category;
 
             if (Cache::has($cacheKey)) {
-                return;
+                return true;
             }
 
             // In-app notification
@@ -350,11 +315,15 @@ class AIErrorHandler
                 true,
                 now()->addHours(2)
             );
+
+            return true;
         } catch (Throwable $exception) {
             Log::error('Failed to send AI admin notification', [
                 'exception' => get_class($exception),
                 'technical_message' => $exception->getMessage(),
             ]);
+
+            return false;
         }
     }
     /**

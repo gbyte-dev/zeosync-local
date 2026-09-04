@@ -1067,10 +1067,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             success: function(response) {
 
                 if (!response.success) {
-
-                    $('#aiError')
-                        .removeClass('d-none')
-                        .text(response.message ?? 'AI generation failed.');
+                    if (response.admin_notification_sent) {
+                        showToast(
+                            'AI is currently under maintenance. Please try again after some time.',
+                            'danger'
+                        );
+                    }
 
                     return;
                 }
@@ -1127,14 +1129,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             },
 
             error: function(xhr) {
-
-                $('#aiError')
-                    .removeClass('d-none')
-                    .text(
-                        xhr.responseJSON?.message ??
-                        'Something went wrong while generating AI data.'
+                if (xhr.responseJSON?.admin_notification_sent) {
+                    showToast(
+                        'AI is currently under maintenance. Please try again after some time.',
+                        'danger'
                     );
-
+                }
             },
 
             complete: function() {
