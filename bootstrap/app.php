@@ -37,12 +37,16 @@ return Application::configure(basePath: dirname(__DIR__))
             'subscription.check'   => \App\Http\Middleware\CheckSubscription::class,
         ]);
 
+        // $middleware->validateCsrfTokens(except: [
+        //     'webhooks/*',
+        //     'shopify/webhooks/*',
+        //     'customers/data_request',
+        //     'customers/redact',
+        //     'shop/redact',
+        // ]);
+
         $middleware->validateCsrfTokens(except: [
-            'webhooks/*',
-            'shopify/webhooks/*',
-            'customers/data_request',
-            'customers/redact',
-            'shop/redact',
+            '*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
