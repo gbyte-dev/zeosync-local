@@ -2799,14 +2799,13 @@ class ShopifyController extends Controller
                             config('amazon.client_secret')
                         ),
                         refreshToken: $shop->amazon_refresh_token,
-                        endpoint: \SellingPartnerApi\Enums\Endpoint::NA_SANDBOX
+                        endpoint: \SellingPartnerApi\Enums\Endpoint::NA
                     );
 
                     $response = $connector->ordersV0()->getOrders(
-                        marketplaceIds: ['ATVPDKIKX0DER'],
-                        createdAfter: 'TEST_CASE_200'
+                        marketplaceIds: [$shop->amazon_marketplace_id],
+                        createdAfter: now()->subDays(30)->utc()->toIso8601String()
                     );
-
                     $data = json_decode($response->body(), true);
 
                     $orders = $data['payload']['Orders'] ?? [];
