@@ -237,9 +237,10 @@ class AmazonInventoryReportService
         Cache::forever(
             $statusCacheKey,
             [
-                'refreshing' => false,
+                'refreshing'     => false,
+                'sync_completed' => true,
                 'last_synced_at' => now()->toDateTimeString(),
-                'cache_version' => (int) ($currentStatus['cache_version'] ?? 0) + 1,
+                'cache_version'  => (int) ($currentStatus['cache_version'] ?? 0) + 1,
             ]
         );
 

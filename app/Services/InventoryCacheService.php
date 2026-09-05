@@ -34,19 +34,22 @@ class InventoryCacheService
     ): array {
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
 
-
         Log::info('getAmazonInventory START', [
             'shop_id' => $shop->id,
             'marketplace' => $marketplaceId,
         ]);
+
         $cacheKey = $this->getInventoryCacheKey($shop, $marketplaceId);
-        if (!Cache::has($cacheKey)) {
+        $status = $this->getStatus($shop, $marketplaceId);
+        $hasCache = Cache::has($cacheKey);
+        $syncCompleted = $status['sync_completed'] ?? false;
 
-            $status = $this->getStatus($shop, $marketplaceId);
-
+        // State 1: No usable cache, never synced, or previous sync invalid
+        if (!$hasCache || !$syncCompleted) {
             if (!($status['refreshing'] ?? false)) {
                 $this->updateStatus($shop, $marketplaceId, [
-                    'refreshing' => true,
+                    'refreshing'     => true,
+                    'sync_completed' => false,
                 ]);
 
                 Cache::put(
@@ -63,56 +66,23 @@ class InventoryCacheService
 
             return [
                 'products' => [],
-                'status' => $this->getStatus($shop, $marketplaceId),
+                'status'   => $this->getStatus($shop, $marketplaceId),
             ];
         }
 
+        // Cache exists and sync was completed successfully (State 2 or State 3)
         $inventory = Cache::get($cacheKey, []);
-
-        $status = $this->getStatus($shop, $marketplaceId);
 
         Log::info('Inventory cache loaded', [
             'count' => is_array($inventory) ? count($inventory) : 0,
             'status' => $status,
         ]);
 
-        /*
- * Cache key exists but contains no products.
- * Treat it as a cache miss if a sync is not currently running.
- */
-        if (empty($inventory) && !($status['refreshing'] ?? false)) {
-
-            $this->updateStatus($shop, $marketplaceId, [
-                'refreshing' => true,
-            ]);
-
-            Cache::put(
-                "amazon_progress_{$shop->shop}",
-                [
-                    'percent' => 0,
-                    'message' => 'Preparing...',
-                ],
-                now()->addMinutes(5)
-            );
-
-            SyncAmazonInventoryJob::dispatch($shop->id);
-
-            Log::info('Amazon inventory cache empty - background refresh dispatched', [
-                'shop_id' => $shop->id,
-                'marketplace_id' => $marketplaceId,
-            ]);
-
-            return [
-                'products' => [],
-                'status' => $this->getStatus($shop, $marketplaceId),
-            ];
-        }
-
         $expired = $this->isExpired($shop, $marketplaceId);
 
         Log::info('Cache expiry check', [
             'expired' => $expired,
-            'status' => $this->getStatus($shop, $marketplaceId),
+            'status'  => $status,
         ]);
 
         if ($expired) {
@@ -124,7 +94,7 @@ class InventoryCacheService
 
         Log::info('Returning response', [
             'products' => is_array($inventory) ? count($inventory) : 0,
-            'status' => $status,
+            'status'   => $status,
         ]);
 
         return [
@@ -174,6 +144,7 @@ class InventoryCacheService
 
             $this->updateStatus($shop, $marketplaceId, [
                 'refreshing'     => false,
+                'sync_completed' => true,
                 'last_synced_at' => now()->toDateTimeString(),
                 'cache_version'  => ($status['cache_version'] ?? 0) + 1,
             ]);
@@ -187,7 +158,8 @@ class InventoryCacheService
             ]);
 
             $this->updateStatus($shop, $marketplaceId, [
-                'refreshing' => false,
+                'refreshing'     => false,
+                'sync_completed' => false,
             ]);
 
             throw $exception;
@@ -245,11 +217,11 @@ class InventoryCacheService
     /**
      * Check whether cache is expired.
      */
-    public function isExpired(Shop $shop,  ?string $marketplaceId = null): bool
+    public function isExpired(Shop $shop, ?string $marketplaceId = null): bool
     {
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
         $status = $this->getStatus($shop, $marketplaceId);
-        if (empty($status['last_synced_at'])) {
+        if (empty($status['last_synced_at']) || !($status['sync_completed'] ?? false)) {
             return true;
         }
 
@@ -268,8 +240,9 @@ class InventoryCacheService
         return Cache::get(
             $this->getStatusCacheKey($shop, $marketplaceId),
             [
-                'refreshing' => false,
-                'cache_version' => 0,
+                'refreshing'     => false,
+                'sync_completed' => false,
+                'cache_version'  => 0,
                 'last_synced_at' => null,
             ]
         );

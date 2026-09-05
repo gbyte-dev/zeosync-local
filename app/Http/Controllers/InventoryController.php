@@ -206,7 +206,8 @@ class InventoryController extends ShopifyController
 
             $inventoryCacheService = app(InventoryCacheService::class);
             $inventoryCacheService->updateStatus($shop, $marketplaceId, [
-                'refreshing' => false,
+                'refreshing'     => false,
+                'sync_completed' => false,
                 'last_synced_at' => null,
             ]);
         }
