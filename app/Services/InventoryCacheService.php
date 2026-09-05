@@ -49,6 +49,15 @@ class InventoryCacheService
                     'refreshing' => true,
                 ]);
 
+                Cache::put(
+                    "amazon_progress_{$shop->shop}",
+                    [
+                        'percent' => 0,
+                        'message' => 'Preparing...',
+                    ],
+                    now()->addMinutes(5)
+                );
+
                 SyncAmazonInventoryJob::dispatch($shop->id);
             }
 
@@ -76,6 +85,15 @@ class InventoryCacheService
             $this->updateStatus($shop, $marketplaceId, [
                 'refreshing' => true,
             ]);
+
+            Cache::put(
+                "amazon_progress_{$shop->shop}",
+                [
+                    'percent' => 0,
+                    'message' => 'Preparing...',
+                ],
+                now()->addMinutes(5)
+            );
 
             SyncAmazonInventoryJob::dispatch($shop->id);
 
@@ -201,6 +219,19 @@ class InventoryCacheService
             Log::info('Refresh already in progress. Dispatch skipped.');
             return;
         };
+
+        $this->updateStatus($shop, $marketplaceId, [
+            'refreshing' => true,
+        ]);
+
+        Cache::put(
+            "amazon_progress_{$shop->shop}",
+            [
+                'percent' => 0,
+                'message' => 'Preparing...',
+            ],
+            now()->addMinutes(5)
+        );
 
         Log::info('Dispatching SyncAmazonInventoryJob', [
             'shop_id' => $shop->id,

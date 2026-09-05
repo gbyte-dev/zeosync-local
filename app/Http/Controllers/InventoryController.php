@@ -199,9 +199,16 @@ class InventoryController extends ShopifyController
             );
         } elseif ($type === 'amazon') {
 
-            $marketplaceId = 'ATVPDKIKX0DER';
+            $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
             Cache::forget("amazon_inventory_{$shop->id}_{$marketplaceId}");
+            Cache::forget("amazon_progress_{$shop->shop}");
+
+            $inventoryCacheService = app(InventoryCacheService::class);
+            $inventoryCacheService->updateStatus($shop, $marketplaceId, [
+                'refreshing' => false,
+                'last_synced_at' => null,
+            ]);
         }
 
         return response()->json([

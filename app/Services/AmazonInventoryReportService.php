@@ -225,8 +225,6 @@ class AmazonInventoryReportService
 
         $rows = $this->parseReport($content, $shop);
 
-        $this->updateProgress($shop, 100, 'Completed');
-
         $inventoryCacheKey = "amazon_inventory_{$shop->id}_{$marketplaceId}";
         $statusCacheKey = "amazon_inventory_status_{$shop->id}_{$marketplaceId}";
         $currentStatus = Cache::get($statusCacheKey, ['cache_version' => 0]);
@@ -244,6 +242,8 @@ class AmazonInventoryReportService
                 'cache_version' => (int) ($currentStatus['cache_version'] ?? 0) + 1,
             ]
         );
+
+        $this->updateProgress($shop, 100, 'Completed');
 
         Log::info('Amazon inventory cached', [
             'key' => $inventoryCacheKey,
