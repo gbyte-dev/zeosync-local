@@ -982,18 +982,20 @@
                 const items = Array.isArray(response.products) ?
                     response.products : [];
                 const isRefreshing = response.status?.refreshing === true;
+                const syncCompleted = response.status?.sync_completed === true;
 
                 // console.log('AMAZON LOAD RESULT:', {
                 //     count: items.length,
                 //     refreshing: isRefreshing,
+                //     syncCompleted: syncCompleted,
                 //     force: force
                 // });
 
                 /*
-                 * Server sync is still running.
+                 * Server sync is still running or pending completion.
                  * Do not treat empty response as final browser cache.
                  */
-                if (isRefreshing && items.length === 0) {
+                if ((isRefreshing || !syncCompleted) && items.length === 0) {
                     amazonProductsCache = null;
                     renderAmazonTable([], true);
                     showAmazonLoader();
