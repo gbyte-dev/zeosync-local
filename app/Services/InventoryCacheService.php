@@ -44,6 +44,19 @@ class InventoryCacheService
         $hasCache = Cache::has($cacheKey);
         $syncCompleted = $status['sync_completed'] ?? false;
 
+        Log::info('[AMAZON_DEBUG] Initial state calculated', [
+            'shop_id'        => $shop->id,
+            'shop_domain'    => $shop->shop,
+            'marketplace_id' => $marketplaceId,
+            'cache_key'      => $cacheKey,
+            'has_cache'      => $hasCache,
+            'sync_completed' => $syncCompleted,
+            'status'         => $status,
+            'cache_count'    => is_array(Cache::get($cacheKey, [])) ? count(Cache::get($cacheKey, [])) : 0,
+            'request_url'    => request()->fullUrl(),
+            'request_query'  => request()->all(),
+        ]);
+
         // State 1: No usable cache, never synced, or previous sync invalid
         if (!$hasCache || !$syncCompleted) {
             if (!($status['refreshing'] ?? false)) {
@@ -64,9 +77,19 @@ class InventoryCacheService
                 SyncAmazonInventoryJob::dispatch($shop->id);
             }
 
+            $finalStatus = $this->getStatus($shop, $marketplaceId);
+
+            Log::info('[AMAZON_DEBUG] Returning cache-miss/incomplete response', [
+                'products_count' => 0,
+                'status'         => $finalStatus,
+                'cache_key'      => $cacheKey,
+                'has_cache'      => $hasCache,
+                'sync_completed' => $syncCompleted,
+            ]);
+
             return [
                 'products' => [],
-                'status'   => $this->getStatus($shop, $marketplaceId),
+                'status'   => $finalStatus,
             ];
         }
 
@@ -92,9 +115,12 @@ class InventoryCacheService
 
         $status = $this->getStatus($shop, $marketplaceId);
 
-        Log::info('Returning response', [
-            'products' => is_array($inventory) ? count($inventory) : 0,
-            'status'   => $status,
+        Log::info('[AMAZON_DEBUG] Returning cache-hit response', [
+            'products_count' => is_array($inventory) ? count($inventory) : 0,
+            'status'         => $status,
+            'cache_key'      => $cacheKey,
+            'has_cache'      => $hasCache,
+            'sync_completed' => $syncCompleted,
         ]);
 
         return [
