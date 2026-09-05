@@ -628,19 +628,73 @@
             const amazonInventoryCacheExists = @json($amazonInventoryCacheExists ?? false);
 
             if (!amazonInventoryCacheExists) {
-                fetch("{{ route('shopify.inventory.amazon') }}", {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'application/json'
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('Amazon inventory fetch started:', data);
-                    })
-                    .catch(error => {
-                        console.error('Amazon inventory fetch failed:', error);
-                    });
+                const amazonInventoryBody = document.getElementById('amazonLowInventoryBody');
+
+                const loadAmazonInventory = () => {
+                    fetch("{{ route('shopify.inventory.amazon') }}", {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Amazon inventory response:', data);
+
+                            const products = data.products || [];
+                            const refreshing = data.status?.refreshing === true;
+
+                            // Cache is still being created
+                            if (refreshing) {
+                                setTimeout(loadAmazonInventory, 2000);
+                                return;
+                            }
+
+                            // Cache is ready
+                            const lowInventoryProducts = products
+                                .filter(product => Number(product.quantity) < 10)
+                                .sort((a, b) => Number(a.quantity) - Number(b.quantity))
+                                .slice(0, 7);
+
+                            if (!amazonInventoryBody) {
+                                return;
+                            }
+
+                            if (lowInventoryProducts.length === 0) {
+                                amazonInventoryBody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="text-center py-3">
+                            No low inventory products found.
+                        </td>
+                    </tr>
+                `;
+                                return;
+                            }
+
+                            amazonInventoryBody.innerHTML = lowInventoryProducts.map(product => `
+                <tr>
+                    <td>${product.title ?? '-'}</td>
+                    <td>${product.sku ?? '-'}</td>
+                    <td>${product.quantity ?? 0}</td>
+                </tr>
+            `).join('');
+                        })
+                        .catch(error => {
+                            console.error('Amazon inventory fetch failed:', error);
+
+                            if (amazonInventoryBody) {
+                                amazonInventoryBody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="text-center py-3 text-danger">
+                            Failed to load Amazon inventory.
+                        </td>
+                    </tr>
+                `;
+                            }
+                        });
+                };
+
+                loadAmazonInventory();
             }
             // --- 1. Dynamic Data Preparation ---
             // Orders Timeline Data
