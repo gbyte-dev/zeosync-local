@@ -493,12 +493,18 @@
                                 </tr>
                             </thead>
 
-                            <tbody>
+                            <tbody id="amazonLowInventoryBody">
 
-                                @forelse($amazonLowInventoryProducts as $product)
-
+                                @if(empty($amazonLowInventoryProducts))
+                                <tr id="amazonInventoryLoadingRow">
+                                    <td colspan="3" class="text-center py-3">
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        Loading Amazon inventory...
+                                    </td>
+                                </tr>
+                                @else
+                                @foreach($amazonLowInventoryProducts as $product)
                                 <tr>
-
                                     <td class="product-name" title="{{ $product['title'] }}">
                                         {{ $product['title'] }}
                                     </td>
@@ -508,36 +514,24 @@
                                     </td>
 
                                     <td class="text-end">
-
                                         @php
                                         $qty = $product['quantity'] ?? 0;
                                         @endphp
 
                                         <span class="saas-badge
-                                {{ $qty <= 3
-                                    ? 'saas-badge-danger'
-                                    : ($qty <= 7
-                                        ? 'saas-badge-warning'
-                                        : 'saas-badge-neutral') }}">
+                        {{ $qty <= 3
+                            ? 'saas-badge-danger'
+                            : ($qty <= 7
+                                ? 'saas-badge-warning'
+                                : 'saas-badge-neutral') }}">
                                             {{ $qty }}
                                         </span>
-
-                                    </td>
-
-                                </tr>
-
-                                @empty
-
-                                <tr>
-                                    <td colspan="3" class="text-center py-3">
-                                        No low inventory products found.
                                     </td>
                                 </tr>
-
-                                @endforelse
+                                @endforeach
+                                @endif
 
                             </tbody>
-
                         </table>
 
                     </div>
@@ -630,6 +624,24 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
+
+            const amazonInventoryCacheExists = @json($amazonInventoryCacheExists ?? false);
+
+            if (!amazonInventoryCacheExists) {
+                fetch("{{ route('shopify.inventory.amazon') }}", {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Amazon inventory fetch started:', data);
+                    })
+                    .catch(error => {
+                        console.error('Amazon inventory fetch failed:', error);
+                    });
+            }
             // --- 1. Dynamic Data Preparation ---
             // Orders Timeline Data
             const rawOrderData = @json($ordersTimeline ?? []);
