@@ -62,10 +62,14 @@ class DashboardController extends ShopifyController
 
         $shopId = $shop->id;
         $inventory = $this->shopifyInventoryService->getInventory($shop);
+
         $amazonInventory = [];
+        $amazonInventoryCacheExists = false;
 
         if (!empty($shop->amazon_marketplace_id)) {
             $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_marketplace_id}";
+
+            $amazonInventoryCacheExists = Cache::has($cacheKey);
             $amazonInventory = Cache::get($cacheKey, []);
         }
         $thirtyDaysAgo = \Carbon\Carbon::today()->subDays(30);
@@ -175,7 +179,6 @@ class DashboardController extends ShopifyController
             'lowInventoryProducts',
             'amazonLowInventoryProducts',
             'amazonInventoryCacheExists'
-            
         ));
     }
 
@@ -201,12 +204,9 @@ class DashboardController extends ShopifyController
         }
 
         $amazonInventory = [];
-        $amazonInventoryCacheExists = false;
 
         if (!empty($shop->amazon_marketplace_id)) {
             $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_marketplace_id}";
-
-            $amazonInventoryCacheExists = Cache::has($cacheKey);
             $amazonInventory = Cache::get($cacheKey, []);
         }
 
