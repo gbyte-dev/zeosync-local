@@ -205,6 +205,11 @@
         vertical-align: middle;
     }
 
+    .low-inventory-table {
+        table-layout: fixed;
+        width: 100%;
+    }
+
     .low-inventory-table .saas-badge {
         padding: 2px 8px;
         font-size: 10px;
@@ -215,6 +220,7 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        display: block;
     }
 
     .dashboard-header-card {
@@ -671,13 +677,26 @@
                                 return;
                             }
 
-                            amazonInventoryBody.innerHTML = lowInventoryProducts.map(product => `
+                            amazonInventoryBody.innerHTML = lowInventoryProducts.map(product => {
+                                const title = product.title ?? '-';
+                                const sku = product.sku ?? '-';
+                                const qty = Number(product.quantity ?? 0);
+                                const badgeClass = qty <= 3 ? 'saas-badge-danger' : (qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral');
+
+                                return `
                 <tr>
-                    <td>${product.title ?? '-'}</td>
-                    <td>${product.sku ?? '-'}</td>
-                    <td>${product.quantity ?? 0}</td>
+                    <td class="product-name" title="${title}">
+                        ${title}
+                    </td>
+                    <td>${sku}</td>
+                    <td class="text-end">
+                        <span class="saas-badge ${badgeClass}">
+                            ${qty}
+                        </span>
+                    </td>
                 </tr>
-            `).join('');
+            `;
+                            }).join('');
                         })
                         .catch(error => {
                             console.error('Amazon inventory fetch failed:', error);
