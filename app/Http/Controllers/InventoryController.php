@@ -68,7 +68,7 @@ class InventoryController extends ShopifyController
         app(AutoSkuMappingService::class)->handle(
             $shopModel,
             $data,
-            Cache::get("amazon_inventory_{$shopModel->id}_ATVPDKIKX0DER", [])
+            Cache::get("amazon_inventory_{$shopModel->id}_" . ($shopModel->amazon_marketplace_id ?: 'ATVPDKIKX0DER'), [])
         );
 
         return response()->json($data);
@@ -136,7 +136,7 @@ class InventoryController extends ShopifyController
             ? Shop::findOrFail($activeShop)
             : Shop::where('shop', $activeShop)->firstOrFail();
 
-        $marketplaceId = 'ATVPDKIKX0DER';
+        $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
         try {
 
@@ -150,12 +150,6 @@ class InventoryController extends ShopifyController
                 'shop_id' => $shop->id,
                 'result_count' => is_array($result) ? count($result) : null,
                 'result' => $result,
-            ]);
-
-            Cache::forget("amazon_inventory_{$shop->id}_{$marketplaceId}");
-
-            \Log::info('Amazon Inventory Cache Cleared', [
-                'cache_key' => "amazon_inventory_{$shop->id}_{$marketplaceId}",
             ]);
 
             return response()->json([

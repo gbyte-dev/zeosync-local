@@ -152,7 +152,7 @@ Route::get('/amazon/cache-clear', function () {
         ? Shop::findOrFail($activeShop)
         : Shop::where('shop', $activeShop)->firstOrFail();
 
-    $marketplaceId = 'ATVPDKIKX0DER';
+    $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
     $cacheKey = "amazon_inventory_{$shop->id}_{$marketplaceId}";
 
