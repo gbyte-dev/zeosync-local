@@ -77,11 +77,29 @@ class InventoryCacheService
                 SyncAmazonInventoryJob::dispatch($shop->id);
             }
 
-            $finalStatus = $this->getStatus($shop, $marketplaceId);
+            // Re-read cache and status after dispatch (handles synchronous queue workers)
+            $status = $this->getStatus($shop, $marketplaceId);
+            $hasCache = Cache::has($cacheKey);
+            $syncCompleted = $status['sync_completed'] ?? false;
+
+            if ($hasCache && $syncCompleted) {
+                $inventory = Cache::get($cacheKey, []);
+
+                Log::info('[AMAZON_DEBUG] Synchronous sync completed during request, returning cached products', [
+                    'products_count' => is_array($inventory) ? count($inventory) : 0,
+                    'status'         => $status,
+                    'cache_key'      => $cacheKey,
+                ]);
+
+                return [
+                    'products' => $inventory,
+                    'status'   => $status,
+                ];
+            }
 
             Log::info('[AMAZON_DEBUG] Returning cache-miss/incomplete response', [
                 'products_count' => 0,
-                'status'         => $finalStatus,
+                'status'         => $status,
                 'cache_key'      => $cacheKey,
                 'has_cache'      => $hasCache,
                 'sync_completed' => $syncCompleted,
@@ -89,7 +107,7 @@ class InventoryCacheService
 
             return [
                 'products' => [],
-                'status'   => $finalStatus,
+                'status'   => $status,
             ];
         }
 
