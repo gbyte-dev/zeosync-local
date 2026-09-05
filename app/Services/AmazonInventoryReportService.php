@@ -189,22 +189,18 @@ class AmazonInventoryReportService
      */
     public function syncInventory($shop, ?string $marketplaceId = null)
     {
-
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
 
         $this->updateProgress($shop, 0, 'Preparing...');
         $this->updateProgress($shop, 10, 'Creating Report...');
 
         $report = $this->createReport($shop, $marketplaceId);
-
         $reportId = $report['reportId'];
 
         $this->updateProgress($shop, 35, 'Waiting for Amazon...');
 
         do {
-
             sleep(5);
-
             $status = $this->getReport($shop, $reportId);
         } while (($status['processingStatus'] ?? '') !== 'DONE');
 
@@ -245,11 +241,6 @@ class AmazonInventoryReportService
         );
 
         $this->updateProgress($shop, 100, 'Completed');
-
-        Log::info('Amazon inventory cached', [
-            'key' => $inventoryCacheKey,
-            'count' => count($rows),
-        ]);
 
         return $rows;
     }

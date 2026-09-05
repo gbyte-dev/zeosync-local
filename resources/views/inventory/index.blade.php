@@ -978,18 +978,10 @@
                 shop: shop
             },
             success: function(response) {
-                // console.log('AMAZON RESPONSE:', response);
                 const items = Array.isArray(response.products) ?
                     response.products : [];
                 const isRefreshing = response.status?.refreshing === true;
                 const syncCompleted = response.status?.sync_completed === true;
-
-                // console.log('AMAZON LOAD RESULT:', {
-                //     count: items.length,
-                //     refreshing: isRefreshing,
-                //     syncCompleted: syncCompleted,
-                //     force: force
-                // });
 
                 /*
                  * Server sync is still running or pending completion.
@@ -1005,12 +997,6 @@
 
                 /* Final server result.  */
                 amazonProductsCache = items;
-
-                // console.log('AMAZON RENDER START:', {
-                //     count: items.length,
-                //     tabActive: $('#amazonTab').hasClass('active'),
-                //     tabVisible: $('#amazonTab').is(':visible')
-                // });
 
                 renderAmazonTable(items, false);
 

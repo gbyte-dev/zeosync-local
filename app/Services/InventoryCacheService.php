@@ -74,40 +74,14 @@ class InventoryCacheService
                     now()->addMinutes(5)
                 );
 
-                SyncAmazonInventoryJob::dispatch($shop->id);
+                SyncAmazonInventoryJob::dispatch($shop->id)->afterResponse();
             }
 
-            // Re-read cache and status after dispatch (handles synchronous queue workers)
-            $status = $this->getStatus($shop, $marketplaceId);
-            $hasCache = Cache::has($cacheKey);
-            $syncCompleted = $status['sync_completed'] ?? false;
-
-            if ($hasCache && $syncCompleted) {
-                $inventory = Cache::get($cacheKey, []);
-
-                Log::info('[AMAZON_DEBUG] Synchronous sync completed during request, returning cached products', [
-                    'products_count' => is_array($inventory) ? count($inventory) : 0,
-                    'status'         => $status,
-                    'cache_key'      => $cacheKey,
-                ]);
-
-                return [
-                    'products' => $inventory,
-                    'status'   => $status,
-                ];
-            }
-
-            Log::info('[AMAZON_DEBUG] Returning cache-miss/incomplete response', [
-                'products_count' => 0,
-                'status'         => $status,
-                'cache_key'      => $cacheKey,
-                'has_cache'      => $hasCache,
-                'sync_completed' => $syncCompleted,
-            ]);
+            $currentStatus = $this->getStatus($shop, $marketplaceId);
 
             return [
                 'products' => [],
-                'status'   => $status,
+                'status'   => $currentStatus,
             ];
         }
 
@@ -126,16 +100,30 @@ class InventoryCacheService
             'status'  => $status,
         ]);
 
-        if ($expired) {
-            Log::info('Calling dispatchRefresh');
-            $this->dispatchRefresh($shop, $marketplaceId);
+        if ($expired && !($status['refreshing'] ?? false)) {
+            Log::info('Triggering background Amazon refresh after response');
+
+            $this->updateStatus($shop, $marketplaceId, [
+                'refreshing' => true,
+            ]);
+
+            Cache::put(
+                "amazon_progress_{$shop->shop}",
+                [
+                    'percent' => 0,
+                    'message' => 'Preparing...',
+                ],
+                now()->addMinutes(5)
+            );
+
+            SyncAmazonInventoryJob::dispatch($shop->id)->afterResponse();
         }
 
-        $status = $this->getStatus($shop, $marketplaceId);
+        $currentStatus = $this->getStatus($shop, $marketplaceId);
 
         Log::info('[AMAZON_DEBUG] Returning cache-hit response', [
             'products_count' => is_array($inventory) ? count($inventory) : 0,
-            'status'         => $status,
+            'status'         => $currentStatus,
             'cache_key'      => $cacheKey,
             'has_cache'      => $hasCache,
             'sync_completed' => $syncCompleted,
@@ -143,7 +131,7 @@ class InventoryCacheService
 
         return [
             'products' => $inventory,
-            'status'   => $status,
+            'status'   => $currentStatus,
         ];
     }
 
