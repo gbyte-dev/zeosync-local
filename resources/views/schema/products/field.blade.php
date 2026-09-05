@@ -105,6 +105,9 @@ $showAiButton = $canUseAiSingleField
 && !$isImageField
 && !in_array($field['name'], $hiddenAiFields, true);
 $showImagePickerButton = $isImageField;
+$isGtinExemptionField = $field['name'] === 'supplier_declared_has_product_identifier_exemption';
+$isExternalProductIdField = $field['name'] === 'externally_assigned_product_identifier';
+$isMerchantAsinField = $field['name'] === 'merchant_suggested_asin';
 @endphp
 
 <style>
@@ -267,6 +270,13 @@ $showImagePickerButton = $isImageField;
             </div>
             @endif
 
+            @if($isExternalProductIdField || $isMerchantAsinField)
+            <div class="amazon-identifier-help mb-2">
+                <i class="bi bi-info-circle"></i>
+                <span class="identifier-help-text"></span>
+            </div>
+            @endif
+
             @switch($field['type'])
             @case('select')
             @include('schema.products.fields.select')
@@ -330,6 +340,34 @@ $showImagePickerButton = $isImageField;
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             let tooltip = null;
+            const gtinField = document.querySelector(
+                '[name="attributes[supplier_declared_has_product_identifier_exemption]"]'
+            );
+
+            const helpTexts = document.querySelectorAll('.identifier-help-text');
+
+            function updateIdentifierHelp() {
+                if (!gtinField || !helpTexts.length) {
+                    return;
+                }
+
+                const value = String(gtinField.value || '').toLowerCase();
+
+                helpTexts.forEach(function(helpText) {
+                    if (value === 'yes') {
+                        helpText.innerHTML =
+                            '<strong>Merchant Existing ASIN is required.</strong> Please provide the ASIN for this product.';
+                    } else {
+                        helpText.innerHTML =
+                            '<strong>External Product ID is required.</strong> Please provide the product barcode ID (EAN, UPC, or ISBN).';
+                    }
+                });
+            }
+
+            if (gtinField) {
+                gtinField.addEventListener('change', updateIdentifierHelp);
+                updateIdentifierHelp();
+            }
 
             document.querySelectorAll('.amazon-suggestion-text').forEach(function(element) {
 
