@@ -1269,6 +1269,9 @@ class ProductSchemaController extends Controller
     }
     public function map(array $attributes, string $sku = '', array $childSkus = []): array
     {
+        $hasVariations = !empty($childSkus) || !empty($attributes['variation_theme'][0]['name']);
+        $options = $hasVariations ? self::variants($attributes) : [];
+
         return [
             'title' => self::value($attributes, 'item_name'),
             'body' => self::value($attributes, 'product_description'),
@@ -1280,8 +1283,8 @@ class ProductSchemaController extends Controller
             'tags' => self::tags($attributes),
             'collections' => '',
             'images' => self::images($attributes),
-            'options' => self::variants($attributes),
-            'variants' => self::shopifyVariants($attributes, $childSkus),
+            'options' => $options,
+            'variants' => self::shopifyVariants($attributes, $childSkus, $options, $sku),
             'metafields' => self::metafields($attributes),
             'amazon' => [
                 'variation_theme' => $attributes['variation_theme'][0]['name'] ?? null,
@@ -1297,18 +1300,16 @@ class ProductSchemaController extends Controller
             ]
         ];
     }
-    private static function shopifyVariants(array $attributes, array $childSkus): array
+    private static function shopifyVariants(array $attributes, array $childSkus, array $options = [], string $mainSku = ''): array
     {
         // No children → single variant
         if (empty($childSkus)) {
-            $variant = [
-                'sku' => self::value($attributes, 'merchant_sku') ?: '',
-                'price' => self::price($attributes),
+            return [
+                [
+                    'sku' => $mainSku ?: (self::value($attributes, 'merchant_sku') ?: ''),
+                    'price' => self::price($attributes),
+                ]
             ];
-            foreach (self::variants($attributes) as $index => $option) {
-                $variant['option' . ($index + 1)] = $option['values'][0] ?? null;
-            }
-            return [$variant];
         }
         $variants = [];
         foreach ($childSkus as $sku) {
@@ -1316,7 +1317,7 @@ class ProductSchemaController extends Controller
                 'sku' => $sku,
                 'price' => self::price($attributes),
             ];
-            foreach (self::variants($attributes) as $index => $option) {
+            foreach ($options as $index => $option) {
                 $variant['option' . ($index + 1)] = $option['values'][0] ?? null;
             }
             $variants[] = $variant;
