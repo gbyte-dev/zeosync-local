@@ -83,19 +83,22 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 <div class="container-fluid">
     <div class="row">
         {{-- RIGHT CONTENT --}}
-        @if(session('errors_amazon'))
+        @php
+            $displayErrors = $visibleAmazonErrors ?? (session('errors_amazon') ?? []);
+        @endphp
+        @if(!empty($displayErrors) && count($displayErrors) > 0)
         <div class="alert alert-danger">
             <strong>Amazon Validation Errors: Please check all tabs</strong>
             <ul class="mb-0 mt-2">
-                @if(is_array(session('errors_amazon')))
-                @foreach(session('errors_amazon') as $error)
+                @if(is_array($displayErrors))
+                @foreach($displayErrors as $error)
                 <li>
                     <strong style="display:none">{{ implode(', ', $error['attributeNames'] ?? []) }} : </strong>
-                    {{ $error['message'] }}
+                    {{ is_array($error) ? ($error['message'] ?? '') : $error }}
                 </li>
                 @endforeach
                 @else
-                <li>{{ session('errors_amazon') }}</li>
+                <li>{{ $displayErrors }}</li>
                 @endif
             </ul>
         </div>

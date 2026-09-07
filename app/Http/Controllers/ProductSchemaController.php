@@ -324,7 +324,7 @@ class ProductSchemaController extends Controller
             $newValue = is_array($value) ? json_encode($value) : trim((string)$value);
 
             if ($newValue !== '' && $previousValue !== $newValue) {
-                $autofilledFields[] = $fieldName;
+                $autofilledFields[] = strtolower($fieldName);
             }
 
             if ($attribute) {
@@ -342,7 +342,8 @@ class ProductSchemaController extends Controller
             }
         }
 
-        $autofillCount = count(array_unique($autofilledFields));
+        $autofilledFields = array_unique($autofilledFields);
+        $autofillCount = count($autofilledFields);
         $schema = ProductSchema::findOrFail($productshow->schema_id);
         $fields = $schema->parsed_json;
         $tabs = [
@@ -482,9 +483,75 @@ class ProductSchemaController extends Controller
             ],
         ];
 
+        $isAttributeAutofilled = function(string $attr) use ($autofilledFields, $fieldAlias): bool {
+            $attr = strtolower($attr);
+            if (in_array($attr, $autofilledFields, true)) {
+                return true;
+            }
+            if (isset($fieldAlias[$attr])) {
+                foreach ($fieldAlias[$attr] as $alias) {
+                    if (in_array(strtolower($alias), $autofilledFields, true)) {
+                        return true;
+                    }
+                }
+            }
+            foreach ($fieldAlias as $mainField => $aliases) {
+                if (in_array($attr, array_map('strtolower', $aliases), true)) {
+                    if (in_array(strtolower($mainField), $autofilledFields, true)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
+        $visibleAmazonErrors = [];
+
         if (is_array($amazonErrors)) {
 
             foreach ($amazonErrors as $error) {
+
+                if (!is_array($error)) {
+                    $visibleAmazonErrors[] = $error;
+                    continue;
+                }
+
+                $attributeNames = array_map(
+                    'strtolower',
+                    $error['attributeNames'] ?? []
+                );
+
+                $rawPath = strtolower(trim((string)($error['path'] ?? '')));
+                $normalizedPath = preg_replace('#^/?(attributes[/.]?)?#i', '', $rawPath);
+
+                $isResolved = false;
+
+                if (!empty($attributeNames)) {
+                    $allMatch = true;
+                    foreach ($attributeNames as $attr) {
+                        if (!$isAttributeAutofilled($attr)) {
+                            $allMatch = false;
+                            break;
+                        }
+                    }
+                    if ($allMatch) {
+                        $isResolved = true;
+                    }
+                } elseif ($normalizedPath !== '') {
+                    if ($isAttributeAutofilled($normalizedPath)) {
+                        $isResolved = true;
+                    }
+                }
+
+                if (!$isResolved) {
+                    $visibleAmazonErrors[] = $error;
+                }
+            }
+        }
+
+        if (is_array($visibleAmazonErrors)) {
+
+            foreach ($visibleAmazonErrors as $error) {
 
                 if (!is_array($error)) {
                     continue;
@@ -496,7 +563,7 @@ class ProductSchemaController extends Controller
                     continue;
                 }
 
-                $path = strtolower($error['path'] ?? '');
+                $path = strtolower(preg_replace('#^/?(attributes[/.]?)?#i', '', trim((string)($error['path'] ?? ''))));
 
                 $attributeNames = array_map(
                     'strtolower',
@@ -524,7 +591,7 @@ class ProductSchemaController extends Controller
                             }
                         }
 
-                        if ( $matched || $path === $fieldName ) {
+                        if ( $matched || ($path !== '' && $path === $fieldName) ) {
                             $tabErrorFields[$tabName][$fieldName] = true;
                             break 2;
                         }
@@ -544,13 +611,15 @@ class ProductSchemaController extends Controller
 
         Log::info('AMAZON ERRORS DEBUG', [
             'errors' => session('errors_amazon'),
+            'visible_errors' => $visibleAmazonErrors,
+            'autofilled_fields' => $autofilledFields,
         ]);
 
         return view(
             'schema.products.create',
             compact( 'tabs', 'schema', 'fields',  'requiredFields', 'productshow',
                 'prodAttri', 'canUseAiAutoFill', 'canUseAiSingleField',
-                'tabErrorCounts', 'fieldSuggestions', 'autofillCount'  )
+                'tabErrorCounts', 'fieldSuggestions', 'autofillCount', 'visibleAmazonErrors'  )
             );
     }
 
