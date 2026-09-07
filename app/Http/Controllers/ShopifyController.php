@@ -1867,7 +1867,7 @@ class ShopifyController extends Controller
                 UserNotificationService::send(
                     $shopModel->id,
                     'inventory_stock_update',
-                    'Product Synced to Amazon',
+                    'Product Synced to Shopify',
                     sprintf(
                         '"%s" has been synced to Amazon successfully.',
                         $dbProduct->title ?? $request->title ?? 'Product'
