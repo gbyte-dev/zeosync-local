@@ -339,55 +339,13 @@
             notification.classList.add('notification-unread');
         });
 
-        function applyReadStateToUI() {
-            // Remove sidebar badge
-            const sidebarBadge = document.querySelector('.sidebar__badge');
-            if (sidebarBadge) {
-                sidebarBadge.remove();
-            }
-
-            // Remove topbar badge
-            const topbarBadge = document.getElementById('userUnreadBadge');
-            if (topbarBadge) {
-                topbarBadge.remove();
-            }
-
-            // Clear unread highlight and styling from notification list items
-            document.querySelectorAll('.notification-item').forEach(function(item) {
-                item.classList.remove('notification-unread');
-                item.setAttribute('data-is-read', '1');
-                item.dataset.isRead = '1';
-
-                const newBadge = item.querySelector('.saas-badge.bg-danger');
-                if (newBadge) {
-                    newBadge.remove();
-                }
-
-                const title = item.querySelector('.saas-notif-title');
-                if (title) {
-                    const bTitle = title.querySelector('b');
-                    if (bTitle) {
-                        title.textContent = bTitle.textContent.trim();
-                    }
-                }
-
-                const desc = item.querySelector('.saas-notif-desc');
-                if (desc) {
-                    const bDesc = desc.querySelector('b');
-                    if (bDesc) {
-                        desc.textContent = bDesc.textContent.trim();
-                    }
-                }
-            });
-        }
-
         if (unreadNotificationIds.length === 0) {
             return;
         }
 
         let markedAsRead = false;
 
-        function markViewedNotificationsAsRead(useBeacon = false) {
+        function markViewedNotificationsAsRead() {
             if (markedAsRead || unreadNotificationIds.length === 0) {
                 return;
             }
@@ -410,58 +368,35 @@
                 "{{ csrf_token() }}"
             );
 
-            if (useBeacon && navigator.sendBeacon) {
+            if (navigator.sendBeacon) {
                 navigator.sendBeacon(
                     "{{ route('user.notifications.markViewed') }}",
                     formData
                 );
-                return;
             }
-
-            fetch("{{ route('user.notifications.markViewed') }}", {
-                method: "POST",
-                headers: {
-                    "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                    "Accept": "application/json"
-                },
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    applyReadStateToUI();
-                }
-            })
-            .catch(err => {
-                console.error('Failed to mark notifications as viewed:', err);
-                markedAsRead = false;
-            });
         }
-
-        // Trigger mark as read immediately on page open
-        markViewedNotificationsAsRead(false);
 
         // Fallback handlers on page exit/navigation
         document.addEventListener('click', function(event) {
             const link = event.target.closest('a[href]');
 
             if (link) {
-                markViewedNotificationsAsRead(true);
+                markViewedNotificationsAsRead();
             }
         }, true);
 
         document.addEventListener('visibilitychange', function() {
             if (document.visibilityState === 'hidden') {
-                markViewedNotificationsAsRead(true);
+                markViewedNotificationsAsRead();
             }
         });
 
         window.addEventListener('pagehide', function() {
-            markViewedNotificationsAsRead(true);
+            markViewedNotificationsAsRead();
         });
 
         window.addEventListener('beforeunload', function() {
-            markViewedNotificationsAsRead(true);
+            markViewedNotificationsAsRead();
         });
 
     });

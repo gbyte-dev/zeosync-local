@@ -61,19 +61,29 @@ class NotificationController extends Controller
 
         $shopModel = \App\Models\Shop::where('shop', $shop)->first();
         $shopId = $shopModel?->id;
-        $notificationIds = $request->input('notification_ids', []);
-        
-        // $updated = UserNotification::where('shop_id', $shopModel->id)
-        //     ->whereIn('id', $notificationIds)
-        //     ->where('is_read', 0)
-        //     ->update([
-        //         'is_read' => 1,
-        //         'read_at' => now(),
-        //     ]);
 
         $latestNotifications = UserNotification::where('shop_id', $shopId)
             ->latest()
             ->paginate(10);
+
+        if ($shopId && $latestNotifications->isNotEmpty()) {
+            $unreadIds = $latestNotifications->where('is_read', 0)->pluck('id');
+
+            if ($unreadIds->isNotEmpty()) {
+                UserNotification::where('shop_id', $shopId)
+                    ->whereIn('id', $unreadIds)
+                    ->where('is_read', 0)
+                    ->update([
+                        'is_read' => 1,
+                        'read_at' => now(),
+                    ]);
+
+                $latestNotifications->each(function ($item) {
+                    $item->is_read = 1;
+                    $item->read_at = now();
+                });
+            }
+        }
 
         $totalNotifications = UserNotification::where('shop_id', $shopId)->count();
         $emailEnabled = UserNotificationSetting::where('mail_enabled', 1)->count();
