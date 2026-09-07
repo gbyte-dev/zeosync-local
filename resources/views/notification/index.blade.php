@@ -234,7 +234,7 @@
             <div class="col-6 col-md-6 text-end" style="display: flex; justify-content: flex-end; align-items: center; gap: 12px;">
                 <form id="notificationForm" action="{{ route('user.notification.markAllRead') }}?shop={{ $request->shop ?? session('active_shop') }}" method="POST">
                     @csrf
-                    <button type="button" id="saveChangesBtn" class="btn btn-link btn-sm">
+                    <button type="submit" id="saveChangesBtn" class="btn btn-link btn-sm">
                         Mark All as Read
                     </button>
                 </form>
@@ -327,12 +327,6 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
 
-        const notificationBadge = document.querySelector('.sidebar__badge');
-
-        if (notificationBadge) {
-            notificationBadge.remove();
-        }
-
         const unreadNotificationIds = [];
 
         document.querySelectorAll('.notification-item[data-is-read="0"]').forEach(function(notification) {
@@ -345,13 +339,55 @@
             notification.classList.add('notification-unread');
         });
 
+        function applyReadStateToUI() {
+            // Remove sidebar badge
+            const sidebarBadge = document.querySelector('.sidebar__badge');
+            if (sidebarBadge) {
+                sidebarBadge.remove();
+            }
+
+            // Remove topbar badge
+            const topbarBadge = document.getElementById('userUnreadBadge');
+            if (topbarBadge) {
+                topbarBadge.remove();
+            }
+
+            // Clear unread highlight and styling from notification list items
+            document.querySelectorAll('.notification-item').forEach(function(item) {
+                item.classList.remove('notification-unread');
+                item.setAttribute('data-is-read', '1');
+                item.dataset.isRead = '1';
+
+                const newBadge = item.querySelector('.saas-badge.bg-danger');
+                if (newBadge) {
+                    newBadge.remove();
+                }
+
+                const title = item.querySelector('.saas-notif-title');
+                if (title) {
+                    const bTitle = title.querySelector('b');
+                    if (bTitle) {
+                        title.textContent = bTitle.textContent.trim();
+                    }
+                }
+
+                const desc = item.querySelector('.saas-notif-desc');
+                if (desc) {
+                    const bDesc = desc.querySelector('b');
+                    if (bDesc) {
+                        desc.textContent = bDesc.textContent.trim();
+                    }
+                }
+            });
+        }
+
         if (unreadNotificationIds.length === 0) {
             return;
         }
 
         let markedAsRead = false;
 
-        function markViewedNotificationsAsRead() {
+        function markViewedNotificationsAsRead(useBeacon = false) {
             if (markedAsRead || unreadNotificationIds.length === 0) {
                 return;
             }
@@ -374,32 +410,58 @@
                 "{{ csrf_token() }}"
             );
 
-            navigator.sendBeacon(
-                "{{ route('user.notifications.markViewed') }}",
-                formData
-            );
+            if (useBeacon && navigator.sendBeacon) {
+                navigator.sendBeacon(
+                    "{{ route('user.notifications.markViewed') }}",
+                    formData
+                );
+                return;
+            }
+
+            fetch("{{ route('user.notifications.markViewed') }}", {
+                method: "POST",
+                headers: {
+                    "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                    "Accept": "application/json"
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    applyReadStateToUI();
+                }
+            })
+            .catch(err => {
+                console.error('Failed to mark notifications as viewed:', err);
+                markedAsRead = false;
+            });
         }
 
+        // Trigger mark as read immediately on page open
+        markViewedNotificationsAsRead(false);
+
+        // Fallback handlers on page exit/navigation
         document.addEventListener('click', function(event) {
             const link = event.target.closest('a[href]');
 
             if (link) {
-                markViewedNotificationsAsRead();
+                markViewedNotificationsAsRead(true);
             }
         }, true);
 
         document.addEventListener('visibilitychange', function() {
             if (document.visibilityState === 'hidden') {
-                markViewedNotificationsAsRead();
+                markViewedNotificationsAsRead(true);
             }
         });
 
         window.addEventListener('pagehide', function() {
-            markViewedNotificationsAsRead();
+            markViewedNotificationsAsRead(true);
         });
 
         window.addEventListener('beforeunload', function() {
-            markViewedNotificationsAsRead();
+            markViewedNotificationsAsRead(true);
         });
 
     });
