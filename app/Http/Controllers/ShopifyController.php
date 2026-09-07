@@ -1863,6 +1863,17 @@ class ShopifyController extends Controller
             if ($syncid) {
                 $updatesync = new \App\Http\Controllers\ProductSchemaController();
                 $updatesync->updateSyncShopify($syncid, $updatedResponse);
+
+                UserNotificationService::send(
+                    $shopModel->id,
+                    'inventory_stock_update',
+                    'Product Synced to Amazon',
+                    sprintf(
+                        '%s - "%s" has been synced to Amazon successfully.',
+                        $shopModel->shop,
+                        $dbProduct->title ?? $request->title ?? 'Product'
+                    )
+                );
             }
 
             // 🔹 Save Amazon Data
