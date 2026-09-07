@@ -132,7 +132,8 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                     <button
                                         type="button"
                                         id="aiAutofillBtn"
-                                        class="btn btn-primary">
+                                        class="btn btn-primary text-nowrap"
+                                        style="white-space: nowrap;">
                                         <i class="fas fa-magic me-2"></i>
                                         Auto Fill
                                     </button>
@@ -149,13 +150,15 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                     <button
                                         id="prevTabBtn"
                                         type="button"
-                                        class="btn btn-outline-secondary d-none">
+                                        class="btn btn-outline-secondary d-none text-nowrap"
+                                        style="white-space: nowrap;">
                                         <i class="fas fa-arrow-left me-1"></i>
                                         Previous
                                     </button>
 
                                     <button
-                                        class="btn btn-outline-secondary"
+                                        class="btn btn-outline-secondary text-nowrap"
+                                        style="white-space: nowrap;"
                                         type="submit"
                                         name="save_draft"
                                         value="true">
@@ -165,7 +168,8 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                     <button
                                         id="nextTabBtn"
                                         type="button"
-                                        class="btn btn-primary">
+                                        class="btn btn-primary text-nowrap"
+                                        style="white-space: nowrap;">
                                         Next
                                         <i class="fas fa-arrow-right ms-1"></i>
                                     </button>
