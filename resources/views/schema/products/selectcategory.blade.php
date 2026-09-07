@@ -202,7 +202,7 @@
 
     <!-- Form Container -->
     <div class="sp-card">
-        <form action="{{ route('user.addProductCategory', [
+        <form id="selectCategoryForm" action="{{ route('user.addProductCategory', [
     'shop' => $activeShop
 ]) }}" method="POST">
             @csrf
@@ -233,7 +233,7 @@
                     <i class="bi bi-arrow-left"></i> Back
                 </a>
 
-                <button type="submit" class="sp-btn sp-btn-primary">
+                <button type="submit" id="continueBtn" class="sp-btn sp-btn-primary">
                     Continue <i class="bi bi-arrow-right"></i>
                 </button>
             </div>
@@ -255,11 +255,55 @@
 
 <script>
     $(document).ready(function() {
-        $('#category_id').select2({
+        const $select = $('#category_id');
+        const $form = $('#selectCategoryForm');
+        const $btn = $('#continueBtn');
+        const originalBtnHtml = $btn.html();
+        let isSubmitting = false;
+
+        $select.select2({
             theme: 'bootstrap-5',
             width: '100%',
             placeholder: 'Search and select a category...',
             allowClear: true
+        });
+
+        function resetButton() {
+            isSubmitting = false;
+            $btn.prop('disabled', false).removeClass('disabled').css('pointer-events', '').html(originalBtnHtml);
+        }
+
+        $form.on('submit', function(e) {
+            if (!$select.val()) {
+                e.preventDefault();
+                $select.select2('open');
+                resetButton();
+                return false;
+            }
+
+            if (isSubmitting) {
+                e.preventDefault();
+                return false;
+            }
+
+            isSubmitting = true;
+            $btn.addClass('disabled').css('pointer-events', 'none').html(
+                '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 13px; height: 13px; border-width: 2px;"></span> Loading Form...'
+            );
+
+            setTimeout(function() {
+                $btn.prop('disabled', true);
+            }, 0);
+        });
+
+        $select.on('change', function() {
+            if ($(this).val()) {
+                resetButton();
+            }
+        });
+
+        window.addEventListener('pageshow', function(event) {
+            resetButton();
         });
     });
 </script>
