@@ -131,9 +131,6 @@ $showAiButton = $canUseAiSingleField
 && !$isImageField
 && !in_array($field['name'], $hiddenAiFields, true);
 $showImagePickerButton = $isImageField;
-$isGtinExemptionField = $field['name'] === 'supplier_declared_has_product_identifier_exemption';
-$isExternalProductIdField = $field['name'] === 'externally_assigned_product_identifier';
-$isMerchantAsinField = $field['name'] === 'merchant_suggested_asin';
 
 $commonRequiredFields = [
     'title_differentiation',
@@ -327,26 +324,6 @@ $showAsterisk = !empty($field['required'])
             </div>
             @endif
 
-            @if($isExternalProductIdField)
-            <div class="amazon-identifier-help mb-2">
-                <i class="bi bi-info-circle"></i>
-                <span class="identifier-help-text external-product-id-help">
-                    <strong>External Product ID is required.</strong>
-                    Please provide the product barcode ID (EAN, UPC, or ISBN).
-                </span>
-            </div>
-            @endif
-
-            @if($isMerchantAsinField)
-            <div class="amazon-identifier-help mb-2">
-                <i class="bi bi-info-circle"></i>
-                <span class="identifier-help-text merchant-asin-help">
-                    <strong>Merchant Existing ASIN is required.</strong>
-                    Please provide the ASIN for this product.
-                </span>
-            </div>
-            @endif
-
             @switch($field['type'])
             @case('select')
             @include('schema.products.fields.select')
@@ -410,46 +387,6 @@ $showAsterisk = !empty($field['required'])
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             let tooltip = null;
-            const gtinField = document.querySelector(
-                '[name="attributes[supplier_declared_has_product_identifier_exemption]"]'
-            );
-
-            const externalProductIdField = document.querySelector(
-                '[name="attributes[externally_assigned_product_identifier]"]'
-            );
-
-            const merchantAsinField = document.querySelector(
-                '[name="attributes[merchant_suggested_asin]"]'
-            );
-
-            function updateAmazonIdentifierFields() {
-                if (!gtinField) {
-                    return;
-                }
-
-                const value = String(gtinField.value || '').toLowerCase();
-
-                const externalProductIdContainer =
-                    externalProductIdField?.closest('.card-body');
-
-                const merchantAsinContainer =
-                    merchantAsinField?.closest('.card-body');
-
-                if (value === 'yes' || value === 'true' || value === '1') {
-                    // GTIN exemption = YES
-                    externalProductIdContainer?.style.setProperty('display', 'none');
-                    merchantAsinContainer?.style.removeProperty('display');
-                } else {
-                    // GTIN exemption = NO
-                    externalProductIdContainer?.style.removeProperty('display');
-                    merchantAsinContainer?.style.setProperty('display', 'none');
-                }
-            }
-
-            if (gtinField) {
-                gtinField.addEventListener('change', updateAmazonIdentifierFields);
-                updateAmazonIdentifierFields();
-            }
 
             document.querySelectorAll('.amazon-suggestion-text').forEach(function(element) {
 
