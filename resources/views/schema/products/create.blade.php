@@ -172,7 +172,8 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
                                     <button
                                         id="syncAmazonBtn"
-                                        class="btn btn-success d-none"
+                                        class="btn btn-success d-none text-nowrap"
+                                        style="white-space: nowrap;"
                                         type="submit"
                                         name="sync_amazon"
                                         value="true"
@@ -903,7 +904,22 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             );
     }
 
+    const $syncAmazonBtn = $('#syncAmazonBtn');
+    let isSyncSubmitting = false;
+
+    function resetSyncButton() {
+        isSyncSubmitting = false;
+        $syncAmazonBtn
+            .removeClass('disabled')
+            .css('pointer-events', '')
+            .html('<i class="fab fa-amazon me-2"></i> Sync to Amazon');
+        validateRequiredFields();
+    }
+
     function validateRequiredFields() {
+        if (isSyncSubmitting) {
+            return;
+        }
 
         let allFilled = true;
 
@@ -937,10 +953,34 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
         });
 
-        $('#syncAmazonBtn').prop('disabled', !allFilled);
+        $syncAmazonBtn.prop('disabled', !allFilled);
     }
     updateProgress();
     validateRequiredFields();
+
+    $syncAmazonBtn.on('click', function(e) {
+        if ($syncAmazonBtn.prop('disabled') || isSyncSubmitting) {
+            e.preventDefault();
+            return false;
+        }
+
+        isSyncSubmitting = true;
+        $syncAmazonBtn
+            .addClass('disabled')
+            .css('pointer-events', 'none')
+            .html(
+                '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="width: 13px; height: 13px; border-width: 2px;"></span> Syncing...'
+            );
+
+        setTimeout(function() {
+            $syncAmazonBtn.prop('disabled', true);
+        }, 0);
+    });
+
+    window.addEventListener('pageshow', function(event) {
+        resetSyncButton();
+    });
+
     $(document).on(
         'input change',
         'input, textarea, select',
