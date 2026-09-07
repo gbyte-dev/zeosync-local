@@ -108,6 +108,34 @@ $showImagePickerButton = $isImageField;
 $isGtinExemptionField = $field['name'] === 'supplier_declared_has_product_identifier_exemption';
 $isExternalProductIdField = $field['name'] === 'externally_assigned_product_identifier';
 $isMerchantAsinField = $field['name'] === 'merchant_suggested_asin';
+
+$commonRequiredFields = [
+    'title_differentiation',
+    'brand',
+    'model_number',
+    'product_description',
+    'bullet_point',
+    'generic_keyword',
+    'number_of_items',
+    'item_package_quantity',
+    'part_number',
+    'model_name',
+    'manufacturer',
+    'color',
+    'size',
+    'pattern',
+    'item_weight',
+    'item_package_weight',
+    'condition_note',
+    'max_order_quantity',
+    'unit_count',
+    'warranty_description',
+    'item_package_dimensions',
+    'item_dimensions',
+];
+
+$showAsterisk = !empty($field['required'])
+    || in_array($field['name'], $commonRequiredFields, true);
 @endphp
 
 <style>
@@ -192,7 +220,7 @@ $isMerchantAsinField = $field['name'] === 'merchant_suggested_asin';
 
                     <label class="form-label mb-0 small">
                         {{ $field['title'] }}
-                        @if($field['required'])
+                        @if($showAsterisk)
                         <span class="text-danger">*</span>
                         @endif
                     </label>
