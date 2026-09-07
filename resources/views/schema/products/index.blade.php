@@ -88,6 +88,13 @@
         color: #DC2626;
     }
 
+    .sp-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+
     .sp-btn {
         display: inline-flex;
         align-items: center;
@@ -544,9 +551,9 @@
                                     <i class="bi bi-pencil"></i>
                                     <span class="d-none d-md-inline">View</span>
                                 </button>
-                                <form method="POST" action="{{ route('user.product.removeDraft', ['product' => $product->id,'shop' => request('shop')]) }}">
+                                <form method="POST" action="{{ route('user.product.removeDraft', ['product' => $product->id,'shop' => request('shop')]) }}" class="d-inline m-0" style="display: inline-flex; margin: 0;">
                                     @csrf
-                                    <button type="submit" class="sp-btn sp-btn-sm sp-btn-danger " title="Remove Draft"
+                                    <button type="submit" class="sp-btn sp-btn-sm sp-btn-danger" title="Remove Draft"
                                         data-id="{{ $product->id }}"
                                         data-route="{{ route('user.product.removeDraft', ['product' => $product->id,'shop' => request('shop')]) }}">
                                         <i class="bi bi-trash"></i>
