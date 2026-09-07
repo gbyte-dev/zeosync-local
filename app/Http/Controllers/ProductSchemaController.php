@@ -315,10 +315,17 @@ class ProductSchemaController extends Controller
         $prodAttri = ProductAttribute::where('product_id', $productid)->get();
         $amazonDbAutofill = session('amazon_db_autofill', []);
         $fieldSuggestions = [];
+        $autofilledFields = [];
 
         foreach ($amazonDbAutofill as $fieldName => $value) {
 
             $attribute = $prodAttri->firstWhere('attribute_name', $fieldName);
+            $previousValue = $attribute ? trim((string)$attribute->attribute_value) : '';
+            $newValue = is_array($value) ? json_encode($value) : trim((string)$value);
+
+            if ($newValue !== '' && $previousValue !== $newValue) {
+                $autofilledFields[] = $fieldName;
+            }
 
             if ($attribute) {
                 // Replace existing value because this field had an Amazon error.
@@ -334,6 +341,8 @@ class ProductSchemaController extends Controller
                 );
             }
         }
+
+        $autofillCount = count(array_unique($autofilledFields));
         $schema = ProductSchema::findOrFail($productshow->schema_id);
         $fields = $schema->parsed_json;
         $tabs = [
@@ -541,7 +550,7 @@ class ProductSchemaController extends Controller
             'schema.products.create',
             compact( 'tabs', 'schema', 'fields',  'requiredFields', 'productshow',
                 'prodAttri', 'canUseAiAutoFill', 'canUseAiSingleField',
-                'tabErrorCounts', 'fieldSuggestions'  )
+                'tabErrorCounts', 'fieldSuggestions', 'autofillCount'  )
             );
     }
 

@@ -100,6 +100,11 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             </ul>
         </div>
         @endif
+        @if(!empty($autofillCount) && $autofillCount > 0)
+        <div class="alert alert-info">
+            {{ $autofillCount === 1 ? '1 field with errors was automatically filled with available information.' : $autofillCount . ' fields with errors were automatically filled with available information.' }}
+        </div>
+        @endif
         <div class="col-md-12">
             @if(isset($productshow->id) && ($productshow->status == 'draft' ))
             <form action="{{ route('admin.product.edit.post', [
