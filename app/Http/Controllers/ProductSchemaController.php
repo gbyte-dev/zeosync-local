@@ -1269,7 +1269,7 @@ class ProductSchemaController extends Controller
     }
     public function map(array $attributes, string $sku = '', array $childSkus = []): array
     {
-        $hasVariations = !empty($childSkus) || !empty($attributes['variation_theme'][0]['name']);
+        $hasVariations = !empty($childSkus);
         $options = $hasVariations ? self::variants($attributes) : [];
 
         return [
