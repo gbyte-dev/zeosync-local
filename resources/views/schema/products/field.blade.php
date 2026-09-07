@@ -28,27 +28,51 @@ return;
 $idreq = '';
 $php_errormsg = '';
 
+$fieldName = strtolower($field['name'] ?? '');
+
+$fieldAlias = [
+    'externally_assigned_product_identifier' => [
+        'external_product_id',
+        'external_product_identifier'
+    ],
+    'external_product_id' => [
+        'externally_assigned_product_identifier',
+        'external_product_identifier'
+    ],
+    'external_product_identifier' => [
+        'externally_assigned_product_identifier',
+        'external_product_id'
+    ],
+    'material' => [
+        'fabric_type'
+    ],
+    'fabric_type' => [
+        'material'
+    ],
+    'apparel_size_class' => [
+        'apparel_size'
+    ],
+    'apparel_size' => [
+        'apparel_size_class'
+    ],
+];
+
+$aliases = $fieldAlias[$fieldName] ?? [];
+
+$autofilledFieldsList = isset($autofilledFields) && is_array($autofilledFields)
+    ? array_map('strtolower', $autofilledFields)
+    : [];
+
+$isAutofilled = !empty($autofilledFieldsList) && (
+    in_array($fieldName, $autofilledFieldsList, true) ||
+    !empty(array_intersect($aliases, $autofilledFieldsList))
+);
+
 if (session('errors_amazon')) {
 
 $errors = session('errors_amazon');
 
 if (is_array($errors)) {
-$fieldName = strtolower($field['name'] ?? '');
-
-$fieldAlias = [
-'externally_assigned_product_identifier' => [
-'external_product_id',
-'external_product_identifier'
-],
-
-'material' => [
-'fabric_type'
-],
-
-'apparel_size_class' => [
-'apparel_size'
-],
-];
 
 foreach ($errors as $error) {
 
@@ -57,7 +81,6 @@ if (is_array($error)) {
 $message = strtolower($error['message'] ?? '');
 $path = strtolower($error['path'] ?? '');
 $attributeNames = array_map('strtolower', $error['attributeNames'] ?? [] );
-$aliases = $fieldAlias[$fieldName] ?? [];
 $matched = false;
 
 foreach ($attributeNames as $attribute) {
@@ -222,6 +245,9 @@ $showAsterisk = !empty($field['required'])
                         {{ $field['title'] }}
                         @if($showAsterisk)
                         <span class="text-danger">*</span>
+                        @endif
+                        @if(!empty($isAutofilled) && $isAutofilled && empty($php_errormsg))
+                        <span class="badge bg-info-subtle text-info-emphasis ms-1" style="font-size: 10px; font-weight: 600; background-color: #e0f2fe !important; color: #0284c7 !important; border: 1px solid #bae6fd !important; vertical-align: middle;">Auto-filled</span>
                         @endif
                     </label>
 

@@ -207,6 +207,9 @@ $batterydata = [ 'cell' => 'Lithium-Ion',  'weight' => '50g', 'capacity' => '500
         @if(!empty($php_errormsg))
             border:3px solid #dc3545 !important;
             background:#fff0f0 !important;
+        @elseif(!empty($isAutofilled) && $isAutofilled)
+            border:2px solid #0dcaf0 !important;
+            background:#f0f9ff !important;
         @else
             border:1px solid #aaaaeb !important;
         @endif
@@ -230,6 +233,9 @@ $batterydata = [ 'cell' => 'Lithium-Ion',  'weight' => '50g', 'capacity' => '500
         @if(!empty($php_errormsg))
             border:3px solid #dc3545 !important;
             background:#fff0f0 !important;
+        @elseif(!empty($isAutofilled) && $isAutofilled)
+            border:2px solid #0dcaf0 !important;
+            background:#f0f9ff !important;
         @else
             border:1px solid #aaaaeb !important;
         @endif

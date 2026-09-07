@@ -619,7 +619,7 @@ class ProductSchemaController extends Controller
             'schema.products.create',
             compact( 'tabs', 'schema', 'fields',  'requiredFields', 'productshow',
                 'prodAttri', 'canUseAiAutoFill', 'canUseAiSingleField',
-                'tabErrorCounts', 'fieldSuggestions', 'autofillCount', 'visibleAmazonErrors'  )
+                'tabErrorCounts', 'fieldSuggestions', 'autofillCount', 'visibleAmazonErrors', 'autofilledFields'  )
             );
     }
 
