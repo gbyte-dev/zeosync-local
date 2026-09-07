@@ -502,7 +502,8 @@
                                 class="form-control"
                                 placeholder="Search sub category..."
                                 autocomplete="off"
-                                disabled>
+                                disabled
+                                required>
 
                             <input
                                 type="hidden"
@@ -565,19 +566,19 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Product Type</label>
-                        <input type="text" name="product_type" class="form-control" placeholder="e.g., Clothing, Electronics" value="{{ old('product_type') }}">
+                        <input type="text" name="product_type" class="form-control" placeholder="e.g., Clothing, Electronics" value="{{ old('product_type') }}" required>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Vendor</label>
-                        <input type="text" name="vendor" class="form-control" placeholder="e.g., Nike, Apple" value="{{ old('vendor') }}">
+                        <input type="text" name="vendor" class="form-control" placeholder="e.g., Nike, Apple" value="{{ old('vendor') }}" required>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Collections</label>
-                        <input type="text" name="collections" class="form-control" placeholder="Comma separated collections" value="{{ old('collections') }}">
+                        <input type="text" name="collections" class="form-control" placeholder="Comma separated collections" value="{{ old('collections') }}" required>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Tags</label>
-                        <input type="text" name="tags" class="form-control" placeholder="Comma separated tags" value="{{ old('tags') }}">
+                        <input type="text" name="tags" class="form-control" placeholder="Comma separated tags" value="{{ old('tags') }}" required>
                     </div>
                 </div>
             </div>
@@ -824,6 +825,7 @@
 
                     subCategorySearch.value = category.name;
                     subCategoryInput.value = category.id;
+                    subCategorySearch.setCustomValidity('');
 
                     subCategoryResults.innerHTML = '';
                     subCategoryResults.style.display = 'none';
@@ -990,12 +992,30 @@
         subCategoryResults.style.display = 'none';
 
         subCategorySearch.disabled = !category;
+        if (!category) {
+            subCategorySearch.setCustomValidity('');
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('productForm');
         if (!form) return;
-        form.addEventListener('submit', function() {
+
+        if (subCategoryInput && subCategoryInput.value) {
+            subCategorySearch.disabled = false;
+        }
+
+        form.addEventListener('submit', function(e) {
+            const categoryElement = document.getElementById('category');
+            if (categoryElement && categoryElement.value && !subCategoryInput.value) {
+                subCategorySearch.setCustomValidity('Please select a sub category from the dropdown.');
+                subCategorySearch.reportValidity();
+                e.preventDefault();
+                return false;
+            } else {
+                subCategorySearch.setCustomValidity('');
+            }
+
             if (typeof showLoader === "function") {
                 showLoader('Creating product...');
             }
