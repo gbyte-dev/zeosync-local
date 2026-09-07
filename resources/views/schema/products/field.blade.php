@@ -68,9 +68,11 @@ $isAutofilled = !empty($autofilledFieldsList) && (
     !empty(array_intersect($aliases, $autofilledFieldsList))
 );
 
-if (session('errors_amazon')) {
+$activeAmazonErrors = $visibleAmazonErrors ?? (session('errors_amazon') ?? []);
 
-$errors = session('errors_amazon');
+if (!empty($activeAmazonErrors)) {
+
+$errors = $activeAmazonErrors;
 
 if (is_array($errors)) {
 
@@ -79,7 +81,8 @@ foreach ($errors as $error) {
 if (is_array($error)) {
 
 $message = strtolower($error['message'] ?? '');
-$path = strtolower($error['path'] ?? '');
+$rawPath = strtolower(trim((string)($error['path'] ?? '')));
+$path = preg_replace('#^/?(attributes[/.]?)?#i', '', $rawPath);
 $attributeNames = array_map('strtolower', $error['attributeNames'] ?? [] );
 $matched = false;
 
@@ -95,7 +98,7 @@ break;
 
 if (
 $matched ||
-$path === $fieldName
+($path !== '' && ($path === $fieldName || in_array($path, $aliases, true)))
 ) {
 $php_errormsg = $error['message'] ?? '';
 break;
