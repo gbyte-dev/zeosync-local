@@ -29,6 +29,7 @@ use App\Services\AIFeatureService;
 use Illuminate\Support\Facades\Http;
 use App\Models\AdminSetting;
 use App\Services\AmazonSuccessfulListingService;
+use App\Services\UserNotificationService;
 
 class ProductSchemaController extends Controller
 {
@@ -976,6 +977,26 @@ class ProductSchemaController extends Controller
             $product->save();
             ProductAttribute::where('product_id', $product->id)->delete();
             $this->updatelog($product->id, 'amazon', 'added', false);
+
+            $shopId = $product->user_id;
+            if (!$shopId && session('active_shop')) {
+                $shopObj = new Shop();
+                $shopId = $shopObj->getidByshop(session('active_shop'));
+            }
+            if ($shopId) {
+                $productTitle = is_array($generatejson['item_name'] ?? null)
+                    ? ($generatejson['item_name'][0] ?? $product->sku)
+                    : ($generatejson['item_name'] ?? $product->sku);
+                $shopName = Shop::where('id', $shopId)->value('shop') ?? '';
+
+                UserNotificationService::send(
+                    $shopId,
+                    'inventory_stock_update',
+                    'Product Synced to Amazon',
+                    sprintf('%s - "%s" has been synced to Amazon successfully.', $shopName ?: 'Shop', $productTitle)
+                );
+            }
+
             return redirect()->route('user.product.showProducts')->with('success', 'Product added Successfully');
             return response()->json([
                 'success' => true,

@@ -1025,6 +1025,17 @@ class ShopifyController extends Controller
                     : 'Amazon validation failed',
                 'type' => 'product'
             ]);
+
+            if ($isAccepted) {
+                $productTitle = $product->title ?? $product->sku ?? 'Product';
+                UserNotificationService::send(
+                    $shopModel->id,
+                    'inventory_stock_update',
+                    'Product Synced to Amazon',
+                    sprintf('%s - "%s" has been synced to Amazon successfully.', $shopModel->shop, $productTitle)
+                );
+            }
+
             // $this->refreshProductsCache($shopModel);
             return response()->json([
                 'success' => $isAccepted,

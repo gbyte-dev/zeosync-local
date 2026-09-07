@@ -103,7 +103,9 @@ class SettingsController extends ShopifyController
         if (!$shop) {
             return redirect()->route('dashboard')->with('error', 'Shop not found.');
         }
-        $logs = SyncLog::where('shop_id', $shop->id)->paginate();
+        $logs = SyncLog::where('shop_id', $shop->id)
+            ->latest('id')
+            ->paginate();
         return view('logs', compact('activeShop', 'shop', 'logs'));
     }
 
