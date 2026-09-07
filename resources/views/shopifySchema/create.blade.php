@@ -812,36 +812,6 @@ function initVariantTypes() {
             `;
             container.appendChild(div);
         });
-    } else {
-        // Default two variant types
-        container.innerHTML = `
-            <div class="variant-type-box">
-                <span class="remove-btn" onclick="this.parentElement.remove()">✖</span>
-                <div class="row">
-                    <div class="col-md-4 mb-2">
-                        <label class="form-label">Type Name</label>
-                        <input type="text" class="form-control variant-type-name" name="variant_names[]" placeholder="e.g., Color" value="Color">
-                    </div>
-                    <div class="col-md-8 mb-2">
-                        <label class="form-label">Possible Values</label>
-                        <input type="text" class="form-control variant-type-values" name="variant_values[]" placeholder="e.g., Red, Blue, Green" value="Red, Blue, Green">
-                    </div>
-                </div>
-            </div>
-            <div class="variant-type-box">
-                <span class="remove-btn" onclick="this.parentElement.remove()">✖</span>
-                <div class="row">
-                    <div class="col-md-4 mb-2">
-                        <label class="form-label">Type Name</label>
-                        <input type="text" class="form-control variant-type-name" name="variant_names[]" placeholder="e.g., Size" value="Size">
-                    </div>
-                    <div class="col-md-8 mb-2">
-                        <label class="form-label">Possible Values</label>
-                        <input type="text" class="form-control variant-type-values" name="variant_values[]" placeholder="e.g., S, M, L" value="S, M, L">
-                    </div>
-                </div>
-            </div>
-        `;
     }
 }
 

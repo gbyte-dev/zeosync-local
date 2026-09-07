@@ -2594,7 +2594,7 @@ class ShopifyController extends Controller
 
             $variant = [
                 'price' => $vPrice,
-                'sku' => !empty($v['sku']) ? $v['sku'] : 'SKU-' . uniqid(),
+                'sku' => !empty($v['sku']) ? $v['sku'] : ($request->input('sku') ?: 'SKU-' . uniqid()),
                 'inventory_management' => 'shopify',
                 'inventory_policy' => 'deny',
             ];
@@ -2615,6 +2615,7 @@ class ShopifyController extends Controller
         if (empty($variants)) {
             $variants[] = [
                 'price' => (float) $request->input('price', 0),
+                'sku' => $request->input('sku') ?: 'SKU-' . uniqid(),
                 'inventory_management' => 'shopify',
                 'inventory_policy' => 'deny',
             ];
@@ -2631,19 +2632,45 @@ class ShopifyController extends Controller
 
         // Build options
         $options = [];
-        foreach ($variantNames as $i => $name) {
-            $values = collect($variantsInput)
-                ->pluck('option' . ($i + 1))
-                ->filter()
-                ->unique()
-                ->values()
-                ->all();
-            if (!empty($name) && !empty($values)) {
-                $options[] = [
-                    'name' => $name,
-                    'values' => $values,
-                ];
+        if (!empty($variantsInput) && !empty($variantNames)) {
+            foreach ($variantNames as $i => $name) {
+                $name = trim((string)$name);
+                if (empty($name)) {
+                    continue;
+                }
+                $values = collect($variantsInput)
+                    ->pluck('option' . ($i + 1))
+                    ->filter(fn($val) => !is_null($val) && trim((string)$val) !== '')
+                    ->map(fn($val) => trim((string)$val))
+                    ->unique()
+                    ->values()
+                    ->all();
+                if (!empty($values)) {
+                    $options[] = [
+                        'name' => $name,
+                        'values' => $values,
+                    ];
+                }
             }
+        }
+
+        // Validate that options and variants are aligned
+        if (!empty($options)) {
+            $allVariantsHaveOption1 = collect($variants)->every(function ($v) {
+                return !empty($v['option1']);
+            });
+
+            if (!$allVariantsHaveOption1) {
+                $options = [];
+            }
+        }
+
+        // If no valid options, ensure single/default variants do not contain dangling option keys
+        if (empty($options)) {
+            foreach ($variants as &$v) {
+                unset($v['option1'], $v['option2'], $v['option3']);
+            }
+            unset($v);
         }
 
         $category = \App\Models\Category::where('id', $request->input('category'))->first();
@@ -2652,19 +2679,24 @@ class ShopifyController extends Controller
         $subcategory = \App\Models\Category::where('id', $request->input('sub_category'))->first();
         $subcategory = !empty($subcategory) ? $subcategory->slug : ($category->slug ?? 'test');
 
+        $product = [
+            'title' => $request->input('title'),
+            'body_html' => $this->formatDescription($request->input('description')),
+            'vendor' => $request->input('vendor'),
+            'product_type' => $request->input('product_type'),
+            'category' => $producttype ?: $subcategory,
+            'tags' => $request->input('tags'),
+            'status' => $status,
+            'variants' => $variants,
+            'images' => $images
+        ];
+
+        if (!empty($options)) {
+            $product['options'] = $options;
+        }
+
         return [
-            'product' => [
-                'title' => $request->input('title'),
-                'body_html' => $this->formatDescription($request->input('description')),
-                'vendor' => $request->input('vendor'),
-                'product_type' => $request->input('product_type'),
-                'category' => $producttype ?: $subcategory,
-                'tags' => $request->input('tags'),
-                'status' => $status,
-                'options' => $options,
-                'variants' => $variants,
-                'images' => $images
-            ],
+            'product' => $product,
             'variant_image_map' => $finalVariantImageMap,
             'payload_index_map' => $payloadIndexToFormIndexMap
         ];
