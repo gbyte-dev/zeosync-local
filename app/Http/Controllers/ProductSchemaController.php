@@ -1165,6 +1165,37 @@ class ProductSchemaController extends Controller
         $product->delete();
         return redirect()->route('user.product.showProducts')->with('success', 'Product deleted successfully.');
     }
+
+    public static function deleteStaleAmazonProduct(string $sku, int $shopId): void
+    {
+        DB::transaction(function () use ($sku, $shopId) {
+            $product = AllProduct::where('sku', $sku)->where('user_id', $shopId)->first();
+            if ($product) {
+                if ($product->parent_id === null) {
+                    $childIds = AllProduct::where('parent_id', $product->id)
+                        ->where('user_id', $shopId)
+                        ->pluck('id')
+                        ->toArray();
+
+                    if (!empty($childIds)) {
+                        ProductAttribute::whereIn('product_id', $childIds)->delete();
+                        AllProduct::whereIn('id', $childIds)->delete();
+                    }
+                }
+
+                ProductAttribute::where('product_id', $product->id)->delete();
+                $product->delete();
+            }
+
+            ProductMarketplaceMapping::where('shop_id', $shopId)
+                ->where(function ($q) use ($sku) {
+                    $q->where('amazon_parent_sku', $sku)
+                        ->orWhere('amazon_sku', $sku);
+                })
+                ->delete();
+        });
+    }
+
     private function getShopIdFromSession(): ?int
     {
         $shop = new Shop();
@@ -1184,9 +1215,22 @@ class ProductSchemaController extends Controller
         $shopModel = Shop::where('shop', $activeShop)->first();
         $this->ensureFreshAccessToken($shopModel);
         $testcontroller = new TestController();
-        $productdata =  $testcontroller->getProductVariants($sku);
+        $availability = $testcontroller->fetchAmazonListingItem($sku);
+
+        if ($availability['status'] === 'NOT_FOUND') {
+            self::deleteStaleAmazonProduct($sku, $shopId);
+            return redirect()->route('user.product.showProducts', ['shop' => $activeShop])
+                ->with('error', 'This action cannot be completed because this product is no longer available on Amazon. It may have been deleted or removed.');
+        }
+
+        if ($availability['status'] === 'API_ERROR') {
+            return redirect()->route('user.product.showProducts', ['shop' => $activeShop])
+                ->with('error', $availability['error'] ?? 'Unable to fetch product details from Amazon.');
+        }
+
+        $productdata = $availability['data'] ?? null;
         if (!$productdata) {
-            return redirect()->route('user.product.showProducts')->with('error', 'Product not found.');
+            return redirect()->route('user.product.showProducts', ['shop' => $activeShop])->with('error', 'Product not found.');
         }
         $product = Product::with('attributes', 'schema')->where('sku', $sku)
             ->where('user_id', $shopId)->first();
@@ -1199,7 +1243,7 @@ class ProductSchemaController extends Controller
         $category = $productdata['productTypes'][0]['productType'] ?? null;
         $syncid = $this->syncProduct($product, $shopId, $category);
         if (!$product) {
-            return redirect()->route('user.product.showProducts')->with('error', 'Product not found.');
+            return redirect()->route('user.product.showProducts', ['shop' => $activeShop])->with('error', 'Product not found.');
         }
         return view('shopifySchema.create', compact('product', 'activeShop', 'syncid'));
     }

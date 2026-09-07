@@ -1406,17 +1406,15 @@ class TestController extends Controller
         }
     }
 
-    /**
-     * Display Amazon product view page by fetching data directly from Amazon API.
-     */
-    public function amazonView($sku)
+    public function fetchAmazonListingItem($sku)
     {
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return view('schema.products.amazonview', [
-                    'error' => 'No active Amazon connection. Please connect your Amazon account first.'
-                ]);
+                return [
+                    'status' => 'API_ERROR',
+                    'error' => 'No active Amazon connection. Please connect your Amazon account first.',
+                ];
             }
 
             $listingsApi = $connector->listingsItemsV20210801();
@@ -1430,11 +1428,116 @@ class TestController extends Controller
             $data = $response->json();
 
             if (!$data || isset($data['errors'])) {
+                $errorCode = strtoupper($data['errors'][0]['code'] ?? '');
                 $errorMsg = $data['errors'][0]['message'] ?? 'Failed to fetch product data from Amazon.';
-                return view('schema.products.amazonview', [
-                    'error' => $errorMsg
-                ]);
+                if (in_array($errorCode, ['NOT_FOUND', 'RESOURCE_NOT_FOUND', 'INVALID_SKU'], true) || stripos($errorMsg, 'not found') !== false) {
+                    return [
+                        'status' => 'NOT_FOUND',
+                        'error' => $errorMsg,
+                    ];
+                }
+                return [
+                    'status' => 'API_ERROR',
+                    'error' => $errorMsg,
+                ];
             }
+
+            return [
+                'status' => 'FOUND',
+                'data' => $data,
+            ];
+        } catch (\Exception $e) {
+            $isNotFound = false;
+            $errorMessage = 'Unable to fetch product details from Amazon.';
+            $rawMessage = $e->getMessage();
+            $code = (int) $e->getCode();
+
+            if ($code === 404 || str_contains($rawMessage, '404') || str_contains($rawMessage, '[404]')) {
+                $isNotFound = true;
+            }
+
+            if (preg_match('/Response:\s*(\{.*\})/s', $rawMessage, $matches)) {
+                $response = json_decode($matches[1], true);
+                if (!empty($response['errors'][0])) {
+                    $amazonError = $response['errors'][0];
+                    $errCode = strtoupper($amazonError['code'] ?? '');
+                    $message = $amazonError['message'] ?? '';
+                    $details = $amazonError['details'] ?? '';
+                    $errorMessage = trim($message . (!empty($details) ? ' ' . $details : ''));
+
+                    if (in_array($errCode, ['NOT_FOUND', 'RESOURCE_NOT_FOUND', 'INVALID_SKU'], true)
+                        || stripos($message, 'not found') !== false
+                        || stripos($details, 'not found') !== false) {
+                        $isNotFound = true;
+                    }
+                }
+            } elseif (stripos($rawMessage, 'not found') !== false) {
+                $isNotFound = true;
+            }
+
+            if ($isNotFound) {
+                return [
+                    'status' => 'NOT_FOUND',
+                    'error' => $errorMessage,
+                ];
+            }
+
+            return [
+                'status' => 'API_ERROR',
+                'error' => $errorMessage,
+                'raw_error' => $rawMessage,
+                'exception' => $e,
+            ];
+        }
+    }
+
+    /**
+     * Display Amazon product view page by fetching data directly from Amazon API.
+     */
+    public function amazonView($sku)
+    {
+        $activeShop = request()->shop ?? session('active_shop');
+        $shop = new Shop();
+        $shopId = $shop->getidByshop($activeShop);
+
+        $availability = $this->fetchAmazonListingItem($sku);
+
+        if ($availability['status'] === 'NOT_FOUND') {
+            if ($shopId) {
+                ProductSchemaController::deleteStaleAmazonProduct($sku, $shopId);
+            }
+            return redirect()->route('user.product.showProducts', ['shop' => $activeShop])
+                ->with('error', 'This action cannot be completed because this product is no longer available on Amazon. It may have been deleted or removed.');
+        }
+
+        if ($availability['status'] === 'API_ERROR') {
+            $errorMessage = $availability['error'] ?? 'Unable to fetch product details from Amazon.';
+            $adminMessage = "Shop: " . ($activeShop ?? 'Unknown') . PHP_EOL;
+            $adminMessage .= "SKU: {$sku}" . PHP_EOL;
+            $adminMessage .= "Issue: Unable to fetch product details from Amazon." . PHP_EOL;
+            $adminMessage .= "Details: " . $errorMessage;
+
+            \Log::error('Amazon Product Fetch Failed', [
+                'shop' => $activeShop,
+                'sku' => $sku,
+                'error' => $errorMessage,
+            ]);
+
+            \App\Services\NotificationService::send(
+                'amazon_api_error',
+                'Amazon Product Fetch Failed',
+                $adminMessage
+            );
+
+            return view('schema.products.amazonview', [
+                'error' => $errorMessage
+            ]);
+        }
+
+        try {
+            $connector = $this->getAmazonConnector();
+            $listingsApi = $connector ? $connector->listingsItemsV20210801() : null;
+            $data = $availability['data'];
 
             $attributes = $data['attributes'] ?? [];
             $summaries = $data['summaries'][0] ?? [];
