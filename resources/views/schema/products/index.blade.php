@@ -452,6 +452,12 @@
                     $parentage_level = optional($product->attributes->firstWhere('attribute_name', 'parentage_level'))->attribute_value ?? '';
 
                     }
+
+                    $rawCategory = $category ?? 'Uncategorized';
+                    $displayCategory = mb_strlen($rawCategory) > 15 ? mb_substr($rawCategory, 0, 15) . '...' : $rawCategory;
+
+                    $rawItemName = $item_name ?? 'N/A';
+                    $displayItemName = mb_strlen($rawItemName) > 25 ? mb_substr($rawItemName, 0, 25) . '...' : $rawItemName;
                     @endphp
                     <tr data-product-id="{{ $product['id'] }}">
                         <td>
@@ -462,7 +468,7 @@
                                 onerror="this.onerror=null; this.src='{{ asset('b6.png') }}';">
                         </td>
                         <td>
-                            <span class="sp-fw-600 sp-text-truncate" title="{{ $item_name??'N/A' }}">{{ $item_name??'N/A' }}</span>
+                            <span class="sp-fw-600" title="{{ $rawItemName }}">{{ $displayItemName }}</span>
                             <span class="sp-text-muted sp-text-truncate" title="{{ $product->sku??'N/A' }}">SKU: {{ $product->sku??'N/A' }}</span>
                         </td>
                         <td>
@@ -481,7 +487,9 @@
                             <div class="sp-fw-600 {{ $quantity > 0 ? 'text-success' : 'text-danger' }}">{{ $quantity }}</div>
                             <div class="sp-text-muted">units</div>
                         </td>
-                        <td style="color: #4B5563;">{{ $category }}</td>
+                        <td style="color: #4B5563;">
+                            <span title="{{ $rawCategory }}">{{ $displayCategory }}</span>
+                        </td>
                         <td>
                             <div class="sp-actions" style="gap: 4px;">
                                 @if( strtolower($status) != 'draft')
