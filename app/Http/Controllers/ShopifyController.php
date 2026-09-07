@@ -1032,7 +1032,7 @@ class ShopifyController extends Controller
                     $shopModel->id,
                     'inventory_stock_update',
                     'Product Synced to Amazon',
-                    sprintf('%s - "%s" has been synced to Amazon successfully.', $shopModel->shop, $productTitle)
+                    sprintf('"%s" has been synced to Amazon successfully.', $productTitle)
                 );
             }
 

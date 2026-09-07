@@ -524,7 +524,7 @@
                                 @endphp
 
                                 <a href="{{ $routeurl }}"
-                                    class="sp-btn sp-btn-sm sp-btn-secondary"
+                                    class="sp-btn sp-btn-sm sp-btn-secondary btn-initial-sync"
                                     title="Sync">
                                     <i class="bi bi-cloud-arrow-up"></i>
                                     <span class="d-none d-md-inline">Sync</span>
@@ -755,6 +755,19 @@
     });
 
     document.addEventListener('click', function(e) {
+        const initialSyncLink = e.target.closest('.btn-initial-sync');
+        if (initialSyncLink) {
+            if (initialSyncLink.classList.contains('disabled') || initialSyncLink.getAttribute('aria-disabled') === 'true') {
+                e.preventDefault();
+                return;
+            }
+            initialSyncLink.classList.add('disabled');
+            initialSyncLink.setAttribute('aria-disabled', 'true');
+            initialSyncLink.style.pointerEvents = 'none';
+            initialSyncLink.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span class="ms-1 d-none d-md-inline">Syncing...</span>';
+            return;
+        }
+
         const syncBtn = e.target.closest('.btn-sync');
         if (!syncBtn) return;
         const url = syncBtn.getAttribute('data-url');
@@ -763,7 +776,7 @@
             return;
         }
         syncBtn.disabled = true;
-        syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span class="ms-1 d-none d-md-inline">Syncing...</span>';
+        syncBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span><span class="ms-1 d-none d-md-inline">Syncing...</span>';
 
         fetch(url, {
                 method: 'POST',
@@ -778,23 +791,38 @@
                 if (data.success) {
                     syncBtn.classList.remove('sp-btn-secondary', 'sp-btn-warning');
                     syncBtn.classList.add('sp-btn-success');
-                    syncBtn.innerHTML = '<i class="fas fa-check"></i> <span class="ms-1 d-none d-md-inline">Synced</span>';
+                    syncBtn.innerHTML = '<i class="bi bi-check-lg"></i> <span class="ms-1 d-none d-md-inline">Synced</span>';
                     showToast('Amazon sync success', 'success');
                     setTimeout(() => {
                         location.reload();
                     }, 1000);
                 } else {
                     syncBtn.disabled = false;
-                    syncBtn.innerHTML = '<i class="fas fa-rotate-right"></i> <span class="ms-1 d-none d-md-inline">Resync</span>';
+                    syncBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> <span class="ms-1 d-none d-md-inline">Resync</span>';
                     showToast(data.message || 'Sync failed', 'danger');
                 }
             })
             .catch(error => {
                 console.error(error);
                 syncBtn.disabled = false;
-                syncBtn.innerHTML = '<i class="fas fa-rotate-right"></i> <span class="ms-1 d-none d-md-inline">Resync</span>';
+                syncBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> <span class="ms-1 d-none d-md-inline">Resync</span>';
                 showToast('Sync failed', 'danger');
             });
+    });
+
+    window.addEventListener('pageshow', function(e) {
+        if (e.persisted) {
+            document.querySelectorAll('.btn-initial-sync').forEach(function(link) {
+                link.classList.remove('disabled');
+                link.removeAttribute('aria-disabled');
+                link.style.pointerEvents = '';
+                link.innerHTML = '<i class="bi bi-cloud-arrow-up"></i> <span class="d-none d-md-inline">Sync</span>';
+            });
+            document.querySelectorAll('.btn-sync').forEach(function(btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Resync</span>';
+            });
+        }
     });
 </script>
 @endpush

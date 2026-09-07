@@ -987,13 +987,12 @@ class ProductSchemaController extends Controller
                 $productTitle = is_array($generatejson['item_name'] ?? null)
                     ? ($generatejson['item_name'][0] ?? $product->sku)
                     : ($generatejson['item_name'] ?? $product->sku);
-                $shopName = Shop::where('id', $shopId)->value('shop') ?? '';
 
                 UserNotificationService::send(
                     $shopId,
                     'inventory_stock_update',
                     'Product Synced to Amazon',
-                    sprintf('%s - "%s" has been synced to Amazon successfully.', $shopName ?: 'Shop', $productTitle)
+                    sprintf('"%s" has been synced to Amazon successfully.', $productTitle)
                 );
             }
 
