@@ -1869,8 +1869,7 @@ class ShopifyController extends Controller
                     'inventory_stock_update',
                     'Product Synced to Amazon',
                     sprintf(
-                        '%s - "%s" has been synced to Amazon successfully.',
-                        $shopModel->shop,
+                        '"%s" has been synced to Amazon successfully.',
                         $dbProduct->title ?? $request->title ?? 'Product'
                     )
                 );

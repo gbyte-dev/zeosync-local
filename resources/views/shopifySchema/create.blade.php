@@ -716,7 +716,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 
             <div class="float-end mt-3">
                 <a href="{{ route('shopify.products') }}{{ $shopQuery }}" class="btn btn-primary"> Back </a>
-                <button type="submit" class="btn btn-success"> Update Product </button>
+                <button type="submit" class="btn btn-success" id="updateProductBtn"> Update Product </button>
             </div>
         </div>
     </form>
@@ -724,7 +724,21 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 
 @push('scripts')
 <script>
-   const productForm = document.getElementById('productForm');
+const productForm = document.getElementById('productForm');
+const updateProductBtn = document.getElementById('updateProductBtn');
+
+if (productForm && updateProductBtn) {
+    productForm.addEventListener('submit', function () {
+        updateProductBtn.disabled = true;
+        updateProductBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Updating...';
+    });
+
+    window.addEventListener('pageshow', function () {
+        updateProductBtn.disabled = false;
+        updateProductBtn.innerHTML = 'Update Product';
+    });
+}
+
 const productTitleInput = document.querySelector('input[name="title"]');
 const amazonTitleInput = document.getElementById('amazonTitle');
 
