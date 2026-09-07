@@ -204,9 +204,11 @@ class DashboardController extends ShopifyController
         }
 
         $amazonInventory = [];
+        $amazonInventoryCacheExists = false;
 
         if (!empty($shop->amazon_marketplace_id)) {
             $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_marketplace_id}";
+            $amazonInventoryCacheExists = Cache::has($cacheKey);
             $amazonInventory = Cache::get($cacheKey, []);
         }
 
@@ -219,7 +221,8 @@ class DashboardController extends ShopifyController
 
         return view('inventory.low-inventory', compact(
             'amazonLowInventoryProducts',
-            'shop'
+            'shop',
+            'amazonInventoryCacheExists'
         ));
     }
 }

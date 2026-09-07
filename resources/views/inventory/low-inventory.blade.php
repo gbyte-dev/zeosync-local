@@ -310,7 +310,15 @@
         <p>Products with Amazon inventory below 10 units</p>
     </div>
 
-    @if($amazonLowInventoryProducts->isNotEmpty())
+    @if(!$amazonInventoryCacheExists)
+    <div id="lowInventoryLoader" class="empty-state">
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        Products are loading...
+    </div>
+    <div id="lowInventoryError" class="empty-state text-danger d-none">
+        Failed to load Amazon inventory. Please try again later.
+    </div>
+    @elseif($amazonLowInventoryProducts->isNotEmpty())
 
     <div class="zeo-stats-grid">
         <div class="zeo-stat-card">
@@ -498,7 +506,46 @@
         });
 
     });
-</script>
 
+    const amazonInventoryCacheExists = @json($amazonInventoryCacheExists ?? false);
+
+    if (!amazonInventoryCacheExists) {
+        const loader = document.getElementById('lowInventoryLoader');
+        const errorBox = document.getElementById('lowInventoryError');
+
+        const pollAmazonInventory = () => {
+            fetch("{{ route('shopify.inventory.amazon') }}", {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const refreshing = data.status?.refreshing === true;
+                const syncCompleted = data.status?.sync_completed === true;
+
+                if (refreshing) {
+                    setTimeout(pollAmazonInventory, 2000);
+                    return;
+                }
+
+                if (syncCompleted) {
+                    location.reload();
+                } else {
+                    if (loader) loader.classList.add('d-none');
+                    if (errorBox) errorBox.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Amazon inventory fetch failed:', error);
+                if (loader) loader.classList.add('d-none');
+                if (errorBox) errorBox.classList.remove('d-none');
+            });
+        };
+
+        pollAmazonInventory();
+    }
+</script>
 
 @endpush

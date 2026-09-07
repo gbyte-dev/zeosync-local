@@ -501,11 +501,17 @@
 
                             <tbody id="amazonLowInventoryBody">
 
-                                @if(empty($amazonLowInventoryProducts))
+                                @if(!$amazonInventoryCacheExists)
                                 <tr id="amazonInventoryLoadingRow">
                                     <td colspan="3" class="text-center py-3">
                                         <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                                         Loading Amazon inventory...
+                                    </td>
+                                </tr>
+                                @elseif(empty($amazonLowInventoryProducts) || (is_object($amazonLowInventoryProducts) && $amazonLowInventoryProducts->isEmpty()))
+                                <tr>
+                                    <td colspan="3" class="text-center py-3">
+                                        No low inventory products found.
                                     </td>
                                 </tr>
                                 @else
@@ -649,10 +655,24 @@
 
                             const products = data.products || [];
                             const refreshing = data.status?.refreshing === true;
+                            const syncCompleted = data.status?.sync_completed === true;
 
                             // Cache is still being created
                             if (refreshing) {
                                 setTimeout(loadAmazonInventory, 2000);
+                                return;
+                            }
+
+                            if (!syncCompleted && products.length === 0) {
+                                if (amazonInventoryBody) {
+                                    amazonInventoryBody.innerHTML = `
+                                        <tr>
+                                            <td colspan="3" class="text-center py-3 text-danger">
+                                                Failed to load Amazon inventory.
+                                            </td>
+                                        </tr>
+                                    `;
+                                }
                                 return;
                             }
 
