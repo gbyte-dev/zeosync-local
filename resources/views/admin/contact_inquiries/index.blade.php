@@ -83,7 +83,7 @@
                                 @if(!$contact->is_read)
                                 <form action="{{ route('admin.contact-requests.markread', $contact) }}" method="POST" class="d-inline-block ms-1">
                                     @csrf
-                                    <button type="submit" class="btn btn-sm btn-outline-success">Mark as Read</button>
+                                    <!-- <button type="submit" class="btn btn-sm btn-outline-success">Mark as Read</button> -->
                                 </form>
                                 @endif
 
