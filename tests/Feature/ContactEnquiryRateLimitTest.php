@@ -1,9 +1,11 @@
 <?php
 
 use App\Models\ContactInquiry;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 
 beforeEach(function () {
     RateLimiter::clear('contact_enquiry_ip:' . hash('sha256', '198.51.100.1'));
@@ -12,8 +14,94 @@ beforeEach(function () {
 
     Mail::fake();
 
-    if (\Illuminate\Support\Facades\Schema::hasTable('contact_inquiries')) {
+    if (!Schema::hasTable('contact_inquiries')) {
+        Schema::create('contact_inquiries', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('email');
+            $table->string('subject');
+            $table->text('message');
+            $table->string('enquiry_type', 50)->default('general_enquiry');
+            $table->boolean('is_read')->default(false);
+            $table->timestamps();
+        });
+    } else {
         ContactInquiry::truncate();
+    }
+
+    if (!Schema::hasTable('admins')) {
+        Schema::create('admins', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->nullable();
+            $table->string('email')->nullable();
+            $table->string('role')->default('admin');
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('mail_templates')) {
+        Schema::create('mail_templates', function (Blueprint $table) {
+            $table->id();
+            $table->string('slug')->unique();
+            $table->string('subject')->nullable();
+            $table->text('body')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('admin_notifications')) {
+        Schema::create('admin_notifications', function (Blueprint $table) {
+            $table->id();
+            $table->string('type')->nullable();
+            $table->string('title')->nullable();
+            $table->text('message')->nullable();
+            $table->boolean('is_read')->default(false);
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('user_notifications')) {
+        Schema::create('user_notifications', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id')->nullable();
+            $table->string('type')->nullable();
+            $table->string('title')->nullable();
+            $table->text('message')->nullable();
+            $table->boolean('is_read')->default(false);
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('shops')) {
+        Schema::create('shops', function (Blueprint $table) {
+            $table->id();
+            $table->string('shop')->nullable();
+            $table->string('email')->nullable();
+            $table->boolean('is_active')->default(1);
+            $table->softDeletes();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('notification_settings')) {
+        Schema::create('notification_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('notification_key')->unique();
+            $table->boolean('email_enabled')->default(true);
+            $table->boolean('database_enabled')->default(true);
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('user_notification_settings')) {
+        Schema::create('user_notification_settings', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id')->nullable();
+            $table->string('notification_key')->nullable();
+            $table->boolean('email_enabled')->default(true);
+            $table->boolean('database_enabled')->default(true);
+            $table->timestamps();
+        });
     }
 });
 
@@ -186,4 +274,30 @@ it('Test 6: Invalid form submission does NOT consume the 24-hour allowance', fun
     $goodResponse->assertSessionHas('success');
 
     expect(ContactInquiry::count())->toBe(1);
+});
+
+it('Test 7: Simultaneous/locked request from the same IP is rejected by atomic lock', function () {
+    $ip = '198.51.100.1';
+    $lockKey = 'contact_enquiry_lock:' . hash('sha256', $ip);
+
+    // Acquire lock to simulate an in-flight concurrent request
+    $lock = \Illuminate\Support\Facades\Cache::lock($lockKey, 10);
+    $lock->get();
+
+    // Concurrent request arrives while lock is held
+    $response = $this->withServerVariables(['REMOTE_ADDR' => $ip])
+        ->post('/contact', [
+            'name'         => 'Alice Concurrent',
+            'email'        => 'alice.concurrent@example.com',
+            'subject'      => 'Concurrent Message',
+            'message'      => 'Trying concurrent submission',
+            'enquiry_type' => 'general_enquiry',
+        ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHasErrors('email');
+    expect(ContactInquiry::count())->toBe(0);
+
+    // Release lock
+    $lock->release();
 });
