@@ -885,8 +885,18 @@ class ProductSchemaController extends Controller
                 );
 
                 $matchedData = [];
+                $excludedFields = array_map(
+                    'strtolower',
+                    AmazonSuccessfulListingService::EXCLUDED_AUTOFILL_FIELDS
+                );
 
                 foreach ($failedFields as $field) {
+                    $normalizedField = strtolower($field);
+
+                    if (in_array($normalizedField, $excludedFields, true)) {
+                        continue;
+                    }
+
                     if (
                         array_key_exists($field, $filledData) &&
                         $filledData[$field] !== null &&
