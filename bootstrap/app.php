@@ -17,6 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->group(base_path('routes/ai.php'));
         },
     )
+    ->withCommands([
+        __DIR__ . '/../app/Console/Commands',
+    ])
     ->withMiddleware(function (Middleware $middleware): void {
 
         $middleware->redirectGuestsTo(function (Request $request) {
@@ -29,10 +32,12 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $middleware->web(append: [
+            \App\Http\Middleware\VerifyShopifyAuthentication::class,
             \App\Http\Middleware\ResolveActiveShop::class,
         ]);
 
         $middleware->alias([
+            'shopify.auth'         => \App\Http\Middleware\VerifyShopifyAuthentication::class,
             'shopify.subscription' => \App\Http\Middleware\VerifyShopifySubscription::class,
             'subscription.check'   => \App\Http\Middleware\CheckSubscription::class,
         ]);

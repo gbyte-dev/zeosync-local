@@ -37,7 +37,8 @@ class RefreshShopAccessTokenCommand extends Command
                     }
 
                     $failed++;
-                    $this->warn("Token refresh skipped/failed for {$shop->shop}: {$result['message'] ?? 'Unknown error'}");
+                    $msg = $result['message'] ?? 'Unknown error';
+                    $this->warn("Token refresh skipped/failed for {$shop->shop}: {$msg}");
                 }
             });
 

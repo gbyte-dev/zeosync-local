@@ -2,7 +2,18 @@
 
 use App\Http\Controllers\ImageController;
 use App\Models\Image;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+
+beforeEach(function () {
+    Schema::create('images', function (Blueprint $table) {
+        $table->id();
+        $table->unsignedBigInteger('shop_id');
+        $table->string('image');
+        $table->timestamps();
+    });
+});
 
 it('returns shop images for the image picker', function () {
     $shop = new class {

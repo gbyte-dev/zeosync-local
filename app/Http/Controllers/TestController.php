@@ -26,35 +26,39 @@ class TestController extends Controller
 
     public function __construct()
     {
-
-        $clientId = DB::table('admin_settings')
-            ->where('option_key', 'production_client_id')
-            ->value('option_value');
-
-        $clientSecret = DB::table('admin_settings')
-            ->where('option_key', 'production_client_secret')
-            ->value('option_value');
-
-        $shop = request()->shop ?? session('active_shop');
-
-        if (auth()->check()) {
-
-            $refreshToken = DB::table('admin_settings')
-                ->where('option_key', 'amazon_refresh_token')
+        try {
+            $clientId = DB::table('admin_settings')
+                ->where('option_key', 'production_client_id')
                 ->value('option_value');
-        } else {
-            if ($shop) {
 
-                $usertoken = Shop::where('shop', $shop)->first();
-                $refreshToken = $usertoken->amazon_refresh_token;
-                $sellerid =  $usertoken->amazon_seller_id;
-                $amazon_marketplace_id =  $usertoken->amazon_marketplace_id;
-            } else {
+            $clientSecret = DB::table('admin_settings')
+                ->where('option_key', 'production_client_secret')
+                ->value('option_value');
 
+            $shop = request()->shop ?? session('active_shop');
+
+            if (auth()->check()) {
                 $refreshToken = DB::table('admin_settings')
                     ->where('option_key', 'amazon_refresh_token')
                     ->value('option_value');
+            } else {
+                if ($shop) {
+                    $usertoken = Shop::where('shop', $shop)->first();
+                    $refreshToken = $usertoken?->amazon_refresh_token;
+                    $sellerid =  $usertoken?->amazon_seller_id;
+                    $amazon_marketplace_id =  $usertoken?->amazon_marketplace_id;
+                } else {
+                    $refreshToken = DB::table('admin_settings')
+                        ->where('option_key', 'amazon_refresh_token')
+                        ->value('option_value');
+                }
             }
+        } catch (\Throwable $e) {
+            $clientId = null;
+            $clientSecret = null;
+            $refreshToken = null;
+            $sellerid = null;
+            $amazon_marketplace_id = null;
         }
 
         $this->credentials = [
@@ -67,53 +71,65 @@ class TestController extends Controller
     private function getAmazonConnector()
     {
         if (!$this->connector) {
-
-            $clientId = DB::table('admin_settings')
-                ->where('option_key', 'production_client_id')
-                ->value('option_value');
-
-            $clientSecret = DB::table('admin_settings')
-                ->where('option_key', 'production_client_secret')
-                ->value('option_value');
-
-            $shop = request()->shop ?? session('active_shop');
-
-            if (auth()->check()) {
-
-                $refreshToken = DB::table('admin_settings')
-                    ->where('option_key', 'amazon_refresh_token')
+            try {
+                $clientId = DB::table('admin_settings')
+                    ->where('option_key', 'production_client_id')
                     ->value('option_value');
-            } else {
-                if ($shop) {
 
-                    $usertoken = Shop::where('shop', $shop)->first();
-                    $refreshToken = $usertoken->amazon_refresh_token;
-                    if (!$refreshToken) {
-                        return $this->connector = null;
-                    }
-                    // ONLY ADD THIS
-                    $this->credentials = [
-                        'seller_id'      => $usertoken->amazon_seller_id,
-                        'marketplace_id' => $usertoken->amazon_marketplace_id,
-                        'refresh_token'  => $usertoken->amazon_refresh_token,
-                        'region'         => $usertoken->amazon_mws_region,
-                        'endpoint'       => $usertoken->amazon_endpoint,
-                    ];
+                $clientSecret = DB::table('admin_settings')
+                    ->where('option_key', 'production_client_secret')
+                    ->value('option_value');
+
+                $shop = request()->shop ?? session('active_shop');
+
+                if (auth()->check()) {
+                    $refreshToken = DB::table('admin_settings')
+                        ->where('option_key', 'amazon_refresh_token')
+                        ->value('option_value');
                 } else {
-
-                    return  $this->connector = null;
+                    if ($shop) {
+                        $usertoken = Shop::where('shop', $shop)->first();
+                        $refreshToken = $usertoken?->amazon_refresh_token;
+                        if (!$refreshToken) {
+                            $refreshToken = DB::table('admin_settings')
+                                ->where('option_key', 'amazon_refresh_token')
+                                ->value('option_value');
+                        }
+                        if ($usertoken) {
+                            $this->credentials = [
+                                'seller_id'      => $usertoken->amazon_seller_id,
+                                'marketplace_id' => $usertoken->amazon_marketplace_id,
+                                'refresh_token'  => $usertoken->amazon_refresh_token,
+                                'region'         => $usertoken->amazon_mws_region,
+                                'endpoint'       => $usertoken->amazon_endpoint,
+                            ];
+                        }
+                    } else {
+                        $refreshToken = DB::table('admin_settings')
+                            ->where('option_key', 'amazon_refresh_token')
+                            ->value('option_value');
+                    }
                 }
+            } catch (\Throwable $e) {
+                $clientId = null;
+                $clientSecret = null;
+                $refreshToken = null;
             }
+
             Log::info('Amazon Connector', [
                 'client_id' => $clientId,
-                'client_secret_sha1' => sha1($clientSecret),
-                'refresh_token_sha1' => sha1($refreshToken),
+                'client_secret_sha1' => sha1($clientSecret ?? ''),
+                'refresh_token_sha1' => sha1($refreshToken ?? ''),
             ]);
 
+            if (!$clientId || !$clientSecret || !$refreshToken) {
+                return $this->connector = null;
+            }
+
             $this->connector = SellingPartnerApi::seller(
-                clientId: $clientId,
-                clientSecret: $clientSecret,
-                refreshToken: $refreshToken,
+                clientId: (string) $clientId,
+                clientSecret: (string) $clientSecret,
+                refreshToken: (string) $refreshToken,
                 endpoint: Endpoint::NA,
             );
         }

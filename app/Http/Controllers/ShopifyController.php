@@ -405,8 +405,12 @@ class ShopifyController extends Controller
             ]);
         }
 
-        // optional session
-        session(['active_shop' => $shop]);
+        // verified session
+        session([
+            'active_shop'            => $shop,
+            'active_shop_id'         => $shopModel->id,
+            '_shopify_verified_shop' => $shop,
+        ]);
         // =========================
         // STEP 6: WEBHOOK
         // =========================
@@ -2363,6 +2367,14 @@ class ShopifyController extends Controller
     protected function getActiveShop(?Request $request = null): ?Shop
     {
         $request ??= request();
+
+        if ($request?->attributes->has('active_shop_model')) {
+            $model = $request->attributes->get('active_shop_model');
+            if ($model instanceof Shop && (int) $model->is_active === 1 && !empty($model->access_token)) {
+                return $model;
+            }
+        }
+
         $shopIdentifier = $this->extractShopIdentifier($request);
         if ($shopIdentifier === null) {
             LOG::warning('NO SHOP IDENTIFIER FOUND', [

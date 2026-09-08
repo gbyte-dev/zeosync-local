@@ -1,7 +1,25 @@
 <?php
 
 use App\Models\Shop;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
+
+beforeEach(function () {
+    Schema::create('shops', function (Blueprint $table) {
+        $table->id();
+        $table->string('shop')->unique();
+        $table->string('shop_name')->nullable();
+        $table->string('email')->nullable();
+        $table->text('access_token')->nullable();
+        $table->timestamp('access_token_expires_at')->nullable();
+        $table->text('refresh_token')->nullable();
+        $table->timestamp('refresh_token_expires_at')->nullable();
+        $table->boolean('is_active')->default(1);
+        $table->softDeletes();
+        $table->timestamps();
+    });
+});
 
 it('refreshes expiring shop access tokens hourly', function () {
     Http::fake([

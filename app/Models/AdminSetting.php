@@ -19,11 +19,14 @@ class AdminSetting extends Model
     public static function get(string $key, $default = null)
     {
         return Cache::rememberForever("admin_setting_{$key}", function () use ($key, $default) {
+            try {
+                $value = static::where('option_key', $key)
+                    ->value('option_value');
 
-            $value = static::where('option_key', $key)
-                ->value('option_value');
-
-            return filled($value) ? $value : $default;
+                return filled($value) ? $value : $default;
+            } catch (\Throwable $e) {
+                return $default;
+            }
         });
     }
 

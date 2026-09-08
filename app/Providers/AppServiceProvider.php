@@ -27,41 +27,60 @@ class AppServiceProvider extends ServiceProvider
     {
         require_once app_path('helpers/SubscriptionHelper.php');
 
-        View::composer('*', function ($view) {
-
-            $adminNotifications = AdminNotification::where('is_read', 0)
-                ->latest()
-                ->take(3)
-                ->get();
-
-            $adminUnreadCount = AdminNotification::where('is_read', 0)
-                ->count();
-
-            // ---------------- User ----------------
-            $currentShop = request('shop') ?? session('active_shop');
-
-            $shopId = session('active_shop_id');
-
-            if (!$shopId && $currentShop) {
-                $shopId = Shop::where('shop', $currentShop)->value('id');
-            }
-
-            $userNotifications = collect();
-            $userUnreadCount = 0;
-
-            if ($shopId) {
-                $userNotifications = UserNotification::where('shop_id', $shopId)
-                    ->where('is_read', 0)->latest()->take(3)->get();
-                $userUnreadCount = UserNotification::where('shop_id', $shopId)
-                    ->where('is_read', 0)->count();
-            }
-
-            $view->with([
-                'adminNotifications' => $adminNotifications,
-                'unreadCount' => $adminUnreadCount,
-                'userNotifications' => $userNotifications,
-                'userUnreadCount' => $userUnreadCount,
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \App\Console\Commands\RefreshShopAccessTokenCommand::class,
+                \App\Console\Commands\CheckStoreStatusCommand::class,
+                \App\Console\Commands\RefreshAmazonInventoryCache::class,
+                \App\Console\Commands\RefreshShopifyInventoryCache::class,
+                \App\Console\Commands\SendTrialEndingNotification::class,
+                \App\Console\Commands\TestAIAutoFill::class,
             ]);
+        }
+
+        View::composer('*', function ($view) {
+            try {
+                $adminNotifications = AdminNotification::where('is_read', 0)
+                    ->latest()
+                    ->take(3)
+                    ->get();
+
+                $adminUnreadCount = AdminNotification::where('is_read', 0)
+                    ->count();
+
+                // ---------------- User ----------------
+                $currentShop = request('shop') ?? session('active_shop');
+
+                $shopId = session('active_shop_id');
+
+                if (!$shopId && $currentShop) {
+                    $shopId = Shop::where('shop', $currentShop)->value('id');
+                }
+
+                $userNotifications = collect();
+                $userUnreadCount = 0;
+
+                if ($shopId) {
+                    $userNotifications = UserNotification::where('shop_id', $shopId)
+                        ->where('is_read', 0)->latest()->take(3)->get();
+                    $userUnreadCount = UserNotification::where('shop_id', $shopId)
+                        ->where('is_read', 0)->count();
+                }
+
+                $view->with([
+                    'adminNotifications' => $adminNotifications,
+                    'unreadCount' => $adminUnreadCount,
+                    'userNotifications' => $userNotifications,
+                    'userUnreadCount' => $userUnreadCount,
+                ]);
+            } catch (\Throwable $e) {
+                $view->with([
+                    'adminNotifications' => collect(),
+                    'unreadCount' => 0,
+                    'userNotifications' => collect(),
+                    'userUnreadCount' => 0,
+                ]);
+            }
         });
     }
 }
