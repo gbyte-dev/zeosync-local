@@ -72,7 +72,21 @@ class VerifyShopifySubscription
             ]
         );
 
-        dd($response->json());
+        // Log raw response for debugging when app is in debug mode instead of dumping.
+        if (config('app.debug')) {
+            try {
+                Log::debug('VERIFY SHOPIFY SUBSCRIPTION: RAW RESPONSE', [
+                    'status' => $response->status(),
+                    'body' => $response->json(),
+                ]);
+            } catch (\Throwable $e) {
+                Log::debug('VERIFY SHOPIFY SUBSCRIPTION: RAW RESPONSE could not be JSON decoded', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         if (!$response->successful()) {
             Log::error('VERIFY SHOPIFY SUBSCRIPTION: API REQUEST FAILED', [
