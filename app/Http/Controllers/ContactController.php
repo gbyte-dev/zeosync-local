@@ -15,6 +15,7 @@ use App\Services\EmailService;
 use App\Services\NotificationService;
 use App\Services\UserNotificationService;
 use App\Models\Shop;
+use Illuminate\Support\Facades\Log;
 
 class ContactController extends Controller
 {
