@@ -22,15 +22,15 @@ class ContactController extends Controller
     public function store(Request $request)
     {
             // Log request information for security/debugging
-        Log::info('Contact enquiry request received', [
-            'ip'        => $request->ip(),
-            'method'    => $request->method(),
-            'url'       => $request->fullUrl(),
-            'host'      => $request->getHost(),
-            'origin'    => $request->header('Origin'),
-            'referer'   => $request->header('Referer'),
-            'user_agent'=> $request->userAgent(),
-        ]);
+        // Log::info('Contact enquiry request received', [
+        //     'ip'        => $request->ip(),
+        //     'method'    => $request->method(),
+        //     'url'       => $request->fullUrl(),
+        //     'host'      => $request->getHost(),
+        //     'origin'    => $request->header('Origin'),
+        //     'referer'   => $request->header('Referer'),
+        //     'user_agent'=> $request->userAgent(),
+        // ]);
 
         // Allow requests only from your website
         $origin = $request->header('Origin');
