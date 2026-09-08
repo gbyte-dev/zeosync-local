@@ -21,12 +21,31 @@ class VerifyShopifyAuthentication
 
     public function handle(Request $request, Closure $next): Response
     {
-        // 1. Bypass unauthenticated / public / webhook / admin routes
+        // 1. Priority 1: Shopify Launch HMAC parameters (can appear on crm.entry or any page)
+        if ($request->has('hmac') && $request->has('shop')) {
+            $hmacShop = $this->verifyLaunchHmac($request);
+            if ($hmacShop) {
+                $request->attributes->set('shopify_verified_shop', $hmacShop->shop);
+                $request->attributes->set('shopify_verified_model', $hmacShop);
+                $request->attributes->set('shopify_auth_source', 'shopify_hmac');
+
+                session([
+                    '_shopify_verified_shop' => $hmacShop->shop,
+                    '_shopify_verified_at'   => time(),
+                    'active_shop'            => $hmacShop->shop,
+                    'active_shop_id'         => $hmacShop->id,
+                ]);
+
+                return $next($request);
+            }
+        }
+
+        // 2. Bypass unauthenticated / public / webhook / admin routes
         if ($this->shouldBypass($request)) {
             return $next($request);
         }
 
-        // 2. Priority 1: App Bridge Session Token (Authorization: Bearer <token>)
+        // 3. Priority 2: App Bridge Session Token (Authorization: Bearer <token>)
         $bearerToken = $request->bearerToken();
         if ($bearerToken) {
             $tokenResult = $this->validator->validate($bearerToken);
@@ -38,6 +57,9 @@ class VerifyShopifyAuthentication
 
                 session([
                     '_shopify_verified_shop' => $tokenResult['shop'],
+                    '_shopify_verified_at'   => time(),
+                    'active_shop'            => $tokenResult['shop'],
+                    'active_shop_id'         => $tokenResult['shop_model']->id,
                 ]);
 
                 return $next($request);
@@ -52,22 +74,6 @@ class VerifyShopifyAuthentication
                 'error'   => 'Unauthorized',
                 'message' => 'Invalid, expired, or untrusted Shopify session token.',
             ], 401);
-        }
-
-        // 3. Priority 2: Shopify Launch HMAC parameters (initial embedded page load)
-        if ($request->has('hmac') && $request->has('shop')) {
-            $hmacShop = $this->verifyLaunchHmac($request);
-            if ($hmacShop) {
-                $request->attributes->set('shopify_verified_shop', $hmacShop->shop);
-                $request->attributes->set('shopify_verified_model', $hmacShop);
-                $request->attributes->set('shopify_auth_source', 'launch_hmac');
-
-                session([
-                    '_shopify_verified_shop' => $hmacShop->shop,
-                ]);
-
-                return $next($request);
-            }
         }
 
         // 4. Priority 3: Established Cryptographically Verified Session

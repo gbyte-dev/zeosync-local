@@ -60,12 +60,30 @@ beforeEach(function () {
     AdminSetting::forget('SHOPIFY_API_KEY');
     AdminSetting::forget('SHOPIFY_API_SECRET');
 
-    // Register a test route protected by the authentication & resolve middleware
-    Route::middleware([
-        \Illuminate\Session\Middleware\StartSession::class,
-        VerifyShopifyAuthentication::class,
-        ResolveActiveShop::class,
-    ])->get('/shopify-auth-test-endpoint', function (Request $request) {
+    if (!\Illuminate\Support\Facades\Schema::hasTable('shops')) {
+        \Illuminate\Support\Facades\Schema::create('shops', function (\Illuminate\Database\Schema\Blueprint $table) {
+            $table->id();
+            $table->string('shop')->unique();
+            $table->string('shop_name')->nullable();
+            $table->string('email')->nullable();
+            $table->text('access_token')->nullable();
+            $table->timestamp('access_token_expires_at')->nullable();
+            $table->text('refresh_token')->nullable();
+            $table->timestamp('refresh_token_expires_at')->nullable();
+            $table->boolean('is_active')->default(1);
+            $table->softDeletes();
+            $table->timestamps();
+        });
+    } else {
+        Shop::truncate();
+    }
+
+    Http::fake([
+        '*graphql.json*' => Http::response(['data' => ['shop' => ['id' => '1', 'name' => 'Store']]], 200),
+    ]);
+
+    // Register a test route protected by the web middleware pipeline (including VerifyShopifyAuthentication & ResolveActiveShop)
+    Route::middleware('web')->get('/shopify-auth-test-endpoint', function (Request $request) {
         return response()->json([
             'active_shop'       => $request->attributes->get('active_shop'),
             'active_shop_id'    => $request->attributes->get('active_shop_model')?->id,
@@ -201,4 +219,145 @@ it('Test 8: Inactive or nonexistent Shopify shop is rejected with 401', function
     ])->get('/shopify-auth-test-endpoint');
 
     $response->assertStatus(401);
+});
+
+it('Test 9: Valid Shopify launch HMAC on entry creates verified session', function () {
+    $shopA = new Shop();
+    $shopA->id = 101;
+    $shopA->shop = 'store-a.myshopify.com';
+    $shopA->shop_name = 'Store A';
+    $shopA->email = 'store@example.com';
+    $shopA->is_active = 1;
+    $shopA->access_token = 'token-a';
+
+    $params = [
+        'shop'      => 'store-a.myshopify.com',
+        'timestamp' => (string) time(),
+        'host'      => base64_encode('admin.shopify.com/store/store-a'),
+    ];
+    ksort($params);
+    $hmac = hash_hmac('sha256', urldecode(http_build_query($params)), 'test-api-secret');
+    $params['hmac'] = $hmac;
+    Shop::create([
+        'shop'         => 'store-a.myshopify.com',
+        'shop_name'    => 'Store A',
+        'email'        => 'store@example.com',
+        'access_token' => 'token-a',
+        'is_active'    => 1,
+    ]);
+
+    $response = $this->get('/?' . http_build_query($params));
+
+    // Entry redirects to dashboard with verified shop
+    $response->assertRedirect();
+    expect(session('_shopify_verified_shop'))->toBe('store-a.myshopify.com');
+    expect(session('active_shop'))->toBe('store-a.myshopify.com');
+});
+
+it('Test 10: Valid Store A launch + /dashboard?shop=Store-B maintains Store A', function () {
+    Shop::create([
+        'shop'                    => 'store-a.myshopify.com',
+        'shop_name'               => 'Store A',
+        'email'                   => 'store@example.com',
+        'access_token'            => 'token-a',
+        'access_token_expires_at' => now()->addDays(1),
+        'is_active'               => 1,
+    ]);
+    Shop::create([
+        'shop'                    => 'store-b.myshopify.com',
+        'shop_name'               => 'Store B',
+        'email'                   => 'store-b@example.com',
+        'access_token'            => 'token-b',
+        'access_token_expires_at' => now()->addDays(1),
+        'is_active'               => 1,
+    ]);
+
+    $params = [
+        'shop'      => 'store-a.myshopify.com',
+        'timestamp' => (string) time(),
+    ];
+    ksort($params);
+    $params['hmac'] = hash_hmac('sha256', urldecode(http_build_query($params)), 'test-api-secret');
+
+    // 1. Launch with valid HMAC for Store A
+    $launchResponse = $this->get('/?' . http_build_query($params));
+    $launchResponse->assertRedirect();
+    expect(session('_shopify_verified_shop'))->toBe('store-a.myshopify.com');
+
+    // 2. Follow to protected endpoint with ?shop=store-b.myshopify.com
+    $response = $this->withSession([
+        '_shopify_verified_shop' => 'store-a.myshopify.com',
+    ])->get('/shopify-auth-test-endpoint?shop=store-b.myshopify.com');
+
+    $response->assertStatus(200);
+    $data = $response->json();
+
+    expect($data['active_shop'])->toBe('store-a.myshopify.com');
+    expect($data['verified_shop'])->toBe('store-a.myshopify.com');
+    expect($data['active_shop'])->not->toBe('store-b.myshopify.com');
+});
+
+it('Test 11: Forged launch HMAC is rejected without authenticating', function () {
+    Shop::create([
+        'shop'                    => 'store-a.myshopify.com',
+        'shop_name'               => 'Store A',
+        'email'                   => 'store@example.com',
+        'access_token'            => 'token-a',
+        'access_token_expires_at' => now()->addDays(1),
+        'is_active'               => 1,
+    ]);
+
+    $params = [
+        'shop'      => 'store-a.myshopify.com',
+        'timestamp' => (string) time(),
+        'hmac'      => 'forged-invalid-hmac-signature',
+    ];
+
+    // On protected route with forged HMAC
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->get('/shopify-auth-test-endpoint?' . http_build_query($params));
+
+    $response->assertStatus(401);
+});
+
+it('Test 12: Expired launch HMAC is rejected without authenticating', function () {
+    Shop::create([
+        'shop'                    => 'store-a.myshopify.com',
+        'shop_name'               => 'Store A',
+        'email'                   => 'store@example.com',
+        'access_token'            => 'token-a',
+        'access_token_expires_at' => now()->addDays(1),
+        'is_active'               => 1,
+    ]);
+
+    $params = [
+        'shop'      => 'store-a.myshopify.com',
+        'timestamp' => (string) (time() - 100000), // > 24 hours old
+    ];
+    ksort($params);
+    $params['hmac'] = hash_hmac('sha256', urldecode(http_build_query($params)), 'test-api-secret');
+
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->get('/shopify-auth-test-endpoint?' . http_build_query($params));
+
+    $response->assertStatus(401);
+});
+
+it('Test 13: Direct /?shop=victim.myshopify.com without HMAC redirects to install and does not authenticate victim', function () {
+    Shop::create([
+        'shop'         => 'victim.myshopify.com',
+        'shop_name'    => 'Victim Store',
+        'email'        => 'victim@example.com',
+        'access_token' => 'victim-token',
+        'is_active'    => 1,
+    ]);
+
+    // Attacker visits /?shop=victim.myshopify.com without HMAC
+    $response = $this->get('/?shop=victim.myshopify.com');
+
+    // Must redirect to install (OAuth), NOT dashboard
+    $response->assertRedirect(route('shopify.install', ['shop' => 'victim.myshopify.com']));
+
+    // Must NOT have set verified session for victim
+    expect(session('_shopify_verified_shop'))->toBeNull();
 });

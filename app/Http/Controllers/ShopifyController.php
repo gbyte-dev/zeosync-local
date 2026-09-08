@@ -51,24 +51,32 @@ class ShopifyController extends Controller
     }
     public function entry(Request $request)
     {
+        $verifiedShop = $request->attributes->get('shopify_verified_shop')
+            ?? (session()->has('_shopify_verified_shop') ? session('_shopify_verified_shop') : null);
+
         $shop = null;
-        //   PRIORITY 1: Shopify HOST (REAL SOURCE)
-        if ($request->has('host')) {
-            $decoded = base64_decode($request->get('host'));
-            LOG::info('HOST DECODED', [
-                'host' => $request->get('host'),
-                'decoded' => $decoded
-            ]);
-            preg_match('/store\/([a-z0-9\-]+)/', $decoded, $matches);
-            if (!empty($matches[1])) {
-                $shop = strtolower($matches[1] . '.myshopify.com');
+
+        if ($verifiedShop) {
+            $shop = $verifiedShop;
+        } else {
+            //   PRIORITY 1: Shopify HOST (REAL SOURCE)
+            if ($request->has('host')) {
+                $decoded = base64_decode($request->get('host'));
+                Log::info('HOST DECODED', [
+                    'host' => $request->get('host'),
+                    'decoded' => $decoded
+                ]);
+                preg_match('/store\/([a-z0-9\-]+)/', $decoded, $matches);
+                if (!empty($matches[1])) {
+                    $shop = strtolower($matches[1] . '.myshopify.com');
+                }
             }
-        }
-        //   PRIORITY 2: Query param (manual entry)
-        if (!$shop && $request->has('shop')) {
-            $shop = strtolower(trim($request->get('shop')));
-            if (!str_contains($shop, '.myshopify.com')) {
-                $shop .= '.myshopify.com';
+            //   PRIORITY 2: Query param (manual entry)
+            if (!$shop && $request->has('shop')) {
+                $shop = strtolower(trim($request->get('shop')));
+                if (!str_contains($shop, '.myshopify.com')) {
+                    $shop .= '.myshopify.com';
+                }
             }
         }
 
@@ -76,9 +84,11 @@ class ShopifyController extends Controller
             return view('welcome'); // landing page
         }
 
-        $shopModel = \App\Models\Shop::where('shop', $shop)->first();
+        $shopModel = $request->attributes->get('shopify_verified_model')
+            ?? \App\Models\Shop::where('shop', $shop)->where('is_active', 1)->first();
 
         if (
+            $verifiedShop &&
             $shopModel &&  $shopModel->is_active == 1 && !empty($shopModel->access_token)
         ) {
             if (!$this->isShopActive($shopModel)) {
@@ -87,12 +97,17 @@ class ShopifyController extends Controller
                     'is_active' => 0,
                 ]);
 
-                session()->forget('active_shop');
+                session()->forget(['active_shop', 'active_shop_id', '_shopify_verified_shop', '_shopify_verified_at']);
                 return redirect()->route('shopify.install', [
                     'shop' => $shopModel->shop,
                 ]);
             }
-            session(['active_shop' => $shop]);
+            session([
+                'active_shop'            => $shop,
+                'active_shop_id'         => $shopModel->id,
+                '_shopify_verified_shop' => $shop,
+                '_shopify_verified_at'   => session('_shopify_verified_at', time()),
+            ]);
 
             if ($request->filled('charge_id')) {
                 $chargeId = $request->query('charge_id');
@@ -133,9 +148,15 @@ class ShopifyController extends Controller
                 }
             }
 
-            return redirect()->route('dashboard', [
-                'shop' => $shop
-            ]);
+            $redirectParams = ['shop' => $shop];
+            if ($request->filled('host')) {
+                $redirectParams['host'] = $request->query('host');
+            }
+            if ($request->filled('embedded')) {
+                $redirectParams['embedded'] = $request->query('embedded');
+            }
+
+            return redirect()->route('dashboard', $redirectParams);
         }
 
         return redirect()->route('shopify.install', ['shop' => $shop]);
@@ -205,7 +226,7 @@ class ShopifyController extends Controller
         //   fallback from host (IMPORTANT)
         if (!$shop && $request->has('host')) {
             $decoded = base64_decode($request->get('host'));
-            LOG::info('INSTALL HOST DECODED', [
+            Log::info('INSTALL HOST DECODED', [
                 'host' => $request->get('host'),
                 'decoded' => $decoded
             ]);
@@ -967,7 +988,7 @@ class ShopifyController extends Controller
                 $attributes,
                 $product
             );
-            LOG::info('FINAL AMAZON ATTRIBUTES', $attributes);
+            Log::info('FINAL AMAZON ATTRIBUTES', $attributes);
             Log::info('🚀 AMAZON REQUEST START', [
                 'seller_id' => 'handled_by_service',
                 'sku' => $sku,
@@ -2377,7 +2398,7 @@ class ShopifyController extends Controller
 
         $shopIdentifier = $this->extractShopIdentifier($request);
         if ($shopIdentifier === null) {
-            LOG::warning('NO SHOP IDENTIFIER FOUND', [
+            Log::warning('NO SHOP IDENTIFIER FOUND', [
                 'query_shop' => $request?->query('shop'),
                 'query_host' => $request?->query('host'),
                 'path' => $request?->path(),
@@ -2386,7 +2407,7 @@ class ShopifyController extends Controller
         }
         $shop = $this->findShopByIdentifier($shopIdentifier);
         if (!$shop) {
-            LOG::warning('Shopify shop not found in database.', [
+            Log::warning('Shopify shop not found in database.', [
                 'shop_identifier' => $shopIdentifier,
                 'query_shop' => $request?->query('shop'),
                 'query_host' => $request?->query('host'),
@@ -2394,7 +2415,7 @@ class ShopifyController extends Controller
             ]);
             return null;
         }
-        LOG::info('ACTIVE SHOP CHECK', [
+        Log::info('ACTIVE SHOP CHECK', [
             'shop' => $shop->shop,
             'is_active' => $shop->is_active,
             'access_token_empty' => empty($shop->access_token),
@@ -2403,7 +2424,7 @@ class ShopifyController extends Controller
             (int) $shop->is_active !== 1 ||
             empty($shop->access_token)
         ) {
-            LOG::warning('INACTIVE SHOP BLOCKED', [
+            Log::warning('INACTIVE SHOP BLOCKED', [
                 'shop' => $shop->shop,
                 'is_active' => $shop->is_active,
             ]);
@@ -2985,7 +3006,7 @@ class ShopifyController extends Controller
     // }
     public function handleAppUninstalledWebhook(Request $request)
     {
-        LOG::info('UNINSTALL WEBHOOK HIT', [
+        Log::info('UNINSTALL WEBHOOK HIT', [
             'shop' => $request->header('X-Shopify-Shop-Domain')
         ]);
         $payload = $request->getContent();
@@ -2994,7 +3015,7 @@ class ShopifyController extends Controller
             return response('No shop domain', 400);
         }
         if (!$this->shopifyWebhook->isValidWebhook($payload, $request->header('X-Shopify-Hmac-Sha256'))) {
-            LOG::warning('Invalid uninstall webhook', ['shop' => $shopDomain]);
+            Log::warning('Invalid uninstall webhook', ['shop' => $shopDomain]);
             return response('Invalid webhook', 401);
         }
         try {
@@ -3019,10 +3040,10 @@ class ShopifyController extends Controller
                 'is_active' => 0,
                 'access_token' => '',
             ]);
-            LOG::info('App uninstalled handled', ['shop' => $shopDomain]);
+            Log::info('App uninstalled handled', ['shop' => $shopDomain]);
             return response('OK', 200);
         } catch (\Exception $e) {
-            LOG::error('UNINSTALL ERROR', [
+            Log::error('UNINSTALL ERROR', [
                 'error' => $e->getMessage()
             ]);
             return response('Error', 500);
