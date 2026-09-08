@@ -97,6 +97,7 @@ class ResolveActiveShop
             $request->routeIs('about') ||
             $request->routeIs('pricing') ||
             $request->routeIs('contact') ||
+            $request->routeIs('contact.store') ||
             $request->routeIs('terms') ||
             $request->routeIs('privacy')
         ) {
