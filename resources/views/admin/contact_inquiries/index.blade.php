@@ -68,6 +68,19 @@
                             </td>
                             <td class="text-end">
                                 <a href="{{ route('admin.contact-requests.show', $contact) }}" class="btn btn-sm btn-outline-primary">View</a>
+
+                                @if(!$contact->is_read)
+                                <form action="{{ route('admin.contact-requests.markread', $contact) }}" method="POST" class="d-inline-block ms-1">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-success">Mark as Read</button>
+                                </form>
+                                @endif
+
+                                <form action="{{ route('admin.contact-requests.destroy', $contact) }}" method="POST" class="d-inline-block ms-1" onsubmit="return confirm('Are you sure you want to delete this contact request?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                </form>
                             </td>
                         </tr>
                         @empty
@@ -93,4 +106,8 @@
         {{ $contacts->links() }}
     </div>
 </div>
+@endsection
+
+@section('styles')
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
 @endsection
