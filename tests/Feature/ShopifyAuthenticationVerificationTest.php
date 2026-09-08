@@ -361,3 +361,13 @@ it('Test 13: Direct /?shop=victim.myshopify.com without HMAC redirects to instal
     // Must NOT have set verified session for victim
     expect(session('_shopify_verified_shop'))->toBeNull();
 });
+
+it('Test 14: Admin routes are bypassed by Shopify authentication and ResolveActiveShop', function () {
+    // Admin login page is accessible without Shopify parameters
+    $loginResponse = $this->get('/admin/login');
+    $loginResponse->assertStatus(200);
+
+    // Unauthenticated admin route redirects to admin.login (via auth:admin), NOT crm.entry / Shopify dashboard
+    $adminDashboardResponse = $this->get('/admin');
+    $adminDashboardResponse->assertRedirect(route('admin.login'));
+});

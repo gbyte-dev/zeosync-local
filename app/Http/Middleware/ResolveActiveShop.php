@@ -13,7 +13,12 @@ class ResolveActiveShop
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // 1. Bypass webhook routes
+        // 1. Bypass admin routes (handled by auth:admin guard)
+        if ($request->is('admin') || $request->is('admin/*')) {
+            return $next($request);
+        }
+
+        // 2. Bypass webhook routes
         if (
             $request->routeIs('shopify.webhooks.orders.create')
             || $request->routeIs('shopify.webhooks.app.uninstalled')
