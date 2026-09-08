@@ -40,7 +40,7 @@ Route::get('/api/shop-status', [ShopifyController::class, 'checkShopStatus'])->n
 Route::view('/about', 'about')->name('about');
 Route::get('/pricing', [PlanController::class, 'pricing'])->name('pricing');
 Route::view('/contact', 'contact')->name('contact');
-Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
+Route::post('/contact', [ContactController::class, 'store'])->name('contact.store')->middleware('ip.rate:1,60'); ;
 Route::view('/terms', 'terms')->name('terms');
 Route::view('/privacy', 'privacy')->name('privacy');
 Route::middleware([

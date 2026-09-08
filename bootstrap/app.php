@@ -40,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'shopify.auth'         => \App\Http\Middleware\VerifyShopifyAuthentication::class,
             'shopify.subscription' => \App\Http\Middleware\VerifyShopifySubscription::class,
             'subscription.check'   => \App\Http\Middleware\CheckSubscription::class,
+            'ip.rate' => \App\Http\Middleware\EnforceIpAndRateLimit::class,
         ]);
 
         // $middleware->validateCsrfTokens(except: [
@@ -53,6 +54,8 @@ return Application::configure(basePath: dirname(__DIR__))
        $middleware->validateCsrfTokens(except: [
             '*',
             '!contacts',
+            '!/contact',
+            'contact' 
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
