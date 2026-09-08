@@ -124,6 +124,10 @@ if (in_array($field['name'], ['product_description', 'bullet_point'])) {
 $field['type'] = 'textarea';
 }
 
+if ($field['name'] === 'main_product_image_locator') {
+    $field['required'] = true;
+}
+
 $fieldHint = \App\Support\AmazonFieldHint::get($field['name']);
 $isImageField = \Illuminate\Support\Str::contains($field['name'], 'image_locator');
 $showAiButton = $canUseAiSingleField
