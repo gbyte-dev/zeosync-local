@@ -965,7 +965,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
         });
 
-        $syncAmazonBtn.prop('disabled', !allFilled);
+        const $mainImage = $('[name="attributes[main_product_image_locator]"]');
+        const hasMainImage =
+            $mainImage.length > 0 &&
+            ($mainImage.val() || '').trim() !== '';
+
+        $syncAmazonBtn.prop('disabled', !allFilled || !hasMainImage);
     }
     updateProgress();
     validateRequiredFields();
