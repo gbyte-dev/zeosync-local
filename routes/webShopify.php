@@ -203,6 +203,9 @@ Route::prefix('admin')->group(function () {
         Route::get('/contact-requests/{contact}', [ContactController::class, 'adminShow'])->name('admin.contact-requests.show');
         Route::post('/contact-requests/{contact}/mark-read', [ContactController::class, 'adminMarkRead'])->name('admin.contact-requests.markread');
         Route::delete('/contact-requests/{contact}', [ContactController::class, 'adminDestroy'])->name('admin.contact-requests.destroy');
+        // Bulk actions
+        Route::post('/contact-requests/mark-read-all', [ContactController::class, 'adminMarkAllRead'])->name('admin.contact-requests.markall');
+        Route::post('/contact-requests/delete-all', [ContactController::class, 'adminDestroyAll'])->name('admin.contact-requests.deleteall');
         Route::get('/category/{id}/children', [AdminController::class, 'categoryChildren'])
             ->name('admin.category.children');
         Route::get('/allplans', [PlanController::class, 'index'])->name('admin.plans');

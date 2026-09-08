@@ -187,4 +187,19 @@ class ContactController extends Controller
 
         return redirect()->route('admin.contact-requests')->with('success', 'Contact request deleted.');
     }
+
+    public function adminMarkAllRead()
+    {
+        \App\Models\ContactInquiry::query()->where('is_read', false)->update(['is_read' => true]);
+
+        return redirect()->route('admin.contact-requests')->with('success', 'All contact requests marked as read.');
+    }
+
+    public function adminDestroyAll()
+    {
+        // Consider using soft deletes if preservation is required.
+        \App\Models\ContactInquiry::query()->delete();
+
+        return redirect()->route('admin.contact-requests')->with('success', 'All contact requests deleted.');
+    }
 }

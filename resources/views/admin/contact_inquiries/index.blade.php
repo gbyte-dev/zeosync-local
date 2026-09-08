@@ -30,6 +30,17 @@
                         </option>
                     </select>
                 </form>
+                <div class="mt-2 d-flex justify-content-end gap-2">
+                    <form action="{{ route('admin.contact-requests.markall') }}" method="POST" class="d-inline-block">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-outline-success">Mark All Read</button>
+                    </form>
+
+                    <form action="{{ route('admin.contact-requests.deleteall') }}" method="POST" class="d-inline-block" onsubmit="return confirm('Are you sure you want to delete ALL contact requests? This cannot be undone.');">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete All</button>
+                    </form>
+                </div>
                 </div>
             </div>
         </div>
@@ -72,7 +83,7 @@
                                 @if(!$contact->is_read)
                                 <form action="{{ route('admin.contact-requests.markread', $contact) }}" method="POST" class="d-inline-block ms-1">
                                     @csrf
-                                    <button type="submit" class="btn btn-sm btn-outline-success">Mark as Read</button>
+                                    <!-- <button type="submit" class="btn btn-sm btn-outline-success">Mark as Read</button> -->
                                 </form>
                                 @endif
 
@@ -103,11 +114,11 @@
     </div>
 
     <div class="mt-4">
-        {{ $contacts->links() }}
+        {{ $contacts->links('pagination::bootstrap-5') }}
     </div>
 </div>
 @endsection
 
-@section('styles')
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
-@endsection
+@push('css')
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+@endpush
