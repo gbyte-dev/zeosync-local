@@ -301,3 +301,26 @@ it('Test 7: Simultaneous/locked request from the same IP is rejected by atomic l
     // Release lock
     $lock->release();
 });
+
+it('Test 8: Unavailable or null client IP is rejected immediately without creating record or sending emails', function () {
+    // Simulate a request where REMOTE_ADDR is empty/null
+    $response = $this->withServerVariables(['REMOTE_ADDR' => ''])
+        ->post('/contact', [
+            'name'         => 'No IP User',
+            'email'        => 'noip@example.com',
+            'subject'      => 'No IP Subject',
+            'message'      => 'Testing unavailable IP address',
+            'enquiry_type' => 'general_enquiry',
+        ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHasErrors('email');
+
+    // Verify error message content
+    $errors = session('errors');
+    expect($errors->get('email')[0])->toContain('network address could not be verified');
+
+    // Verify no DB record and no emails
+    expect(ContactInquiry::count())->toBe(0);
+    Mail::assertNothingSent();
+});

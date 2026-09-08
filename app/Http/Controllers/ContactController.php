@@ -33,7 +33,16 @@ class ContactController extends Controller
             'general_enquiry'
         );
 
-        $ip = $request->ip() ?: '127.0.0.1';
+        $ip = $request->ip();
+
+        if (empty($ip)) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors([
+                    'email' => 'Your network address could not be verified. Please try again later.',
+                ]);
+        }
+
         $ipHash = hash('sha256', $ip);
         $rateLimitKey = 'contact_enquiry_ip:' . $ipHash;
         $lockKey = 'contact_enquiry_lock:' . $ipHash;
