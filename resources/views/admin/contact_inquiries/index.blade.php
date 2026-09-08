@@ -30,6 +30,17 @@
                         </option>
                     </select>
                 </form>
+                <div class="mt-2 d-flex justify-content-end gap-2">
+                    <form action="{{ route('admin.contact-requests.markall') }}" method="POST" class="d-inline-block">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-outline-success">Mark All Read</button>
+                    </form>
+
+                    <form action="{{ route('admin.contact-requests.deleteall') }}" method="POST" class="d-inline-block" onsubmit="return confirm('Are you sure you want to delete ALL contact requests? This cannot be undone.');">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete All</button>
+                    </form>
+                </div>
                 </div>
             </div>
         </div>
@@ -108,6 +119,23 @@
 </div>
 @endsection
 
-@section('styles')
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
-@endsection
+@push('css')
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+    <style>
+        /* Ensure Laravel pagination arrows and page links have sensible sizing in the admin UI */
+        .pagination .page-link,
+        .pagination .page-item > a,
+        .pagination .page-item > span {
+            font-size: 12px !important;
+            line-height: 1.2 !important;
+            padding: 4px 8px !important;
+        }
+
+        /* Optional: tighten the chevrons if some icon font is large */
+        .pagination .page-link .bi,
+        .pagination .page-link i {
+            font-size: 0.9em !important;
+            vertical-align: middle;
+        }
+    </style>
+@endpush
