@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Mail\ContactThankYouMail;
 use App\Models\ContactInquiry;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use App\Models\Admin;
 use App\Models\MailTemplate;
 use App\Services\EmailService;
@@ -31,7 +33,33 @@ class ContactController extends Controller
             'general_enquiry'
         );
 
-        $contact = ContactInquiry::create($data);
+        $ip = $request->ip() ?: '127.0.0.1';
+        $ipHash = hash('sha256', $ip);
+        $rateLimitKey = 'contact_enquiry_ip:' . $ipHash;
+        $lockKey = 'contact_enquiry_lock:' . $ipHash;
+
+        $lock = Cache::lock($lockKey, 10);
+
+        try {
+            if (! $lock->get()) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'email' => 'You have already submitted an enquiry recently. Please try again later.',
+                    ]);
+            }
+
+            if (RateLimiter::tooManyAttempts($rateLimitKey, 1)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors([
+                        'email' => 'You have already submitted an enquiry recently. Please try again later.',
+                    ]);
+            }
+
+            RateLimiter::hit($rateLimitKey, 86400);
+
+            $contact = ContactInquiry::create($data);
         try {
 
             $admin = Admin::where('role', 'admin')->first();
@@ -106,7 +134,10 @@ class ContactController extends Controller
 
             );
         }
-        return redirect()->back()->with('success', 'Thank you for your message. Our team will connect with you shortly.');
+                return redirect()->back()->with('success', 'Thank you for your message. Our team will connect with you shortly.');
+        } finally {
+            $lock->release();
+        }
     }
 
     public function adminIndex(Request $request)
