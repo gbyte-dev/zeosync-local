@@ -201,6 +201,8 @@ Route::prefix('admin')->group(function () {
         Route::get('/category', [AdminController::class, 'category'])->name('admin.category');
         Route::get('/contact-requests', [ContactController::class, 'adminIndex'])->name('admin.contact-requests');
         Route::get('/contact-requests/{contact}', [ContactController::class, 'adminShow'])->name('admin.contact-requests.show');
+        Route::post('/contact-requests/{contact}/mark-read', [ContactController::class, 'adminMarkRead'])->name('admin.contact-requests.markread');
+        Route::delete('/contact-requests/{contact}', [ContactController::class, 'adminDestroy'])->name('admin.contact-requests.destroy');
         Route::get('/category/{id}/children', [AdminController::class, 'categoryChildren'])
             ->name('admin.category.children');
         Route::get('/allplans', [PlanController::class, 'index'])->name('admin.plans');

@@ -161,4 +161,21 @@ class ContactController extends Controller
 
         return view('admin.contact_inquiries.show', compact('contact'));
     }
+
+    public function adminMarkRead(ContactInquiry $contact)
+    {
+        // Mark as read (idempotent)
+        if (!$contact->is_read) {
+            $contact->update(['is_read' => true]);
+        }
+
+        return redirect()->back()->with('success', 'Contact request marked as read.');
+    }
+
+    public function adminDestroy(ContactInquiry $contact)
+    {
+        $contact->delete();
+
+        return redirect()->route('admin.contact-requests')->with('success', 'Contact request deleted.');
+    }
 }
