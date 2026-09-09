@@ -1000,11 +1000,11 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
             const missing = getMissingAmazonRequiredFields();
             if (missing.length > 0) {
-                const listHtml = '<ul style="text-align: left; margin: 15px auto 0; display: inline-block; padding-left: 20px;">' +
-                    missing.map(field => `<li style="margin-bottom: 4px;"><strong>${field}</strong></li>`).join('') +
+                const listHtml = '<ul style="text-align: left;">' +
+                    missing.map(field => `<li style="margin-bottom: 4px;"><p style="font-size:14px">${field}</p></li>`).join('') +
                     '</ul>';
                 Swal.fire({
-                    title: '<span style="font-size: 20px;">Required Information Missing</span>',
+                    title: '<span style="font-size: 16px;">Required Information Missing</span>',
                     html: '<p style="margin-bottom: 6px; font-size: 14px;">Please complete the following required fields before requesting Amazon submission:</p>' + listHtml,
                     confirmButtonText: 'OK',
                     confirmButtonColor: '#2563EB'
