@@ -274,8 +274,23 @@ class AmazonConnect extends ShopifyController
     }
 
 
-    public function syncOrders($shop)
+    public function syncOrders(Request $request)
     {
+        $shop = $this->getActiveShop($request);
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Active shop not found.'
+            ], 401);
+        }
+
+        if (empty($shop->amazon_refresh_token)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Amazon is not connected for this shop.'
+            ], 400);
+        }
+
         $settings = AdminSetting::pluck('option_value', 'option_key');
         $client_id = $settings['production_client_id'] ?? config('amazon.client_id');
         $client_secret = $settings['production_client_secret'] ?? config('amazon.client_secret');
@@ -288,22 +303,38 @@ class AmazonConnect extends ShopifyController
             'client_secret' => $client_secret,
         ])->json();
 
-        $accessToken = $auth['access_token'];
+        $accessToken = $auth['access_token'] ?? null;
+
+        if (!$accessToken) {
+            Log::error('Amazon token refresh failed in syncOrders', [
+                'shop' => $shop->shop,
+                'response' => $auth,
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to obtain Amazon access token.'
+            ], 400);
+        }
 
         // 2. Call Orders API
         $response = Http::withHeaders([
             'x-amz-access-token' => $accessToken,
         ])->get('https://sellingpartnerapi-na.amazon.com/orders/v0/orders', [
             'CreatedAfter'   => now()->subDays(1)->toIso8601String(),
-            'MarketplaceIds' => ['ATVPDKIKX0DER'], // USA Marketplace ID
+            'MarketplaceIds' => [$shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER'], // Marketplace ID
         ]);
 
         $orders = $response->json()['payload']['Orders'] ?? [];
 
         foreach ($orders as $amzOrder) {
             // Logic to insert into your local DB or push to Shopify via Admin API
-            Log::info("Found Amazon Order: " . $amzOrder['AmazonOrderId']);
+            Log::info("Found Amazon Order: " . ($amzOrder['AmazonOrderId'] ?? 'N/A'));
         }
+
+        return response()->json([
+            'success' => true,
+            'orders'  => $orders,
+        ]);
     }
 
     public function disconnect(Request $request)
