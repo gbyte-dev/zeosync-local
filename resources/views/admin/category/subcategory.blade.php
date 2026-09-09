@@ -40,23 +40,16 @@
     {{-- Header --}}
   
 <div class="container-fluid px-0">
-
-  <div class="p-3 text-dark shadow header">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-                <h6 class="fw-bold mb-1">Sub-categories</h6>
-                <p class="mb-0 opacity-75">
-                    Manage subcategories ({{$children[0]->parent->name??''}})
-                </p>
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h6 class="fw-bold mb-1">Sub-categories</h6>
+                    <p class="mb-0 text-muted small">Manage subcategories ({{$children[0]->parent->name??''}})</p>
+                </div>
+                <a href="{{ route('admin.category') }}" class="btn btn-light btn-sm">← Back</a>
             </div>
-
-             <a href="{{ route('admin.category') }}" class="btn btn-primary btn-sm rounded-3" style="">
-                <i class="bi bi-arrow-left"></i> Back
-            </a>
         </div>
-    </div>
-
-    <div class="card border-0 mt-2 shadow-sm overflow-hidden">
 
         <div class="card-body p-0">
 

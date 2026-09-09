@@ -178,7 +178,7 @@ Route::get('payment/cancel', [SubscriptionController::class, 'cancel'])->name('p
 Route::get('/check-payment-status', [SubscriptionController::class, 'checkStatus'])
     ->name('payment.status');
 //admin routes
-Route::prefix('admin')->group(function () {
+Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::class)->group(function () {
     Route::middleware('guest:admin')->group(function () {
         Route::get('/login', function () {
             return view('admin.auth.login');
