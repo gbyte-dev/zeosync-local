@@ -182,17 +182,19 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                                         <i class="fas fa-arrow-right ms-1"></i>
                                     </button>
 
-                                    <button
-                                        id="syncAmazonBtn"
-                                        class="btn btn-success d-none text-nowrap"
-                                        style="white-space: nowrap;"
-                                        type="submit"
-                                        name="sync_amazon"
-                                        value="true"
-                                        disabled>
-                                        <i class="fab fa-amazon me-2"></i>
-                                        Sync to Amazon
-                                    </button>
+                                    <div id="syncAmazonBtnWrapper" class="d-inline-block d-none">
+                                        <button
+                                            id="syncAmazonBtn"
+                                            class="btn btn-success text-nowrap"
+                                            style="white-space: nowrap;"
+                                            type="submit"
+                                            name="sync_amazon"
+                                            value="true"
+                                            disabled>
+                                            <i class="fab fa-amazon me-2"></i>
+                                            Sync to Amazon
+                                        </button>
+                                    </div>
 
                                     @endif
 
@@ -970,6 +972,49 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
     updateProgress();
     validateRequiredFields();
 
+    function getMissingAmazonRequiredFields() {
+        const fieldsToCheck = [
+            { name: 'item_name', label: 'Item Name' },
+            { name: 'title_differentiation', label: 'Item Highlight' },
+            { name: 'brand', label: 'Brand Name' },
+            { name: 'main_product_image_locator', label: 'Main Image Locator' }
+        ];
+
+        const missing = [];
+
+        fieldsToCheck.forEach(item => {
+            const inputs = getFieldInputs(item.name);
+            const isFilled = inputs.length > 0 && inputs.some(input => isInputFilled(input));
+            if (!isFilled) {
+                missing.push(item.label);
+            }
+        });
+
+        return missing;
+    }
+
+    $('#syncAmazonBtnWrapper').on('click', function(e) {
+        if ($syncAmazonBtn.prop('disabled') && !isSyncSubmitting) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const missing = getMissingAmazonRequiredFields();
+            if (missing.length > 0) {
+                const listHtml = '<ul style="text-align: left; margin: 15px auto 0; display: inline-block; padding-left: 20px;">' +
+                    missing.map(field => `<li style="margin-bottom: 4px;"><strong>${field}</strong></li>`).join('') +
+                    '</ul>';
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Required Information Missing',
+                    html: '<p style="margin-bottom: 8px;">Please complete the following required fields before requesting Amazon submission:</p>' + listHtml,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#2563EB'
+                });
+            }
+        }
+    });
+
     $syncAmazonBtn.on('click', function(e) {
         if ($syncAmazonBtn.prop('disabled') || isSyncSubmitting) {
             e.preventDefault();
@@ -1206,7 +1251,7 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
         $('#prevTabBtn').toggleClass('d-none', index === 0);
         $('#nextTabBtn').toggleClass('d-none', index === lastIndex);
-        $('#syncAmazonBtn').toggleClass('d-none', index !== lastIndex);
+        $('#syncAmazonBtnWrapper').toggleClass('d-none', index !== lastIndex);
         validateRequiredFields();
     }
 
