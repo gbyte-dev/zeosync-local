@@ -1267,7 +1267,7 @@ class ProductSchemaController extends Controller
 
             dd($result, $amazonStatus, $mapped);
             // Update local product if exists for this shop
-            $product = \App\Models\Product::where('sku', $sku)
+            $product = Product::where('sku', $sku)
                 ->where('user_id', $activeShop->id)
                 ->first();
 
