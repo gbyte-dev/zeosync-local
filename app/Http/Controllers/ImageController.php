@@ -103,7 +103,7 @@ class ImageController extends Controller
             'image'   => $path,
         ]);
 
-        $this->resizeAndPadImage(public_path($path));
+       // $this->resizeAndPadImage(public_path($path));
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
