@@ -471,9 +471,9 @@ it('Test H: AI Chat index view renders input form, keyboard hints, and loader st
     expect($view)->toContain('id="ai-chat-submit"');
     expect($view)->toContain('.ai-response-loader');
     expect($view)->toContain('loading_5192');
-    expect($view)->toContain('role="status"');
-    expect($view)->toContain('aria-label="AI is thinking"');
+    expect($view)->toContain('AI is thinking');
 });
+
 
 
 

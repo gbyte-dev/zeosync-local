@@ -130,11 +130,30 @@
     }
 
     /* AI Response Loader */
+    .ai-chat-message.ai-response-loader-message {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 4px 0 !important;
+        border-radius: 0 !important;
+        width: fit-content !important;
+        max-width: none !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
+
     .ai-response-loader {
         display: flex;
-        justify-content: center;
         align-items: center;
-        padding: 4px 8px;
+        justify-content: flex-start;
+        width: fit-content;
+        height: 24px;
+        padding: 0;
+        margin: 4px 0;
+        background: transparent;
+        border: none;
+        box-shadow: none;
     }
 
     .ai-response-loader .bar {
@@ -144,6 +163,7 @@
         border-radius: 10px;
         animation: loading_5192 1s ease-in-out infinite;
         background-color: aqua;
+        flex-shrink: 0;
     }
 
     .ai-response-loader .bar:nth-child(1) {
@@ -658,14 +678,14 @@
 
             // Render AI response loading indicator
             const loaderMessage = document.createElement('div');
-            loaderMessage.className = 'ai-chat-message assistant';
+            loaderMessage.className = 'ai-response-loader';
+            loaderMessage.setAttribute('role', 'status');
+            loaderMessage.setAttribute('aria-label', 'AI is thinking');
             loaderMessage.innerHTML = `
-                <div class="loader ai-response-loader" aria-label="AI is thinking" role="status">
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                </div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
             `;
             log.appendChild(loaderMessage);
             scrollToBottom();
