@@ -166,26 +166,11 @@ $groups = [
                 </div>
                 @endif
             </form>
-        </div>
-    </div>
-</div>
-@endsection
-                <div class="text-end">
-                    <button type="submit" class="btn btn-primary px-4">
-                        Save Settings
-                    </button>
-                </div>
-            </form>
-            <form id="trialNotifyForm"
-                action="{{ route('admin.trial.ending.notify') }}"
-                method="POST">
+            <form id="trialNotifyForm" action="{{ route('admin.trial.ending.notify') }}" method="POST">
                 @csrf
             </form>
-
-
         </div>
     </div>
-
 </div>
 
 @endsection
