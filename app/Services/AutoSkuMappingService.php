@@ -131,23 +131,39 @@ class AutoSkuMappingService
             }
         }
 
-        ProductMarketplaceMapping::create([
-            'shop_id'                   => $shop->id,
-            'product_id'                => $localProduct ? $localProduct->id : null,
-            'variant_id'                => $localVariantId,
-            'shopify_product_id'        => (string) $shopifyItem['pid'],
-            'shopify_variant_id'        => (string) $shopifyItem['vid'],
-            'shopify_inventory_item_id' => (string) $shopifyItem['inventory_item_id'],
-            'amazon_sku'                => (string) $amazonItem['sku'],
-            'quantity'                  => (int) ($shopifyItem['qty'] ?? 0),
-            'sync_status'               => 'pending',
-            'submission_status'         => 'not_submitted',
-        ]);
+        try {
+            ProductMarketplaceMapping::create([
+                'shop_id'                   => $shop->id,
+                'product_id'                => $localProduct ? $localProduct->id : null,
+                'variant_id'                => $localVariantId,
+                'shopify_product_id'        => (string) $shopifyItem['pid'],
+                'shopify_variant_id'        => (string) $shopifyItem['vid'],
+                'shopify_inventory_item_id' => (string) $shopifyItem['inventory_item_id'],
+                'amazon_sku'                => (string) $amazonItem['sku'],
+                'quantity'                  => (int) ($shopifyItem['qty'] ?? 0),
+                'sync_status'               => 'pending',
+                'submission_status'         => 'not_submitted',
+            ]);
 
-        Log::info('CREATED NEW MAPPING', [
-            'shop'               => $shop->shop,
-            'shopify_variant_id' => $shopifyItem['vid'],
-            'amazon_sku'         => $amazonItem['sku']
-        ]);
+            Log::info('CREATED NEW MAPPING', [
+                'shop'               => $shop->shop,
+                'shopify_variant_id' => $shopifyItem['vid'],
+                'amazon_sku'         => $amazonItem['sku']
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            $errorCode = $e->errorInfo[1] ?? null;
+            $msg = strtolower($e->getMessage());
+
+            if ($errorCode === 1062 || $errorCode === 19 || $e->getCode() === '23000' || $e->getCode() === 23000 || str_contains($msg, 'duplicate') || str_contains($msg, 'unique')) {
+                Log::info('Auto SKU mapping skipped - duplicate mapping detected concurrently', [
+                    'shop'               => $shop->shop,
+                    'shopify_variant_id' => $shopifyItem['vid'],
+                    'amazon_sku'         => $amazonItem['sku']
+                ]);
+                return;
+            }
+
+            throw $e;
+        }
     }
 }
