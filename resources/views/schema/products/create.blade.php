@@ -72,6 +72,12 @@
         margin-bottom: 8px;
         cursor: pointer;
     }
+
+    .swal-confirm-small {
+        padding: 6px 18px !important;
+        font-size: 14px !important;
+        min-width: auto !important;
+    }
 </style>
 @endpush
 @section('content')
@@ -1007,7 +1013,10 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                     title: '<span style="font-size: 16px;">Required Information Missing</span>',
                     html: '<p style="margin-bottom: 6px; font-size: 14px;">Please complete the following required fields before requesting Amazon submission:</p>' + listHtml,
                     confirmButtonText: 'OK',
-                    confirmButtonColor: '#2563EB'
+                    confirmButtonColor: '#2563EB',
+                    customClass: {
+                        confirmButton: 'swal-confirm-small'
+                    }
                 });
             }
         }
