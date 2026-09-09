@@ -1182,10 +1182,13 @@ class ProductSchemaController extends Controller
             }
 
             $products = Product::with('attributes', 'schema')->where('user_id', $shop_id)->where('parent_id', $product_id)->get();
+            dd($products);
             $parent_productid = $product_id;
         }
         return view('schema.products.index', compact('products', 'parent_productid', 'productLimitReached'));
     }
+
+
     public function generateField(Request $request)
     {
         $request->validate([
