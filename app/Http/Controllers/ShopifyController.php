@@ -148,7 +148,8 @@ class ShopifyController extends Controller
                 }
             }
 
-            $redirectParams = ['shop' => $shop];
+            $redirectParams = $request->query();
+            $redirectParams['shop'] = $shop;
             if ($request->filled('host')) {
                 $redirectParams['host'] = $request->query('host');
             }

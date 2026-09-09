@@ -371,3 +371,97 @@ it('Test 14: Admin routes are bypassed by Shopify authentication and ResolveActi
     $adminDashboardResponse = $this->get('/admin');
     $adminDashboardResponse->assertRedirect(route('admin.login'));
 });
+
+it('Test 15: Entry redirect to dashboard preserves hmac, timestamp, host, and embedded parameters', function () {
+    Shop::create([
+        'shop'         => 'store-a.myshopify.com',
+        'shop_name'    => 'Store A',
+        'email'        => 'store@example.com',
+        'access_token' => 'token-a',
+        'is_active'    => 1,
+    ]);
+
+    $params = [
+        'embedded'  => '1',
+        'host'      => base64_encode('admin.shopify.com/store/store-a'),
+        'shop'      => 'store-a.myshopify.com',
+        'timestamp' => (string) time(),
+    ];
+    ksort($params);
+    $params['hmac'] = hash_hmac('sha256', urldecode(http_build_query($params)), 'test-api-secret');
+
+    $response = $this->get('/?' . http_build_query($params));
+
+    $response->assertRedirect();
+    $targetUrl = $response->headers->get('Location');
+    $parsed = parse_url($targetUrl);
+    parse_str($parsed['query'] ?? '', $redirectParams);
+
+    expect($redirectParams)->toHaveKey('hmac');
+    expect($redirectParams['hmac'])->toBe($params['hmac']);
+    expect($redirectParams)->toHaveKey('timestamp');
+    expect($redirectParams['timestamp'])->toBe($params['timestamp']);
+    expect($redirectParams)->toHaveKey('shop');
+    expect($redirectParams['shop'])->toBe('store-a.myshopify.com');
+    expect($redirectParams)->toHaveKey('host');
+    expect($redirectParams)->toHaveKey('embedded');
+});
+
+it('Test 16: Dashboard with valid preserved launch HMAC loads successfully without pre-existing session', function () {
+    Shop::create([
+        'shop'         => 'store-a.myshopify.com',
+        'shop_name'    => 'Store A',
+        'email'        => 'store@example.com',
+        'access_token' => 'token-a',
+        'is_active'    => 1,
+    ]);
+
+    $params = [
+        'embedded'  => '1',
+        'host'      => base64_encode('admin.shopify.com/store/store-a'),
+        'shop'      => 'store-a.myshopify.com',
+        'timestamp' => (string) time(),
+    ];
+    ksort($params);
+    $params['hmac'] = hash_hmac('sha256', urldecode(http_build_query($params)), 'test-api-secret');
+
+    // Simulate browser iframe load of /dashboard without session cookies
+    $response = $this->get('/shopify-auth-test-endpoint?' . http_build_query($params));
+
+    $response->assertStatus(200);
+    $data = $response->json();
+    expect($data['active_shop'])->toBe('store-a.myshopify.com');
+    expect($data['verified_shop'])->toBe('store-a.myshopify.com');
+    expect($data['auth_source'])->toBe('shopify_hmac');
+});
+
+it('Test 17: Dashboard access without any authentication fails closed', function () {
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->get('/shopify-auth-test-endpoint');
+
+    $response->assertStatus(401);
+});
+
+it('Test 18: Dashboard access with tampered HMAC fails closed', function () {
+    Shop::create([
+        'shop'         => 'store-a.myshopify.com',
+        'shop_name'    => 'Store A',
+        'email'        => 'store@example.com',
+        'access_token' => 'token-a',
+        'is_active'    => 1,
+    ]);
+
+    $params = [
+        'embedded'  => '1',
+        'host'      => base64_encode('admin.shopify.com/store/store-a'),
+        'shop'      => 'store-a.myshopify.com',
+        'timestamp' => (string) time(),
+        'hmac'      => 'tampered-invalid-signature',
+    ];
+
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->get('/shopify-auth-test-endpoint?' . http_build_query($params));
+
+    $response->assertStatus(401);
+});
+
