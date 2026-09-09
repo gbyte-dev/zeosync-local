@@ -28,94 +28,118 @@
     <link rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
-        :root {
-            --admin-bg: #f4f7fb;
-            --admin-surface: #ffffff;
-            --admin-border: #e2e8f0;
-            --admin-text: #0f172a;
-            --admin-muted: #64748b;
-            --admin-primary: #2563eb;
-        }
-
         body {
-            background: var(--admin-bg);
-            color: var(--admin-text);
-            font-family: 'Inter', 'Segoe UI', sans-serif;
-            overflow-x: hidden;
+            background: #f5f7fb;
         }
 
         .admin-layout {
             min-height: 100vh;
-            background: var(--admin-bg);
         }
 
         .sidebar {
             width: 260px;
             min-height: 100vh;
-            background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+            background: linear-gradient(180deg, #0f172a, #111827);
+            color: #fff;
             position: sticky;
             top: 0;
-            box-shadow: 12px 0 28px rgba(15, 23, 42, 0.12);
+        }
+
+        .sidebar-brand {
+            padding: 24px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .sidebar-brand h5 {
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .sidebar-brand small {
+            color: #94a3b8;
+        }
+
+        .sidebar-menu {
+            padding: 16px 12px;
         }
 
         .sidebar-link {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 11px 14px;
-            color: rgba(255,255,255,0.8);
+            padding: 8px 14px;
+            color: #cbd5e1;
             text-decoration: none;
             border-radius: 12px;
-            transition: 0.2s ease;
-            margin-bottom: 4px;
+            font-weight: 400;
+            transition: .2s;
         }
 
         .sidebar-link:hover,
         .sidebar-link.active {
-            background: rgba(96, 165, 250, 0.15);
+            background: rgba(37, 99, 235, .18);
             color: #fff;
         }
 
+        .sidebar-link i {
+            font-size: 18px;
+        }
+
+        .main-area {
+            flex: 1;
+            min-width: 0;
+        }
+
         .top-navbar {
-            height: 76px;
-            background: rgba(255, 255, 255, 0.78);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid var(--admin-border);
-            padding: 0 26px;
+            height: 70px;
+            background: #fff;
+            border-bottom: 1px solid #eef2f7;
+            padding: 0 24px;
             position: sticky;
             top: 0;
             z-index: 1000;
         }
 
         .page-title {
-            font-size: clamp(1.1rem, 1.2rem + 0.35vw, 1.8rem);
             font-weight: 800;
-            letter-spacing: -0.03em;
+            color: #111827;
         }
 
         .notification-btn {
             width: 42px;
             height: 42px;
-            border: 1px solid var(--admin-border);
             border-radius: 14px;
+            border: 1px solid #eef2f7;
             background: #f8fafc;
-            color: var(--admin-text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .notification-menu {
             width: 340px;
+            border: 0;
             border-radius: 18px;
-            overflow: hidden;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, .15);
+            overflow: scroll;
+        }
+
+        .notification-item {
+            padding: 12px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .notification-item:last-child {
+            border-bottom: 0;
         }
 
         .admin-avatar {
             width: 38px;
             height: 38px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #dbeafe, #eff6ff);
-            color: var(--admin-primary);
+            background: #eff6ff;
+            color: #2563eb;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -123,42 +147,29 @@
         }
 
         .content-area {
-            padding: 22px;
+            padding: 15px;
         }
 
-        .admin-page-shell {
-            max-width: 1400px;
-            margin: 0 auto;
+        .offcanvas-start {
+            width: 270px !important;
+            background: linear-gradient(180deg, #0f172a, #111827);
+            color: #fff;
         }
 
-        .card {
-            border: 1px solid var(--admin-border);
-            border-radius: 18px;
-            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+        .mobile-menu-btn {
+            border-radius: 12px;
         }
 
-        .table thead th {
-            background: #f8fafc;
-            color: #475569;
-            font-size: 0.72rem;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
+        .logout-btn {
+            border-radius: 10px;
             font-weight: 700;
         }
 
-        .form-control,
-        .form-select,
-        .input-group-text {
-            border-radius: 12px;
-            border: 1px solid var(--admin-border);
+        .toast {
+            border-radius: 14px;
         }
 
-        .btn {
-            border-radius: 12px;
-            font-weight: 600;
-        }
-
-        @media (max-width: 991px) {
+        @media(max-width: 991px) {
             .desktop-sidebar {
                 display: none;
             }
@@ -168,11 +179,11 @@
             }
 
             .content-area {
-                padding: 14px;
+                padding: 11px;
             }
         }
 
-        @media (max-width: 576px) {
+        @media(max-width: 576px) {
             .admin-name {
                 display: none;
             }
@@ -180,6 +191,49 @@
             .notification-menu {
                 width: 300px;
             }
+        }
+
+        .offcanvas-start {
+            width: 260px !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .offcanvas-body {
+            overflow-y: auto;
+            height: calc(100vh - 70px);
+            /* header height ke hisab se */
+        }
+
+        body {
+            overflow-x: hidden;
+        }
+
+        @media (min-width: 992px) {
+            .offcanvas-start {
+                visibility: visible !important;
+                transform: none !important;
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: 260px !important;
+                z-index: 1040;
+            }
+        }
+
+        tbody,
+        td {
+            font-size: small;
+        }
+
+        .header {
+            background: rgba(var(--bs-body-color-rgb), 0.11);
+            border-radius: 22px 22px 0 0;
+            border-top: 1px solid gray;
         }
     </style>
     @stack('css')
@@ -346,9 +400,7 @@
             </nav>
             {{-- Main Content --}}
             <main class="content-area">
-                <div class="admin-page-shell">
-                    @yield('content')
-                </div>
+                @yield('content')
             </main>
         </div>
     </div>
