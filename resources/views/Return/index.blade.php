@@ -387,7 +387,7 @@
     function renderCards() {
         let start = (currentPage - 1) * perPage;
         let paginated = filteredData.slice(start, start + perPage);
-        let token = '{{ $shop->amazon_access_token ?? "" }}';
+        let isAmazonConnected = {{ !empty($shop->amazon_refresh_token) ? 'true' : 'false' }};
 
         let html = '';
         let requested = 0, approved = 0, refunded = 0;
@@ -398,7 +398,7 @@
             if (i.status === 'refunded') refunded++;
         });
 
-        if ((token === null || token === '') && activeTab === 'amazon') {
+        if (!isAmazonConnected && activeTab === 'amazon') {
             html = `
                 <div class="col-12">
                     <div class="alert alert-warning rounded-4 p-4">

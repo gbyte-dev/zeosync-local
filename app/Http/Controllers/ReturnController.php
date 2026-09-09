@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Cache;
 use App\Services\ShopifyService;
 use App\Services\AmazonService;
 
+use Illuminate\Support\Facades\Log;
+
 class ReturnController extends ShopifyController
 {
     public function index(Request $req){
@@ -29,40 +31,55 @@ class ReturnController extends ShopifyController
     
     public function amazon(Request $req)
     {
-        $shopModel = $this->getActiveShop($req);
-    
-        $shop = Shop::where('shop', $shopModel->shop)->first();
-    
-        if (!$shop || !$shop->amazon_access_token) {
+        $shop = $this->getActiveShop($req);
+
+        if (!$shop || empty($shop->amazon_refresh_token)) {
             return response()->json([]);
         }
-        $accessToken = $this->getAccessToken($shop);
-        
-        $amazon = new AmazonService($shop->amazon_mws_region);
-    
+
+        $amazon = app(AmazonService::class)->setRegion($shop->amazon_mws_region ?: 'na');
+
         return response()->json(
-            Cache::remember("amazon_returns_{$shop->merchant_id}", 600, function () use ($amazon) {
-                $reportId = $amazon->createReturnsReport($shop->amazon_marketplace_id);
-                $content = $amazon->getReport($reportId);
-                $rows = $amazon->parseReport($content);
-    
-                $result = [];
-    
-                foreach ($rows as $row) {
-    
-                    $result[] = [
-                        'order_id' => $row['order-id'] ?? '',
-                        'product_name' => $row['product-name'] ?? '',
-                        'sku' => $row['sku'] ?? '',
-                        'quantity' => $row['quantity'] ?? 1,
-                        'status' => 'returned',
-                        'refund_amount' => $row['refund-amount'] ?? 0,
-                        'reason' => $row['return-reason-code'] ?? '',
-                        'created_at' => $row['return-date'] ?? now(),
-                    ];
+            Cache::remember("amazon_returns_{$shop->id}", 600, function () use ($amazon, $shop) {
+                try {
+                    $reportId = $amazon->createReturnsReport($shop->amazon_marketplace_id);
+                    if (!$reportId) {
+                        return [];
+                    }
+
+                    $content = $amazon->getReport($reportId);
+                    if (!$content) {
+                        return [];
+                    }
+
+                    $rows = $amazon->parseReport($content);
+                    if (!is_array($rows)) {
+                        return [];
+                    }
+
+                    $result = [];
+
+                    foreach ($rows as $row) {
+                        $result[] = [
+                            'order_id' => $row['order-id'] ?? '',
+                            'product_name' => $row['product-name'] ?? '',
+                            'sku' => $row['sku'] ?? '',
+                            'quantity' => $row['quantity'] ?? 1,
+                            'status' => 'returned',
+                            'refund_amount' => $row['refund-amount'] ?? 0,
+                            'reason' => $row['return-reason-code'] ?? '',
+                            'created_at' => $row['return-date'] ?? now(),
+                        ];
+                    }
+
+                    return $result;
+                } catch (\Exception $e) {
+                    Log::error('Amazon Returns fetch failed', [
+                        'shop_id' => $shop->id,
+                        'error'   => $e->getMessage(),
+                    ]);
+                    return [];
                 }
-    
-                return $result;
             })
         );
     }
