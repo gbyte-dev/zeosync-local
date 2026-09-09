@@ -77,40 +77,23 @@
 </style>
 
 <div class="container-fluid px-0">
-
-    <div class="p-3 text-dark shadow header mb-4" style="width:100%;">
-
-        <div class="row align-items-center">
-
-            <div class="col-md-8">
-
-                <h5 class="mb-1">
-                    Contact Request Details
-                </h5>
-
-                <p class="mb-0 opacity-75">
-                    View complete information submitted by the customer.
-                </p>
-
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h5 class="mb-1 fw-bold">Contact Request Details</h5>
+                    <p class="mb-0 text-muted small">View complete information submitted by the customer.</p>
+                </div>
+                <div>
+                    <a href="{{ route('admin.contact-requests') }}" class="btn btn-light btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i> Back
+                    </a>
+                </div>
             </div>
-
-            <div class="col-md-4 text-md-end mt-3 mt-md-0">
-
-                <a href="{{ route('admin.contact-requests') }}"
-                    class="btn btn-outline-secondary">
-
-                    <i class="bi bi-arrow-left me-1"></i>
-                    Back to Requests
-
-                </a>
-
-            </div>
-
         </div>
 
-    </div>
-
-    <div class="row g-3">
+        <div class="card-body">
+            <div class="row g-3">
 
         <div class="col-lg-6">
 

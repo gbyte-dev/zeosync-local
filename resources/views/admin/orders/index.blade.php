@@ -4,14 +4,21 @@
 @section('title', 'Orders')
 
 @section('content')
-<div class="title-head"> <h4> Orders </h4></div>
+<div class="container-fluid px-0">
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h5 class="mb-1 fw-bold">Orders</h5>
+                    <p class="mb-0 text-muted small">View and manage customer orders</p>
+                </div>
+                <div>
+                    <a class="btn btn-light btn-sm" href="#">Export</a>
+                </div>
+            </div>
+        </div>
 
-<div class="card shadow-sm">
-    <div class="card-header">
-        <h5>Orders</h5>
-    </div>
-
-    <div class="card-body table-responsive">
+        <div class="card-body table-responsive">
         <table class="table table-striped">
             <thead>
                 <tr>
