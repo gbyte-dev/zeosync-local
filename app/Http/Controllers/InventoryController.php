@@ -20,11 +20,39 @@ use App\Models\AdminSetting;
 
 class InventoryController extends ShopifyController
 {
+    protected function getActiveShopModel(?Request $request = null): ?Shop
+    {
+        $request ??= request();
+
+        if ($request?->attributes->has('active_shop_model')) {
+            $shop = $request->attributes->get('active_shop_model');
+            if ($shop instanceof Shop && (int) $shop->is_active === 1 && !empty($shop->access_token)) {
+                return $shop;
+            }
+        }
+
+        if (session()->has('_shopify_verified_shop')) {
+            $sessionShop = session('_shopify_verified_shop');
+            $shop = Shop::where('shop', $sessionShop)->where('is_active', 1)->first();
+            if ($shop && !empty($shop->access_token)) {
+                return $shop;
+            }
+        }
+
+        if (session()->has('active_shop')) {
+            $sessionShop = session('active_shop');
+            $shop = Shop::where('shop', $sessionShop)->where('is_active', 1)->first();
+            if ($shop && !empty($shop->access_token)) {
+                return $shop;
+            }
+        }
+
+        return null;
+    }
+
     public function index(Request $request)
     {
-        $shopModel = $this->getActiveShop($request);
-        $activeShop = $shopModel?->shop;
-        $shop = Shop::where('shop', $activeShop)->first();
+        $shop = $this->getActiveShopModel($request);
 
         if (!$shop) {
             return redirect()->route('dashboard')
@@ -32,7 +60,7 @@ class InventoryController extends ShopifyController
         }
 
         session([
-            'shop' => $activeShop,
+            'shop' => $shop->shop,
             'access_token' => $shop->access_token,
             'region' => $shop->amazon_mws_region,
         ]);
@@ -53,15 +81,15 @@ class InventoryController extends ShopifyController
         Request $request,
         ShopifyInventoryService $shopifyInventoryService
     ) {
-
-        $shop = $request->query('shop');
-
-        $shopModel = Shop::where('shop', $shop)->first();
-        $this->ensureFreshAccessToken($shopModel);
-
+        $shopModel = $this->getActiveShopModel($request);
         if (!$shopModel) {
-            return response()->json([]);
+            return response()->json([
+                'error'   => 'Unauthorized',
+                'message' => 'Active shop not resolved.',
+            ], 401);
         }
+
+        $this->ensureFreshAccessToken($shopModel);
 
         $data = $shopifyInventoryService->getInventory($shopModel);
 
@@ -79,28 +107,13 @@ class InventoryController extends ShopifyController
      */
     public function amazon(Request $request)
     {
-        $shop = $request->attributes->get('active_shop_model');
+        $shop = $this->getActiveShopModel($request);
 
         if (!$shop) {
-
-            $activeShop = $request->attributes->get('active_shop')
-                ?? $request->query('shop');
-
-            if (!$activeShop) {
-                return response()->json([
-                    'message' => 'Shop not resolved.'
-                ], 404);
-            }
-
-            $shop = Shop::where('shop', $activeShop)
-                ->where('is_active', 1)
-                ->first();
-
-            if (!$shop) {
-                return response()->json([
-                    'message' => 'Shop not found.'
-                ], 404);
-            }
+            return response()->json([
+                'error'   => 'Unauthorized',
+                'message' => 'Shop not resolved.'
+            ], 401);
         }
 
         $inventoryCacheService = app(InventoryCacheService::class);
@@ -129,13 +142,15 @@ class InventoryController extends ShopifyController
         Request $request,
         AmazonInventoryReportService $reportService
     ) {
-        $region = session('region');
-        $activeShop = session('active_shop');
+        $shop = $this->getActiveShopModel($request);
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Shop not found or unauthorized.'
+            ], 401);
+        }
 
-        $shop = is_numeric($activeShop)
-            ? Shop::findOrFail($activeShop)
-            : Shop::where('shop', $activeShop)->firstOrFail();
-
+        $region = session('region') ?: $shop->amazon_mws_region;
         $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
         try {
@@ -179,9 +194,14 @@ class InventoryController extends ShopifyController
 
     public function refresh(Request $request)
     {
+        $shop = $this->getActiveShopModel($request);
+        if (!$shop) {
+            return response()->json([
+                'error'   => 'Unauthorized',
+                'message' => 'Active shop not resolved.',
+            ], 401);
+        }
 
-        $shop = Shop::where('shop', $request->shop)->firstOrFail();
-        //    $shopModel = Shop::where('shop', $shop)->first();
         $this->ensureFreshAccessToken($shop);
 
         $type = $request->type;
@@ -213,15 +233,13 @@ class InventoryController extends ShopifyController
 
     public function productDetails(Request $request, $productId)
     {
-        $shopModel = $this->getActiveShop($request);
-        $activeShop = $shopModel?->shop;
-        $shop = Shop::where('shop', $activeShop)->first();
+        $shop = $this->getActiveShopModel($request);
         if (!$shop) {
             return redirect()->route('dashboard')->with('error', 'Shop not found.');
         }
 
         // Decode the product ID from Shopify format
-        $shopify = new ShopifyService($activeShop, $shop->access_token);
+        $shopify = new ShopifyService($shop->shop, $shop->access_token);
         $product = $shopify->getProductById($productId);
         if (!$product) {
             return back()->with('error', 'Product not found');
@@ -246,7 +264,7 @@ class InventoryController extends ShopifyController
 
     public function amazonProgress(Request $request)
     {
-        $shop = Shop::where('shop', $request->query('shop'))->first();
+        $shop = $this->getActiveShopModel($request);
 
         if (!$shop) {
             return response()->json([
@@ -268,8 +286,10 @@ class InventoryController extends ShopifyController
 
     public function variants(Request $request, string $parentSku)
     {
-        $shop = Shop::where('shop', $request->query('shop'))
-            ->firstOrFail();
+        $shop = $this->getActiveShopModel($request);
+        if (!$shop) {
+            return redirect()->route('dashboard')->with('error', 'Shop not found.');
+        }
 
         $amazonService = app(AmazonService::class);
 
@@ -312,13 +332,6 @@ class InventoryController extends ShopifyController
 
                 'quantity' => $attributes['fulfillment_availability'][0]['quantity']
                     ?? 0,
-
-
-
-                // 'status' => $variant['summaries'][0]['status'][0]
-                //     ?? 'Unknown',
-
-                // 'issues' => count($variant['issues'] ?? []),
             ];
         }
 
@@ -339,8 +352,13 @@ class InventoryController extends ShopifyController
             'quantity' => ['required', 'integer', 'min:0'],
         ]);
 
-        $shop = Shop::where('shop', $request->query('shop'))
-            ->firstOrFail();
+        $shop = $this->getActiveShopModel($request);
+        if (!$shop) {
+            return response()->json([
+                'error'   => 'Unauthorized',
+                'message' => 'Active shop not resolved.',
+            ], 401);
+        }
 
         $amazonService = app(AmazonService::class);
 

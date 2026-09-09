@@ -16,12 +16,49 @@ use App\Models\Shop;
 
 class InventoryMappingController extends Controller
 {
+    /**
+     * Resolve the verified active Shopify shop from request attributes or verified session.
+     * Never trusts client-supplied ?shop= parameter.
+     */
+    protected function getActiveShopModel(?Request $request = null): ?Shop
+    {
+        $request ??= request();
+
+        if ($request?->attributes->has('active_shop_model')) {
+            $shop = $request->attributes->get('active_shop_model');
+            if ($shop instanceof Shop && (int) $shop->is_active === 1 && !empty($shop->access_token)) {
+                return $shop;
+            }
+        }
+
+        if (session()->has('_shopify_verified_shop')) {
+            $sessionShop = session('_shopify_verified_shop');
+            $shop = Shop::where('shop', $sessionShop)->where('is_active', 1)->first();
+            if ($shop && !empty($shop->access_token)) {
+                return $shop;
+            }
+        }
+
+        if (session()->has('active_shop')) {
+            $sessionShop = session('active_shop');
+            $shop = Shop::where('shop', $sessionShop)->where('is_active', 1)->first();
+            if ($shop && !empty($shop->access_token)) {
+                return $shop;
+            }
+        }
+
+        return null;
+    }
 
     public function shopifyProducts(Request $request)
     {
-        $shopDomain = $request->query('shop');
-
-        $shop = Shop::where('shop', $shopDomain)->firstOrFail();
+        $shop = $this->getActiveShopModel($request);
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized or shop not found.'
+            ], 401);
+        }
 
         $products = Product::where('shop_id', $shop->id)
             ->orderBy('title')
@@ -39,10 +76,16 @@ class InventoryMappingController extends Controller
 
     public function variants(Request $request, Product $product)
     {
-        $shop = Shop::where('shop', $request->query('shop'))->firstOrFail();
+        $shop = $this->getActiveShopModel($request);
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized or shop not found.'
+            ], 401);
+        }
 
-        if ($product->shop_id != $shop->id) {
-            abort(404);
+        if ((int) $product->shop_id !== (int) $shop->id) {
+            abort(404, 'Product not found.');
         }
 
         $mapped = ProductMarketplaceMapping::where('shop_id', $shop->id)
@@ -82,7 +125,7 @@ class InventoryMappingController extends Controller
     public function saveProductMapping(Request $request)
     {
         $request->validate([
-            'shop' => 'required',
+            'shop' => 'nullable',
             'amazon_sku' => 'required',
             'product_id' => 'required',
             'variant_id' => 'required',
@@ -91,10 +134,16 @@ class InventoryMappingController extends Controller
             'shopify_inventory_item_id' => 'required',
         ]);
 
-        $shop = Shop::where('shop', $request->shop)->firstOrFail();
+        $shop = $this->getActiveShopModel($request);
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized or shop not found.'
+            ], 401);
+        }
 
         $exists = ProductMarketplaceMapping::where('shop_id', $shop->id)
-            ->where('shopify_variant_id', $request->shopify_variant_id)
+            ->where('shopify_variant_id', (string) $request->shopify_variant_id)
             ->exists();
 
         if ($exists) {
@@ -116,7 +165,14 @@ class InventoryMappingController extends Controller
             ], 403);
         }
 
-        $product = Product::findOrFail($request->product_id);
+        $product = Product::where('shop_id', $shop->id)->find($request->product_id);
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found or does not belong to this shop.'
+            ], 404);
+        }
+
         $variants = is_array($product->variants)
             ? $product->variants
             : json_decode($product->variants, true);
@@ -124,15 +180,22 @@ class InventoryMappingController extends Controller
         $selectedVariant = collect($variants)
             ->firstWhere('id', (string) $request->variant_id);
 
+        if (!$selectedVariant) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected variant not found for this product.'
+            ], 404);
+        }
+
         Log::info('Selected Variant', $selectedVariant ?? []);
 
         $insertData = [
             'shop_id' => $shop->id,
             'product_id' => $product->id,
             'variant_id' => (string) $request->variant_id,
-            'shopify_product_id' => $request->shopify_product_id,
-            'shopify_variant_id' => $request->shopify_variant_id,
-            'shopify_inventory_item_id' => $request->shopify_inventory_item_id,
+            'shopify_product_id' => (string) $request->shopify_product_id,
+            'shopify_variant_id' => (string) $request->shopify_variant_id,
+            'shopify_inventory_item_id' => (string) $request->shopify_inventory_item_id,
             'amazon_sku' => $request->amazon_sku,
             'amazon_parent_sku' => $request->amazon_parent_sku ?: $request->amazon_sku,
             'quantity' => $selectedVariant['inventory_quantity'] ?? 0,
@@ -155,7 +218,13 @@ class InventoryMappingController extends Controller
 
     public function mappings(Request $request)
     {
-        $shop = Shop::where('shop', $request->query('shop'))->firstOrFail();
+        $shop = $this->getActiveShopModel($request);
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized or shop not found.'
+            ], 401);
+        }
 
         $mappings = ProductMarketplaceMapping::where('shop_id', $shop->id)
             ->get([
@@ -173,20 +242,31 @@ class InventoryMappingController extends Controller
 
     public function saveAmazonMapping(Request $request)
     {
-
         $request->validate([
-            'shop' => 'required',
+            'shop' => 'nullable',
             'product_id' => 'required',
             'shopify_variant_id' => 'required',
             'amazon_sku' => 'required',
         ]);
 
-        $shop = Shop::where('shop', $request->shop)->firstOrFail();
+        $shop = $this->getActiveShopModel($request);
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized or shop not found.'
+            ], 401);
+        }
 
-        $product = Product::where(
-            'shopify_id',
-            $request->product_id
-        )->firstOrFail();
+        $product = Product::where('shop_id', $shop->id)
+            ->where('shopify_id', $request->product_id)
+            ->first();
+
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found or does not belong to this shop.'
+            ], 404);
+        }
 
         $variants = is_array($product->variants)
             ? $product->variants
@@ -278,12 +358,18 @@ class InventoryMappingController extends Controller
     public function updateShopifyInventory(Request $request)
     {
         $request->validate([
-            'shop'              => 'required',
+            'shop'              => 'nullable',
             'inventory_item_id' => 'required',
             'quantity'          => 'required|integer|min:0',
         ]);
 
-        $shop = Shop::where('shop', $request->shop)->firstOrFail();
+        $shop = $this->getActiveShopModel($request);
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized or shop not found.'
+            ], 401);
+        }
 
         $shopify = new ShopifyService(
             $shop->shop,
@@ -312,14 +398,7 @@ class InventoryMappingController extends Controller
             ], 422);
         }
 
-        if (!$locationId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Shopify location not found.'
-            ], 422);
-        }
-
-        // Update Shopify Inventory
+        // Update Shopify Inventory on active shop
         $response = $shopify->shopifyRest(
             $shop,
             'post',
@@ -342,16 +421,16 @@ class InventoryMappingController extends Controller
             "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}"
         );
 
-        // Check existing mapping
+        // Check existing mapping scoped strictly to active shop
         $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
             ->where('shopify_inventory_item_id', $request->inventory_item_id)
             ->first();
 
         /*
-    |--------------------------------------------------------------------------
-    | Amazon Sync
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Amazon Sync
+        |--------------------------------------------------------------------------
+        */
 
         $message = 'Shopify inventory updated successfully.';
 
@@ -392,10 +471,10 @@ class InventoryMappingController extends Controller
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | ALWAYS GET LATEST SHOPIFY PRODUCTS
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | ALWAYS GET LATEST SHOPIFY PRODUCTS
+        |--------------------------------------------------------------------------
+        */
 
         $productsResponse = $shopify->shopifyRest(
             $shop,
@@ -431,9 +510,15 @@ class InventoryMappingController extends Controller
 
     public function unmap(Request $request, ProductMarketplaceMapping $mapping)
     {
-        $shop = Shop::where('shop', $request->shop)->firstOrFail();
+        $shop = $this->getActiveShopModel($request);
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized or shop not found.'
+            ], 401);
+        }
 
-        if ($mapping->shop_id != $shop->id) {
+        if ((int) $mapping->shop_id !== (int) $shop->id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized mapping.'
