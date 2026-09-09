@@ -11,8 +11,16 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+use Illuminate\Support\Facades\RateLimiter;
+
 class AIController extends Controller
 {
+    private const MAX_CATALOG_PRODUCTS = 50;
+    private const MAX_ORDER_SCAN = 100;
+    private const MAX_CONTEXT_CHARS = 12000;
+    private const RATE_LIMIT_MAX_ATTEMPTS = 15;
+    private const RATE_LIMIT_DECAY_SECONDS = 60;
+
     public function __construct(
         private readonly AIConfigurationService $configService
     ) {
@@ -40,6 +48,36 @@ class AIController extends Controller
         ]);
 
         $shop = $this->resolveShop();
+        if (!$shop) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'error'   => 'Unauthorized',
+                    'message' => 'Unauthenticated Shopify request.',
+                ], 401);
+            }
+
+            return redirect()->route('crm.entry')->with('error', 'Session expired or unauthenticated.');
+        }
+
+        $rateLimitKey = "ai_chat_{$shop->id}";
+        if (RateLimiter::tooManyAttempts($rateLimitKey, self::RATE_LIMIT_MAX_ATTEMPTS)) {
+            $seconds = RateLimiter::availableIn($rateLimitKey);
+            $errorMessage = "Too many AI requests. Please wait {$seconds} seconds before trying again.";
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => $errorMessage,
+                ], 429);
+            }
+
+            return back()
+                ->withErrors(['prompt' => $errorMessage])
+                ->withInput();
+        }
+
+        RateLimiter::hit($rateLimitKey, self::RATE_LIMIT_DECAY_SECONDS);
+
         $context = $this->buildShopContext($shop);
         $prompt = $request->input('prompt');
 
@@ -109,12 +147,16 @@ class AIController extends Controller
             return 'No active shop is available.';
         }
 
+        $totalProducts = Product::where('shop_id', $shop->id)->count();
         $products = Product::where('shop_id', $shop->id)
             ->orderBy('title')
+            ->limit(self::MAX_CATALOG_PRODUCTS)
             ->get(['title', 'price', 'amazon_product_id', 'shopify_id']);
 
         $orders = ShopifyOrder::where('shop_id', $shop->id)
             ->whereNull('cancelled_at')
+            ->latest('order_created_at')
+            ->limit(self::MAX_ORDER_SCAN)
             ->get(['line_items']);
 
         $salesByProduct = [];
@@ -154,15 +196,27 @@ class AIController extends Controller
             ->values()
             ->all();
 
-        return implode("\n", array_filter([
+        $catalogSummary = count($products) < $totalProducts
+            ? "Sample products (showing " . count($products) . " of {$totalProducts}): " . implode(' ; ', $productLines)
+            : 'Product catalog lines: ' . ($productLines ? implode(' ; ', $productLines) : 'No products available');
+
+        $contextLines = array_filter([
             "Shop name: {$shop->shop}",
-            'Total Shopify products: ' . count($products),
+            'Total Shopify products: ' . $totalProducts,
             'Top selling products: ' . ($topProductsLines ? implode('; ', $topProductsLines) : 'No sales data available'),
             'Amazon  orders: ' . count($amazonOrders) . ' orders' . ($amazonOrderIds ? ' (sample IDs: ' . implode(', ', $amazonOrderIds) . ')' : ''),
             'Amazon  inventory items: ' . count($amazonInventory),
-            'Product catalog lines: ' . ($productLines ? implode(' ; ', $productLines) : 'No products available'),
+            $catalogSummary,
             'Note: Amazon product pricing is not stored explicitly in this system unless the Shopify product record includes that detail.',
-        ]));
+        ]);
+
+        $fullContext = implode("\n", $contextLines);
+
+        if (strlen($fullContext) > self::MAX_CONTEXT_CHARS) {
+            $fullContext = substr($fullContext, 0, self::MAX_CONTEXT_CHARS) . "\n[Catalog context truncated for length]";
+        }
+
+        return $fullContext;
     }
 
     private function getAmazonOrdersCache(?Shop $shop): array

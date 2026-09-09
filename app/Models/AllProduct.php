@@ -19,7 +19,7 @@ class AllProduct extends Model
         'submitted_on',
         'user_id',
         'final_json',
-        'filled_json'
+        'filled_json',
         'old_user_id',
         'submissionId',
         'user_id',
