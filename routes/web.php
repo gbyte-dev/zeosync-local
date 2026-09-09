@@ -120,6 +120,9 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::post('/remove_drafts/{product}', [ProductSchemaController::class, 'removeDrafts'])->name('user.product.removeDraft');
     Route::get('/amazonView/{sku}', [TestController::class, 'amazonView'])->name('user.product.amazonView');
 
+    // AJAX: check SKU status on Amazon and update local product status
+    Route::post('/amazon/check-sku', [ProductSchemaController::class, 'checkSkuStatus'])->name('amazon.check.sku');
+
 });
 
 Route::get('/testroutenext', [TestController::class, 'testroute'])->middleware('subscription.check')->name('user.test.amazonView');
