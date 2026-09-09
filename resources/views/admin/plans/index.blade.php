@@ -70,23 +70,20 @@
 </style>
 
 <div class="container-fluid px-0">
-
-    {{-- Header --}}
-    <div class="card shadow-sm border-0  overflow-hidden">
-        <div class="p-3 text-dark shadow header">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-                <h5 class="fw-bold mb-1">Plans</h5>
-                <p class="mb-0 opacity-75">Manage subscription plans, prices and visibility  </p>
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h5 class="mb-1 fw-bold">Plans</h5>
+                    <p class="mb-0 text-muted small">Manage subscription plans, prices and visibility</p>
+                </div>
+                <a href="{{ route('admin.plans.create') }}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle me-2"></i> Add Plan
+                </a>
             </div>
-             <a href="{{ route('admin.plans.create') }}" class="btn btn-light btn-sm btn-add-category">
-                + Add Plan
-            </a>
-          
         </div>
-    </div>
 
-    <div class="card-body mt-2">
+        <div class="card-body">
         <div class="table-responsive">
             <table id="plansTable" class="table table-hover mb-0 w-100">
                 <thead>
