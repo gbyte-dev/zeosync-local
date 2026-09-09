@@ -88,12 +88,19 @@ class AIController extends Controller
 
     private function resolveShop(): ?Shop
     {
-        $shopHandle = session('active_shop');
-        if (empty($shopHandle)) {
-            return Shop::first();
+        if (request()?->attributes?->has('active_shop_model')) {
+            $shop = request()->attributes->get('active_shop_model');
+            if ($shop instanceof Shop) {
+                return $shop;
+            }
         }
 
-        return Shop::where('shop', $shopHandle)->first() ?? Shop::first();
+        $shopHandle = session('active_shop');
+        if (empty($shopHandle)) {
+            return null;
+        }
+
+        return Shop::where('shop', $shopHandle)->first();
     }
 
     private function buildShopContext(?Shop $shop): string

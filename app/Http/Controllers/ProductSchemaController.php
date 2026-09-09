@@ -39,14 +39,38 @@ class ProductSchemaController extends Controller
     private AmazonSuccessfulListingService $amazonSuccessfulListingService;
     public function __construct()
     {
-        $this->aiAutoFillService = app(AIAutoFillService::class);;
+        $this->aiAutoFillService = app(AIAutoFillService::class);
         $this->aiFeatureService = app(AIFeatureService::class);
         $this->amazonSuccessfulListingService = app(AmazonSuccessfulListingService::class);
         if (session('active_shop')) {
             $this->shop = Shop::where('shop', session('active_shop'))->first();
         } else {
-            $this->shop = Shop::where('shop', '!=', '')->first();
+            $this->shop = null;
         }
+    }
+
+    protected function getActiveShopModel(?Request $request = null): ?Shop
+    {
+        if ($request && $request->attributes->has('active_shop_model')) {
+            $shop = $request->attributes->get('active_shop_model');
+            if ($shop instanceof Shop) {
+                return $shop;
+            }
+        }
+
+        if (request()?->attributes?->has('active_shop_model')) {
+            $shop = request()->attributes->get('active_shop_model');
+            if ($shop instanceof Shop) {
+                return $shop;
+            }
+        }
+
+        $sessionShop = session('active_shop');
+        if ($sessionShop) {
+            return Shop::where('shop', $sessionShop)->first();
+        }
+
+        return null;
     }
     public function index()
     {
@@ -109,9 +133,14 @@ class ProductSchemaController extends Controller
     }
     public function productcreate(Request $request, $schemaId)
     {
+        $activeShop = $this->getActiveShopModel($request);
+        if (!$activeShop) {
+            abort(404, 'Active shop not found.');
+        }
         $schema = ProductSchema::findOrFail($schemaId);
         $fields = $schema->parsed_json;
         $suggestions = AllProduct::query()
+            ->where('user_id', $activeShop->id)
             ->where('schema_id', $schema->id)
             ->where('status', 'ACCEPTED')
             ->whereNotNull('filled_json')
@@ -286,8 +315,8 @@ class ProductSchemaController extends Controller
             }
         }
         $requiredFields = collect($fields)->where('required', true)->values();
-        $canUseAiAutoFill = $this->aiFeatureService->canUseAutoFill($this->shop->id);
-        $canUseAiSingleField = $this->aiFeatureService->canUseSingleField($this->shop->id);
+        $canUseAiAutoFill = $this->aiFeatureService->canUseAutoFill($activeShop->id);
+        $canUseAiSingleField = $this->aiFeatureService->canUseSingleField($activeShop->id);
         return view(
             'schema.products.create',
             compact(
@@ -304,13 +333,23 @@ class ProductSchemaController extends Controller
     }
     public function productEdit($productid)
     {
-        $productshow = Product::where('id', $productid)->first();
+        $activeShop = $this->getActiveShopModel();
+        if (!$activeShop) {
+            abort(404, 'Active shop not found.');
+        }
+
+        $productshow = Product::where('id', $productid)
+            ->where('user_id', $activeShop->id)
+            ->first();
+
         if (!$productshow) {
-            $productshow = Product::where('sku', $productid)->first();
+            $productshow = Product::where('sku', $productid)
+                ->where('user_id', $activeShop->id)
+                ->first();
             if ($productshow) {
                 $productid = $productshow->id;
             } else {
-                return redirect()->route('user.product.showProducts');
+                abort(404, 'Product not found.');
             }
         }
         $prodAttri = ProductAttribute::where('product_id', $productid)->get();
@@ -607,8 +646,8 @@ class ProductSchemaController extends Controller
             $tabErrorCounts[$tabName] = count($fieldsWithErrors);
         }
         $requiredFields = collect($fields)->where('required', true)->values();
-        $canUseAiAutoFill = $this->aiFeatureService->canUseAutoFill($this->shop->id);
-        $canUseAiSingleField = $this->aiFeatureService->canUseSingleField($this->shop->id);
+        $canUseAiAutoFill = $this->aiFeatureService->canUseAutoFill($activeShop->id);
+        $canUseAiSingleField = $this->aiFeatureService->canUseSingleField($activeShop->id);
 
         Log::info('AMAZON ERRORS DEBUG', [
             'errors' => session('errors_amazon'),
@@ -626,13 +665,34 @@ class ProductSchemaController extends Controller
 
     public function productstore( Request $request,  ProductLimitService $productLimitService,
         $product_id = null ) {
-        $activeShop = $request->attributes->get('active_shop_model');
+        $activeShop = $this->getActiveShopModel($request);
         if (!$activeShop) {
-            return back()->with('error', 'Active shop not found.');
+            abort(404, 'Active shop not found.');
         }
         $shop_id = $activeShop->id;
         $shopModel = Shop::where('id', $shop_id)->first();
-        $this->ensureFreshAccessToken($shopModel);
+        if ($shopModel) {
+            $this->ensureFreshAccessToken($shopModel);
+        }
+
+        if ($product_id !== null) {
+            $existingProduct = Product::where('id', $product_id)
+                ->where('user_id', $shop_id)
+                ->first();
+            if (!$existingProduct) {
+                abort(404, 'Product not found.');
+            }
+        }
+
+        if ($request->filled('parent_id')) {
+            $parentProduct = Product::where('id', $request->parent_id)
+                ->where('user_id', $shop_id)
+                ->first();
+            if (!$parentProduct) {
+                abort(404, 'Parent product not found.');
+            }
+        }
+
         // Check product limit only for new product creation
         if (!isset($product_id)) {
             $limitStatus = $productLimitService->canCreateProduct($shop_id);
@@ -852,6 +912,9 @@ class ProductSchemaController extends Controller
     }
     public function buildListingRequest(Product $product)
     {
+        $activeShop = $this->getActiveShopModel();
+        abort_if(!$activeShop || (int)$product->user_id !== (int)$activeShop->id, 404);
+
         try {
             if ($product->parent_id) {
                 $all = $this->addChildListing($product);
@@ -1033,7 +1096,12 @@ class ProductSchemaController extends Controller
     }
     public function addChildListing(Product $product)
     {
-        $parentproduct = Product::where('id', $product->parent_id)->first();
+        $activeShop = $this->getActiveShopModel();
+        abort_if(!$activeShop || (int)$product->user_id !== (int)$activeShop->id, 404);
+
+        $parentproduct = Product::where('id', $product->parent_id)
+            ->where('user_id', $activeShop->id)
+            ->firstOrFail();
         $parentSku =  $parentproduct->sku;
         $schema = ProductSchema::findOrFail($product->schema_id);
         $fields = $schema->parsed_json;
@@ -1086,28 +1154,15 @@ class ProductSchemaController extends Controller
     }
     public function showProducts($product_id = null)
     {
-        $shop = new Shop();
-        // $shopModel = $shop->where([ 'shop' => session('active_shop') ])->first();
-        // $shopSubscription = ShopSubscription::with('plan')
-        //     ->where('shop', $shopModel->id)
-        //     ->where('status', 'active')
-        //     ->first();
+        $activeShop = $this->getActiveShopModel();
+        if (!$activeShop) {
+            return redirect()->route('crm.entry')->with('error', 'Please select a shop first.');
+        }
+        $shop_id = $activeShop->id;
         $productLimitReached = false;
         $productLimit = 0;
         $productUsed = 0;
-        // if ($shopSubscription && $shopSubscription->plan) {
-        //     $productLimit = $shopSubscription->plan->product_limit;
-        //     $productUsed = Product::where('shop_id', $shopModel->id)
-        //         ->whereBetween('created_at', [
-        //             $shopSubscription->activated_at,
-        //             $shopSubscription->current_period_end,
-        //         ])
-        //         ->count();
-        //     $productLimitReached = $productUsed >= $productLimit;
-        // }
         if (!$product_id) {
-            $shop_id = $shop->getidByshop(session('active_shop'));
-            // $products = Product::with('attributes', 'schema')->where('user_id', $shop_id)->where(['submission_status' => '!= null' ])->whereNull('parent_id')->paginate(10);
             $products = Product::with('attributes', 'schema')
                 ->where('user_id', $shop_id)
                 ->whereNull('parent_id')
@@ -1118,7 +1173,14 @@ class ProductSchemaController extends Controller
                 ->get();
             $parent_productid = '';
         } else {
-            $shop_id = $shop->getidByshop(session('active_shop'));
+            $parent = Product::where('id', $product_id)
+                ->where('user_id', $shop_id)
+                ->first();
+
+            if (!$parent) {
+                abort(404, 'Parent product not found.');
+            }
+
             $products = Product::with('attributes', 'schema')->where('user_id', $shop_id)->where('parent_id', $product_id)->get();
             $parent_productid = $product_id;
         }
@@ -1170,6 +1232,9 @@ class ProductSchemaController extends Controller
     }
     public function removeDrafts(Product $product)
     {
+        $activeShop = $this->getActiveShopModel();
+        abort_if(!$activeShop || (int)$product->user_id !== (int)$activeShop->id, 404);
+
         ProductAttribute::where('product_id', $product->id)->delete();
         $product->delete();
         return redirect()->route('user.product.showProducts')->with('success', 'Product deleted successfully.');
@@ -1207,12 +1272,11 @@ class ProductSchemaController extends Controller
 
     private function getShopIdFromSession(): ?int
     {
-        $shop = new Shop();
-        $shopid =  $shop->getidByshop(session('active_shop'));
-        if (!$shopid) {
-            return redirect()->route('crm.entry')->with('error', 'Please select a shop first.');
+        $activeShop = $this->getActiveShopModel();
+        if (!$activeShop) {
+            return null;
         }
-        return $shopid;
+        return $activeShop->id;
     }
     public function SyncAmazonProductToShopify(Request $request, $sku)
     {
@@ -1596,8 +1660,26 @@ class ProductSchemaController extends Controller
     public function productstoreAmazon(array $attributes,  $schema_id = null, $product_id = null, $parent_id = null)
     {
         return DB::transaction(function () use ($attributes, $product_id, $schema_id, $parent_id) {
-            $shop = new Shop();
-            $shop_id = $shop->getidByshop(session('active_shop'));
+            $activeShop = $this->getActiveShopModel();
+            if (!$activeShop) {
+                abort(404, 'Active shop not found.');
+            }
+            $shop_id = $activeShop->id;
+
+            if ($product_id) {
+                $existing = Product::where('id', $product_id)->where('user_id', $shop_id)->first();
+                if (!$existing) {
+                    abort(404, 'Product not found.');
+                }
+            }
+
+            if ($parent_id) {
+                $parent = Product::where('id', $parent_id)->where('user_id', $shop_id)->first();
+                if (!$parent) {
+                    abort(404, 'Parent product not found.');
+                }
+            }
+
             // Create Product
             if (!$product_id) {
                 $productData = [
@@ -1667,12 +1749,12 @@ class ProductSchemaController extends Controller
      */
     public function updatelog($product_id, $for, $type, $needremov = false, $error = null)
     {
-        $shop = new Shop();
-        $shop_id = $shop->getidByshop(session('active_shop'));
-        if (!$shop_id) {
+        $activeShop = $this->getActiveShopModel();
+        if (!$activeShop) {
             // No active shop in session — abort rather than writing a bad log row.
             return false;
         }
+        $shop_id = $activeShop->id;
         $platform = str_contains(strtolower((string) $for), 'amazon') ? 'amazon' : 'shopify';
         $normalizedType = strtolower((string) $type) ?: 'product';
         $mappingQuery = ProductMarketplaceMapping::query();

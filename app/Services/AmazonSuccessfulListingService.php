@@ -39,6 +39,7 @@ class AmazonSuccessfulListingService
     public function findFor(AllProduct $product): ?AllProduct
     {
         return AllProduct::query()
+            ->where('user_id', $product->user_id)
             ->where('schema_id', $product->schema_id)
             ->where('status', 'ACCEPTED')
             ->whereNotNull('filled_json')

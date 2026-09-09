@@ -50,7 +50,8 @@ return Application::configure(basePath: dirname(__DIR__))
         //     'shop/redact',
         // ]);
 
-       $middleware->validateCsrfTokens(except: [
+       
+        $middleware->validateCsrfTokens(except: [
             '*',
             '!contacts',
             '!/contact',
