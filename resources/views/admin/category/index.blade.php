@@ -47,7 +47,7 @@
                         @foreach($categories as $key => $category)
                         <tr>
                             <td class="ps-3">{{ $key + 1 }}</td>
-                            <td><span class="text-dark">{{ $category->name }}</span></td>
+                            <td><span class="text-dark fw-semibold">{{ $category->name }}</span></td>
                             <td>
                                 @if($category->status == 'Active')
                                 <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
@@ -56,8 +56,8 @@
                                 @endif
                             </td>
                             <td class="text-center pe-3">
-                                {{ getSubCategorires($category->id,'Active') }} / {{ getCategorires($category->id)->count() }}
-                                <sub class="text-muted">active sub-categories</sub>
+                                <span class="fw-semibold">{{ getSubCategorires($category->id,'Active') }} / {{ getCategorires($category->id)->count() }}</span>
+                                <div class="small text-muted">active sub-categories</div>
                             </td>
                             <td class="text-end pe-3">
                                 <div class="d-flex gap-2 justify-content-end">
@@ -69,7 +69,7 @@
                                     <button class="btn btn-outline-secondary btn-sm px-3 btn-edit-category" data-id="{{ $category->id }}" data-name="{{ $category->name }}" data-status="{{ $category->status }}" data-parent-id="{{ $category->parent_id }}" data-category="{{ $category->category }}" data-slug="{{ $category->slug }}" data-marketplace-ids="{{ $category->marketplaceIds }}">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <a href="{{ route('admin.category.children', $category->id) }}" class="btn btn-primary btn-sm px-3">View Subcategories</a>
+                                    <a href="{{ route('admin.category.children', $category->id) }}" class="btn btn-primary btn-sm px-3">View</a>
                                 </div>
                             </td>
                         </tr>

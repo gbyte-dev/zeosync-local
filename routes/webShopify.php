@@ -198,6 +198,8 @@ Route::prefix('admin')->group(function () {
         Route::get('/products', [AdminController::class, 'product'])->name('admin.products');
         Route::get('/settings', [AdminController::class, 'settings'])->name('admin.settings');
         Route::post('/settings', [AdminController::class, 'settingsupdate'])->name('admin.settings.update');
+        Route::get('/app-settings', [AdminController::class, 'appSettings'])->name('admin.app.settings');
+        Route::post('/app-settings', [AdminController::class, 'appSettingsUpdate'])->name('admin.app.settings.update');
         Route::get('/category', [AdminController::class, 'category'])->name('admin.category');
         Route::get('/contact-requests', [ContactController::class, 'adminIndex'])->name('admin.contact-requests');
         Route::get('/contact-requests/{contact}', [ContactController::class, 'adminShow'])->name('admin.contact-requests.show');
