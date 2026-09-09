@@ -2,198 +2,111 @@
 @section('title', 'Mail Templates')
 @section('content')
 <style>
-    #mailtemplates-table_filter {
-        float: inline-end;
-        padding: 10px;
-    }
-
-    #mailtemplates-table_paginate {
-        float: inline-end;
-        margin-top: 10px;
-    }
-
-    #mailtemplates-table {
-        margin-bottom: 10px;
-    }
-
-    #mailtemplates-table_info {
-        float: inline-start;
-        margin-top: 10px;
-    }
-
-    #mailtemplates-table_length {
-        width: fit-content;
-        padding: 10px;
-    }
-
-    .dataTables_length>label {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .dataTables_filter>label {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
+    #mailtemplates-table_filter { float: inline-end; padding: 10px; }
+    #mailtemplates-table_paginate { float: inline-end; margin-top: 10px; }
+    #mailtemplates-table { margin-bottom: 10px; }
+    #mailtemplates-table_info { float: inline-start; margin-top: 10px; }
+    #mailtemplates-table_length { width: fit-content; padding: 10px; }
+    .dataTables_length>label,
+    .dataTables_filter>label { display: flex; align-items: center; gap: 10px; }
 </style>
-<div class="container-fluid px-0" style="max-width: 1400px; margin: 0 auto;">
-    {{-- Header --}}
-    <div class="p-3 text-dark shadow header">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-                <h6 class="fw-bold mb-1">Mail Templates</h6>
-            </div>
-            <a class="btn btn-primary btn-sm rounded-3"
-                href="{{ route('admin.mailtemplates.create') }}">
-                + Create Template
-            </a>
-        </div>
-    </div>
-    <div class="card-body border-0 rounded-0 rounded-bottom-4 shadow-sm overflow-hidden">
-        <!-- <div class="card-body p-2"> -->
-        {{-- Desktop Table --}}
-        @if($mailtemplates->count() > 0)
-
-        <div class="table-responsive d-none d-md-block">
-            <table id="mailtemplates-table" class="table table-hover align-middle mb-0 w-100">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-4 text-uppercase small text-muted">Name</th>
-                        <th class="text-uppercase small text-muted">Subject</th>
-                        <th class="text-uppercase small text-muted">Body</th>
-                        <th class="text-uppercase small text-muted">Status</th>
-                        <th class="text-end pe-4 text-uppercase small text-muted">Actions</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    @foreach($mailtemplates as $mailtemplate)
-                    <tr>
-                        <td class="ps-4">
-                            <div class="text-dark text-nowrap">
-                                {{ $mailtemplate->name }}
-                            </div>
-                        </td>
-
-                        <td>
-                            <span class="text-dark">
-                                {{ $mailtemplate->subject }}
-                            </span>
-                        </td>
-
-                        <td>
-                            <div class="text-muted text-truncate"
-                                style="max-width: 380px;"
-                                title="{{ strip_tags($mailtemplate->body) }}">
-                                {{ \Illuminate\Support\Str::limit(strip_tags($mailtemplate->body), 70) }}
-                            </div>
-                        </td>
-
-                        <td>
-                            @if($mailtemplate->is_active)
-                            <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2">
-                                ● Active
-                            </span>
-                            @else
-                            <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-2">
-                                ● Inactive
-                            </span>
-                            @endif
-                        </td>
-
-                        <td class="pe-4">
-                            <div class="d-flex gap-2 justify-content-end align-items-center">
-                                <a href="{{ route('admin.mailtemplates.edit', $mailtemplate->id) }}"
-                                    class="btn btn-primary btn-sm rounded-3 fw-bold">
-                                    Edit
-                                </a>
-
-                                <form action="{{ route('admin.mailtemplates.delete', $mailtemplate->id) }}"
-                                    method="post"
-                                    onsubmit="return confirm('Are you sure you want to delete this template?')">
-                                    @csrf
-                                    @method('POST')
-
-                                    <button type="submit"
-                                        class="btn btn-danger btn-sm rounded-3 fw-bold">
-                                        Delete
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-
-        @else
-
-        <div class="d-none d-md-block">
-            <div class="alert alert-info text-center mb-0">
-                No mail templates found.
+<div class="container-fluid px-0">
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h4 class="mb-1 fw-bold">Mail Templates</h4>
+                    <p class="mb-0 text-muted small">Create and manage email templates for your app</p>
+                </div>
+                <a class="btn btn-primary" href="{{ route('admin.mailtemplates.create') }}">
+                    <i class="bi bi-plus-lg me-2"></i>Create Template
+                </a>
             </div>
         </div>
 
-        @endif
-        {{-- Mobile Cards --}}
-        <div class="d-block d-md-none p-3">
-            <div class="input-group mb-3">
-                <span class="input-group-text bg-white">Search</span>
-                <input type="text" id="mobile-template-search" class="form-control" placeholder="Find a template">
+        <div class="card-body border-0">
+            @if($mailtemplates->count() > 0)
+            <div class="table-responsive d-none d-md-block">
+                <table id="mailtemplates-table" class="table table-hover align-middle mb-0 w-100">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4 text-uppercase small text-muted">Name</th>
+                            <th class="text-uppercase small text-muted">Subject</th>
+                            <th class="text-uppercase small text-muted">Body</th>
+                            <th class="text-uppercase small text-muted">Status</th>
+                            <th class="text-end pe-4 text-uppercase small text-muted">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($mailtemplates as $mailtemplate)
+                        <tr>
+                            <td class="ps-4"><div class="text-dark text-nowrap">{{ $mailtemplate->name }}</div></td>
+                            <td><span class="text-dark">{{ $mailtemplate->subject }}</span></td>
+                            <td>
+                                <div class="text-muted text-truncate" style="max-width: 380px;" title="{{ strip_tags($mailtemplate->body) }}">
+                                    {{ \Illuminate\Support\Str::limit(strip_tags($mailtemplate->body), 70) }}
+                                </div>
+                            </td>
+                            <td>
+                                @if($mailtemplate->is_active)
+                                <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2">● Active</span>
+                                @else
+                                <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-3 py-2">● Inactive</span>
+                                @endif
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-2 justify-content-end align-items-center">
+                                    <a href="{{ route('admin.mailtemplates.edit', $mailtemplate->id) }}" class="btn btn-primary btn-sm">Edit</a>
+                                    <form action="{{ route('admin.mailtemplates.delete', $mailtemplate->id) }}" method="post" onsubmit="return confirm('Are you sure you want to delete this template?')">
+                                        @csrf
+                                        @method('POST')
+                                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
-            @forelse($mailtemplates as $mailtemplate)
-            <div class="border rounded-4 p-3 mb-3 bg-white shadow-sm" data-template-card>
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div>
-                        <div class="fw-bold text-dark">
-                            {{ $mailtemplate->name }}
+            @else
+            <div class="d-none d-md-block"><div class="alert alert-info text-center mb-0">No mail templates found.</div></div>
+            @endif
+
+            <div class="d-block d-md-none p-3">
+                <div class="input-group mb-3">
+                    <span class="input-group-text bg-white">Search</span>
+                    <input type="text" id="mobile-template-search" class="form-control" placeholder="Find a template">
+                </div>
+                @forelse($mailtemplates as $mailtemplate)
+                <div class="border rounded-4 p-3 mb-3 bg-white shadow-sm" data-template-card>
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <div class="fw-bold text-dark">{{ $mailtemplate->name }}</div>
+                            <div class="small text-muted">{{ $mailtemplate->subject }}</div>
                         </div>
-                        <div class="small text-muted">
-                            {{ $mailtemplate->subject }}
-                        </div>
+                        @if($mailtemplate->is_active)
+                        <span class="badge rounded-pill bg-success-subtle text-success px-3 py-2">Active</span>
+                        @else
+                        <span class="badge rounded-pill bg-danger-subtle text-danger px-3 py-2">Inactive</span>
+                        @endif
                     </div>
-                    @if($mailtemplate->is_active)
-                    <span class="badge rounded-pill bg-success-subtle text-success px-3 py-2">
-                        Active
-                    </span>
-                    @else
-                    <span class="badge rounded-pill bg-danger-subtle text-danger px-3 py-2">
-                        Inactive
-                    </span>
-                    @endif
+                    <p class="text-muted small mb-3">{{ \Illuminate\Support\Str::limit(strip_tags($mailtemplate->body), 110) }}</p>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{{ route('admin.mailtemplates.edit', $mailtemplate->id) }}" class="btn btn-primary btn-sm">Edit</a>
+                        <form action="{{ route('admin.mailtemplates.delete', $mailtemplate->id) }}" method="post" onsubmit="return confirm('Are you sure you want to delete this template?')">
+                            @csrf
+                            @method('POST')
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </div>
                 </div>
-                <p class="text-muted small mb-3">
-                    {{ \Illuminate\Support\Str::limit(strip_tags($mailtemplate->body), 110) }}
-                </p>
-                <div class="d-flex gap-2 flex-wrap">
-                    <a href="{{ route('admin.mailtemplates.edit', $mailtemplate->id) }}"
-                        class="btn btn-primary btn-sm rounded-3 fw-bold">
-                        Edit
-                    </a>
-                    <form action="{{ route('admin.mailtemplates.delete', $mailtemplate->id) }}"
-                        method="post"
-                        onsubmit="return confirm('Are you sure you want to delete this template?')">
-                        @csrf
-                        @method('POST')
-                        <button type="submit" class="btn btn-danger btn-sm rounded-3 fw-bold">
-                            Delete
-                        </button>
-                    </form>
-                </div>
-            </div>
-            @empty
-            <div class="text-center text-muted py-5">
-                No mail templates found
-            </div>
-            @endforelse
-            <div id="mobile-template-no-results" class="text-center text-muted py-5 d-none">
-                No matching templates found
+                @empty
+                <div class="text-center text-muted py-5">No mail templates found</div>
+                @endforelse
+                <div id="mobile-template-no-results" class="text-center text-muted py-5 d-none">No matching templates found</div>
             </div>
         </div>
-        <!-- </div> -->
     </div>
 </div>
 @endsection

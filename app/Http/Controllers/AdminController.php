@@ -213,6 +213,16 @@ class AdminController extends Controller
         return view('admin.settings.index', compact('settings', 'notifications'));
     }
 
+    public function appSettings()
+    {
+        return $this->settings();
+    }
+
+    public function appSettingsUpdate(Request $request)
+    {
+        return $this->settingsupdate($request);
+    }
+
     public function settingsupdate(Request $request)
     {
         $oldProductionClientId = trim((string) AdminSetting::where('option_key', 'production_client_id')

@@ -2,61 +2,34 @@
 @section('title', 'Category')
 @section('content')
 <style>
-    #category-table_filter {
-        float: inline-end;
-    }
-
-    #category-table_paginate {
-        float: inline-end;
-    }
-
-    #category-table_length {
-        float: left;
-        margin-bottom: 10px;
-        width: fit-content;
-    }
-
-    .dataTables_length>label {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .dataTables_filter>label {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
+    #category-table_filter { float: inline-end; }
+    #category-table_paginate { float: inline-end; }
+    #category-table_length { float: left; margin-bottom: 10px; width: fit-content; }
+    .dataTables_length>label,
+    .dataTables_filter>label { display: flex; align-items: center; gap: 10px; }
     #category-table_info,
-    #category-table_paginate {
-        margin-top: 10px;
-    }
-
-    th {
-        font-weight: 400;
-    }
+    #category-table_paginate { margin-top: 10px; }
+    th { font-weight: 400; }
 </style>
 <div class="container-fluid px-0">
-    <div class="card shadow-sm border-0  overflow-hidden">
-        <div class="p-3 text-dark shadow header">
-            <div class="row">
-                <div class="col-sm-7">
-                    <h5 class="mb-1">Categories</h5>
-                    <p class="mb-0 opacity-75">
-                        Manage categories and subcategories
-                    </p>
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h4 class="mb-1 fw-bold">Categories</h4>
+                    <p class="mb-0 text-muted small">Manage categories and subcategories</p>
                 </div>
-                <div class="col-sm-5">
-                    <button class="btn btn-primary btn-sm  px-4 btn-add-category" style="float:enline-end">
-                        <i class="bi bi-plus-lg me-1"></i> Add Category
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button class="btn btn-primary btn-add-category">
+                        <i class="bi bi-plus-lg me-1"></i>Add Category
                     </button>
-                    <form action="{{route('admin.search.categories')}}" style="display:inline-flex">
-                        <input type="search" class="form-control-sm" name="category" placeholder="Search Category">
+                    <form action="{{ route('admin.search.categories') }}" class="d-inline-flex">
+                        <input type="search" class="form-control" name="category" placeholder="Search Category">
                     </form>
                 </div>
             </div>
         </div>
+
         <div class="card-body">
             @if($categories->count() > 0)
             <div class="table-responsive">
@@ -73,53 +46,30 @@
                     <tbody>
                         @foreach($categories as $key => $category)
                         <tr>
-                            <td class="ps-3">
-                                {{ $key + 1 }}
-                            </td>
-                            <td>
-                                <span class="text-dark">{{ $category->name }}</span>
-                            </td>
+                            <td class="ps-3">{{ $key + 1 }}</td>
+                            <td><span class="text-dark fw-semibold">{{ $category->name }}</span></td>
                             <td>
                                 @if($category->status == 'Active')
-                                <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                    Active
-                                </span>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
                                 @else
-                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
-                                    Inactive
-                                </span>
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Inactive</span>
                                 @endif
                             </td>
                             <td class="text-center pe-3">
-                                {{ getSubCategorires($category->id,'Active') }} /
-                                {{ getCategorires($category->id)->count() }}
-                                <sub>active sub-categories</sub>
+                                <span class="fw-semibold">{{ getSubCategorires($category->id,'Active') }} / {{ getCategorires($category->id)->count() }}</span>
+                                <div class="small text-muted">active sub-categories</div>
                             </td>
                             <td class="text-end pe-3">
                                 <div class="d-flex gap-2 justify-content-end">
                                     @if($category->self_added == 1)
-                                    <button
-                                        class="btn btn-outline-danger btn-sm px-3 btn-delete-category"
-                                        data-id="{{ $category->id }}"
-                                        data-name="{{ $category->name }}">
+                                    <button class="btn btn-outline-danger btn-sm px-3 btn-delete-category" data-id="{{ $category->id }}" data-name="{{ $category->name }}">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                     @endif
-                                    <button
-                                        class="btn btn-outline-secondary btn-sm px-3 btn-edit-category"
-                                        data-id="{{ $category->id }}"
-                                        data-name="{{ $category->name }}"
-                                        data-status="{{ $category->status }}"
-                                        data-parent-id="{{ $category->parent_id }}"
-                                        data-category="{{ $category->category }}"
-                                        data-slug="{{ $category->slug }}"
-                                        data-marketplace-ids="{{ $category->marketplaceIds }}">
+                                    <button class="btn btn-outline-secondary btn-sm px-3 btn-edit-category" data-id="{{ $category->id }}" data-name="{{ $category->name }}" data-status="{{ $category->status }}" data-parent-id="{{ $category->parent_id }}" data-category="{{ $category->category }}" data-slug="{{ $category->slug }}" data-marketplace-ids="{{ $category->marketplaceIds }}">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <a href="{{ route('admin.category.children', $category->id) }}"
-                                        class="btn btn-primary btn-sm px-3">
-                                        View Subcategories
-                                    </a>
+                                    <a href="{{ route('admin.category.children', $category->id) }}" class="btn btn-primary btn-sm px-3">View</a>
                                 </div>
                             </td>
                         </tr>
@@ -128,9 +78,7 @@
                 </table>
             </div>
             @else
-            <div class="alert alert-info text-center mb-0">
-                No categories found.
-            </div>
+            <div class="alert alert-info text-center mb-0">No categories found.</div>
             @endif
         </div>
     </div>
