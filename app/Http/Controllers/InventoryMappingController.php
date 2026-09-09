@@ -50,6 +50,24 @@ class InventoryMappingController extends Controller
         return null;
     }
 
+    /**
+     * Check if a QueryException is a unique key violation (MySQL 1062, SQLite 19, SQLSTATE 23000).
+     */
+    protected function isDuplicateKeyException(\Illuminate\Database\QueryException $e): bool
+    {
+        $errorCode = $e->errorInfo[1] ?? null;
+
+        // MySQL duplicate entry error code is 1062
+        // SQLite constraint error code is 19
+        // SQLSTATE 23000 represents integrity constraint violation
+        if ($errorCode === 1062 || $errorCode === 19 || $e->getCode() === '23000' || $e->getCode() === 23000) {
+            $msg = strtolower($e->getMessage());
+            return str_contains($msg, 'duplicate') || str_contains($msg, 'unique');
+        }
+
+        return false;
+    }
+
     public function shopifyProducts(Request $request)
     {
         $shop = $this->getActiveShopModel($request);
@@ -203,7 +221,26 @@ class InventoryMappingController extends Controller
             'submission_status' => 'not_submitted',
         ];
 
-        $mapping = ProductMarketplaceMapping::create($insertData);
+        try {
+            $mapping = ProductMarketplaceMapping::create($insertData);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($this->isDuplicateKeyException($e)) {
+                $msg = strtolower($e->getMessage());
+                if (str_contains($msg, 'unique_shop_amazon_sku') || str_contains($msg, 'amazon_sku')) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This Amazon SKU is already mapped with another Shopify variant.'
+                    ], 422);
+                }
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Variant already mapped.'
+                ], 422);
+            }
+
+            throw $e;
+        }
 
         Log::info('Saved Record', $mapping->fresh()->toArray());
 
@@ -338,13 +375,24 @@ class InventoryMappingController extends Controller
 
         Log::info('UpdateOrCreate Payload', $updateData);
 
-        $mapping = ProductMarketplaceMapping::updateOrCreate(
-            [
-                'shop_id' => $shop->id,
-                'shopify_variant_id' => (string) $variant['id'],
-            ],
-            $updateData
-        );
+        try {
+            $mapping = ProductMarketplaceMapping::updateOrCreate(
+                [
+                    'shop_id' => $shop->id,
+                    'shopify_variant_id' => (string) $variant['id'],
+                ],
+                $updateData
+            );
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($this->isDuplicateKeyException($e)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This Amazon SKU is already mapped with another Shopify variant.'
+                ], 422);
+            }
+
+            throw $e;
+        }
 
         Log::info('Saved Record', $mapping->fresh()->toArray());
 
