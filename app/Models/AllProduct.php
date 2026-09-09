@@ -20,6 +20,9 @@ class AllProduct extends Model
         'user_id',
         'final_json',
         'filled_json'
+        'old_user_id',
+        'submissionId',
+        'user_id',
     ];
 
     /**
