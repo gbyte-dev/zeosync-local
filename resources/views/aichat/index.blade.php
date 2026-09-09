@@ -645,9 +645,80 @@
             return;
         }
 
+        const progressUrl = "{{ route('inventory.amazon.progress') }}?shop={{ urlencode($currentShop) }}";
+        let activePollTimer = null;
+
+        const clearPollTimer = () => {
+            if (activePollTimer) {
+                clearInterval(activePollTimer);
+                activePollTimer = null;
+            }
+        };
+
+        window.addEventListener('beforeunload', clearPollTimer);
+
+        const pollAmazonSync = () => {
+            return new Promise((resolve, reject) => {
+                clearPollTimer();
+
+                const maxAttempts = 36; // 36 * 2.5s = 90 seconds max
+                let attempts = 0;
+
+                const checkProgress = async () => {
+                    attempts++;
+                    try {
+                        const res = await fetch(progressUrl, {
+                            headers: { 'Accept': 'application/json' },
+                            cache: 'no-store'
+                        });
+
+                        if (!res.ok) {
+                            if (attempts >= maxAttempts) {
+                                clearPollTimer();
+                                reject(new Error('Amazon inventory synchronization timed out. Please try again.'));
+                                return;
+                            }
+                            return;
+                        }
+
+                        const data = await res.json();
+                        const percent = data.percent ?? 0;
+                        const message = (data.message || '').toString();
+
+                        if (data.error || message.toLowerCase().startsWith('failed') || data.status === 'Failed') {
+                            clearPollTimer();
+                            reject(new Error('Amazon inventory synchronization failed. Please check your Amazon settings or try again.'));
+                            return;
+                        }
+
+                        if (percent >= 100 || message === 'Completed' || data.status === 'Complete') {
+                            clearPollTimer();
+                            resolve(data);
+                            return;
+                        }
+
+                        if (attempts >= maxAttempts) {
+                            clearPollTimer();
+                            reject(new Error('Amazon inventory synchronization timed out. Please try again.'));
+                            return;
+                        }
+                    } catch (err) {
+                        if (attempts >= maxAttempts) {
+                            clearPollTimer();
+                            reject(new Error('Amazon inventory synchronization timed out. Please try again.'));
+                            return;
+                        }
+                    }
+                };
+
+                activePollTimer = setInterval(checkProgress, 2500);
+                checkProgress();
+            });
+        };
+
         let isSubmitting = false;
 
-        form.addEventListener('submit', function (event) {
+        form.addEventListener('submit', async function (event) {
             event.preventDefault();
 
             if (isSubmitting || submitButton.disabled) {
@@ -697,53 +768,70 @@
                 promptField.focus();
             }
 
-            const formData = new FormData(form);
-            // Ensure formData has prompt even though input was cleared
-            formData.set('prompt', prompt);
+            const executeAiRequest = async (attempt = 1) => {
+                const formData = new FormData(form);
+                formData.set('prompt', prompt);
 
-            fetch(form.action, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                },
-                body: formData,
-            })
-                .then(async (response) => {
-                    const data = await response.json();
-
-                    if (!response.ok || data.success === false) {
-                        const message = data.error || (data.errors && data.errors.prompt && data.errors.prompt[0]) || 'Unable to send your question.';
-                        throw new Error(message);
-                    }
-
-                    const assistantMessage = createMessageElement('assistant', data.message);
-                    if (loaderMessage && loaderMessage.parentNode) {
-                        loaderMessage.replaceWith(assistantMessage);
-                    } else {
-                        log.appendChild(assistantMessage);
-                    }
-                    scrollToBottom();
-
-                    const now = new Date();
-                    status.textContent = 'Last activity: ' + formatTime(now);
-                    updated.textContent = 'Last updated: ' + formatTime(now);
-                })
-                .catch((error) => {
-                    if (loaderMessage && loaderMessage.parentNode) {
-                        loaderMessage.remove();
-                    }
-                    errorBox.textContent = error.message || 'Unable to send your question.';
-                    errorBox.style.display = 'block';
-                })
-                .finally(() => {
-                    if (loaderMessage && loaderMessage.parentNode) {
-                        loaderMessage.remove();
-                    }
-                    isSubmitting = false;
-                    submitButton.disabled = false;
-                    submitButton.classList.remove('sending');
-                    submitButton.removeAttribute('aria-busy');
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    body: formData,
                 });
+
+                const data = await response.json();
+
+                if (!response.ok || data.success === false) {
+                    const message = data.error || (data.errors && data.errors.prompt && data.errors.prompt[0]) || 'Unable to send your question.';
+                    throw new Error(message);
+                }
+
+                if (data.status === 'inventory_syncing') {
+                    if (attempt > 1) {
+                        throw new Error('Amazon inventory is still synchronizing. Please try again shortly.');
+                    }
+
+                    // Wait for background synchronization to complete
+                    await pollAmazonSync();
+
+                    // Re-send the original prompt automatically
+                    return await executeAiRequest(attempt + 1);
+                }
+
+                return data;
+            };
+
+            try {
+                const data = await executeAiRequest(1);
+
+                const assistantMessage = createMessageElement('assistant', data.message);
+                if (loaderMessage && loaderMessage.parentNode) {
+                    loaderMessage.replaceWith(assistantMessage);
+                } else {
+                    log.appendChild(assistantMessage);
+                }
+                scrollToBottom();
+
+                const now = new Date();
+                status.textContent = 'Last activity: ' + formatTime(now);
+                updated.textContent = 'Last updated: ' + formatTime(now);
+            } catch (error) {
+                if (loaderMessage && loaderMessage.parentNode) {
+                    loaderMessage.remove();
+                }
+                errorBox.textContent = error.message || 'Unable to send your question.';
+                errorBox.style.display = 'block';
+            } finally {
+                clearPollTimer();
+                if (loaderMessage && loaderMessage.parentNode) {
+                    loaderMessage.remove();
+                }
+                isSubmitting = false;
+                submitButton.disabled = false;
+                submitButton.classList.remove('sending');
+                submitButton.removeAttribute('aria-busy');
+            }
         });
     });
 </script>
