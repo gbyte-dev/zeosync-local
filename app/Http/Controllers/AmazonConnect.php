@@ -372,7 +372,7 @@ class AmazonConnect extends ShopifyController
     /**
      * Reassign allproducts for this shop: move user_id -> old_user_id and set user_id = NULL
      */
-    public function reassignProductsOwner(Shop $shopModel)
+    protected function reassignProductsOwner(Shop $shopModel)
     {
         if (!$shopModel) {
             return response()->json(['success' => false, 'message' => 'Active shop not found.'], 404);
