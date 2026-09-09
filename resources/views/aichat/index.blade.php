@@ -548,9 +548,15 @@
             autoResize(promptField);
             promptField.addEventListener('input', () => autoResize(promptField));
             promptField.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
                     e.preventDefault();
-                    if (!submitButton.disabled) submitButton.click();
+                    if (!submitButton.disabled) {
+                        if (typeof form.requestSubmit === 'function') {
+                            form.requestSubmit();
+                        } else {
+                            submitButton.click();
+                        }
+                    }
                 }
             });
         }
@@ -572,8 +578,14 @@
             return;
         }
 
+        let isSubmitting = false;
+
         form.addEventListener('submit', function (event) {
             event.preventDefault();
+
+            if (isSubmitting || submitButton.disabled) {
+                return;
+            }
 
             const prompt = promptField.value.trim();
             if (!prompt) {
@@ -583,6 +595,7 @@
             }
 
             // disable and show spinner state on send button
+            isSubmitting = true;
             submitButton.disabled = true;
             submitButton.classList.add('sending');
             submitButton.setAttribute('aria-busy', 'true');
@@ -629,11 +642,10 @@
                     errorBox.style.display = 'block';
                 })
                 .finally(() => {
+                    isSubmitting = false;
                     submitButton.disabled = false;
-                    submitButton.textContent = ' <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                <path d="M22 2L11 13" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M22 2L15 22l-4-9-9-4 20-7z" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="#2563EB"/>
-                            </svg> ';
+                    submitButton.classList.remove('sending');
+                    submitButton.removeAttribute('aria-busy');
                 });
         });
     });
