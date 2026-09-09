@@ -129,6 +129,73 @@
         font-size: 13px;
     }
 
+    /* AI Response Loader */
+    .ai-chat-message.ai-response-loader-message {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 4px 0 !important;
+        border-radius: 0 !important;
+        width: fit-content !important;
+        max-width: none !important;
+        min-height: 0 !important;
+        height: auto !important;
+    }
+
+    .ai-response-loader {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        width: fit-content;
+        height: 24px;
+        padding: 0;
+        margin: 4px 0;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+    }
+
+    .ai-response-loader .bar {
+        width: 7px;
+        height: 18px;
+        margin: 0 9px;
+        border-radius: 10px;
+        animation: loading_5192 1s ease-in-out infinite;
+        background-color: aqua;
+        flex-shrink: 0;
+    }
+
+    .ai-response-loader .bar:nth-child(1) {
+        animation-delay: 0.01s;
+    }
+
+    .ai-response-loader .bar:nth-child(2) {
+        animation-delay: 0.09s;
+    }
+
+    .ai-response-loader .bar:nth-child(3) {
+        animation-delay: 0.19s;
+    }
+
+    .ai-response-loader .bar:nth-child(4) {
+        animation-delay: 0.29s;
+    }
+
+    @keyframes loading_5192 {
+        0% {
+            transform: scale(1);
+        }
+
+        20% {
+            transform: scale(1, 2.5);
+        }
+
+        40% {
+            transform: scale(1);
+        }
+    }
+
     .message-avatar {
         width: 40px;
         height: 40px;
@@ -548,9 +615,15 @@
             autoResize(promptField);
             promptField.addEventListener('input', () => autoResize(promptField));
             promptField.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
                     e.preventDefault();
-                    if (!submitButton.disabled) submitButton.click();
+                    if (!submitButton.disabled) {
+                        if (typeof form.requestSubmit === 'function') {
+                            form.requestSubmit();
+                        } else {
+                            submitButton.click();
+                        }
+                    }
                 }
             });
         }
@@ -572,8 +645,14 @@
             return;
         }
 
+        let isSubmitting = false;
+
         form.addEventListener('submit', function (event) {
             event.preventDefault();
+
+            if (isSubmitting || submitButton.disabled) {
+                return;
+            }
 
             const prompt = promptField.value.trim();
             if (!prompt) {
@@ -583,12 +662,44 @@
             }
 
             // disable and show spinner state on send button
+            isSubmitting = true;
             submitButton.disabled = true;
             submitButton.classList.add('sending');
             submitButton.setAttribute('aria-busy', 'true');
             errorBox.style.display = 'none';
 
+            // Immediately render user's message
+            if (log.querySelector('.ai-chat-empty')) {
+                log.innerHTML = '';
+            }
+
+            const userMessage = createMessageElement('user', prompt);
+            log.appendChild(userMessage);
+
+            // Render AI response loading indicator
+            const loaderMessage = document.createElement('div');
+            loaderMessage.className = 'ai-response-loader';
+            loaderMessage.setAttribute('role', 'status');
+            loaderMessage.setAttribute('aria-label', 'AI is thinking');
+            loaderMessage.innerHTML = `
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+            `;
+            log.appendChild(loaderMessage);
+            scrollToBottom();
+
+            // Clear input
+            promptField.value = '';
+            if (promptField) {
+                promptField.style.height = 'auto';
+                promptField.focus();
+            }
+
             const formData = new FormData(form);
+            // Ensure formData has prompt even though input was cleared
+            formData.set('prompt', prompt);
 
             fetch(form.action, {
                 method: 'POST',
@@ -605,35 +716,33 @@
                         throw new Error(message);
                     }
 
-                    const userMessage = createMessageElement('user', prompt);
                     const assistantMessage = createMessageElement('assistant', data.message);
-
-                    if (log.querySelector('.ai-chat-empty')) {
-                        log.innerHTML = '';
+                    if (loaderMessage && loaderMessage.parentNode) {
+                        loaderMessage.replaceWith(assistantMessage);
+                    } else {
+                        log.appendChild(assistantMessage);
                     }
-
-                    log.appendChild(userMessage);
-                    log.appendChild(assistantMessage);
                     scrollToBottom();
-                    promptField.value = '';
-                    if (promptField) {
-                        promptField.style.height = 'auto';
-                        promptField.focus();
-                    }
+
                     const now = new Date();
                     status.textContent = 'Last activity: ' + formatTime(now);
                     updated.textContent = 'Last updated: ' + formatTime(now);
                 })
                 .catch((error) => {
+                    if (loaderMessage && loaderMessage.parentNode) {
+                        loaderMessage.remove();
+                    }
                     errorBox.textContent = error.message || 'Unable to send your question.';
                     errorBox.style.display = 'block';
                 })
                 .finally(() => {
+                    if (loaderMessage && loaderMessage.parentNode) {
+                        loaderMessage.remove();
+                    }
+                    isSubmitting = false;
                     submitButton.disabled = false;
-                    submitButton.textContent = ' <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                <path d="M22 2L11 13" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                                <path d="M22 2L15 22l-4-9-9-4 20-7z" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="#2563EB"/>
-                            </svg> ';
+                    submitButton.classList.remove('sending');
+                    submitButton.removeAttribute('aria-busy');
                 });
         });
     });
