@@ -535,8 +535,11 @@
                                     <i class="bi bi-link-45deg"></i>
                                     <span class="d-none d-md-inline">Product mapped</span>
                                 </a>
-                                @endif
-                                @if(strtolower($status) === 'accepted')
+                                @endif 
+                                @php
+                                    $hasSubmission = !empty($product->submission_status) || !empty($product->submissionId ?? null);
+                                @endphp
+                                @if(strtolower($status) === 'accepted' || $hasSubmission)
                                 <button type="button" class="sp-btn sp-btn-sm sp-btn-secondary btn-refresh" data-sku="{{ $product->sku }}" data-url="{{ route('amazon.check.sku') }}" title="Refresh status">
                                     <i class="bi bi-arrow-repeat"></i>
                                     <span class="d-none d-md-inline">Refresh</span>
