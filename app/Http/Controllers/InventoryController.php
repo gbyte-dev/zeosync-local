@@ -207,10 +207,7 @@ class InventoryController extends ShopifyController
         $type = $request->type;
 
         if ($type === 'shopify') {
-
-            Cache::forget(
-                "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}"
-            );
+            Cache::forget("shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}" );
         } elseif ($type === 'amazon') {
 
             $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';

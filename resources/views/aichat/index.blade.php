@@ -410,7 +410,7 @@
 <div class="content">
     <div class="saas-page-header">
         <div>
-            <h1 class="saas-page-title">AI Chat</h1>
+            <h1 class="saas-page-title">ZeoSync Chat</h1>
             <p class="saas-page-subtitle">Ask about your store, products, pricing and inventory.</p>
         </div>
         <div>

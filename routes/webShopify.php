@@ -38,10 +38,7 @@ Route::get('planview', [SubscriptionController::class, 'plans'])->name('shopify.
 // THIS IS JUST TETSING WILL BE REMOVED IN FUTURE
 Route::POST('plans/subscribe', [SubscriptionController::class, 'subscribeToPlan'])->name('plans.subscribe');
 Route::get('connect', [AmazonConnect::class, 'connect'])->name('amazon.connect');
-Route::get(
-    'amzon/authorize/shopify/{ens}',
-    [AmazonConnect::class, 'authorizeAmazonIframe']
-)->name('amazon.authorize.iframe');
+Route::get( 'amzon/authorize/shopify/{ens}', [AmazonConnect::class, 'authorizeAmazonIframe'])->name('amazon.authorize.iframe');
 Route::get('amazon/callback', [AmazonConnect::class, 'handleCallback'])->name('amazon.callback');
 //amazon routes
 Route::prefix('amazon')

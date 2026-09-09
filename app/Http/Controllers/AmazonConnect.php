@@ -353,9 +353,11 @@ class AmazonConnect extends ShopifyController
             'amazon_seller_id'      => null,
             'amazon_oauth_state'    => null,
         ]);
-
+        $this->reassignProductsOwner($shop);
         Cache::forget('amazon_orders_' . $shop->shop);
         Cache::forget("amazon_connect_progress_{$shop->id}");
+        $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_marketplace_id}";
+        Cache::forget($cacheKey);
 
         $shopName = str_replace('.myshopify.com', '', $shop->shop);
         NotificationService::send(
@@ -365,6 +367,43 @@ class AmazonConnect extends ShopifyController
         );
 
         return redirect()->back()->with('success', 'Removed Successfully');
+    }
+
+    /**
+     * Reassign allproducts for this shop: move user_id -> old_user_id and set user_id = NULL
+     */
+    public function reassignProductsOwner(Shop $shopModel)
+    {
+        if (!$shopModel) {
+            return response()->json(['success' => false, 'message' => 'Active shop not found.'], 404);
+        }
+
+        $shopId = $shopModel->id;
+
+        try {
+            $count = \DB::table('allproducts')
+                ->where('user_id', $shopId)
+                ->where('status', '!=', 'draft')
+                ->count();
+
+            if ($count === 0) {
+                return response()->json(['success' => true, 'message' => 'No matching products found.', 'updated' => 0]);
+            }
+
+            // Use a single update statement to copy user_id into old_user_id and nullify user_id
+            \DB::table('allproducts')
+                ->where('user_id', $shopId)
+                ->where('status', '!=', 'draft')
+                ->update([
+                    'old_user_id' => \DB::raw('user_id'),
+                    'user_id' => null,
+                ]);
+
+            return response()->json(['success' => true, 'message' => 'Products migrated.', 'updated' => $count]);
+        } catch (\Throwable $e) {
+            Log::error('reassignProductsOwner failed', ['shop_id' => $shopId, 'error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Failed to migrate products: ' . $e->getMessage()], 500);
+        }
     }
 
     public function success(Request $request)
