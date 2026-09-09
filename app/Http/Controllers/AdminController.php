@@ -225,6 +225,32 @@ class AdminController extends Controller
 
     public function settingsupdate(Request $request)
     {
+        $request->validate([
+            'app_logo' => [
+                'nullable',
+                'file',
+                'image',
+                'mimes:png,jpg,jpeg,webp',
+                'mimetypes:image/png,image/jpeg,image/webp',
+                'max:5120',
+            ],
+            'app_favicon' => [
+                'nullable',
+                'file',
+                'mimes:png,ico',
+                'mimetypes:image/png,image/x-icon,image/vnd.microsoft.icon',
+                'max:1024',
+            ],
+        ], [
+            'app_logo.image'          => 'The app logo must be a valid image.',
+            'app_logo.mimes'          => 'The app logo must be a file of type: png, jpg, jpeg, webp.',
+            'app_logo.mimetypes'      => 'The app logo must be a valid PNG, JPG, or WEBP image.',
+            'app_logo.max'            => 'The app logo may not be greater than 5 MB.',
+            'app_favicon.mimes'       => 'The app favicon must be a file of type: png, ico.',
+            'app_favicon.mimetypes'   => 'The app favicon must be a valid PNG or ICO image.',
+            'app_favicon.max'         => 'The app favicon may not be greater than 1 MB.',
+        ]);
+
         $oldProductionClientId = trim((string) AdminSetting::where('option_key', 'production_client_id')
             ->value('option_value'));
 
@@ -279,12 +305,10 @@ class AdminController extends Controller
             if ($key === 'app_logo' || $key === 'app_favicon') {
                 if ($request->hasFile($key)) {
                     $file = $request->file($key);
-                    $filename = time() . '_' . $file->getClientOriginalName();
-                    // Delete old file if exists
-                    $old = AdminSetting::where('option_key', $key)->value('option_value');
-                    if ($old && Storage::disk('public')->exists($old)) {
-                        Storage::disk('public')->delete($old);
-                    }
+                    $allowed = $key === 'app_favicon' ? ['ico', 'png'] : ['png', 'jpg', 'jpeg', 'webp'];
+                    $guessed = strtolower((string) $file->guessExtension());
+                    $extension = in_array($guessed, $allowed, true) ? $guessed : ($key === 'app_favicon' ? 'ico' : 'png');
+                    $filename = $key . '_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $extension;
 
                     // Store file in storage/app/public/logo
                     $path = $file->storeAs(
@@ -293,11 +317,19 @@ class AdminController extends Controller
                         'public'
                     );
 
+                    // Get old file path
+                    $old = AdminSetting::where('option_key', $key)->value('option_value');
+
                     // Save relative path in database
                     AdminSetting::updateOrCreate(
                         ['option_key' => $key],
                         ['option_value' => $path]
                     );
+
+                    // Delete old file only after new file is stored and DB is updated
+                    if ($old && $old !== $path && Storage::disk('public')->exists($old)) {
+                        Storage::disk('public')->delete($old);
+                    }
                 }
 
                 continue;

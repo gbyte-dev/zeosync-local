@@ -53,32 +53,6 @@ class ImageController extends Controller
 
     public function store(Request $request)
     {
-
-        $request->validate([
-            'image' => [
-                'required',
-                'image',
-                'mimes:jpg,jpeg,png,webp',
-                'max:10240', // 10 MB
-                'dimensions:min_width=1000,min_height=1000,max_width=10000,max_height=10000',
-            ],
-        ], [
-            'image.required'   => 'Please select an image.',
-            'image.image'      => 'The uploaded file must be an image.',
-            'image.mimes'      => 'Only JPG, JPEG, PNG and WEBP images are allowed.',
-            'image.max'        => 'Image size must not exceed 10 MB.',
-            'image.dimensions' => 'Image dimensions must be between 1000×1000 and 10000×10000 pixels.',
-        ]);
-        $file = $request->file('image');
-        $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-        $destinationPath = public_path('uploads/images');
-
-        if (!file_exists($destinationPath)) {
-            mkdir($destinationPath, 0777, true);
-        }
-
-        $file->move($destinationPath, $fileName);
-        $path = 'uploads/images/' . $fileName;
         $shop = $request->attributes->get('active_shop_model');
 
         if (!$shop) {
@@ -91,6 +65,38 @@ class ImageController extends Controller
 
             return back()->with('error', 'Shop not found.');
         }
+
+        $request->validate([
+            'image' => [
+                'required',
+                'file',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'mimetypes:image/jpeg,image/png,image/webp',
+                'max:10240', // 10 MB
+            ],
+        ], [
+            'image.required'   => 'Please select an image.',
+            'image.file'       => 'The uploaded item must be a valid file.',
+            'image.image'      => 'The uploaded file must be an image.',
+            'image.mimes'      => 'Only JPG, JPEG, PNG and WEBP images are allowed.',
+            'image.mimetypes'  => 'Only JPG, JPEG, PNG and WEBP images are allowed.',
+            'image.max'        => 'Image size must not exceed 10 MB.',
+        ]);
+
+        $file = $request->file('image');
+        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+        $guessed = strtolower((string) $file->guessExtension());
+        $extension = in_array($guessed, $allowed, true) ? $guessed : 'jpg';
+        $fileName = time() . '_' . bin2hex(random_bytes(8)) . '.' . $extension;
+        $destinationPath = public_path('uploads/images');
+
+        if (!file_exists($destinationPath)) {
+            mkdir($destinationPath, 0755, true);
+        }
+
+        $file->move($destinationPath, $fileName);
+        $path = 'uploads/images/' . $fileName;
 
         $image = Image::create([
             'shop_id' => $shop->id,
