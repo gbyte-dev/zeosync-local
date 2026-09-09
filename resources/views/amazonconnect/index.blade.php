@@ -416,11 +416,11 @@
 
                         <div class="mt-3">
                             <p class="text-muted small mb-0">
-                              <pre>  Note: 1. Disconnecting will stop all synchronization with Amazon. You can reconnect later if needed.
-                                      2. All draft products and submissions will remain in your account, but they will not be synchronized with Amazon until you reconnect.  
-                                      3. All products that were previously synchronized will remain on Amazon, but non-draft products will be removed from the UNDER PROGRESS page.
-                                </pre>
-                            </p>
+                                Note: 1. Disconnecting will stop all synchronization with Amazon. You can reconnect later if needed. </p>   
+                             <p>   2. All draft products and submissions will remain in your account, but they will not be synchronized with Amazon until you reconnect.</p> 
+                             <p>   3. All products that were previously synchronized will remain on Amazon, but non-draft products will be removed from the UNDER PROGRESS page.
+                            
+                           
                         </div>
                     </div>
 
