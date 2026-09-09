@@ -141,7 +141,7 @@ beforeEach(function () {
     ]);
 });
 
-function createAiTestShop(int $id, string $domain): Shop
+function createAiTestShop(int $id, string $domain, bool $primeInventoryCache = true): Shop
 {
     $shop = new Shop();
     $shop->id = $id;
@@ -163,6 +163,16 @@ function createAiTestShop(int $id, string $domain): Shop
         'started_at'         => now()->subDays(5),
         'current_period_end' => now()->addDays(25),
     ]);
+
+    if ($primeInventoryCache) {
+        Cache::forever("amazon_inventory_{$id}_ATVPDKIKX0DER", []);
+        Cache::forever("amazon_inventory_status_{$id}_ATVPDKIKX0DER", [
+            'refreshing'     => false,
+            'sync_completed' => true,
+            'last_synced_at' => now()->toDateTimeString(),
+            'cache_version'  => 1,
+        ]);
+    }
 
     return $shop;
 }
@@ -472,6 +482,180 @@ it('Test H: AI Chat index view renders input form, keyboard hints, and loader st
     expect($view)->toContain('.ai-response-loader');
     expect($view)->toContain('loading_5192');
     expect($view)->toContain('AI is thinking');
+});
+
+it('Test I: When Amazon inventory cache is missing and Amazon is connected, AI Chat returns inventory_syncing and dispatches sync', function () {
+    // Create shop without primed cache
+    $shop = createAiTestShop(1, 'missing-cache.myshopify.com', false);
+    \Illuminate\Support\Facades\Queue::fake();
+
+    mockShopAuthForAi($shop);
+
+    $response = $this->withHeaders([
+        'Authorization' => 'Bearer token-1',
+        'Accept'        => 'application/json',
+    ])->postJson('/ai-chat', [
+        'prompt' => 'Which products are low in stock?',
+    ]);
+
+    $response->assertOk();
+    $response->assertJson([
+        'success' => true,
+        'status'  => 'inventory_syncing',
+        'message' => 'Synchronizing Amazon inventory...',
+    ]);
+
+    \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\SyncAmazonInventoryJob::class);
+});
+
+it('Test J: When Amazon inventory is already refreshing, AI Chat returns inventory_syncing without dispatching duplicate job', function () {
+    $shop = createAiTestShop(1, 'refreshing-cache.myshopify.com', false);
+    Cache::forever("amazon_inventory_status_{$shop->id}_ATVPDKIKX0DER", [
+        'refreshing'     => true,
+        'sync_completed' => false,
+    ]);
+
+    \Illuminate\Support\Facades\Queue::fake();
+    mockShopAuthForAi($shop);
+
+    $response = $this->withHeaders([
+        'Authorization' => 'Bearer token-1',
+        'Accept'        => 'application/json',
+    ])->postJson('/ai-chat', [
+        'prompt' => 'Check inventory',
+    ]);
+
+    $response->assertOk();
+    $response->assertJson([
+        'success' => true,
+        'status'  => 'inventory_syncing',
+    ]);
+
+    \Illuminate\Support\Facades\Queue::assertNothingPushed();
+});
+
+it('Test K: When Amazon is NOT connected, AI Chat does not trigger inventory sync and responds immediately', function () {
+    $shop = createAiTestShop(1, 'no-amazon.myshopify.com', false);
+    $shop->amazon_refresh_token = null;
+    $shop->save();
+
+    \Illuminate\Support\Facades\Queue::fake();
+    Http::fake([
+        '*api.openai.com*' => Http::response([
+            'choices' => [
+                ['message' => ['content' => 'Shopify catalog has 0 items.']],
+            ],
+        ], 200),
+    ]);
+
+    mockShopAuthForAi($shop);
+
+    $response = $this->withHeaders([
+        'Authorization' => 'Bearer token-1',
+        'Accept'        => 'application/json',
+    ])->postJson('/ai-chat', [
+        'prompt' => 'Tell me about my store',
+    ]);
+
+    $response->assertOk();
+    $response->assertJson([
+        'success' => true,
+        'message' => 'Shopify catalog has 0 items.',
+    ]);
+
+    \Illuminate\Support\Facades\Queue::assertNothingPushed();
+});
+
+it('Test L: When Amazon inventory cache is populated, AI context includes live Amazon inventory count', function () {
+    $shop = createAiTestShop(1, 'populated-cache.myshopify.com', false);
+    Cache::forever("amazon_inventory_{$shop->id}_ATVPDKIKX0DER", [
+        ['sku' => 'AMZ-SKU-1', 'quantity' => 15],
+        ['sku' => 'AMZ-SKU-2', 'quantity' => 40],
+    ]);
+    Cache::forever("amazon_inventory_status_{$shop->id}_ATVPDKIKX0DER", [
+        'refreshing'     => false,
+        'sync_completed' => true,
+        'last_synced_at' => now()->toDateTimeString(),
+    ]);
+
+    $capturedUserPrompt = null;
+    Http::fake([
+        '*api.openai.com*' => function (\Illuminate\Http\Client\Request $request) use (&$capturedUserPrompt) {
+            $data = $request->data();
+            $capturedUserPrompt = $data['messages'][1]['content'] ?? '';
+            return Http::response([
+                'choices' => [
+                    ['message' => ['content' => 'You have 2 Amazon inventory items.']],
+                ],
+            ], 200);
+        },
+    ]);
+
+    mockShopAuthForAi($shop);
+
+    $response = $this->withHeaders([
+        'Authorization' => 'Bearer token-1',
+        'Accept'        => 'application/json',
+    ])->postJson('/ai-chat', [
+        'prompt' => 'How many inventory items on Amazon?',
+    ]);
+
+    $response->assertOk();
+    $response->assertJson([
+        'success' => true,
+        'message' => 'You have 2 Amazon inventory items.',
+    ]);
+    expect($capturedUserPrompt)->toContain('Amazon  inventory items: 2');
+});
+
+it('Test M: When Amazon inventory sync completes with 0 items, count is legitimately reported as 0', function () {
+    $shop = createAiTestShop(1, 'empty-inventory.myshopify.com', true); // primed with [] and sync_completed: true
+
+    $capturedUserPrompt = null;
+    Http::fake([
+        '*api.openai.com*' => function (\Illuminate\Http\Client\Request $request) use (&$capturedUserPrompt) {
+            $data = $request->data();
+            $capturedUserPrompt = $data['messages'][1]['content'] ?? '';
+            return Http::response([
+                'choices' => [
+                    ['message' => ['content' => 'No active Amazon inventory items found.']],
+                ],
+            ], 200);
+        },
+    ]);
+
+    mockShopAuthForAi($shop);
+
+    $response = $this->withHeaders([
+        'Authorization' => 'Bearer token-1',
+        'Accept'        => 'application/json',
+    ])->postJson('/ai-chat', [
+        'prompt' => 'Check Amazon inventory count',
+    ]);
+
+    $response->assertOk();
+    expect($capturedUserPrompt)->toContain('Amazon  inventory items: 0');
+});
+
+it('Test N: Amazon progress endpoint returns progress for authenticated tenant', function () {
+    $shop = createAiTestShop(1, 'progress-check.myshopify.com', true);
+    Cache::put("amazon_progress_{$shop->shop}", [
+        'percent' => 80,
+        'message' => 'Extracting Data...',
+    ], 300);
+
+    mockShopAuthForAi($shop);
+
+    $response = $this->withHeaders([
+        'Authorization' => 'Bearer token-1',
+        'Accept'        => 'application/json',
+    ])->getJson("/inventory/amazon/progress?shop={$shop->shop}");
+
+    $response->assertOk();
+    $response->assertJson([
+        'percent' => 80,
+        'message' => 'Extracting Data...',
+    ]);
 });
 
 

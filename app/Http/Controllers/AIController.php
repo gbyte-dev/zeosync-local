@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Shop;
 use App\Models\ShopifyOrder;
 use App\Services\AIConfigurationService;
+use App\Services\InventoryCacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -77,6 +78,29 @@ class AIController extends Controller
         }
 
         RateLimiter::hit($rateLimitKey, self::RATE_LIMIT_DECAY_SECONDS);
+
+        if (!empty($shop->amazon_refresh_token)) {
+            $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
+            $cacheKey = "amazon_inventory_{$shop->id}_{$marketplaceId}";
+            $inventoryService = app(InventoryCacheService::class);
+            $status = $inventoryService->getStatus($shop, $marketplaceId);
+            $hasCache = Cache::has($cacheKey);
+            $syncCompleted = (bool) ($status['sync_completed'] ?? false);
+
+            if (!$hasCache || !$syncCompleted) {
+                if (!($status['refreshing'] ?? false)) {
+                    $inventoryService->dispatchRefresh($shop, $marketplaceId);
+                }
+
+                if ($request->wantsJson()) {
+                    return response()->json([
+                        'success' => true,
+                        'status'  => 'inventory_syncing',
+                        'message' => 'Synchronizing Amazon inventory...',
+                    ]);
+                }
+            }
+        }
 
         $context = $this->buildShopContext($shop);
         $prompt = $request->input('prompt');
@@ -230,11 +254,13 @@ class AIController extends Controller
 
     private function getAmazonInventoryCache(?Shop $shop): array
     {
-        if (!$shop || empty($shop->amazon_marketplace_id)) {
+        if (!$shop || empty($shop->amazon_refresh_token)) {
             return [];
         }
 
-        return Cache::get("amazon_inventory_{$shop->id}_{$shop->amazon_marketplace_id}", []);
+        $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
+
+        return Cache::get("amazon_inventory_{$shop->id}_{$marketplaceId}", []);
     }
 
     private function sendAiRequest(string $systemPrompt, string $userPrompt): array
