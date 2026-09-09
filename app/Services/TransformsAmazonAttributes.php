@@ -26,10 +26,11 @@ class TransformsAmazonAttributes
      */
     public function transformAttribute(string $name, mixed $value , mixed $productAttributes = null): ?array
     {
-        if (session('active_shop')) {
+        $shop = null;
+        if (request()?->attributes?->has('active_shop_model')) {
+            $shop = request()->attributes->get('active_shop_model');
+        } elseif (session('active_shop')) {
             $shop = Shop::where('shop', session('active_shop'))->first();
-        } else {
-            $shop = Shop::where('shop', '!=', '')->first();
         }
 
         $marketplaceId = $shop?->amazon_marketplace_id ?? 'AB8Z5GI65VK9X';
