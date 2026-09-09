@@ -339,19 +339,29 @@ class AmazonConnect extends ShopifyController
 
     public function disconnect(Request $request)
     {
-        $shopModel = $this->getActiveShop($request);
-        $activeShop = $shopModel->shop;
-        $shop = Shop::where('shop', $activeShop)->first();
+        $shop = $this->getActiveShop($request);
+        if (!$shop) {
+            return redirect()->route('dashboard')->with('error', 'Active shop not found.');
+        }
+
+        if (empty($shop->amazon_refresh_token)) {
+            return redirect()->back()->with('info', 'Amazon account is already disconnected.');
+        }
+
         $shop->update([
             'amazon_refresh_token'  => null,
+            'amazon_seller_id'      => null,
+            'amazon_oauth_state'    => null,
         ]);
 
-        Cache::forget('amazon_orders_' . $activeShop);
+        Cache::forget('amazon_orders_' . $shop->shop);
+        Cache::forget("amazon_connect_progress_{$shop->id}");
 
+        $shopName = str_replace('.myshopify.com', '', $shop->shop);
         NotificationService::send(
             'amazon_account_status',
             'Amazon Seller Disconnected',
-            $shop->shop . ' Amazon seller account disconnected successfully.'
+            $shopName . ' Amazon seller account disconnected successfully.'
         );
 
         return redirect()->back()->with('success', 'Removed Successfully');
