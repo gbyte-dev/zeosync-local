@@ -536,6 +536,12 @@
                                     <span class="d-none d-md-inline">Product mapped</span>
                                 </a>
                                 @endif
+                                @if(strtolower($status) === 'accepted')
+                                <button type="button" class="sp-btn sp-btn-sm sp-btn-secondary btn-refresh" data-sku="{{ $product->sku }}" data-url="{{ route('amazon.check.sku') }}" title="Refresh status">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                    <span class="d-none d-md-inline">Refresh</span>
+                                </button>
+                                @endif
                                 @else
                                 <button type="button" class="sp-btn sp-btn-sm sp-btn-secondary btn-edit" title="View"
                                     data-id="{{ $product->id }}"
@@ -751,6 +757,59 @@
                 syncBtn.disabled = false;
                 syncBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
                 showToast('Sync failed', 'danger');
+            });
+    });
+    // Refresh product status by SKU (delegated)
+    document.addEventListener('click', function(e) {
+        const refreshBtn = e.target.closest('.btn-refresh');
+        if (!refreshBtn) return;
+        const sku = refreshBtn.dataset.sku;
+        const url = refreshBtn.dataset.url;
+        if (!sku || !url) return;
+
+        refreshBtn.disabled = true;
+        const oldHtml = refreshBtn.innerHTML;
+        refreshBtn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+
+        fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ sku })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.success) {
+                    // update UI status badge in the row
+                    const row = refreshBtn.closest('tr');
+                    if (row) {
+                        const badge = row.querySelector('.sp-badge');
+                        if (badge) {
+                            badge.textContent = (data.status || '').charAt(0).toUpperCase() + (data.status || '').slice(1);
+                            if ((data.status || '') === 'active') {
+                                badge.classList.remove('sp-badge-secondary');
+                                badge.classList.add('sp-badge-success');
+                            } else {
+                                badge.classList.remove('sp-badge-success');
+                                badge.classList.add('sp-badge-secondary');
+                            }
+                        }
+                    }
+                    showToast(data.message || 'Status updated', 'success');
+                } else {
+                    showToast(data.message || 'Failed to refresh status', 'danger');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('Request failed', 'danger');
+            })
+            .finally(() => {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = oldHtml;
             });
     });
 </script>

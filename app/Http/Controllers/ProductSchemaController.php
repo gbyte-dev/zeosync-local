@@ -1234,6 +1234,64 @@ class ProductSchemaController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * AJAX endpoint: check product status on Amazon by SKU and update local product.status
+     */
+    public function checkSkuStatus(Request $request)
+    {
+        $request->validate([
+            'sku' => 'required|string'
+        ]);
+
+        $sku = $request->input('sku');
+        $activeShop = $this->getActiveShopModel($request);
+        if (!$activeShop) {
+            return response()->json(['success' => false, 'message' => 'Active shop not found'], 404);
+        }
+
+        try {
+            $amazonService = app(\App\Services\AmazonService::class);
+            $result = $amazonService->checkAmazonListing($activeShop, $sku);
+
+            // Determine status from Amazon response
+            $amazonStatus = '';
+            if (is_array($result) && isset($result['status'])) {
+                $amazonStatus = strtoupper($result['status']);
+            }
+
+            $mapped = 'inactive';
+            if (in_array($amazonStatus, ['ACCEPTED', 'VALID', 'ACTIVE', 'SUCCESS'], true)) {
+                $mapped = 'active';
+            }
+
+            // Update local product if exists for this shop
+            $product = \App\Models\Product::where('sku', $sku)
+                ->where('user_id', $activeShop->id)
+                ->first();
+
+            if ($product) {
+                if (strtolower($product->status) !== $mapped) {
+                    $product->status = $mapped;
+                    // optionally persist submission_status if Amazon provided more info
+                    if (isset($result['submissionId'])) {
+                        $product->submission_status = $result['submissionId'];
+                    }
+                    $product->save();
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'status' => $mapped,
+                'amazon_status' => $amazonStatus,
+                'message' => 'Checked status for SKU ' . $sku
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('checkSkuStatus failed', ['sku' => $sku, 'error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Failed to check SKU: ' . $e->getMessage()], 500);
+        }
+    }
     public function removeDrafts(Product $product)
     {
         $activeShop = $this->getActiveShopModel();
