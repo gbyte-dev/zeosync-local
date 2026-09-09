@@ -1,22 +1,18 @@
 @extends('admin.layout.app')
 @section('title', 'Create Mail Template')
 @section('content')
-<div class="container-fluid">
-    
-    <!-- Page Header -->
-    <div class="card shadow-sm border-0  overflow-hidden">
-        <div class="p-3 text-dark shadow header" >
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-                <h5 class="mb-1">Create Mail Template</h5>
+<div class="container-fluid px-0">
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h5 class="mb-1 fw-bold">Create Mail Template</h5>
+                </div>
+                <a class="btn btn-light btn-sm" href="{{ route('admin.mailtemplates') }}">← Back</a>
             </div>
-              <a class="btn btn-primary btn-sm" href="{{ route('admin.mailtemplates') }}">
-                ← Back
-            </a>
         </div>
-    </div>
-  
-    <div class="card-body p-0">
+
+        <div class="card-body p-4">
     <form action="{{ route('admin.mailtemplates.store') }}" method="POST">
         @csrf
 

@@ -6,22 +6,18 @@
 
 <!-- Include Summernote CSS -->
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.css" rel="stylesheet">
-<div class="container-fluid">
-
-    <!-- Header -->
-    <div class="card shadow-sm border-0  overflow-hidden">
-        <div class="p-3 text-dark shadow header" >
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-                <h5 class="mb-1">Edit Mail Template</h5>
+<div class="container-fluid px-0">
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h5 class="mb-1 fw-bold">Edit Mail Template</h5>
+                </div>
+                <a href="{{ route('admin.mailtemplates') }}" class="btn btn-light btn-sm">← Back</a>
             </div>
-             <a href="{{ route('admin.mailtemplates') }}" class="btn btn-primary btn-sm">
-                ← Back
-            </a>
         </div>
-    </div>
-  
-    <div class="card-body p-0">
+
+        <div class="card-body p-4">
     <form action="{{ route('admin.mailtemplates.update', $mailtemplate->id) }}" method="POST">
         @csrf
         @method('PUT')

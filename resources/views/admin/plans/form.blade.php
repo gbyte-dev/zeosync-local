@@ -122,16 +122,14 @@
 <div class="container-fluid px-0">
 
     {{-- Header --}}
-    <div class="card shadow-sm border-0  overflow-hidden">
-        <div class="px-3 pt-2  text-dark shadow header">
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-white border-0 py-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h5 class="mb-1"> {{ $type ?? 'Create Plan' }}</h5>
-                    <p>Create and manage subscription plan details</p>
+                    <h5 class="mb-1 fw-bold">{{ $type ?? 'Create Plan' }}</h5>
+                    <p class="mb-0 text-muted small">Create and manage subscription plan details</p>
                 </div>
-                <a class="btn btn-primary btn-sm" href="{{ route('admin.plans') }}">
-                    ← Back
-                </a>
+                <a class="btn btn-light btn-sm" href="{{ route('admin.plans') }}">← Back</a>
             </div>
         </div>
 
