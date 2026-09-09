@@ -1185,8 +1185,6 @@ class ProductSchemaController extends Controller
            
             $parent_productid = $product_id;
         }
-
-         dd($products);
          
         return view('schema.products.index', compact('products', 'parent_productid', 'productLimitReached'));
     }
