@@ -129,6 +129,53 @@
         font-size: 13px;
     }
 
+    /* AI Response Loader */
+    .ai-response-loader {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 4px 8px;
+    }
+
+    .ai-response-loader .bar {
+        width: 7px;
+        height: 18px;
+        margin: 0 9px;
+        border-radius: 10px;
+        animation: loading_5192 1s ease-in-out infinite;
+        background-color: aqua;
+    }
+
+    .ai-response-loader .bar:nth-child(1) {
+        animation-delay: 0.01s;
+    }
+
+    .ai-response-loader .bar:nth-child(2) {
+        animation-delay: 0.09s;
+    }
+
+    .ai-response-loader .bar:nth-child(3) {
+        animation-delay: 0.19s;
+    }
+
+    .ai-response-loader .bar:nth-child(4) {
+        animation-delay: 0.29s;
+    }
+
+    @keyframes loading_5192 {
+        0% {
+            transform: scale(1);
+        }
+
+        20% {
+            transform: scale(1, 2.5);
+        }
+
+        40% {
+            transform: scale(1);
+        }
+    }
+
     .message-avatar {
         width: 40px;
         height: 40px;
@@ -601,7 +648,38 @@
             submitButton.setAttribute('aria-busy', 'true');
             errorBox.style.display = 'none';
 
+            // Immediately render user's message
+            if (log.querySelector('.ai-chat-empty')) {
+                log.innerHTML = '';
+            }
+
+            const userMessage = createMessageElement('user', prompt);
+            log.appendChild(userMessage);
+
+            // Render AI response loading indicator
+            const loaderMessage = document.createElement('div');
+            loaderMessage.className = 'ai-chat-message assistant';
+            loaderMessage.innerHTML = `
+                <div class="loader ai-response-loader" aria-label="AI is thinking" role="status">
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                </div>
+            `;
+            log.appendChild(loaderMessage);
+            scrollToBottom();
+
+            // Clear input
+            promptField.value = '';
+            if (promptField) {
+                promptField.style.height = 'auto';
+                promptField.focus();
+            }
+
             const formData = new FormData(form);
+            // Ensure formData has prompt even though input was cleared
+            formData.set('prompt', prompt);
 
             fetch(form.action, {
                 method: 'POST',
@@ -618,30 +696,29 @@
                         throw new Error(message);
                     }
 
-                    const userMessage = createMessageElement('user', prompt);
                     const assistantMessage = createMessageElement('assistant', data.message);
-
-                    if (log.querySelector('.ai-chat-empty')) {
-                        log.innerHTML = '';
+                    if (loaderMessage && loaderMessage.parentNode) {
+                        loaderMessage.replaceWith(assistantMessage);
+                    } else {
+                        log.appendChild(assistantMessage);
                     }
-
-                    log.appendChild(userMessage);
-                    log.appendChild(assistantMessage);
                     scrollToBottom();
-                    promptField.value = '';
-                    if (promptField) {
-                        promptField.style.height = 'auto';
-                        promptField.focus();
-                    }
+
                     const now = new Date();
                     status.textContent = 'Last activity: ' + formatTime(now);
                     updated.textContent = 'Last updated: ' + formatTime(now);
                 })
                 .catch((error) => {
+                    if (loaderMessage && loaderMessage.parentNode) {
+                        loaderMessage.remove();
+                    }
                     errorBox.textContent = error.message || 'Unable to send your question.';
                     errorBox.style.display = 'block';
                 })
                 .finally(() => {
+                    if (loaderMessage && loaderMessage.parentNode) {
+                        loaderMessage.remove();
+                    }
                     isSubmitting = false;
                     submitButton.disabled = false;
                     submitButton.classList.remove('sending');

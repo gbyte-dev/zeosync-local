@@ -455,3 +455,25 @@ it('Test G: Normal AI chat flow returns structured assistant message and stores 
     ]);
     expect($response->json('history'))->toHaveCount(2);
 });
+
+it('Test H: AI Chat index view renders input form, keyboard hints, and loader styles', function () {
+    $shop = createAiTestShop(1, 'view-test.myshopify.com');
+
+    $errors = new \Illuminate\Support\ViewErrorBag();
+    $view = view('aichat.index', [
+        'currentShop' => $shop->shop,
+        'chatHistory' => [],
+        'errors'      => $errors,
+    ])->render();
+
+    expect($view)->toContain('id="ai-chat-form"');
+    expect($view)->toContain('id="prompt"');
+    expect($view)->toContain('id="ai-chat-submit"');
+    expect($view)->toContain('.ai-response-loader');
+    expect($view)->toContain('loading_5192');
+    expect($view)->toContain('role="status"');
+    expect($view)->toContain('aria-label="AI is thinking"');
+});
+
+
+
