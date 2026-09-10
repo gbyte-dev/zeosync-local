@@ -353,13 +353,34 @@
     let currentPage = 1;
     let perPage = 9;
 
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function sanitizeImageUrl(url, fallback = 'https://via.placeholder.com/80') {
+        if (!url || typeof url !== 'string') return fallback;
+        const trimmed = url.trim();
+        if (/^(https?:\/\/|\/|\.\/)/i.test(trimmed) && !/^(javascript|vbscript|data):/i.test(trimmed)) {
+            return escapeHtml(trimmed);
+        }
+        return fallback;
+    }
+
     function getViewUrl(item) {
         let shopifyUrl = '{{ route("shopify.returns.view.shopify", ":id") }}';
         let amazonUrl = '{{ route("shopify.returns.view.amazon", ":id") }}';
+        let rawId = String(item?.oid ?? item?.id ?? '');
+        let encodedId = encodeURIComponent(rawId);
 
         return activeTab === 'amazon'
-            ? amazonUrl.replace(':id', item.oid)
-            : shopifyUrl.replace(':id', item.oid);
+            ? amazonUrl.replace(':id', encodedId)
+            : shopifyUrl.replace(':id', encodedId);
     }
 
     function loadReturns(type = 'shopify') {
@@ -417,35 +438,44 @@
         }
 
         paginated.forEach(item => {
+            const safeImage = sanitizeImageUrl(item.image, 'https://via.placeholder.com/80');
+            const safeName = escapeHtml(item.product_name || 'Product');
+            const safeOrderId = escapeHtml(item.order_id || '-');
+            const safeSku = escapeHtml(item.sku || '-');
+            const safeRefund = escapeHtml(item.refund_amount || 0);
+            const safeDate = escapeHtml(formatDate(item.created_at));
+            const safeStatus = escapeHtml(item.status || 'requested');
+            const viewUrl = escapeHtml(getViewUrl(item));
+
             html += `
                 <div class="col-md-6 col-lg-4">
                     <div class="return-card">
 
                         <div class="return-header">
-                            <img src="${item.image || 'https://via.placeholder.com/80'}" class="return-img">
+                            <img src="${safeImage}" class="return-img" alt="${safeName}">
                             <div>
-                                <div class="return-title">${item.product_name || 'Product'}</div>
-                                <div class="return-meta">Order: ${item.order_id || '-'}</div>
-                                <div class="return-meta">SKU: ${item.sku || '-'}</div>
+                                <div class="return-title">${safeName}</div>
+                                <div class="return-meta">Order: ${safeOrderId}</div>
+                                <div class="return-meta">SKU: ${safeSku}</div>
                             </div>
                         </div>
 
                         <div class="return-grid">
                             <div class="return-info-box">
                                 <small>Refund</small>
-                                <div>$${item.refund_amount || 0}</div>
+                                <div>$${safeRefund}</div>
                             </div>
 
                             <div class="return-info-box">
                                 <small>Date</small>
-                                <div>${formatDate(item.created_at)}</div>
+                                <div>${safeDate}</div>
                             </div>
 
                             <div class="return-info-box">
                                 <small>Status</small>
                                 <div>
-                                    <span class="badge-status ${item.status || 'requested'}">
-                                        ${item.status || 'requested'}
+                                    <span class="badge-status ${safeStatus}">
+                                        ${safeStatus}
                                     </span>
                                 </div>
                             </div>
@@ -454,7 +484,7 @@
                         <div class="mt-3 text-end">
                             <button class="btn btn-dark btn-sm fw-bold"
                                     style="border-radius:10px;"
-                                    onclick="window.location.href='${getViewUrl(item)}'">
+                                    onclick="window.location.href='${viewUrl}'">
                                 View
                             </button>
                         </div>

@@ -236,3 +236,11 @@ function parseUnitValue(string $raw, array $validUnits, string $fallbackUnit): a
 
     return ['value' => (float) $num, 'unit' => $unit];
 }
+
+if (!function_exists('sanitize_html')) {
+    function sanitize_html(?string $html): string
+    {
+        return \App\Services\Security\HtmlSanitizer::clean($html);
+    }
+}
+

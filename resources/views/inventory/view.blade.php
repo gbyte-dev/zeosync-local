@@ -118,7 +118,8 @@
             <div class="d-flex gap-2 mt-2 flex-wrap">
                 @foreach(array_unique(array_column($product['variants'], 'option1')) as $color)
                 <div class="option-box {{ $loop->first?'selected':'' }}"
-                     onclick="selectColor(this,'{{ $color }}')">
+                     data-color="{{ $color }}"
+                     onclick="handleColorSelect(this)">
                     {{ $color }}
                 </div>
                 @endforeach
@@ -131,7 +132,8 @@
             <div class="d-flex gap-2 mt-2 flex-wrap">
                 @foreach(array_unique(array_column($product['variants'], 'option2')) as $size)
                 <div class="option-box"
-                     onclick="selectSize(this,'{{ $size }}')">
+                     data-size="{{ $size }}"
+                     onclick="handleSizeSelect(this)">
                     {{ $size }}
                 </div>
                 @endforeach
@@ -161,7 +163,7 @@
         <!-- DESCRIPTION -->
         <div class="info-item full">
             <strong>Description</strong>
-            <div>{!! $product['body_html'] !!}</div>
+            <div>{!! sanitize_html($product['body_html'] ?? '') !!}</div>
         </div>
 
         <!-- FEATURES -->
@@ -181,7 +183,7 @@
         <div class="info-item full">
             <strong>Size Chart</strong>
             <table class="table table-bordered">
-                {!! $product['metafields']['size_chart'] !!}
+                {!! sanitize_html($product['metafields']['size_chart'] ?? '') !!}
             </table>
         </div>
         @endif
@@ -206,6 +208,14 @@
 <script>
 let selectedColor='', selectedSize='';
 const variants = @json($product['variants']);
+
+function handleColorSelect(el){
+    selectColor(el, el.getAttribute('data-color') || '');
+}
+
+function handleSizeSelect(el){
+    selectSize(el, el.getAttribute('data-size') || '');
+}
 
 function changeImage(el){
     document.getElementById('mainImage').src = el.src;

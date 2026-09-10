@@ -116,6 +116,25 @@ let filteredData = [];
 let currentPage = 1;
 let perPage = 9;
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function sanitizeImageUrl(url, fallback = 'https://via.placeholder.com/60') {
+    if (!url || typeof url !== 'string') return fallback;
+    const trimmed = url.trim();
+    if (/^(https?:\/\/|\/|\.\/)/i.test(trimmed) && !/^(javascript|vbscript|data):/i.test(trimmed)) {
+        return escapeHtml(trimmed);
+    }
+    return fallback;
+}
+
 // LOAD
 function loadReturns() {
     fetch('{{ route("shopify.returns.shopify") }}')
@@ -143,33 +162,41 @@ function renderCards() {
     });
 
     paginated.forEach(item => {
+        const safeImage = sanitizeImageUrl(item.image, 'https://via.placeholder.com/60');
+        const safeName = escapeHtml(item.product_name || 'Product');
+        const safeOrderId = escapeHtml(item.order_id || '-');
+        const safeSku = escapeHtml(item.sku || '-');
+        const safeRefund = escapeHtml(item.refund_amount || 0);
+        const safeDate = escapeHtml(formatDate(item.created_at));
+        const safeStatus = escapeHtml(item.status || 'requested');
+
         html += `
         <div class="col-md-6 col-lg-4">
             <div class="return-card">
 
                 <div class="return-header">
-                    <img src="${item.image || 'https://via.placeholder.com/60'}" class="return-img">
+                    <img src="${safeImage}" class="return-img" alt="${safeName}">
                     <div>
-                        <div class="return-title">${item.product_name || 'Product'}</div>
-                        <div class="return-meta">Order: ${item.order_id}</div>
-                        <div class="return-meta">SKU: ${item.sku || '-'}</div>
+                        <div class="return-title">${safeName}</div>
+                        <div class="return-meta">Order: ${safeOrderId}</div>
+                        <div class="return-meta">SKU: ${safeSku}</div>
                     </div>
                 </div>
 
                 <div class="return-grid">
                     <div>
                         <small>Refund</small>
-                        <div>$${item.refund_amount || 0}</div>
+                        <div>$${safeRefund}</div>
                     </div>
                     <div>
                         <small>Date</small>
-                        <div>${formatDate(item.created_at)}</div>
+                        <div>${safeDate}</div>
                     </div>
                     <div>
                         <small>Status</small>
                         <div>
-                            <span class="badge-status ${item.status}">
-                                ${item.status}
+                            <span class="badge-status ${safeStatus}">
+                                ${safeStatus}
                             </span>
                         </div>
                     </div>

@@ -27,7 +27,7 @@
     </div>
 
     <script>
-        const shop = {!! json_encode($shop ?? null) !!};
+        const shop = @json($shop ?? null);
         let setupCheckInterval;
         let hasRedirected = false;
 
@@ -57,7 +57,7 @@
         }
 
         (function() {
-            const redirectUrl = {!! json_encode($redirectUrl) !!};
+            const redirectUrl = @json($redirectUrl);
             const statusEl = document.getElementById('status');
             const openButton = document.getElementById('openPopup');
             const features = [
