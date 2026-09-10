@@ -15,6 +15,7 @@ use App\Models\MailTemplate;
 use App\Models\ReturnItem;
 use App\Models\UserNotificationSetting;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 
 class SettingsController extends ShopifyController
@@ -49,11 +50,11 @@ class SettingsController extends ShopifyController
         $request->validate([
             'selected_location_index' => [
                 'nullable',
-                'integer',
-                'min:0',
                 function ($attribute, $value, $fail) use ($locations) {
-                    if ($value !== null && !array_key_exists($value, $locations)) {
-                        $fail('Invalid Shopify location selected.');
+                    if ($value !== null && $value !== '') {
+                        if (!is_numeric($value) || !array_key_exists((int) $value, $locations)) {
+                            $fail('Invalid Shopify location selected.');
+                        }
                     }
                 },
             ],
