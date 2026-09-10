@@ -16,6 +16,7 @@ use App\Services\AutoSkuMappingService;
 use App\Services\InventoryCacheService;
 use Illuminate\Support\Facades\Log;
 use App\Models\AdminSetting;
+use App\Models\ProductMarketplaceMapping;
 
 
 class InventoryController extends ShopifyController
@@ -93,6 +94,27 @@ class InventoryController extends ShopifyController
 
         $data = $shopifyInventoryService->getInventory($shopModel);
 
+        // Overlay authoritative database mapping state onto cached Shopify variants
+        $mappings = ProductMarketplaceMapping::where('shop_id', $shopModel->id)
+            ->get(['id', 'shopify_variant_id', 'amazon_sku'])
+            ->keyBy(fn($m) => (string) $m->shopify_variant_id);
+
+        if (is_array($data)) {
+            foreach ($data as &$item) {
+                $vid = (string) ($item['vid'] ?? '');
+                $mapping = $mappings->get($vid);
+
+                $isMapped = $mapping
+                    && !empty($mapping->shopify_variant_id)
+                    && !empty($mapping->amazon_sku);
+
+                $item['is_mapped'] = $isMapped;
+                $item['mapped_sku'] = $isMapped ? $mapping->amazon_sku : null;
+                $item['mapping_id'] = $isMapped ? $mapping->id : null;
+            }
+            unset($item);
+        }
+
         app(AutoSkuMappingService::class)->handle(
             $shopModel,
             $data,
@@ -123,7 +145,32 @@ class InventoryController extends ShopifyController
             $shop->amazon_marketplace_id
         );
 
-        $data = $response['products'];
+        $products = $response['products'] ?? [];
+
+        // Overlay authoritative database mapping state onto cached Amazon products
+        $mappings = ProductMarketplaceMapping::where('shop_id', $shop->id)
+            ->get(['id', 'amazon_sku', 'shopify_variant_id', 'shopify_product_id'])
+            ->keyBy(fn($m) => (string) $m->amazon_sku);
+
+        if (is_array($products)) {
+            foreach ($products as &$item) {
+                $sku = (string) ($item['sku'] ?? '');
+                $mapping = $mappings->get($sku);
+
+                $isMapped = $mapping
+                    && !empty($mapping->shopify_variant_id)
+                    && !empty($mapping->amazon_sku);
+
+                $item['is_mapped'] = $isMapped;
+                $item['mapping_id'] = $isMapped ? $mapping->id : null;
+                $item['mapped_shopify_variant_id'] = $isMapped ? $mapping->shopify_variant_id : null;
+                $item['mapped_shopify_product_id'] = $isMapped ? $mapping->shopify_product_id : null;
+            }
+            unset($item);
+        }
+
+        $response['products'] = $products;
+        $data = $products;
 
         app(AutoSkuMappingService::class)
             ->handle(

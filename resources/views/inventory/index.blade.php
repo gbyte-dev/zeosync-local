@@ -939,6 +939,18 @@
 
                 dtAmazon.draw(false);
             }
+
+            // Synchronize in-memory amazonProductsCache if present
+            if (Array.isArray(amazonProductsCache)) {
+                amazonProductsCache.forEach(function(item) {
+                    const mapping = amazonMappings[String(item.sku)];
+                    item.is_mapped = !!mapping;
+                    item.mapping_id = mapping ? mapping.id : null;
+                    item.mapped_shopify_variant_id = mapping ?
+                        mapping.shopify_variant_id :
+                        null;
+                });
+            }
         });
     }
 
@@ -1694,7 +1706,11 @@
                 refreshMappingUI();
             },
             error: function(xhr) {
-                alert(xhr.responseJSON.message);
+                Swal.fire({
+                    icon: 'warning',
+                    text: xhr.responseJSON?.message ?? 'Failed to map product.',
+                    confirmButtonText: 'OK'
+                });
             }
         });
     });
@@ -1792,7 +1808,11 @@
                 refreshMappingUI();
             },
             error: function(xhr) {
-                alert(xhr.responseJSON.message);
+                Swal.fire({
+                    icon: 'warning',
+                    text: xhr.responseJSON?.message ?? 'Failed to map product.',
+                    confirmButtonText: 'OK'
+                });
             }
         });
     });
