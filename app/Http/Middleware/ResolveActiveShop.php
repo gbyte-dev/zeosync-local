@@ -142,8 +142,8 @@ class ResolveActiveShop
 
         // For protected browser routes without verified identity, fail closed to entry/install
         Log::warning('UNAUTHENTICATED ACCESS TO PROTECTED ROUTE BLOCKED', [
-            'url'   => $request->fullUrl(),
-            'query' => $request->query(),
+            'path' => $request->path(),
+            'shop' => $request->query('shop'),
         ]);
 
         return redirect()->route('crm.entry')->with('error', 'Session expired or unauthenticated.');

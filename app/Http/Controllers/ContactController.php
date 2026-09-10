@@ -90,7 +90,8 @@ class ContactController extends Controller
                     ]);
             }
 
-            RateLimiter::hit($rateLimitKey, 86400);
+            RateLimiter::hit($rateLimitKey, 43200);
+
             $contact = ContactInquiry::create($data);
         try {
 

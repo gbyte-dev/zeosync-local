@@ -26,8 +26,8 @@
         (function() {
             const payload = {
                 type: 'shopify_authenticated',
-                shop: {!! json_encode($shop) !!},
-                redirect_url: {!! json_encode($redirectUrl) !!}
+                shop: @json($shop),
+                redirect_url: @json($redirectUrl)
             };
 
             function notifyOpener() {

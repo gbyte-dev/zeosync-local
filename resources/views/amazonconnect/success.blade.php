@@ -204,7 +204,7 @@
 <script>
     (function(){
         try {
-            var shop = {!! json_encode($shop ?? null) !!};
+            var shop = @json($shop ?? null);
             var payload = { type: 'amazon_connected', shop: shop };
             if (window.opener && !window.opener.closed) {
                 try {

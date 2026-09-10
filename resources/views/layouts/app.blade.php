@@ -605,32 +605,35 @@
             if (!container) return;
 
             const toastId = 'toast_' + Date.now();
-            const html = `
-        <div id="${toastId}"
-             class="toast align-items-center text-bg-${type} border-0 mb-2"
-             role="alert">
+            const toastDiv = document.createElement('div');
+            toastDiv.id = toastId;
+            toastDiv.className = `toast align-items-center text-bg-${type} border-0 mb-2`;
+            toastDiv.setAttribute('role', 'alert');
 
-            <div class="d-flex">
-                <div class="toast-body">
-                    ${message}
-                </div>
-                <button type="button"
-                        class="btn-close btn-close-white me-2 m-auto"
-                        data-bs-dismiss="toast">
-                </button>
-            </div>
-        </div>
-    `;
+            const flexDiv = document.createElement('div');
+            flexDiv.className = 'd-flex';
 
-            container.insertAdjacentHTML('beforeend', html);
-            const toastEl = document.getElementById(toastId);
-            const toast = new bootstrap.Toast(toastEl, {
+            const bodyDiv = document.createElement('div');
+            bodyDiv.className = 'toast-body';
+            bodyDiv.textContent = message;
+
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'btn-close btn-close-white me-2 m-auto';
+            closeBtn.setAttribute('data-bs-dismiss', 'toast');
+
+            flexDiv.appendChild(bodyDiv);
+            flexDiv.appendChild(closeBtn);
+            toastDiv.appendChild(flexDiv);
+
+            container.appendChild(toastDiv);
+            const toast = new bootstrap.Toast(toastDiv, {
                 delay: 4000
             });
 
             toast.show();
-            toastEl.addEventListener('hidden.bs.toast', () => {
-                toastEl.remove();
+            toastDiv.addEventListener('hidden.bs.toast', () => {
+                toastDiv.remove();
             });
         }
     </script>

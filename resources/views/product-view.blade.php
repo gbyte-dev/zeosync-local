@@ -498,7 +498,7 @@ $colorSizeMap[$color] = [];
                         @foreach($colors as $color)
                         <div class="color-option {{ $loop->first ? 'selected' : '' }}"
                             data-color="{{ $color }}"
-                            onclick="selectColor(this, '{{ $color }}')">
+                            onclick="handleColorClick(this)">
                             <div class="color-swatch"
                                 style="background-color: {{ in_array(strtolower($color), ['red','green','blue','black','white','yellow','pink','orange','purple','gray']) ? strtolower($color) : '#ccc' }}">
                             </div>
@@ -538,7 +538,8 @@ $colorSizeMap[$color] = [];
                         <div class="size-option {{ $availableForColor ? '' : 'out-of-stock' }} {{ $loop->first && $availableForColor ? 'selected' : '' }}"
                             data-size="{{ $size }}"
                             data-available-colors="{{ $availableColors }}"
-                            onclick="selectSize(this, '<?php echo $size; ?>', <?php echo $availableForColor ? 1 : 0; ?>)">
+                            data-available="{{ $availableForColor ? 1 : 0 }}"
+                            onclick="handleSizeClick(this)">
                             <span class="size-label">{{ $size }}</span>
                             @if(!$availableForColor)
                             <span class="stock-label d-none">Out of Stock</span>
@@ -579,7 +580,7 @@ $colorSizeMap[$color] = [];
                 <h3 class="sp-card-header">Description</h3>
                 <div class="description-content">
                     <div class="description-text" id="descriptionText">
-                        {!! $product['body_html'] ?? '' !!}
+                        {!! sanitize_html($product['body_html'] ?? '') !!}
                     </div>
                     <div class="description-toggle">
                         <button class="btn-show-more" onclick="toggleDescription()">
@@ -629,14 +630,25 @@ $colorSizeMap[$color] = [];
 
 @push('scripts')
 <script>
-    let selectedColor = '<?php echo isset($colors[0]) ? $colors[0] : (isset($variants[0]["option1"]) ? $variants[0]["option1"] : ""); ?>';
-    let selectedSize = '<?php echo $allSizes[0] ?? ""; ?>';
+    let selectedColor = @json(isset($colors[0]) ? $colors[0] : (isset($variants[0]["option1"]) ? $variants[0]["option1"] : ""));
+    let selectedSize = @json($allSizes[0] ?? "");
     let isDescriptionExpanded = false;
 
     // Product variants data from PHP
-    const productVariants = <?php echo json_encode($variants ?? []); ?>;
+    const productVariants = @json($variants ?? []);
     // Color-size availability mapping
-    const colorSizeMap = <?php echo json_encode($colorSizeMap ?? []); ?>;
+    const colorSizeMap = @json($colorSizeMap ?? []);
+
+    function handleColorClick(element) {
+        const color = element.getAttribute('data-color') || '';
+        selectColor(element, color);
+    }
+
+    function handleSizeClick(element) {
+        const size = element.getAttribute('data-size') || '';
+        const available = element.getAttribute('data-available') === '1' ? 1 : 0;
+        selectSize(element, size, available);
+    }
 
     function changeImage(element) {
         document.getElementById('mainImage').src = element.src;
@@ -692,14 +704,12 @@ $colorSizeMap[$color] = [];
             if (isAvailable) {
                 option.style.display = 'inline-flex';
                 option.classList.remove('out-of-stock');
-                // Update click handler availability
-                option.onclick = function() {
-                    selectSize(this, size, 1);
-                };
+                option.setAttribute('data-available', '1');
             } else {
                 // Hide size option entirely (not available for this color)
                 option.style.display = 'none';
                 option.classList.add('out-of-stock');
+                option.setAttribute('data-available', '0');
                 // Remove selected class if it was selected
                 option.classList.remove('selected');
             }

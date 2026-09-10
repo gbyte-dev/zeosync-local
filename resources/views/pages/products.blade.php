@@ -97,7 +97,7 @@
 
         <!-- Description -->
         <div class="mt-3">
-            {!! data_get($product, 'body_html', '<p>No description</p>') !!}
+            {!! sanitize_html(data_get($product, 'body_html', '<p>No description</p>')) !!}
         </div>
 
         <!-- Variant Dropdown -->
@@ -105,7 +105,8 @@
             <label><strong>Select Variant:</strong></label>
 
             <select class="form-select w-50" 
-                    onchange="changePrice('{{ $product['id'] }}', this)">
+                    data-product-id="{{ $product['id'] }}"
+                    onchange="handlePriceChange(this)">
                 
                 @foreach(data_get($product, 'variants', []) as $variant)
                     <option value="{{ data_get($variant, 'price') }}">
@@ -136,8 +137,16 @@ function changeImage(id, src) {
     document.getElementById('mainImage' + id).src = src;
 }
 
+function handlePriceChange(select) {
+    const id = select.getAttribute('data-product-id') || '';
+    changePrice(id, select);
+}
+
 function changePrice(id, select) {
-    document.getElementById('price' + id).innerText = "₹" + select.value;
+    const priceEl = document.getElementById('price' + id);
+    if (priceEl) {
+        priceEl.innerText = "₹" + select.value;
+    }
 }
 </script>
 

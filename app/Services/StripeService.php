@@ -253,8 +253,6 @@ class StripeService
         } catch (\Exception $e) {
             Log::error('WEBHOOK VERIFY FAILED', [
                 'message' => $e->getMessage(),
-                'secret_prefix' => substr($secret, 0, 15),
-                'secret_length' => strlen($secret),
             ]);
             Log::error('Stripe webhook verification failed', [
                 'error' => $e->getMessage()
