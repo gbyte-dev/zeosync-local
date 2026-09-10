@@ -2,6 +2,7 @@
 
 @section('title', 'Contact — Zeosync')
 @section('meta_description', 'Bring your channels, your catalog, and the parts that slow you down. Get in touch with the Zeosync team.')
+@section('preview-banner', 'Website preview  . Proposed launch plans & illustrative product experience')
 
 @section('content')
 
