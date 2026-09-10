@@ -170,9 +170,7 @@
     $(document).ready(function() {
         // Handle form submission
      try {
-            console.log(window.top.location.href);
         } catch (e) {
-            console.log("Cannot access top URL:", e.message);
         }
     });
 </script>

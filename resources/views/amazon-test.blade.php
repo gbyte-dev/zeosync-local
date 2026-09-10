@@ -279,10 +279,7 @@
 @push('scripts')
 <script>
     window.validateRulesUrl = '/zeosync/amazon/validate-rules';
-    console.log(window.validateRulesUrl);
-    window.evaluateConditionsUrl =
-        "{{ route('amazon.evaluate.conditions') }}";
-    console.log(window.evaluateConditionsUrl);
+    window.evaluateConditionsUrl = "{{ route('amazon.evaluate.conditions') }}";
 
     window.selectedCategory = @json($selectedCategory);
     window.selectedSubcategory = @json($selectedSubcategory);
@@ -290,7 +287,7 @@
     let mainImageIndex = 0;
     let offerImageIndex = 0;
     window.addEventListener('DOMContentLoaded', function() {
-        console.log('Selected Category:', window.selectedCategory);
+        
         if (!window.selectedCategory) {
             return;
         }
@@ -301,7 +298,7 @@
             )
         );
         if (matchedCategory) {
-            console.log('Matched Category:', matchedCategory.text);
+           
             categorySelect.value = matchedCategory.value;
             categorySelect.dispatchEvent(new Event('change'));
         } else {
@@ -319,7 +316,7 @@
         fetch(`{{ url('amazon/subcategories') }}/${categoryId}`)
             .then(res => res.json())
             .then(data => {
-                console.log('Selected Subcategory:', window.selectedSubcategory);
+               
                 subcategorySelect.innerHTML = '<option value="">Select Subcategory</option>';
                 data.subcategories.forEach(item => {
                     subcategorySelect.innerHTML += `
@@ -334,7 +331,6 @@
                         window.selectedSubcategory.trim().toLowerCase()
                     );
                     if (matchedSubcategory) {
-                        console.log('Matched Subcategory:', matchedSubcategory.text);
                         subcategorySelect.value = matchedSubcategory.value;
                         setTimeout(() => {
                             document.getElementById('loadFieldsBtn').click();
@@ -359,9 +355,7 @@
         fetch(`{{ url('amazon/schema-fields') }}/${slug}`)
             .then(res => res.json())
             .then(data => {
-                console.log('FULL RESPONSE', data);
-                console.log('RULES', data.rules);
-                console.log('FIELDS', data.fields);
+             
                 window.amazonRules = data.rules || [];
                 renderFields(data.fields || []);
 
@@ -522,10 +516,7 @@
                 const prefillValue = window.prefillData && window.prefillData[fieldName] ? window.prefillData[fieldName] : '';
 
                 if (fieldName === 'item_name' || fieldName === 'brand') {
-                    console.log({
-                        fieldName,
-                        prefillValue
-                    });
+                 
                 }
                 if (field.type === 'select' && field.options?.length) {
                     html = `
@@ -697,9 +688,7 @@
             return;
         }
         try {
-            console.log(payload);
-            const response = await fetch(
-                "{{ route('amazon.manual.sync') }}", {
+            const response = await fetch("{{ route('amazon.manual.sync') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -712,12 +701,8 @@
                 }
             );
             const data = await response.json();
-            console.log(data);
             if (data.success) {
-                const box =
-                    document.getElementById(
-                        'amazonErrorBox'
-                    );
+                const box = document.getElementById( 'amazonErrorBox');
                 if (box) {
                     box.remove();
                 }
@@ -780,21 +765,14 @@
                     value = input.value?.trim();
             }
 
-            if (
-                value === '' ||
-                value === null ||
-                value === undefined
+            if ( value === '' ||  value === null ||  value === undefined
             ) {
                 return;
             }
 
             if (key.includes('.')) {
 
-                setNestedValue(
-                    payload,
-                    key.split('.'),
-                    value
-                );
+                setNestedValue( payload, key.split('.'),  value );
 
             } else {
 
@@ -807,47 +785,15 @@
         return payload;
     }
 
-    // function bindPayloadPreview() {
-    //     document.querySelectorAll(
-    //         '.dynamic-input'
-    //     ).forEach(input => {
-    //         input.oninput =
-    //             generatePayload;
-    //         input.onchange =
-    //             function() {
-    //                 generatePayload();
-    //                 document
-    //                     .querySelectorAll(
-    //                         '.dynamic-input[data-key]'
-    //                     )
-    //                     .forEach(field => {
-    //                         if (
-    //                             field.tagName ===
-    //                             'SELECT'
-    //                         ) {
-    //                             refreshDynamicField(
-    //                                 field.dataset.key
-    //                             );
-    //                         }
-    //                     });
-    //             };
-    //     });
-    // }
 
     function bindPayloadPreview() {
 
         document.querySelectorAll('.dynamic-input').forEach(input => {
-
             input.oninput = generatePayload;
-
             input.onchange = function() {
-
                 generatePayload();
-
                 validateAmazonForm();
-
                 evaluateConditions();
-
             };
 
         });
@@ -974,15 +920,12 @@
         if (USE_RAW_PAYLOAD) {
 
             const rawPayload = collectRawPayload();
-
-            console.log('RAW PAYLOAD', rawPayload);
-
             document.getElementById('payloadPreview').textContent =
                 JSON.stringify(rawPayload, null, 4);
 
             return rawPayload;
         }
-        console.log('GENERATE PAYLOAD CALLED');
+        
         let payload = {};
 
         window.amazonFields.forEach(field => {
@@ -990,7 +933,6 @@
             const node = buildNode(field.schema);
 
             if (field.key === 'outer') {
-                console.log('BUILD NODE OUTER', node);
             }
 
             payload[field.key] = node;
@@ -1130,10 +1072,6 @@
             nestedPayload.number_of_items.marketplace_id = marketplaceId;
         }
 
-        console.log(
-            'Closure Type Before',
-            nestedPayload.closure?.type
-        );
         if (nestedPayload.closure?.type) {
 
             let closureValue = nestedPayload.closure.type;
@@ -1152,11 +1090,6 @@
                 language_tag: 'en_US'
             }];
         }
-
-        console.log(
-            'Closure After',
-            JSON.stringify(nestedPayload.closure, null, 2)
-        );
 
         if (nestedPayload.outer?.material) {
 
@@ -1250,38 +1183,7 @@
         const fulfillmentChannel = fulfillment?.fulfillment_channel_code || '';
         const inventoryAlways = fulfillment?.is_inventory_available === true ||
             fulfillment?.is_inventory_available === 'true';
-        // const shirtHideKeys = [
-        //     'shirt_size.height_type',
-        //     'shirt_size.neck_size',
-        //     'shirt_size.neck_size_to',
-        //     'shirt_size.sleeve_length',
-        //     'shirt_size.sleeve_length_to',
-        //     'shirt_size.size_to'
-        // ];
-        // const shirtShowKeys = ['shirt_size.size'];
-        // if (sizeSystem === 'as1' && sizeClass === 'alpha') {
-        //     shirtHideKeys.forEach(key => {
-        //         const field = key.replace('shirt_size.', '');
-        //         setFieldVisible(`shirt_size.${field}`, false);
-        //         clearFieldValue(`shirt_size.${field}`);
-        //     });
-        //     setFieldVisible('shirt_size.size', true);
-        // }
-        // if (sizeSystem === 'as1' && sizeClass === 'numeric') {
-        //     setFieldVisible('shirt_size.size', true);
-        //     setFieldVisible('shirt_size.size_to', false);
-        //     clearFieldValue('shirt_size.size_to');
-        //     setFieldVisible('shirt_size.neck_size', false);
-        //     setFieldVisible('shirt_size.neck_size_to', false);
-        //     setFieldVisible('shirt_size.sleeve_length', false);
-        //     setFieldVisible('shirt_size.sleeve_length_to', false);
-        //     setFieldVisible('shirt_size.height_type', false);
-        //     clearFieldValue('shirt_size.neck_size');
-        //     clearFieldValue('shirt_size.neck_size_to');
-        //     clearFieldValue('shirt_size.sleeve_length');
-        //     clearFieldValue('shirt_size.sleeve_length_to');
-        //     clearFieldValue('shirt_size.height_type');
-        // }
+    
         if (fulfillmentChannel === 'DEFAULT') {
             if (inventoryAlways) {
                 setFieldVisible('fulfillment_availability.quantity', false);
@@ -1292,17 +1194,7 @@
                 setFieldVisible('fulfillment_availability.is_inventory_available', true);
             }
         }
-        // Safety cleanup before submit
-        // if (nestedPayload.shirt_size) {
-        //     if (sizeClass === 'alpha') {
-        //         delete nestedPayload.shirt_size.size_to;
-        //         delete nestedPayload.shirt_size.height_type;
-        //         delete nestedPayload.shirt_size.neck_size;
-        //         delete nestedPayload.shirt_size.neck_size_to;
-        //         delete nestedPayload.shirt_size.sleeve_length;
-        //         delete nestedPayload.shirt_size.sleeve_length_to;
-        //     }
-        // }
+       
         if (nestedPayload.fulfillment_availability) {
             if (inventoryAlways) {
                 delete nestedPayload.fulfillment_availability.quantity;
@@ -1322,65 +1214,46 @@
         }
     }
 
-    function renderAmazonErrors(
-        errors = [],
-        issues = []
-    ) {
+    function renderAmazonErrors( errors = [],  issues = [] ) {
         const missingFields = [];
-        document
-            .querySelectorAll('.is-invalid')
-            .forEach(el =>
-                el.classList.remove(
+        document.querySelectorAll('.is-invalid')
+            .forEach(el => el.classList.remove(
                     'is-invalid'
                 )
             );
         let html = '';
         (errors.length ? errors : issues)
         .forEach(error => {
-            const field =
-                error.field ||
-                error.attributeNames?.[0];
-            const message =
-                error.message ||
-                'Validation failed';
-            html += `
-<li>
-    <strong>${message}</strong>
-    ${
-        error.suggestion
-        ? `
-        <br>
-        <small class="text-dark">
-            💡 ${error.suggestion}
-        </small>
-        `
-        : ''
-    }
-</li>
-`;
+            const field = error.field ||  error.attributeNames?.[0];
+            const message = error.message || 'Validation failed';
+            html += `<li>
+                        <strong>${message}</strong>
+                        ${
+                            error.suggestion
+                            ? `
+                            <br>
+                            <small class="text-dark">
+                                💡 ${error.suggestion}
+                            </small>
+                            `
+                            : ''
+                        }
+                    </li>
+                    `;
+                    
             if (field) {
-                const exists =
-                    document.querySelector(
+                const exists = document.querySelector(
                         `[data-key^="${field}"]`
                     );
                 if (!exists) {
                     missingFields.push(field);
                 }
-                document
-                    .querySelectorAll(
-                        `[data-key^="${field}"]`
-                    )
-                    .forEach(el =>
-                        el.classList.add(
-                            'is-invalid'
-                        )
+                document.querySelectorAll( `[data-key^="${field}"]` )
+                    .forEach(el => el.classList.add(  'is-invalid'  )
                     );
             }
         });
-        let box =
-            document.getElementById(
-                'amazonErrorBox'
-            );
+        let box = document.getElementById( 'amazonErrorBox' );
         if (!box) {
             box =
                 document.createElement(
@@ -1407,19 +1280,15 @@
                 <ul>${html}</ul>
             `;
     }
+
     async function loadMissingFields(fields) {
         // Normalize indexed paths
         fields = fields.map(field =>
             field.replace(/\.\d+\./g, '.')
         );
-
-        console.log('Loading Missing Fields', fields);
-        const slug =
-            document.getElementById(
-                'subcategory'
-            ).value;
-        const response = await fetch(
-            '/zeosync/amazon/load-missing-fields', {
+        const loadmissingurl = '{{route('amazon.load.missingfield')}}';
+        const slug =  document.getElementById( 'subcategory' ).value;
+        const response = await fetch( loadmissingurl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1433,27 +1302,13 @@
                 })
             }
         );
-        const data =
-            await response.json();
-        console.log(
-            'API FIELDS',
-            data.fields
-        );
-        const missing =
-            data.fields.filter(
-                field =>
-                fields.includes(
-                    field.key
-                )
+        const data = await response.json();
+       
+        const missing = data.fields.filter(
+                field => fields.includes( field.key  )
             );
-        console.log(
-            'MISSING FILTER RESULT',
-            missing
-        );
+      
         if (!missing.length) {
-            console.log(
-                'NO MATCH FOUND'
-            );
             return;
         }
         appendMissingFields(
@@ -1462,8 +1317,6 @@
     }
 
     function appendMissingFields(fields) {
-
-        console.log('APPENDING FIELDS', fields);
 
         const wrapper = document.getElementById('requiredFields');
 
@@ -1488,15 +1341,12 @@
             );
 
             if (exists) {
-                console.log('Already rendered:', field.key);
                 return;
             }
 
             let inputHtml = '';
 
-            if (
-                field.type === 'select' &&
-                field.options &&
+            if ( field.type === 'select' && field.options &&
                 field.options.length
             ) {
 
@@ -1509,8 +1359,7 @@
                             ${option.label ?? option}
                         </option>
                     `).join('')}
-                </select>
-            `;
+                </select> `;
 
             } else {
 
@@ -1518,8 +1367,7 @@
                 <input
                     type="text"
                     class="form-control dynamic-input"
-                    data-key="${field.key}">
-            `;
+                    data-key="${field.key}">  `;
 
             }
 
@@ -1538,8 +1386,6 @@
             </div>
             `
             );
-
-            console.log('Appended:', field.key);
 
         });
 
@@ -1669,13 +1515,9 @@
     );
 
     function validateAmazonForm() {
-        console.log('========================');
-        console.log('VALIDATE AMAZON FORM');
-        console.log('Current URL:', window.location.href);
-        console.log('Validation URL:', window.validateRulesUrl);
+        
         const payload = generatePayload();
-        console.log('Selected Slug:', document.getElementById('subcategory')?.value);
-        console.log('Generated Payload:', payload);
+        
         $.ajax({
             url: window.validateRulesUrl,
             type: 'POST',
@@ -1685,49 +1527,23 @@
                 _token: '{{ csrf_token() }}'
             },
             beforeSend: function() {
-                console.log('AJAX REQUEST STARTED');
             },
             success: function(response) {
-                console.log('AJAX SUCCESS');
-                console.log('FULL RESPONSE:', response);
-                console.log('ERROR COUNT:',
-                    response.errors ? response.errors.length : 0
-                );
-                console.log('ERRORS ARRAY:',
-                    response.errors
-                );
                 renderAmazonErrors(response.errors || []);
                 toggleSubmit((response.errors || []).length === 0);
             },
             error: function(xhr, status, error) {
-                console.log('AJAX ERROR');
-                console.log('Status:', status);
-                console.log('Error:', error);
-                console.log('HTTP Status:', xhr.status);
-                console.log('Response Text:', xhr.responseText);
-                console.log('Response JSON:', xhr.responseJSON);
             },
             complete: function() {
-                console.log('AJAX COMPLETED');
-                console.log('========================');
             }
         });
     }
 
     function evaluateConditions() {
-        console.log('========================');
-        console.log('EVALUATE CONDITIONS');
-        console.log('Current URL:', window.location.href);
-        console.log('Evaluation URL:', window.evaluateConditionsUrl);
-
+        
         const payload = generatePayload();
 
-        console.log(
-            'Selected Slug:',
-            document.getElementById('subcategory')?.value
-        );
-
-        console.log('Generated Payload:', payload);
+        
 
         $.ajax({
             url: window.evaluateConditionsUrl,
@@ -1739,18 +1555,14 @@
             },
 
             beforeSend: function() {
-                console.log('CONDITIONAL REQUEST STARTED');
             },
 
             success: function(response) {
 
-                console.log('CONDITIONAL SUCCESS');
-                console.log(response);
-
                 if (!response.success || !response.state) {
                     return;
                 }
-                console.log('Required from backend:', response.state.required);
+                
 
                 // applyVisibility(response.state.visible);
                 applyHidden(response.state.hidden);
@@ -1761,7 +1573,7 @@
 
                 const missingFields = state.required.filter(field => {
 
-                    const exists = document.querySelector(
+                const exists = document.querySelector(
                         `[data-key="${field}"], [data-key^="${field}."]`
                     );
 
@@ -1769,7 +1581,7 @@
 
                 });
 
-                console.log('MISSING REQUIRED FIELDS', missingFields);
+                
 
                 if (missingFields.length) {
                     loadMissingFields(missingFields);
@@ -1780,16 +1592,9 @@
             },
 
             error: function(xhr, status, error) {
-
-                console.log('CONDITIONAL ERROR');
-                console.log('Status:', status);
-                console.log('Error:', error);
-                console.log(xhr.responseJSON);
             },
 
             complete: function() {
-                console.log('CONDITIONAL COMPLETED');
-                console.log('========================');
             }
         });
     }
@@ -1825,149 +1630,6 @@
         return null;
     }
 
-    // function walkRule(
-    //     rule,
-    //     payload,
-    //     fieldName
-    // ) {
-    //     if (!rule) {
-    //         return null;
-    //     }
-    //     const matched =
-    //         matchesRule(
-    //             rule.if,
-    //             payload
-    //         );
-    //     if (matched) {
-    //         // direct property enum
-    //         const enumValues =
-    //             findFieldEnum(
-    //                 rule.then,
-    //                 fieldName
-    //             );
-    //         if (enumValues) {
-    //             return enumValues;
-    //         }
-    //     }
-    //     return walkRule(
-    //         rule.else,
-    //         payload,
-    //         fieldName
-    //     );
-    // }
-
-    // function getDynamicOptions(payload, fieldName) {
-    //     for (const rule of window.amazonRules || []) {
-    //         const result = walkRule(
-    //             rule,
-    //             payload,
-    //             fieldName
-    //         );
-    //         if (
-    //             Array.isArray(result) &&
-    //             result.length
-    //         ) {
-    //             return result;
-    //         }
-    //     }
-    //     return [];
-    // }
-
-    // function refreshDynamicField(fieldKey) {
-    //     const payload =
-    //         getCurrentPayload();
-    //     const fieldName =
-    //         fieldKey.split('.').pop();
-    //     const options =
-    //         getDynamicOptions(
-    //             payload,
-    //             fieldName
-    //         );
-    //     if (!options.length) {
-    //         return;
-    //     }
-    //     const select =
-    //         document.querySelector(
-    //             `[data-key="${fieldKey}"]`
-    //         );
-    //     if (!select) {
-    //         return;
-    //     }
-    //     const current =
-    //         select.value;
-    //     select.innerHTML =
-    //         '<option value="">Select</option>';
-    //     options.forEach(option => {
-    //         select.innerHTML += `
-    //                 <option value="${option}">
-    //                     ${option}
-    //                 </option>
-    //             `;
-    //     });
-    //     if (
-    //         options.includes(current)
-    //     ) {
-    //         select.value = current;
-    //     }
-    // }
-
-    // function refreshDynamicDropdowns() {
-    //     const payload =
-    //         generatePayload();
-    //     const bodyTypes =
-    //         getDynamicOptions(
-    //             payload,
-    //             'body_type'
-    //         );
-    //     if (bodyTypes.length) {
-    //         updateDropdown(
-    //             'bottoms_size.body_type',
-    //             bodyTypes
-    //         );
-    //     }
-    //     const heightTypes =
-    //         getDynamicOptions(
-    //             payload,
-    //             'height_type'
-    //         );
-    //     if (heightTypes.length) {
-    //         updateDropdown(
-    //             'bottoms_size.height_type',
-    //             heightTypes
-    //         );
-    //     }
-    // }
-    // $(document).on(
-    //     'change',
-    //     '.dynamic-input',
-    //     function() {
-    //         refreshDynamicDropdowns();
-    //     }
-    // );
-
-    // function updateDropdown(fieldKey, options) {
-    //     const select = document.querySelector(
-    //         `[data-key="${fieldKey}"]`
-    //     );
-    //     if (!select) {
-    //         return;
-    //     }
-    //     const currentValue = select.value;
-    //     select.innerHTML =
-    //         '<option value="">Select</option>';
-    //     options.forEach(option => {
-    //         select.innerHTML += `
-    //         <option value="${option}">
-    //             ${option}
-    //         </option>
-    //     `;
-    //     });
-    //     if (
-    //         options.includes(currentValue)
-    //     ) {
-    //         select.value = currentValue;
-    //     }
-    // }
 
     function getBodyTypeOptions(payload) {
         for (
@@ -2049,8 +1711,7 @@
 
     function applyVisibility(visibleFields) {
 
-        console.log('=== APPLY VISIBILITY ===');
-        console.log(visibleFields);
+        
 
         if (!Array.isArray(visibleFields)) {
             return;
@@ -2078,7 +1739,7 @@
                 wrapper.classList.remove('d-none');
                 wrapper.style.display = '';
 
-                console.log('Visible:', key);
+                
 
             });
 
@@ -2088,9 +1749,6 @@
 
     function applyHidden(hiddenFields) {
 
-        console.log('=== APPLY HIDDEN ===');
-        console.log(hiddenFields);
-
         if (!Array.isArray(hiddenFields)) {
             hiddenFields = [];
         }
@@ -2098,7 +1756,6 @@
         document.querySelectorAll('.dynamic-input').forEach(function(input) {
 
             const key = input.dataset.key;
-
             const wrapper = input.closest('.field-wrapper');
 
             if (!wrapper) {
@@ -2115,85 +1772,17 @@
             });
 
             if (shouldHide) {
-
                 wrapper.style.display = 'none';
-
-                console.log('Hidden:', key);
-
             } else {
-
                 wrapper.style.display = '';
-
-                console.log('Visible:', key);
-
             }
 
         });
 
     }
 
-    // function applyRequired(requiredFields) {
-
-    //     console.log('=== APPLY REQUIRED ===');
-    //     console.log(requiredFields);
-
-    //     if (!Array.isArray(requiredFields)) {
-    //         requiredFields = [];
-    //     }
-
-    //     document.querySelectorAll('.dynamic-input').forEach(function(input) {
-
-    //         const key = input.dataset.key;
-    //         const wrapper = input.closest('.field-wrapper');
-
-    //         if (!wrapper) {
-    //             return;
-    //         }
-
-    //         const label = wrapper.querySelector('.form-label');
-
-    //         const isRequired = requiredFields.some(function(requiredKey) {
-    //             return (
-    //                 key === requiredKey ||
-    //                 key.startsWith(requiredKey + '.')
-    //             );
-    //         });
-
-    //         // HTML5 validation
-    //         input.required = isRequired;
-
-    //         if (!label) {
-    //             return;
-    //         }
-
-    //         // Remove old required badge
-    //         label.querySelectorAll('.required-indicator').forEach(function(el) {
-    //             el.remove();
-    //         });
-
-    //         if (isRequired) {
-
-    //             label.insertAdjacentHTML(
-    //                 'beforeend',
-    //                 `
-    //             <span class="badge bg-danger ms-2 required-indicator">
-    //                 Required
-    //             </span>
-    //             `
-    //             );
-
-    //             console.log('Required:', key);
-
-    //         }
-
-    //     });
-
-    // }
 
     function applyEnumChanges(enumChanges) {
-
-        console.log('=== APPLY ENUM CHANGES ===');
-        console.log(enumChanges);
 
         if (!enumChanges || typeof enumChanges !== 'object') {
             return;
@@ -2241,8 +1830,6 @@
             if (options.some(o => (o.value ?? o) === currentValue)) {
                 select.value = currentValue;
             }
-
-            console.log('Updated enum:', fieldKey);
 
         });
 

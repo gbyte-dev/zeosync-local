@@ -691,8 +691,7 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                         })
                         .then(response => response.json())
                         .then(data => {
-                            console.log('Amazon inventory response:', data);
-
+                        
                             const products = data.products || [];
                             const refreshing = data.status?.refreshing === true;
                             const syncCompleted = data.status?.sync_completed === true;
