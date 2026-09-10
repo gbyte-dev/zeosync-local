@@ -68,28 +68,51 @@ class SettingsController extends ShopifyController
                 : null,
         ]);
 
-        $shop->settings()->updateOrCreate(
-            ['shop_id' => $shop->id],
-            [
-                'auto_sync'        => $request->has('auto_sync'),
-                'auto_sku_mapping' => $request->has('auto_sku_mapping'),
-                'ai_assist'        => $request->has('ai_assist'),
-                'currency'         => $request->input('currency'),
-                'tax_behavior'     => $request->input('tax_behavior'),
-            ]
-        );
+        if ($request->hasAny(['currency', 'tax_behavior', 'auto_sync', 'auto_sku_mapping', 'ai_assist'])) {
+            $shop->settings()->updateOrCreate(
+                ['shop_id' => $shop->id],
+                [
+                    'auto_sync'        => $request->has('auto_sync'),
+                    'auto_sku_mapping' => $request->has('auto_sku_mapping'),
+                    'ai_assist'        => $request->has('ai_assist'),
+                    'currency'         => $request->input('currency'),
+                    'tax_behavior'     => $request->input('tax_behavior'),
+                ]
+            );
+        }
 
-        $shop->update([
-            'selected_location_index' => $request->input('selected_location_index'),
-        ]);
+        if ($request->has('selected_location_index')) {
+            $oldIndex = $shop->selected_location_index;
+            $newIndex = $request->input('selected_location_index');
+            $locationIndex = ($newIndex !== '' && $newIndex !== null) ? (int) $newIndex : null;
 
-        Log::info('SHOPIFY LOCATION SELECTED', [
-            'shop_id' => $shop->id,
-            'index' => $request->input('selected_location_index'),
-            'location' => $request->input('selected_location_index') !== null
-                ? ($locations[$request->input('selected_location_index')] ?? null)
-                : null,
-        ]);
+            $shop->update([
+                'selected_location_index' => $locationIndex,
+            ]);
+
+            if ($oldIndex !== null) {
+                Cache::forget("shopify_inventory_{$shop->shop}_location_{$oldIndex}");
+            }
+            if ($locationIndex !== null) {
+                Cache::forget("shopify_inventory_{$shop->shop}_location_{$locationIndex}");
+            }
+
+            Log::info('SHOPIFY LOCATION SELECTED', [
+                'shop_id' => $shop->id,
+                'index' => $locationIndex,
+                'location' => $locationIndex !== null
+                    ? ($locations[$locationIndex] ?? null)
+                    : null,
+            ]);
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Shopify location updated.',
+                'selected_location_index' => $shop->selected_location_index,
+            ]);
+        }
 
         return back()->with('success', 'Settings updated.');
     }

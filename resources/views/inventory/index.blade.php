@@ -597,11 +597,11 @@
         <div class="tab-pane fade show active" id="shopifyTab">
             <div class="saas-toolbar">
                 <div class="row g-2 align-items-end">
-                    <div class="col-md-5">
+                    <div class="col-md-3 col-12">
                         <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Search Product</label>
                         <input type="text" id="dtSearchShopify" class="saas-input" placeholder="Search SKU / Product...">
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2 col-6">
                         <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Status Filter</label>
                         <select id="dtStatusShopify" class="saas-select">
                             <option value="">All Status</option>
@@ -624,6 +624,17 @@
                         <button onclick="refreshCache(event)" class="btn btn-light w-100">
                             <i class="bi bi-arrow-repeat me-1"></i> Refresh
                         </button>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Shopify Location</label>
+                        <select id="dtLocationShopify" class="saas-select">
+                            <option value="">Select a location</option>
+                            @foreach(($shop->shopify_locations ?? []) as $index => $location)
+                            <option value="{{ $index }}" {{ old('selected_location_index', $shop->selected_location_index) !== null && (string)$shop->selected_location_index === (string)$index ? 'selected' : '' }}>
+                                {{ $location['name'] ?? 'Unnamed Location' }}
+                            </option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
             </div>
@@ -1295,6 +1306,42 @@
         localStorage.setItem('zeosync_shopify_length', val); // Lock in local override
         savedShopifyLength = val; // Sync active variable
         if (dtShopify) dtShopify.page.len(val).draw();
+    });
+    $('#dtLocationShopify').on('change', function() {
+        const locationSelect = $(this);
+        const selectedIndex = locationSelect.val();
+        const shop = new URLSearchParams(window.location.search).get('shop') || '{{ $shop->shop }}';
+
+        locationSelect.prop('disabled', true);
+
+        $.ajax({
+            url: "{{ route('settings.update') }}",
+            type: "POST",
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept': 'application/json'
+            },
+            data: {
+                shop: shop,
+                selected_location_index: selectedIndex !== '' ? selectedIndex : null
+            },
+            success: function(response) {
+                showToast(response.message || 'Shopify location updated.', 'success');
+                fetch(`{{ route('shopify.inventory.refresh') }}?shop=${encodeURIComponent(shop)}&type=shopify`)
+                    .then(() => {
+                        loadShopify();
+                    })
+                    .catch(() => {
+                        loadShopify();
+                    });
+            },
+            error: function(xhr) {
+                showToast(xhr.responseJSON?.message || 'Failed to update location.', 'danger');
+            },
+            complete: function() {
+                locationSelect.prop('disabled', false);
+            }
+        });
     });
 
     // Amazon Inputs

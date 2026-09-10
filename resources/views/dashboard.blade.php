@@ -1,4 +1,7 @@
 @extends('layouts.app')
+@php
+$currentShop = $activeShop ?? request('shop') ?? session('active_shop');
+@endphp
 @section('content')
 <style>
     .shopify-dashboard {
@@ -230,6 +233,37 @@
         padding: 16px 20px;
         margin-bottom: 16px;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .dashboard-ai-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background-color: #111827;
+        color: #FFFFFF;
+        font-size: 13px;
+        font-weight: 500;
+        padding: 7px 14px;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+        border: 1px solid #111827;
+        white-space: nowrap;
+    }
+
+    .dashboard-ai-btn:hover {
+        background-color: #374151;
+        color: #FFFFFF;
+        text-decoration: none;
+    }
+
+    .dashboard-ai-btn:active {
+        transform: scale(0.98);
     }
 
     /* --- Responsive Improvements --- */
@@ -299,6 +333,12 @@
         <div>
             <h1 class="page-title mb-0" style="font-size:medium">Dashboard</h1>
             <p class="page-subtitle mb-0">Amazon ↔ Shopify sync overview</p>
+        </div>
+        <div>
+            <a href="{{ route('shopify.ai.chat', ['shop' => $currentShop]) }}" class="dashboard-ai-btn">
+                <i class="bi bi-chat-left-text"></i>
+                <span>Chat to AI</span>
+            </a>
         </div>
     </div>
     {{-- Stats Grid --}}
