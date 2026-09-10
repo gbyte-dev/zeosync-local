@@ -830,7 +830,7 @@ class ShopifyController extends Controller
             abort(404, 'Order not found.');
         }
         $order = $this->refreshOrderFromShopify($shopModel, $order);
-        dd($order);
+        // dd($order->toArray());
         return view('order-details', [
             'order'      => $order,
             'source'     => $source,
