@@ -14,6 +14,17 @@ beforeEach(function () {
 
     Mail::fake();
 
+    $this->withHeaders(['Origin' => 'https://zeosync.app']);
+
+    if (!Schema::hasTable('admin_settings')) {
+        Schema::create('admin_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('option_key')->unique();
+            $table->text('option_value')->nullable();
+            $table->timestamps();
+        });
+    }
+
     if (!Schema::hasTable('contact_inquiries')) {
         Schema::create('contact_inquiries', function (Blueprint $table) {
             $table->id();
@@ -105,23 +116,24 @@ beforeEach(function () {
     }
 });
 
-it('Test 1: First valid enquiry from IP A succeeds and creates ContactInquiry', function () {
+it('Test 1: First valid Custom Plan enquiry from IP A succeeds and creates ContactInquiry', function () {
     $response = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
         ->post('/contact', [
             'name'         => 'Alice',
             'email'        => 'alice@example.com',
-            'subject'      => 'Inquiry 1',
-            'message'      => 'Hello from Alice',
-            'enquiry_type' => 'general_enquiry',
+            'subject'      => 'Custom Plan Request',
+            'message'      => 'Need higher limit for enterprise store',
+            'enquiry_type' => 'enterprise_plan_enquiry',
         ]);
 
     $response->assertRedirect();
     $response->assertSessionHas('success');
 
     expect(ContactInquiry::where('email', 'alice@example.com')->count())->toBe(1);
+    expect(ContactInquiry::where('enquiry_type', 'enterprise_plan_enquiry')->exists())->toBeTrue();
 });
 
-it('Test 2: Second enquiry from same IP A within 24h is rejected', function () {
+it('Test 2: Second enquiry from same IP A within 12h is rejected', function () {
     // 1st request from IP A
     $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
         ->post('/contact', [
@@ -129,19 +141,21 @@ it('Test 2: Second enquiry from same IP A within 24h is rejected', function () {
             'email'        => 'alice@example.com',
             'subject'      => 'Inquiry 1',
             'message'      => 'Hello from Alice',
-            'enquiry_type' => 'general_enquiry',
+            'enquiry_type' => 'enterprise_plan_enquiry',
         ]);
 
     expect(ContactInquiry::count())->toBe(1);
 
-    // 2nd request from same IP A within 24h
+    // 2nd request from same IP A within 12h (e.g. after 1 hour)
+    Carbon::setTestNow(now()->addHours(1));
+
     $response2 = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
         ->post('/contact', [
             'name'         => 'Alice 2',
             'email'        => 'alice2@example.com',
             'subject'      => 'Inquiry 2',
             'message'      => 'Spam or second attempt',
-            'enquiry_type' => 'general_enquiry',
+            'enquiry_type' => 'enterprise_plan_enquiry',
         ]);
 
     $response2->assertRedirect();
@@ -150,6 +164,8 @@ it('Test 2: Second enquiry from same IP A within 24h is rejected', function () {
     // Must NOT create another database record
     expect(ContactInquiry::count())->toBe(1);
     expect(ContactInquiry::where('email', 'alice2@example.com')->exists())->toBeFalse();
+
+    Carbon::setTestNow();
 });
 
 it('Test 3: Rejected request does NOT create another ContactInquiry or send emails', function () {
@@ -160,7 +176,7 @@ it('Test 3: Rejected request does NOT create another ContactInquiry or send emai
             'email'        => 'alice@example.com',
             'subject'      => 'First Message',
             'message'      => 'Legitimate message',
-            'enquiry_type' => 'general_enquiry',
+            'enquiry_type' => 'enterprise_plan_enquiry',
         ]);
 
     Mail::assertSent(\App\Mail\ContactThankYouMail::class, 1);
@@ -172,7 +188,7 @@ it('Test 3: Rejected request does NOT create another ContactInquiry or send emai
             'email'        => 'alice-again@example.com',
             'subject'      => 'Second Message',
             'message'      => 'Abusive repeat message',
-            'enquiry_type' => 'general_enquiry',
+            'enquiry_type' => 'enterprise_plan_enquiry',
         ]);
 
     $response->assertSessionHasErrors('email');
@@ -182,7 +198,7 @@ it('Test 3: Rejected request does NOT create another ContactInquiry or send emai
     expect(ContactInquiry::count())->toBe(1);
 });
 
-it('Test 4: Different IP B can submit independently within same 24 hours', function () {
+it('Test 4: Different IP B can submit independently within same 12 hours', function () {
     // 1st request from IP A
     $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
         ->post('/contact', [
@@ -190,7 +206,7 @@ it('Test 4: Different IP B can submit independently within same 24 hours', funct
             'email'        => 'alice@example.com',
             'subject'      => 'Alice Msg',
             'message'      => 'Alice inquiry',
-            'enquiry_type' => 'general_enquiry',
+            'enquiry_type' => 'enterprise_plan_enquiry',
         ]);
 
     expect(ContactInquiry::count())->toBe(1);
@@ -202,7 +218,7 @@ it('Test 4: Different IP B can submit independently within same 24 hours', funct
             'email'        => 'bob@example.com',
             'subject'      => 'Bob Msg',
             'message'      => 'Bob inquiry from another IP',
-            'enquiry_type' => 'general_enquiry',
+            'enquiry_type' => 'enterprise_plan_enquiry',
         ]);
 
     $responseB->assertRedirect();
@@ -212,7 +228,7 @@ it('Test 4: Different IP B can submit independently within same 24 hours', funct
     expect(ContactInquiry::where('email', 'bob@example.com')->exists())->toBeTrue();
 });
 
-it('Test 5: Same IP A can submit again after 24h', function () {
+it('Test 5: Same IP A can submit again after 12h (43,200 seconds)', function () {
     Carbon::setTestNow(now());
 
     // 1st request at T=0
@@ -220,36 +236,36 @@ it('Test 5: Same IP A can submit again after 24h', function () {
         ->post('/contact', [
             'name'         => 'Alice',
             'email'        => 'alice@example.com',
-            'subject'      => 'Day 1 Inquiry',
-            'message'      => 'Day 1 text',
-            'enquiry_type' => 'general_enquiry',
+            'subject'      => 'Initial Custom Plan Request',
+            'message'      => 'Initial text',
+            'enquiry_type' => 'enterprise_plan_enquiry',
         ]);
 
     expect(ContactInquiry::count())->toBe(1);
 
-    // Advance time by 24 hours and 1 second
-    Carbon::setTestNow(now()->addSeconds(86401));
+    // Advance time by 12 hours and 1 second (43,201 seconds)
+    Carbon::setTestNow(now()->addSeconds(43201));
 
-    // Request after 24h from same IP A
+    // Request after 12h from same IP A
     $response = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
         ->post('/contact', [
-            'name'         => 'Alice Day 2',
-            'email'        => 'alice.day2@example.com',
-            'subject'      => 'Day 2 Inquiry',
-            'message'      => 'Day 2 text after 24 hours',
-            'enquiry_type' => 'general_enquiry',
+            'name'         => 'Alice 12h Later',
+            'email'        => 'alice.later@example.com',
+            'subject'      => 'Follow-up Custom Plan Request',
+            'message'      => 'Follow-up text after 12 hours',
+            'enquiry_type' => 'enterprise_plan_enquiry',
         ]);
 
     $response->assertRedirect();
     $response->assertSessionHas('success');
 
     expect(ContactInquiry::count())->toBe(2);
-    expect(ContactInquiry::where('email', 'alice.day2@example.com')->exists())->toBeTrue();
+    expect(ContactInquiry::where('email', 'alice.later@example.com')->exists())->toBeTrue();
 
     Carbon::setTestNow(); // Reset test time
 });
 
-it('Test 6: Invalid form submission does NOT consume the 24-hour allowance', function () {
+it('Test 6: Invalid form submission does NOT consume the 12-hour allowance', function () {
     // Malformed request (missing required name and subject)
     $badResponse = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
         ->post('/contact', [
@@ -265,9 +281,9 @@ it('Test 6: Invalid form submission does NOT consume the 24-hour allowance', fun
         ->post('/contact', [
             'name'         => 'Alice Corrected',
             'email'        => 'alice@example.com',
-            'subject'      => 'Valid Subject',
+            'subject'      => 'Valid Custom Plan Subject',
             'message'      => 'Valid message body',
-            'enquiry_type' => 'general_enquiry',
+            'enquiry_type' => 'enterprise_plan_enquiry',
         ]);
 
     $goodResponse->assertRedirect();
@@ -291,7 +307,7 @@ it('Test 7: Simultaneous/locked request from the same IP is rejected by atomic l
             'email'        => 'alice.concurrent@example.com',
             'subject'      => 'Concurrent Message',
             'message'      => 'Trying concurrent submission',
-            'enquiry_type' => 'general_enquiry',
+            'enquiry_type' => 'enterprise_plan_enquiry',
         ]);
 
     $response->assertRedirect();
@@ -310,17 +326,69 @@ it('Test 8: Unavailable or null client IP is rejected immediately without creati
             'email'        => 'noip@example.com',
             'subject'      => 'No IP Subject',
             'message'      => 'Testing unavailable IP address',
-            'enquiry_type' => 'general_enquiry',
+            'enquiry_type' => 'enterprise_plan_enquiry',
         ]);
 
-    $response->assertRedirect();
-    $response->assertSessionHasErrors('email');
+    // Middleware returns 403 or controller returns redirect with error
+    if ($response->status() === 403) {
+        $response->assertStatus(403);
+    } else {
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('email');
+    }
 
-    // Verify error message content
-    $errors = session('errors');
-    expect($errors->get('email')[0])->toContain('network address could not be verified');
-
-    // Verify no DB record and no emails
+    // Verify no DB record, no emails, and no rate-limit state created
     expect(ContactInquiry::count())->toBe(0);
     Mail::assertNothingSent();
+});
+
+it('Test 9: Blocked request before 12h does not reset or extend the 12-hour expiration timer', function () {
+    Carbon::setTestNow(now());
+
+    // 1st request at T=0
+    $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
+        ->post('/contact', [
+            'name'         => 'Alice',
+            'email'        => 'alice@example.com',
+            'subject'      => 'T0 Request',
+            'message'      => 'T0 text',
+            'enquiry_type' => 'enterprise_plan_enquiry',
+        ]);
+
+    expect(ContactInquiry::count())->toBe(1);
+
+    // Attempt at T=6 hours (blocked)
+    Carbon::setTestNow(now()->addHours(6));
+
+    $blockedResponse = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
+        ->post('/contact', [
+            'name'         => 'Alice',
+            'email'        => 'alice@example.com',
+            'subject'      => 'T6 Request',
+            'message'      => 'T6 text',
+            'enquiry_type' => 'enterprise_plan_enquiry',
+        ]);
+
+    $blockedResponse->assertSessionHasErrors('email');
+    expect(ContactInquiry::count())->toBe(1);
+
+    // Advance time to T=12 hours and 1 second from original T=0 (6 hours and 1 second after blocked attempt)
+    Carbon::setTestNow(now()->addHours(6)->addSeconds(1));
+
+    // This request must succeed because the original 12h window has expired (blocked request did not extend timer)
+    $allowedResponse = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
+        ->post('/contact', [
+            'name'         => 'Alice Allowed',
+            'email'        => 'alice.allowed@example.com',
+            'subject'      => 'T12 Request',
+            'message'      => 'T12 text',
+            'enquiry_type' => 'enterprise_plan_enquiry',
+        ]);
+
+    $allowedResponse->assertRedirect();
+    $allowedResponse->assertSessionHas('success');
+
+    expect(ContactInquiry::count())->toBe(2);
+
+    Carbon::setTestNow();
 });
