@@ -423,12 +423,7 @@
                             <option value="">Select a location</option>
 
                             @foreach(($shop->shopify_locations ?? []) as $index => $location)
-                            <option
-                                value="{{ $index }}"
-                                {{ old(
-                                'selected_location_index',
-                                $shop->selected_location_index
-                            ) == $index ? 'selected' : '' }}>
+                            <option value="{{ $index }}" {{ old('selected_location_index', $shop->selected_location_index) !== null && (string)old('selected_location_index', $shop->selected_location_index) === (string)$index ? 'selected' : '' }}>
                                 {{ $location['name'] ?? 'Unnamed Location' }}
                             </option>
                             @endforeach
