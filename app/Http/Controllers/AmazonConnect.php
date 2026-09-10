@@ -37,8 +37,6 @@ class AmazonConnect extends ShopifyController
         $config = json_decode($request->input('amazon_config'), true);
         $activeShop = $request->shop ?? session('active_shop');
         $shop = Shop::where('shop', $activeShop)->first();
-        $settings = AdminSetting::where('option_key', 'amazon_app_id')->pluck('option_value', 'option_key');
-
         if (!$config || !$shop) {
             return back()->with('error', 'Please select a valid marketplace.');
         }
@@ -59,7 +57,7 @@ class AmazonConnect extends ShopifyController
             'amazon_pending_endpoint' => $config['endpoint'],
         ]);
 
-        $app_id = $settings['amazon_app_id'] ?? config('amazon.app_id');
+        $app_id = AdminSetting::get('amazon_app_id', config('amazon.app_id'));
 
         $authUrl = match ($config['region']) {
             'eu'    => 'https://sellercentral-europe.amazon.com',
@@ -138,8 +136,7 @@ class AmazonConnect extends ShopifyController
             default => 'https://sellercentral.amazon.com',
         };
 
-        $settings = AdminSetting::where('option_key', 'amazon_app_id')->pluck('option_value', 'option_key');
-        $app_id = $settings['amazon_app_id'] ?? config('amazon.app_id');
+        $app_id = AdminSetting::get('amazon_app_id', config('amazon.app_id'));
 
         $query = http_build_query([
             'application_id' => $app_id,
@@ -177,9 +174,8 @@ class AmazonConnect extends ShopifyController
             return redirect()->route('dashboard')->with('error', 'Invalid state.');
         }
 
-        $settings = AdminSetting::pluck('option_value', 'option_key');
-        $client_id = $settings['production_client_id'] ?? config('amazon.client_id');
-        $client_secret = $settings['production_client_secret'] ?? config('amazon.client_secret');
+        $client_id = AdminSetting::get('production_client_id', config('amazon.client_id'));
+        $client_secret = AdminSetting::get('production_client_secret', config('amazon.client_secret'));
 
         $response = Http::asForm()->post('https://api.amazon.com/auth/o2/token', [
             'grant_type'    => 'authorization_code',
@@ -291,9 +287,8 @@ class AmazonConnect extends ShopifyController
             ], 400);
         }
 
-        $settings = AdminSetting::pluck('option_value', 'option_key');
-        $client_id = $settings['production_client_id'] ?? config('amazon.client_id');
-        $client_secret = $settings['production_client_secret'] ?? config('amazon.client_secret');
+        $client_id = AdminSetting::get('production_client_id', config('amazon.client_id'));
+        $client_secret = AdminSetting::get('production_client_secret', config('amazon.client_secret'));
 
         // 1. Get Access Token
         $auth = Http::asForm()->post('https://api.amazon.com/auth/o2/token', [

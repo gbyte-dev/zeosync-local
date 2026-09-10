@@ -18,6 +18,7 @@ use App\Models\Category;
 use App\Models\Shop;
 use App\Models\Plan;
 use App\Models\ShopifySubscription;
+use App\Models\AdminSetting;
 
 class TestController extends Controller
 {
@@ -27,20 +28,13 @@ class TestController extends Controller
     public function __construct()
     {
         try {
-            $clientId = DB::table('admin_settings')
-                ->where('option_key', 'production_client_id')
-                ->value('option_value');
-
-            $clientSecret = DB::table('admin_settings')
-                ->where('option_key', 'production_client_secret')
-                ->value('option_value');
+            $clientId = AdminSetting::get('production_client_id');
+            $clientSecret = AdminSetting::get('production_client_secret');
 
             $shop = request()->shop ?? session('active_shop');
 
             if (auth()->check()) {
-                $refreshToken = DB::table('admin_settings')
-                    ->where('option_key', 'amazon_refresh_token')
-                    ->value('option_value');
+                $refreshToken = AdminSetting::get('amazon_refresh_token');
             } else {
                 if ($shop) {
                     $usertoken = Shop::where('shop', $shop)->first();
@@ -48,9 +42,7 @@ class TestController extends Controller
                     $sellerid =  $usertoken?->amazon_seller_id;
                     $amazon_marketplace_id =  $usertoken?->amazon_marketplace_id;
                 } else {
-                    $refreshToken = DB::table('admin_settings')
-                        ->where('option_key', 'amazon_refresh_token')
-                        ->value('option_value');
+                    $refreshToken = AdminSetting::get('amazon_refresh_token');
                 }
             }
         } catch (\Throwable $e) {
@@ -72,28 +64,19 @@ class TestController extends Controller
     {
         if (!$this->connector) {
             try {
-                $clientId = DB::table('admin_settings')
-                    ->where('option_key', 'production_client_id')
-                    ->value('option_value');
-
-                $clientSecret = DB::table('admin_settings')
-                    ->where('option_key', 'production_client_secret')
-                    ->value('option_value');
+                $clientId = AdminSetting::get('production_client_id');
+                $clientSecret = AdminSetting::get('production_client_secret');
 
                 $shop = request()->shop ?? session('active_shop');
 
                 if (auth()->check()) {
-                    $refreshToken = DB::table('admin_settings')
-                        ->where('option_key', 'amazon_refresh_token')
-                        ->value('option_value');
+                    $refreshToken = AdminSetting::get('amazon_refresh_token');
                 } else {
                     if ($shop) {
                         $usertoken = Shop::where('shop', $shop)->first();
                         $refreshToken = $usertoken?->amazon_refresh_token;
                         if (!$refreshToken) {
-                            $refreshToken = DB::table('admin_settings')
-                                ->where('option_key', 'amazon_refresh_token')
-                                ->value('option_value');
+                            $refreshToken = AdminSetting::get('amazon_refresh_token');
                         }
                         if ($usertoken) {
                             $this->credentials = [
@@ -105,9 +88,7 @@ class TestController extends Controller
                             ];
                         }
                     } else {
-                        $refreshToken = DB::table('admin_settings')
-                            ->where('option_key', 'amazon_refresh_token')
-                            ->value('option_value');
+                        $refreshToken = AdminSetting::get('amazon_refresh_token');
                     }
                 }
             } catch (\Throwable $e) {

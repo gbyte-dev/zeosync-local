@@ -13,21 +13,14 @@ use Illuminate\Support\Facades\DB;
 if (!function_exists('setting')) {
     function setting($key, $default = null)
     {
-        return cache()->remember("setting_{$key}", 3600, function () use ($key, $default) {
-            try {
-                return \App\Models\AdminSetting::where('option_key', $key)
-                    ->value('option_value') ?? $default;
-            } catch (\Throwable $e) {
-                return $default;
-            }
-        });
+        return AdminSetting::get($key, $default);
     }
 }
 
 if (!function_exists('getMailSettings')) {
 function getMailSettings(){
     try {
-        $settings = DB::table('admin_settings')->pluck('option_value', 'option_key')->toArray();
+        $settings = AdminSetting::all()->pluck('option_value', 'option_key')->toArray();
 
         config([
             'mail.mailers.smtp.host' => $settings['SMTP_host']??env('MAIL_HOST', ''),

@@ -190,11 +190,9 @@ readonly class AmazonSchemaServiceV2
      */
     private function getDbCredentials(object $shop): array
     {
-        $config = AdminSetting::pluck('option_value', 'option_key');
-
         return [
-            'client_id' => $config['production_client_id'] ?? null,
-            'client_secret' => $config['production_client_secret'] ?? null,
+            'client_id' => AdminSetting::get('production_client_id'),
+            'client_secret' => AdminSetting::get('production_client_secret'),
             'refresh_token' => $shop->amazon_refresh_token ?? null,
             'seller_id' => $shop->amazon_seller_id ?? null,
         ];

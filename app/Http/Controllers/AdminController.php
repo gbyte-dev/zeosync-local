@@ -208,7 +208,7 @@ class AdminController extends Controller
 
     public function settings()
     {
-        $settings = AdminSetting::pluck('option_value', 'option_key')->toArray();
+        $settings = AdminSetting::all()->pluck('option_value', 'option_key')->toArray();
         $notifications = NotificationSetting::all();
         return view('admin.settings.index', compact('settings', 'notifications'));
     }
@@ -251,11 +251,9 @@ class AdminController extends Controller
             'app_favicon.max'         => 'The app favicon may not be greater than 1 MB.',
         ]);
 
-        $oldProductionClientId = trim((string) AdminSetting::where('option_key', 'production_client_id')
-            ->value('option_value'));
+        $oldProductionClientId = trim((string) AdminSetting::get('production_client_id', ''));
 
-        $oldProductionClientSecret = trim((string) AdminSetting::where('option_key', 'production_client_secret')
-            ->value('option_value'));
+        $oldProductionClientSecret = trim((string) AdminSetting::get('production_client_secret', ''));
 
         $keys = [
             'app_name',

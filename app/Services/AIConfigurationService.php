@@ -24,7 +24,7 @@ class AIConfigurationService
                 'openai_temperature',
                 'openai_endpoint',
                 'openai_max_tokens',
-            ])->pluck('option_value', 'option_key');
+            ])->get()->pluck('option_value', 'option_key');
 
             return [
                 'provider' => $settings['ai_provider'] ?? 'openai',
