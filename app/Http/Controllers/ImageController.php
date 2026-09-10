@@ -103,6 +103,8 @@ class ImageController extends Controller
             'image'   => $path,
         ]);
 
+       // $this->resizeAndPadImage(public_path($path));
+
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
@@ -145,5 +147,130 @@ class ImageController extends Controller
         $image->delete();
 
         return back()->with('success', 'Image deleted successfully.');
+    }
+
+   private function resizeAndPadImage(string $sourcePath): bool
+    {
+        $imageInfo = getimagesize($sourcePath);
+
+        if (!$imageInfo) { return false;  }
+
+        [$width, $height] = $imageInfo;
+        $mime = $imageInfo['mime'];
+
+        // Already 1000x1000 or larger — no changes
+        if ($width >= 1000 && $height >= 1000) {
+            return true;
+        }
+
+        // Load source image
+        switch ($mime) {
+            case 'image/jpeg':
+                $source = imagecreatefromjpeg($sourcePath);
+                break;
+
+            case 'image/png':
+                $source = imagecreatefrompng($sourcePath);
+                break;
+
+            case 'image/webp':
+                $source = imagecreatefromwebp($sourcePath);
+                break;
+
+            default:
+                return false;
+        }
+
+        if (!$source) {  return false;   }
+
+        // Calculate proportional upscale
+        $scale = max(1000 / $width, 1000 / $height);
+
+        $newWidth  = (int) ceil($width * $scale);
+        $newHeight = (int) ceil($height * $scale);
+
+        // Resize
+        $resized = imagecreatetruecolor($newWidth, $newHeight);
+
+        if ($mime === 'image/png' || $mime === 'image/webp') {
+            imagealphablending($resized, false);
+            imagesavealpha($resized, true);
+
+            $transparent = imagecolorallocatealpha( $resized, 255, 255, 255, 127 );
+            imagefill($resized, 0, 0, $transparent);
+        }
+
+        imagecopyresampled( $resized, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width,
+            $height
+        );
+
+        // Create final 1000x1000 canvas
+        $canvas = imagecreatetruecolor(1000, 1000);
+
+        if ($mime === 'image/png' || $mime === 'image/webp') {
+            imagealphablending($canvas, false);
+            imagesavealpha($canvas, true);
+
+            $transparent = imagecolorallocatealpha( $canvas, 255, 255,
+                255,  127 );
+
+            imagefill($canvas, 0, 0, $transparent);
+        } else {
+            // White background for JPEG
+            $white = imagecolorallocate($canvas, 255, 255, 255);
+            imagefill($canvas, 0, 0, $white);
+        }
+
+        // Center the resized image
+        $x = (int) (($newWidth - 1000) / 2);
+        $y = (int) (($newHeight - 1000) / 2);
+
+        imagecopy( $canvas, $resized,  -$x, -$y, 0,  0, $newWidth, $newHeight
+        );
+
+        // Create temporary file in the same directory
+        $directory = dirname($sourcePath);
+        $extension = pathinfo($sourcePath, PATHINFO_EXTENSION);
+
+        $tempPath = $directory . '/tmp_' . uniqid() . '.' . $extension;
+
+        // Save processed image to temporary file
+        switch ($mime) {
+            case 'image/jpeg':
+                $result = imagejpeg($canvas, $tempPath, 90);
+                break;
+
+            case 'image/png':
+                $result = imagepng($canvas, $tempPath, 6);
+                break;
+
+            case 'image/webp':
+                $result = imagewebp($canvas, $tempPath, 90);
+                break;
+
+            default:
+                $result = false;
+        }
+
+        imagedestroy($source);
+        imagedestroy($resized);
+        imagedestroy($canvas);
+
+        if (!$result || !file_exists($tempPath)) {
+            return false;
+        }
+
+        // Delete original image
+        if (!unlink($sourcePath)) {
+            unlink($tempPath);
+            return false;
+        }
+
+        // Move processed image to original path
+        if (!rename($tempPath, $sourcePath)) {
+            return false;
+        }
+
+        return true;
     }
 }
