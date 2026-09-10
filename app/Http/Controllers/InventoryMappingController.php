@@ -244,6 +244,8 @@ class InventoryMappingController extends Controller
 
         Log::info('Saved Record', $mapping->fresh()->toArray());
 
+        Cache::forget("shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}");
+
         $latestSyncLimit = app(SyncLimitService::class)->canMap($shop);
 
         return response()->json([
@@ -401,6 +403,8 @@ class InventoryMappingController extends Controller
         }
 
         Log::info('Saved Record', $mapping->fresh()->toArray());
+
+        Cache::forget("shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}");
 
         $latestSyncLimit = app(SyncLimitService::class)->canMap($shop);
 
@@ -598,6 +602,8 @@ class InventoryMappingController extends Controller
             'shop_id' => $shop->id,
             'mapping_id' => $mapping->id,
         ]);
+
+        Cache::forget("shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}");
 
         $syncUsage = app(SyncLimitService::class)->canMap($shop);
 

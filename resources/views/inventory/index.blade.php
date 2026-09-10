@@ -1225,6 +1225,8 @@
                 }
             });
         }
+
+        refreshMappingUI();
     }
 
     function renderAmazonTable(data, isLoading = false) {
@@ -1327,6 +1329,10 @@
 
         // 2. Universally clear existing DOM rows and inject the new data array for every load
         dtAmazon.clear().rows.add(data).draw();
+
+        if (!isLoading) {
+            refreshMappingUI();
+        }
     }
 
     // ==========================================
