@@ -1706,7 +1706,11 @@
                 refreshMappingUI();
             },
             error: function(xhr) {
-                alert(xhr.responseJSON.message);
+                Swal.fire({
+                    icon: 'warning',
+                    text: xhr.responseJSON?.message ?? 'Failed to map product.',
+                    confirmButtonText: 'OK'
+                });
             }
         });
     });
@@ -1804,7 +1808,11 @@
                 refreshMappingUI();
             },
             error: function(xhr) {
-                alert(xhr.responseJSON.message);
+                Swal.fire({
+                    icon: 'warning',
+                    text: xhr.responseJSON?.message ?? 'Failed to map product.',
+                    confirmButtonText: 'OK'
+                });
             }
         });
     });
