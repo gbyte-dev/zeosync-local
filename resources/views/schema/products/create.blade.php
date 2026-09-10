@@ -769,8 +769,7 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
     window.amazonFieldMap = getAmazonFieldMap();
 
-    console.log('Amazon Fields', window.amazonFields);
-    console.log('Amazon Field Map', window.amazonFieldMap);
+    
 
     const fieldSynonyms = {
         "product name": "item_name",
@@ -1196,7 +1195,6 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
                     // Never overwrite these fields
                     if (protectedFields.includes(mappedField)) {
-                        console.log('Protected field skipped:', mappedField);
                         return;
                     }
 
@@ -1211,7 +1209,6 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                     const currentValue = String(field.val() ?? '').trim();
 
                     if (currentValue !== '') {
-                        console.log('Already filled:', mappedField);
                         return;
                     }
 
@@ -1223,8 +1220,6 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
                     field.trigger('input');
                     field.trigger('change');
-
-                    console.log('Filled:', mappedField);
 
                 });
 
@@ -1292,7 +1287,6 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
     });
 
     $(document).on('click', '.ai-field-btn', function() {
-        console.log('CLICKED');
 
         const button = $(this);
         const originalHtml = button.html();
@@ -1610,141 +1604,5 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
         }
     });
 
-    // $(document).on('click', '.ai-field-btn', function() {
-
-    //     console.log('================ AI FIELD START ================');
-
-    //     const button = $(this);
-    //     const originalHtml = button.html();
-
-    //     console.log('Button Found:', button);
-
-    //     const fieldName = button.data('field');
-    //     console.log('fieldName:', fieldName);
-
-    //     const fieldTitle = button.data('title');
-    //     console.log('fieldTitle:', fieldTitle);
-
-    //     const fieldDescription = button.data('description');
-    //     console.log('fieldDescription:', fieldDescription);
-
-    //     const fieldHint = button.data('hint') ?? '';
-    //     console.log('fieldHint:', fieldHint);
-
-    //     const productName = $('[name="attributes[item_name]"]').val().trim();
-    //     console.log('productName:', productName);
-
-    //     const category = "{{ $schema->product_type }}";
-    //     console.log('category:', category);
-
-    //     console.log('Route:', "{{ route('ai.generate-field') }}");
-
-    //     if (productName === '') {
-    //         console.error('Product name is empty.');
-    //         showAiError('Please enter Product Name first.');
-    //         return;
-    //     }
-
-    //     console.log('Before Disable Button');
-
-    //     button
-    //         .prop('disabled', true)
-    //         .html('<i class="fas fa-spinner fa-spin me-1"></i> Generating...');
-
-    //     console.log('Before AJAX');
-
-    //     $.ajax({
-
-    //         url: "{{ route('ai.generate-field') }}",
-
-    //         type: "POST",
-
-    //         dataType: "json",
-
-    //         data: {
-    //             _token: "{{ csrf_token() }}",
-    //             product_name: productName,
-    //             category: category,
-    //             field: fieldTitle,
-    //             field_description: fieldDescription,
-    //             field_hint: fieldHint,
-    //             shop: "{{ request('shop') }}"
-    //         },
-
-    //         beforeSend: function() {
-    //             console.log('AJAX beforeSend');
-    //         },
-
-    //         success: function(response) {
-
-    //             console.log('AJAX Success:', response);
-
-    //             if (!response.success) {
-
-    //                 console.error('AI returned success = false');
-
-    //                 showAiError(response.message ?? 'Unable to generate.');
-    //                 return;
-    //             }
-
-    //             clearAiError();
-
-    //             const field = $('[name="attributes[' + fieldName + ']"]');
-
-    //             console.log('Target Field:', field);
-
-    //             if (!field.length) {
-    //                 console.error('Target field not found');
-    //                 return;
-    //             }
-
-    //             if (String(field.val() ?? '').trim() !== '') {
-    //                 console.warn('Field already contains value');
-    //                 return;
-    //             }
-
-    //             if (Array.isArray(response.data)) {
-    //                 field.val(response.data.join("\n"));
-    //             } else {
-    //                 field.val(response.data);
-    //             }
-
-    //             field.trigger('input');
-    //             field.trigger('change');
-
-    //             console.log('Field Filled Successfully');
-
-    //         },
-
-    //         error: function(xhr, status, error) {
-
-    //             console.error('AJAX ERROR');
-    //             console.error('Status:', status);
-    //             console.error('Error:', error);
-    //             console.error('XHR:', xhr);
-    //             console.error('Response:', xhr.responseText);
-
-    //             showAiError(
-    //                 xhr.responseJSON?.message ??
-    //                 'Something went wrong.'
-    //             );
-
-    //         },
-
-    //         complete: function() {
-
-    //             console.log('AJAX Complete');
-
-    //             button
-    //                 .prop('disabled', false)
-    //                 .html(originalHtml);
-
-    //             console.log('================ AI FIELD END ================');
-
-    //         }
-
-    //     });
-
-    // });
 </script>
 @endpush

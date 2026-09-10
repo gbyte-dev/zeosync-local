@@ -319,10 +319,7 @@ Route::get(
 );
 Route::get('/keyboard-schema', [TestController::class, 'keyboardSchema']);
 
-Route::post(
-    '/amazon/load-missing-fields',
-    [AmazonSchemaController::class, 'loadMissingFields']
-);
+Route::post('/amazon/load-missing-fields', [AmazonSchemaController::class, 'loadMissingFields'])->name('amazon.load.missingfield');
 
 
 Route::get('/inventory/amazon/test-report', function (

@@ -706,7 +706,6 @@
             })
             .then(res => res.json())
             .then(data => {
-                console.log('REFRESH DONE');
                 location.reload();
             })
             .catch(err => {
@@ -740,7 +739,6 @@
             })
             .then(res => res.json())
             .then(data => {
-                console.log(data);
                 if (data.success) {
                     syncBtn.classList.remove('sp-btn-secondary');
                     syncBtn.classList.add('sp-btn-success');

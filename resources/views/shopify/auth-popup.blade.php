@@ -53,7 +53,7 @@
                     if (setupCheckInterval) clearInterval(setupCheckInterval);
                 }
             })
-            .catch(err => console.log('Status check failed:', err));
+            .catch(err => console.error('Status check failed:', err));
         }
 
         (function() {

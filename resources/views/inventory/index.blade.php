@@ -1186,10 +1186,7 @@
     }
 
     function renderAmazonTable(data, isLoading = false) {
-        // console.log('RENDER AMAZON CALLED', {
-        //     count: data?.length,
-        //     loading: isLoading
-        // });
+    
 
         if (!data || data.length === 0) {
             $('#amazonTableWrapper').hide();

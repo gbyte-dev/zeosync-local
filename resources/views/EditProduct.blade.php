@@ -1164,8 +1164,6 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 
     function searchSubCategories(search) {
 
-        console.log('SEARCH:', search);
-
         const categoryElement = document.getElementById('category');
 
         if (!categoryElement) {
@@ -1185,7 +1183,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
             "?parent_id=" + encodeURIComponent(categoryId) +
             "&search=" + encodeURIComponent(search);
 
-        console.log('REQUEST URL:', url);
+        
 
         const xhr = new XMLHttpRequest();
 
@@ -1199,8 +1197,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                 return;
             }
 
-            console.log('XHR STATUS:', xhr.status);
-            console.log('XHR RESPONSE:', xhr.responseText);
+            
 
             if (xhr.status !== 200) {
                 console.error(
@@ -1257,8 +1254,6 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
             });
 
             subCategoryResults.style.display = 'block';
-
-            console.log('RESULTS:', categories.length);
         };
 
         xhr.onerror = function() {

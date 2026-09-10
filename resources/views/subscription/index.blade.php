@@ -63,9 +63,7 @@ async function getAllSessionData() {
     // 3. Decode Base64 to a JSON string, then parse it to an Object
     const sessionData = JSON.parse(atob(base64Payload));
 
-    // 4. View everything in your console
-    console.log("--- ALL SESSION DATA ---");
-    console.table(sessionData); 
+    // 4. Session data retrieved (sensitive - not logged)
 
     return sessionData;
   } catch (error) {

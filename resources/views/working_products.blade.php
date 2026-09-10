@@ -443,12 +443,8 @@
             })
             .then(res => res.json())
             .then(data => {
-
-                console.log('REFRESH DONE');
-
-                // 👉 reload table only (simple approach)
+                // reload table
                 location.reload();
-
             })
             .catch(err => {
                 console.error(err);
@@ -467,7 +463,7 @@
 
         if (!syncBtn) return;
 
-        console.log("Click detected");
+        
 
         // Prevent double click request
         if (syncBtn.dataset.loading === '1') {
@@ -483,7 +479,7 @@
             return;
         }
 
-        console.log("Sync URL:", url);
+        
 
         // Loading state
         syncBtn.dataset.loading = '1';
@@ -504,7 +500,7 @@
 
             .then(res => {
 
-                console.log("HTTP STATUS:", res.status);
+                
 
                 if (!res.ok) {
                     throw new Error("HTTP " + res.status);
@@ -515,7 +511,7 @@
 
             .then(data => {
 
-                console.log("API RESPONSE:", data);
+                
 
                 // SUCCESS
                 if (data.success) {
@@ -565,7 +561,7 @@
                         }
                     }
 
-                    console.log("Product synced successfully");
+                    
                 }
 
                 // FAILED
