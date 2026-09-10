@@ -588,11 +588,6 @@ GRAPHQL
         if (!empty($variables)) {
             $payload['variables'] = (object) $variables;
         }
-        \Log::info('Shopify Token Debug', [
-            'shop' => $shop->shop,
-            'is_null' => is_null($shop->access_token),
-            'is_empty' => empty($shop->access_token),
-        ]);
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
             'X-Shopify-Access-Token' => $shop->access_token,

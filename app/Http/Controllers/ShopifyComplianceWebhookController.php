@@ -106,7 +106,6 @@ class ShopifyComplianceWebhookController extends Controller
 
         Log::info('Shopify Customer Redact Webhook', [
             'shop' => $request->header('X-Shopify-Shop-Domain'),
-            'payload' => $request->all(),
         ]);
 
         return response()->json([

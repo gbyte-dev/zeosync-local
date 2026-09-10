@@ -14,19 +14,7 @@ class AmazonWebhookController extends Controller
     {
         Log::info('========== AMAZON ORDER WEBHOOK START ==========');
 
-        Log::info('Amazon Notification Headers', [
-            'headers' => $request->headers->all(),
-        ]);
-
-        Log::info('Amazon Notification Raw Payload', [
-            'payload' => $request->getContent(),
-        ]);
-
         $payload = json_decode($request->getContent(), true);
-
-        Log::info('Amazon Notification Parsed Payload', [
-            'payload' => $payload,
-        ]);
 
         $notificationType = $payload['NotificationType'] ?? null;
         $payloadData = $payload['Payload'] ?? [];

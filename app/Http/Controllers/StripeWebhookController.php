@@ -27,20 +27,9 @@ class StripeWebhookController extends Controller
     {
         Log::info('WEBHOOK ENTRY HIT');
 
-        Log::info('WEBHOOK HEADERS', [
-            'stripe_signature' => $request->header('Stripe-Signature')
-        ]);
-
         $payload = $request->getContent();
-        Log::info('WEBHOOK PAYLOAD', [
-            'payload' => $payload
-        ]);
         $sigHeader = $request->header('Stripe-Signature');
         $secret = \App\Providers\StripeServiceProvider::getWebhookSecret();
-        Log::info('WEBHOOK SECRET DEBUG', [
-            'secret_prefix' => substr($secret, 0, 15),
-            'secret_length' => strlen($secret),
-        ]);
 
         // Verify webhook signature
         $event = $this->stripeService->verifyWebhook($payload, $sigHeader, $secret);

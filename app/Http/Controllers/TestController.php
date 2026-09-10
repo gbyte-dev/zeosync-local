@@ -116,12 +116,6 @@ class TestController extends Controller
                 $refreshToken = null;
             }
 
-            Log::info('Amazon Connector', [
-                'client_id' => $clientId,
-                'client_secret_sha1' => sha1($clientSecret ?? ''),
-                'refresh_token_sha1' => sha1($refreshToken ?? ''),
-            ]);
-
             if (!$clientId || !$clientSecret || !$refreshToken) {
                 return $this->connector = null;
             }

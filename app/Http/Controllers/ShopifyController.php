@@ -220,17 +220,12 @@ class ShopifyController extends Controller
     public function install(Request $request)
     {
         Log::info('INSTALL HIT', [
-            'full_url' => $request->fullUrl(),
-            'query' => $request->all()
+            'shop' => $request->query('shop'),
         ]);
         $shop = $request->query('shop');
         //   fallback from host (IMPORTANT)
         if (!$shop && $request->has('host')) {
             $decoded = base64_decode($request->get('host'));
-            Log::info('INSTALL HOST DECODED', [
-                'host' => $request->get('host'),
-                'decoded' => $decoded
-            ]);
             if (preg_match('/store\/([a-z0-9\-]+)/', $decoded, $matches)) {
                 $shop = $matches[1] . '.myshopify.com';
             }
@@ -284,7 +279,7 @@ class ShopifyController extends Controller
     }
     public function callback(Request $request)
     {
-        Log::info('CALLBACK HIT', $request->all());
+        Log::info('Shopify OAuth callback received');
         // =========================
         // STEP 1: HMAC VALIDATION (FIRST)
         // =========================
@@ -301,10 +296,7 @@ class ShopifyController extends Controller
             )
         );
         if (!$hmac || !hash_equals($hmac, $computedHmac)) {
-            Log::error('HMAC FAILED', [
-                'hmac' => $hmac,
-                'computed' => $computedHmac
-            ]);
+            Log::error('HMAC FAILED');
             abort(403, 'Invalid HMAC');
         }
         // =========================
@@ -314,13 +306,9 @@ class ShopifyController extends Controller
         $code = $request->code;
         $decodedState = json_decode(base64_decode($state), true);
         if (!$decodedState || !isset($decodedState['shop'])) {
-            Log::error('STATE DECODE FAILED', ['state' => $state]);
+            Log::error('STATE DECODE FAILED');
             abort(403, 'Invalid state');
         }
-        Log::info('STATE DEBUG', [
-            'raw_state' => $state,
-            'decoded' => $decodedState
-        ]);
         $shop = $decodedState['shop'] ?? null;
         if (!$shop) {
             Log::error('STATE INVALID OR SHOP MISSING');
@@ -2792,9 +2780,6 @@ class ShopifyController extends Controller
             $rawBody = $res->body();
             $json = $res->json();
             $headers = $res->headers();
-            Log::info('🟢 RAW BODY', ['body' => $rawBody]);
-            Log::info('🟢 JSON RESPONSE', $json ?? []);
-            Log::info('🟢 HEADERS', $headers ? $headers->all() : []);
             //   STEP 4: TRY EXTRACT sellerId
             $sellerId = null;
             if (!empty($json['payload'])) {
@@ -2810,10 +2795,6 @@ class ShopifyController extends Controller
                 'status' => 'success',
                 'seller_id' => $sellerId ?? 'NOT_FOUND_IN_SANDBOX ❌',
                 'marketplace_id' => $json['payload'][0]['marketplace']['id'] ?? null,
-                // 👇 DEBUG (VERY IMPORTANT)
-                'raw_body' => $rawBody,
-                'headers' => $headers,
-                'full_json' => $json
             ]);
         } catch (\Exception $e) {
             
