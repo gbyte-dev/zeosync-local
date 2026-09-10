@@ -247,9 +247,6 @@ class ShopifyController extends Controller
 
         // ✅ strict validation
         if (!preg_match('/^[a-zA-Z0-9\-]+\.myshopify\.com$/', $shop)) {
-            Log::error('INVALID SHOP FORMAT', [
-                'shop' => $shop
-            ]);
             return response('Invalid shop domain', 400);
         }
         $state = base64_encode(json_encode([
@@ -257,12 +254,7 @@ class ShopifyController extends Controller
             'time' => time()
         ]));
 
-        Log::info('SHOPIFY API KEY', [
-            'value' => AdminSetting::get(
-                'SHOPIFY_API_KEY',
-                config('services.shopify.api_key')
-            )
-        ]);
+   
         // ⚡ build query safely
         $shopifyApiKey = AdminSetting::get(
             'SHOPIFY_API_KEY',
@@ -281,9 +273,7 @@ class ShopifyController extends Controller
             'state'        => $state,
         ]);
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
-        Log::info('STEP 4: REDIRECT URL', [
-            'url' => $redirectUrl
-        ]);
+
         //   IMPORTANT (iframe fix)
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
 
@@ -2827,9 +2817,7 @@ class ShopifyController extends Controller
                 'full_json' => $json
             ]);
         } catch (\Exception $e) {
-            Log::error('❌ SELLER ID FETCH FAILED', [
-                'error' => $e->getMessage()
-            ]);
+            
             return response()->json([
                 'status' => 'error',
                 'message' => $e->getMessage(),
@@ -2958,53 +2946,7 @@ class ShopifyController extends Controller
             ]);
         }
     }
-    // public function testAmazon()
-    // {
-    //     //   connector (sandbox)
-    //     $connector = SellingPartnerApi::seller(
-    //         clientId: config('amazon.client_id'),
-    //         clientSecret: config('amazon.client_secret'),
-    //         refreshToken: config('amazon.refresh_token'),
-    //         endpoint: Endpoint::NA_SANDBOX
-    //     );
-    //     //   payload (abhi static, baad me DB se aayega)
-    //     $payload = [
-    //         'productType' => 'PRODUCT',
-    //         'attributes' => [
-    //             'item_name' => 'Test Product',
-    //             'brand' => 'Test Brand',
-    //             'price' => 1000
-    //         ]
-    //     ];
-    //     try {
-    //         //   request object
-    //         $request = new PutListingItemRequest(
-    //             sellerId: config('amazon.seller_id'),
-    //             sku: 'TEST-SKU-1',
-    //             marketplaceIds: ['ATVPDKIKX0DER'],
-    //             payload: $payload
-    //         );
-    //         //   send request
-    //         $response = $connector->send($request);
-    //         return response()->json([
-    //             'status' => 'success ✅',
-    //             'amazon_response' => $response->json(),
-    //             'sent_payload' => $payload
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'status' => 'sandbox_mode 😎',
-    //             'error' => $e->getMessage(),
-    //             'sent_payload' => $payload
-    //         ]);
-    //     }
-    // }
-    // public function handleAppUninstalledWebhook(Request $request)
-    // {
-    //     LOG::info('POST WEBHOOK HIT');
-    //     LOG::info('UNINSTALL WORKING FINAL TEST');
-    //     return response('OK', 200);
-    // }
+
     public function handleAppUninstalledWebhook(Request $request)
     {
         Log::info('UNINSTALL WEBHOOK HIT', [

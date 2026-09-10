@@ -697,10 +697,12 @@ $subscriptionStatus = 'Trialing';
                     <span class="saas-status-label">Billing interval</span>
                     <span class="saas-status-value">{{ $subscription?->billing_interval === 'ANNUAL' ? 'Annual' : ($subscription ? 'Monthly' : 'Not selected') }}</span>
                 </div>
+                @if($subscription?->trial_ends_at)
                 <div class="saas-status-row">
                     <span class="saas-status-label">Trial ends</span>
                     <span class="saas-status-value">{{ $subscription?->trial_ends_at ? $subscription->trial_ends_at->format('d M Y') : 'No Trial Plan' }}</span>
                 </div>
+                @endif
                 <div class="saas-status-row">
                     <span class="saas-status-label">Period end</span>
                     <span class="saas-status-value">{{ $subscription?->current_period_end ? $subscription->current_period_end->format('d M Y') : 'Pending approval' }}</span>
