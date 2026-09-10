@@ -295,7 +295,7 @@ $customer = $order->customer ?? [];
     {{-- Hero Header --}}
     <div class="saas-page-header">
         <h1 class="saas-page-title">Order #{{ $order->name ?: $order->order_number }}</h1>
-        <p class="saas-page-subtitle">Complete order details from Shopify webhook</p>
+        <p class="saas-page-subtitle"></p>
     </div>
 
     {{-- Order Status --}}

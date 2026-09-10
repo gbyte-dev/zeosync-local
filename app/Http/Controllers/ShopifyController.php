@@ -1049,14 +1049,14 @@ class ShopifyController extends Controller
                 'issues' => $issues
             ]);
         } catch (\Throwable $e) {
-            Log::error('❌ AMAZON SYNC FAILED', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-                'sku' => $sku ?? null,
-                'product_id' => $product->id ?? null,
-                'shop_id' => $shopModel->id ?? null,
-            ]);
+            // Log::error('❌ AMAZON SYNC FAILED', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            //     'sku' => $sku ?? null,
+            //     'product_id' => $product->id ?? null,
+            //     'shop_id' => $shopModel->id ?? null,
+            // ]);
             ProductSyncLog::create([
                 'product_id' => $product->id ?? null,
                 'shop_id' => $shopModel->id ?? null,
@@ -1071,7 +1071,62 @@ class ShopifyController extends Controller
             ]);
         }
     }
+
+
+    /**
+     * orders/create — new order. Runs full sync: upsert row, adjust inventory, notify.
+     */
     public function handleOrdersCreateWebhook(Request $request)
+    {
+        return $this->upsertOrderFromWebhook($request,'create');
+    }
+
+    /**
+     * orders/updated — existing order changed. Same upsert logic, updateOrCreate()
+     * already handles "update if exists" so this can safely reuse the same path.
+     */
+    public function handleOrdersUpdateWebhook(Request $request)
+    {
+        return $this->upsertOrderFromWebhook($request,'update');
+    }
+
+    /**
+     * orders/delete — order removed from Shopify (rare; mostly dev/test stores).
+     * Payload here is minimal — typically just {"id": ...} — so this does NOT
+     * reuse the create/update logic. It only verifies + removes the local row.
+     */
+    public function handleOrdersDeleteWebhook(Request $request)
+    {
+        $payload = $request->getContent();
+        $shopDomain = strtolower(trim((string) $request->header('X-Shopify-Shop-Domain')));
+
+        if (!$this->shopifyWebhook->isValidWebhook($payload, $request->header('X-Shopify-Hmac-Sha256'))) {
+            Log::warning('Rejected Shopify order delete webhook because HMAC validation failed.', [
+                'shop' => $shopDomain,
+            ]);
+            return response('Invalid webhook signature', 401);
+        }
+
+        $shopModel = $this->findShopByIdentifier($shopDomain);
+
+        if (!$shopModel) {
+            return response('Shop not found', 404);
+        }
+
+        $data = json_decode($payload, true);
+
+        if (!is_array($data) || empty($data['id'])) {
+            return response('Invalid order payload', 400);
+        }
+
+        $deleted = ShopifyOrder::where('shop_id', $shopModel->id)
+            ->where('shopify_order_id', (int) $data['id'])
+            ->delete();
+
+        return response('OK', 200);
+    }
+
+    public function upsertOrderFromWebhook(Request $request, string $action='create')
     {
         $payload = $request->getContent();
         $shopDomain = strtolower(trim((string) $request->header('X-Shopify-Shop-Domain')));
@@ -1138,49 +1193,20 @@ class ShopifyController extends Controller
                 'cancelled_at' => $this->parseNullableDate(data_get($data, 'cancelled_at')),
             ]
         );
-        // YAHAN SE START
-        Log::info('Processing Shopify order line items.', [
-            'shop_id' => $shopModel->id,
-            'order_id' => $data['id'] ?? null,
-            'total_items' => count($lineItems),
-        ]);
 
         foreach ($lineItems as $item) {
 
             $variantId = $item['variant_id'] ?? null;
             $orderedQty = $item['quantity'] ?? 0;
 
-            Log::info('Processing line item.', [
-                'variant_id' => $variantId,
-                'ordered_qty' => $orderedQty,
-                'title' => $item['title'] ?? null,
-                'sku' => $item['sku'] ?? null,
-            ]);
-
             if (!$variantId) {
-                Log::warning('Variant ID not found in line item.', [
-                    'line_item' => $item,
-                ]);
                 continue;
             }
 
             $query = ProductMarketplaceMapping::where('shop_id', $shopModel->id)
                 ->where('shopify_variant_id', (string) $variantId);
 
-            Log::info('SQL Query', [
-                'sql' => $query->toSql(),
-                'bindings' => $query->getBindings(),
-            ]);
-
             $mapping = $query->first();
-
-            Log::info('Mapping Result', [
-                'mapping' => $mapping?->toArray(),
-            ]);
-
-            Log::info('Current Database', [
-                'database' => DB::connection()->getDatabaseName(),
-            ]);
 
             if (!$mapping) {
                 Log::info('No marketplace mapping found.', [
@@ -1190,23 +1216,7 @@ class ShopifyController extends Controller
                 continue;
             }
 
-            Log::info('Marketplace mapping found.', [
-                'mapping_id' => $mapping->id,
-                'variant_id' => $variantId,
-                'amazon_sku' => $mapping->amazon_sku,
-                'marketplace_id' => $mapping->amazon_marketplace_id,
-                'current_quantity' => $mapping->quantity,
-                'ordered_quantity' => $orderedQty,
-            ]);
-
             $newQuantity = max(0, ((int) $mapping->quantity) - ((int) $orderedQty));
-
-            Log::info('Calculated new inventory.', [
-                'amazon_sku' => $mapping->amazon_sku,
-                'old_quantity' => $mapping->quantity,
-                'ordered_quantity' => $orderedQty,
-                'new_quantity' => $newQuantity,
-            ]);
 
             try {
 
@@ -1216,12 +1226,6 @@ class ShopifyController extends Controller
                     $newQuantity
                 );
 
-                Log::info('Webhook inventory sync success.', [
-                    'variant_id' => $variantId,
-                    'amazon_sku' => $mapping->amazon_sku,
-                    'new_quantity' => $newQuantity,
-                    'response' => $response,
-                ]);
             } catch (\Throwable $e) {
 
                 Log::error('Webhook inventory sync failed.', [
@@ -1234,16 +1238,26 @@ class ShopifyController extends Controller
             // Next Step:
             // Amazon inventory update yahin call hoga.
         }
+
         // YAHAN TAK
         if ($order->wasRecentlyCreated) {
 
             UserNotificationService::send(
                 $shopModel->id,
                 'order_sync',
-                'Shopify Order Sync Completed',
-                'Shopify order ' . ($data['name'] ?? '#' . $data['order_number']) . ' synced successfully.'
+                'Shopify Order Received',
+                'Shopify Order ' . ($data['name'] ?? '#' . $data['order_number']) . ' received successfully.'
             );
         }
+        if( $action === 'update') {
+            UserNotificationService::send(
+                $shopModel->id,
+                'order_sync',
+                'Shopify Order Updated',
+                'Shopify Order ' . ($data['name'] ?? '#' . $data['order_number']) . ' updated successfully.'
+            );
+        }
+        
         return response('OK', 200);
     }
     public function products(Request $request)
@@ -1269,26 +1283,12 @@ class ShopifyController extends Controller
             return redirect('/')->with('error', 'No store connected.');
         }
 
-        Log::info('PRODUCTS BEFORE TOKEN CHECK', [
-            'shop_id' => $shopModel->id,
-            'shop' => $shopModel->shop,
-        ]);
-
         $this->ensureFreshAccessToken($shopModel);
-
-        Log::info('PRODUCTS AFTER TOKEN CHECK', [
-            'shop_id' => $shopModel->id,
-            'shop' => $shopModel->shop,
-        ]);
 
         $activeShop = $shopModel->shop;
 
         $cacheKey = "products_shop_{$shopModel->id}";
 
-        Log::info('PRODUCTS BEFORE CACHE', [
-            'shop_id' => $shopModel->id,
-            'cache_key' => $cacheKey,
-        ]);
         //   REFRESH FLOW (correct order)
         if ($request->has('refresh')) {
             $this->refreshProductsCache($shopModel);

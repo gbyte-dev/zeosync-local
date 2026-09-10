@@ -161,29 +161,12 @@ class InventoryController extends ShopifyController
                 marketplaceId: $marketplaceId
             );
 
-            \Log::info('Amazon Inventory Sync Completed', [
-                'shop_id' => $shop->id,
-                'result_count' => is_array($result) ? count($result) : null,
-                'result' => $result,
-            ]);
-
             return response()->json([
                 'success' => true,
                 'message' => 'Amazon inventory synced successfully.',
                 'data' => $result
             ]);
         } catch (\Throwable $e) {
-
-            \Log::error('Amazon Inventory Sync Failed', [
-                'shop_id' => $shop->id,
-                'shop' => $shop->shop,
-                'region' => $region,
-                'marketplace_id' => $marketplaceId,
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-                'trace' => $e->getTraceAsString(),
-            ]);
 
             return response()->json([
                 'success' => false,

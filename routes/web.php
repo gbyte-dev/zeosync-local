@@ -85,6 +85,15 @@ Route::post('webhooks/shopify/orders/create', [ShopifyController::class, 'handle
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('shopify.webhooks.orders.create');
 
+Route::post('webhooks/shopify/orders/updated', [ShopifyController::class, 'handleOrdersUpdateWebhook'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->name('shopify.webhooks.orders.update');
+
+Route::post('webhooks/shopify/orders/deleted', [ShopifyController::class, 'handleOrdersDeleteWebhook'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->name('shopify.webhooks.orders.delete');
+
+
 Route::middleware([ResolveActiveShop::class])->group(function () {
     //  product page route 
     Route::get('/products', [ShopifyController::class, 'products'])->name('shopify.products');
