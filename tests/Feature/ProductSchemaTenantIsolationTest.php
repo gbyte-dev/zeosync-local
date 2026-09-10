@@ -245,8 +245,8 @@ it('allows Shop A to edit its own product (TEST 1)', function () {
     $response->assertSee('Shop A Cool Widget');
 });
 
-// TEST 2: Shop B requests /productEdit/101. -> 404. Shop A's data must NOT be returned.
-it('rejects Shop B from accessing Shop A product on /productEdit/101 with 404 (TEST 2)', function () {
+// TEST 2: Shop B requests /productEdit/101. -> Redirect to Dashboard with 'Product not found'. Shop A's data must NOT be returned.
+it('rejects Shop B from accessing Shop A product on /productEdit/101 with Dashboard redirect (TEST 2)', function () {
     $shopA = createIsolatedTestShop('shop-a.myshopify.com');
     $shopB = createIsolatedTestShop('shop-b.myshopify.com');
     $schema = createIsolatedTestSchema();
@@ -267,7 +267,9 @@ it('rejects Shop B from accessing Shop A product on /productEdit/101 with 404 (T
     $response = $this->withSession(withShopAuth($shopB))
         ->get("/productEdit/{$productA->id}");
 
-    $response->assertStatus(404);
+    $response->assertRedirect();
+    $response->assertSessionHas('error', 'Product not found');
+    expect($response->headers->get('Location'))->toContain('/dashboard');
     $response->assertDontSee('Secret Merchant A Data');
 });
 
@@ -394,8 +396,8 @@ it('rejects Shop B from deleting Shop A draft with 404 (TEST 6)', function () {
     expect(ProductAttribute::where('product_id', $productA->id)->count())->toBe(1);
 });
 
-// TEST 7: Shop B cannot access Shop A's child product through /child/product/101.
-it('rejects Shop B accessing Shop A child product on /child/product/101 with 404 (TEST 7)', function () {
+// TEST 7: Shop B cannot access Shop A's child product through /child/product/101 -> redirect to Dashboard.
+it('rejects Shop B accessing Shop A child product on /child/product/101 with Dashboard redirect (TEST 7)', function () {
     $shopA = createIsolatedTestShop('shop-a.myshopify.com');
     $shopB = createIsolatedTestShop('shop-b.myshopify.com');
     $schema = createIsolatedTestSchema();
@@ -410,7 +412,9 @@ it('rejects Shop B accessing Shop A child product on /child/product/101 with 404
     $response = $this->withSession(withShopAuth($shopB))
         ->get("/child/product/{$productA->id}");
 
-    $response->assertStatus(404);
+    $response->assertRedirect();
+    $response->assertSessionHas('error', 'Product not found');
+    expect($response->headers->get('Location'))->toContain('/dashboard');
 });
 
 // TEST 8: Shop B's product suggestions do not contain Shop A's accepted product data.
@@ -469,11 +473,11 @@ it('fails closed when active shop context is missing (TEST 9)', function () {
     expect($responseWeb->status())->toBeIn([401, 302, 404]);
     $responseWeb->assertDontSee('SKU-SHOP-1-101');
 
-    // 3. Direct controller execution without active shop context aborts with 404
-    expect(function () use ($product1) {
-        $controller = app(\App\Http\Controllers\ProductSchemaController::class);
-        $controller->productEdit($product1->id);
-    })->toThrow(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+    // 3. Direct controller execution without active shop context safely redirects to dashboard
+    $controller = app(\App\Http\Controllers\ProductSchemaController::class);
+    $res = $controller->productEdit($product1->id);
+    expect($res->getStatusCode())->toBe(302);
+    expect($res->getSession()->get('error'))->toBe('Product not found');
 });
 
 // TEST 10: Shop A can still perform all legitimate operations on its own products.

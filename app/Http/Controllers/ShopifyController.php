@@ -1489,21 +1489,20 @@ class ShopifyController extends Controller
         $shopModel = $this->getActiveShop($request);
         $activeShop = $shopModel?->shop;
         if (!$shopModel) {
-            return redirect($this->shopAwareUrl('/products', $request->query('shop') ?? $request->input('shop')))
-                ->with('error', 'No shop connected.');
+            return redirect()->route('dashboard')->with('error', 'Product not found');
         }
         $this->ensureFreshAccessToken($shopModel);
         try {
             $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
             //  dd($response); 
             if (!empty($response['error'])) {
-                return redirect($this->shopAwareUrl('/products', $shopModel->shop))
-                    ->with('error', 'Product not found.');
+                return redirect($this->shopAwareUrl('/dashboard', $shopModel->shop))
+                    ->with('error', 'Product not found');
             }
             $product = $response['product'] ?? null;
             if (!$product) {
-                return redirect($this->shopAwareUrl('/products', $shopModel->shop))
-                    ->with('error', 'Product not found.');
+                return redirect($this->shopAwareUrl('/dashboard', $shopModel->shop))
+                    ->with('error', 'Product not found');
             }
             $inventoryItemIds = [];
             foreach ($product['variants'] as $variant) {
@@ -1541,26 +1540,26 @@ class ShopifyController extends Controller
             Log::error('VIEW PRODUCT FAILED', [
                 'error' => $e->getMessage()
             ]);
-            return redirect($this->shopAwareUrl('/products', $shopModel->shop))
-                ->with('error', $e->getMessage());
+            return redirect($this->shopAwareUrl('/dashboard', $shopModel?->shop))
+                ->with('error', 'Product not found');
         }
     }
     public function editProduct(Request $request, $id)
     {
         $shopModel = $this->getActiveShop($request);
         $activeShop = $shopModel?->shop;
-        $this->ensureFreshAccessToken($shopModel);
         if (!$shopModel) {
-            return redirect('/products')->with('error', 'No shop connected.');
+            return redirect()->route('dashboard')->with('error', 'Product not found');
         }
+        $this->ensureFreshAccessToken($shopModel);
         try {
             $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
             if (!empty($response['error'])) {
-                return back()->with('error', 'Product not found');
+                return redirect($this->shopAwareUrl('/dashboard', $shopModel->shop))->with('error', 'Product not found');
             }
             $product = $response['product'] ?? null;
             if (!$product) {
-                return back()->with('error', 'Product not found');
+                return redirect($this->shopAwareUrl('/dashboard', $shopModel->shop))->with('error', 'Product not found');
             }
             $dbProduct = \App\Models\Product::where('shopify_id', $id)
                 ->where('shop_id', $shopModel->id)
@@ -1605,7 +1604,7 @@ class ShopifyController extends Controller
             Log::error('EDIT PRODUCT FAILED', [
                 'error' => $e->getMessage()
             ]);
-            return back()->with('error', $e->getMessage());
+            return redirect($this->shopAwareUrl('/dashboard', $shopModel?->shop))->with('error', 'Product not found');
         }
     }
 

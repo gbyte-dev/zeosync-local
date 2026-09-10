@@ -72,6 +72,14 @@ class ProductSchemaController extends Controller
 
         return null;
     }
+
+    protected function shopAwareUrl(string $path, ?string $shopDomain = null): string
+    {
+        if (empty($shopDomain)) {
+            return $path;
+        }
+        return $path . '?shop=' . urlencode($shopDomain);
+    }
     public function index()
     {
         $schemas = ProductSchema::latest()->paginate(20);
@@ -335,7 +343,7 @@ class ProductSchemaController extends Controller
     {
         $activeShop = $this->getActiveShopModel();
         if (!$activeShop) {
-            abort(404, 'Active shop not found.');
+            return redirect()->route('dashboard')->with('error', 'Product not found');
         }
 
         $productshow = Product::where('id', $productid)
@@ -349,7 +357,8 @@ class ProductSchemaController extends Controller
             if ($productshow) {
                 $productid = $productshow->id;
             } else {
-                abort(404, 'Product not found.');
+                return redirect($this->shopAwareUrl('/dashboard', $activeShop->shop))
+                    ->with('error', 'Product not found');
             }
         }
         $prodAttri = ProductAttribute::where('product_id', $productid)->get();
