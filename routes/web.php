@@ -43,9 +43,7 @@ Route::view('/contact', 'contact')->name('contact');
 Route::post('/contact', [ContactController::class, 'store'])->middleware('ip.rate:60,1')->name('contact.store'); 
 Route::view('/terms', 'terms')->name('terms');
 Route::view('/privacy', 'privacy')->name('privacy');
-Route::middleware([
-    ResolveActiveShop::class,
-    \App\Http\Middleware\CheckSubscription::class
+Route::middleware([ ResolveActiveShop::class,  \App\Http\Middleware\CheckSubscription::class
 ])->group(function () {
     // Route::get('/products', [ShopifyController::class, 'products'])
     //     ->name('shopify.products');
