@@ -590,7 +590,6 @@ GRAPHQL
         }
         \Log::info('Shopify Token Debug', [
             'shop' => $shop->shop,
-            'token' => $shop->access_token,
             'is_null' => is_null($shop->access_token),
             'is_empty' => empty($shop->access_token),
         ]);

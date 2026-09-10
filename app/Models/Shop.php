@@ -45,7 +45,18 @@ class Shop extends Model
         'selected_location_index',
     ];
 
+    protected $hidden = [
+        'access_token',
+        'refresh_token',
+        'amazon_refresh_token',
+        'hmac',
+        'amazon_oauth_state',
+    ];
+
     protected $casts = [
+        'access_token' => 'encrypted',
+        'refresh_token' => 'encrypted',
+        'amazon_refresh_token' => 'encrypted',
         'access_token_expires_at' => 'datetime',
         'refresh_token_expires_at' => 'datetime',
         'last_status_check_at' => 'datetime',
