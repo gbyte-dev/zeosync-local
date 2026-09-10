@@ -48,5 +48,9 @@ Thumbs.db
 
 
 .vscode/
+.github/workflows/redis-lock-test.yml
+app/Console/Commands/RedisLockWorker.php
+tests/Feature/RedisLockMultiprocessTest.php
+
 
 

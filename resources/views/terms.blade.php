@@ -1,5 +1,5 @@
-@extends('layouts.guest')
-
+@extends('layouts.zeosync')
+@section('preview-banner', 'Website preview  . Proposed launch plans & illustrative product experience')
 @section('content')
 <div class="container py-5">
     <div class="row justify-content-center">

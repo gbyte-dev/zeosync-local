@@ -9,6 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('images', function (Blueprint $table) {
+            $table->unsignedBigInteger('shop_id')->nullable();
             $table->foreign('shop_id')
                 ->references('id')
                 ->on('shops')

@@ -35,7 +35,7 @@ class ContactController extends Controller
         // Allow requests only from your website
         $origin = $request->header('Origin');
 
-        if ($origin !== 'https://zeosync.app') {
+        if ( ($origin !== 'https://zeosync.app') ) {
             Log::warning('Contact enquiry blocked: invalid origin', [
                 'ip'     => $request->ip(),
                 'origin' => $origin,
@@ -52,18 +52,18 @@ class ContactController extends Controller
             'subject'       => 'required|string|max:255',
             'message'       => 'required|string|max:2000',
             'enquiry_type'  => 'nullable|string|max:50',
+            'store_url'     => 'nullable|url|max:255',
+            'marketplace'   => 'nullable|string|max:100',
+            'plan'     => 'nullable|string|max:100',
+            'volume'        => 'nullable|string|max:100',
         ]);
 
-        $data['enquiry_type'] = $request->input(
-            'enquiry_type',
-            'general_enquiry'
-        );
+        $data['enquiry_type'] = $request->input( 'enquiry_type', 'general_enquiry' );
 
         $ip = $request->ip();
 
         if (empty($ip)) {
-            return redirect()->back()
-                ->withInput()
+            return redirect()->back()->withInput()
                 ->withErrors([
                     'email' => 'Your network address could not be verified. Please try again later.',
                 ]);
@@ -77,41 +77,29 @@ class ContactController extends Controller
 
         try {
             if (! $lock->get()) {
-                return redirect()->back()
-                    ->withInput()
+                return redirect()->back()->withInput()
                     ->withErrors([
                         'email' => 'You have already submitted an enquiry recently. Please try again later.',
                     ]);
             }
 
             if (RateLimiter::tooManyAttempts($rateLimitKey, 1)) {
-                return redirect()->back()
-                    ->withInput()
+                return redirect()->back()->withInput()
                     ->withErrors([
                         'email' => 'You have already submitted an enquiry recently. Please try again later.',
                     ]);
             }
 
             RateLimiter::hit($rateLimitKey, 86400);
-
             $contact = ContactInquiry::create($data);
         try {
 
             $admin = Admin::where('role', 'admin')->first();
-
             if ($admin) {
-
-                $template = MailTemplate::where(
-                    'slug',
-                    'admin-contact-enquiry'
-                )->first();
-
+                $template = MailTemplate::where('slug', 'admin-contact-enquiry')->first();
                 if ($template) {
-
                     app(EmailService::class)->sendDynamicEmailTo(
-
                         $template,
-
                         [
                             'name'          => $contact->name,
                             'email'         => $contact->email,
@@ -119,9 +107,7 @@ class ContactController extends Controller
                             'message'       => $contact->message,
                             'enquiry_type'  => ucwords(str_replace('_', ' ', $contact->enquiry_type)),
                         ],
-
                         $admin->email
-
                     );
                 }
             }
@@ -140,15 +126,11 @@ class ContactController extends Controller
         }
 
         NotificationService::send(
-
             'contact_enquiry',
-
             $contact->enquiry_type == 'enterprise_plan_enquiry'
                 ? 'New Enterprise Plan Enquiry'
                 : 'New Contact Enquiry',
-
             "{$contact->name} submitted a new enquiry."
-
         );
 
         $shop = Shop::where('email', $contact->email)->first();
@@ -156,20 +138,15 @@ class ContactController extends Controller
         if ($shop) {
 
             UserNotificationService::send(
-
                 $shop->id,
-
                 'contact_enquiry',
-
                 $contact->enquiry_type === 'enterprise_plan_enquiry'
                     ? 'Enterprise Plan Enquiry Submitted'
                     : 'Contact Enquiry Submitted',
-
                 'Your enquiry has been submitted successfully. Our team will contact you shortly.'
-
             );
         }
-                return redirect()->back()->with('success', 'Thank you for your message. Our team will connect with you shortly.');
+            return redirect()->back()->with('success', 'Thank you for your message. Our team will connect with you shortly.');
         } finally {
             $lock->release();
         }

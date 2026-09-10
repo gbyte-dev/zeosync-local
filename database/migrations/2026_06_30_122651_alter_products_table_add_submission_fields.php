@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('submission_status')->nullable()->after('user_id');
             $table->timestamp('submitted_on')->nullable()->after('submission_status');
             $table->string('producttype')->nullable()->after('submitted_on');
-            $table->longText('final_json')->nullable()->after('product_type');
+            $table->longText('final_json')->nullable()->after('producttype');
             $table->longText('filled_json')->nullable()->after('final_json');
         });
     }
