@@ -521,28 +521,29 @@
         else { $progressClass = 'bg-success'; }
         @endphp
 
-        <div class="saas-usage-box">
+        <div class="saas-usage-box" id="mappingUsageBox">
             <div class="saas-usage-header">
                 <div>
                     <span class="fw-semibold text-dark">Mapping Usage</span>
                     @if(!empty($syncUsage['plan_name']))
-                    <span class="text-muted ms-1">({{ $syncUsage['plan_name'] }})</span>
+                    <span class="text-muted ms-1" id="mappingUsagePlanName">({{ $syncUsage['plan_name'] }})</span>
                     @endif
                 </div>
-                <span class="fw-bold text-dark">{{ $syncUsage['used'] }} / {{ $syncUsage['limit'] }}</span>
+                <span class="fw-bold text-dark" id="mappingUsageCounts">{{ $syncUsage['used'] }} / {{ $syncUsage['limit'] }}</span>
             </div>
             <div class="saas-usage-progress">
-                <div class="saas-usage-progress-bar {{ $progressClass }}" role="progressbar" style="width: {{ min($percentage, 100) }}%"></div>
+                <div class="saas-usage-progress-bar {{ $progressClass }}" id="mappingUsageProgressBar" role="progressbar" style="width: {{ min($percentage, 100) }}%"></div>
             </div>
-            @if($syncUsage['remaining'] == 0)
-            <div class="text-danger fw-bold" style="font-size: 11px;">Sync limit reached</div>
-            @elseif($syncUsage['remaining'] <= 10)
-                <div class="text-warning fw-bold" style="font-size: 11px;">Running low
+            <div id="mappingUsageStatus">
+                @if($syncUsage['remaining'] == 0)
+                <div class="text-danger fw-bold" style="font-size: 11px;">Sync limit reached</div>
+                @elseif($syncUsage['remaining'] <= 10)
+                <div class="text-warning fw-bold" style="font-size: 11px;">Running low</div>
+                @else
+                <div class="text-muted" style="font-size: 11px;">Remaining: <span class="fw-bold text-dark">{{ $syncUsage['remaining'] }}</span></div>
+                @endif
+            </div>
         </div>
-        @else
-        <div class="text-muted" style="font-size: 11px;">Remaining: <span class="fw-bold text-dark">{{ $syncUsage['remaining'] }}</span></div>
-        @endif
-    </div>
     @endif
 </div>
 
@@ -844,11 +845,52 @@
         });
     }
 
+    function updateMappingUsageUI(usage) {
+        if (!usage || usage.limit === 0 || typeof usage.limit === 'undefined') {
+            return;
+        }
+
+        const used = parseInt(usage.used, 10) || 0;
+        const limit = parseInt(usage.limit, 10) || 0;
+        const remaining = typeof usage.remaining !== 'undefined' ? parseInt(usage.remaining, 10) : Math.max(0, limit - used);
+
+        if (limit > 0) {
+            $('#mappingUsageCounts').text(used + ' / ' + limit);
+
+            const percentage = (used / limit) * 100;
+            const $progressBar = $('#mappingUsageProgressBar');
+            $progressBar.css('width', Math.min(percentage, 100) + '%');
+            $progressBar.removeClass('bg-success bg-warning bg-danger');
+
+            if (percentage >= 100) {
+                $progressBar.addClass('bg-danger');
+            } else if (percentage >= 80) {
+                $progressBar.addClass('bg-warning');
+            } else {
+                $progressBar.addClass('bg-success');
+            }
+
+            let statusHtml = '';
+            if (remaining === 0) {
+                statusHtml = '<div class="text-danger fw-bold" style="font-size: 11px;">Sync limit reached</div>';
+            } else if (remaining <= 10) {
+                statusHtml = '<div class="text-warning fw-bold" style="font-size: 11px;">Running low</div>';
+            } else {
+                statusHtml = '<div class="text-muted" style="font-size: 11px;">Remaining: <span class="fw-bold text-dark">' + remaining + '</span></div>';
+            }
+            $('#mappingUsageStatus').html(statusHtml);
+        }
+    }
+
     function refreshMappingUI() {
         return refreshMappingState().then(function(response) {
 
             if (!response.success) {
                 return;
+            }
+
+            if (response.sync_usage) {
+                updateMappingUsageUI(response.sync_usage);
             }
 
             const mappings = response.mappings || [];
@@ -1636,6 +1678,12 @@
                     confirmButtonText: 'OK'
                 });
 
+                if (response.sync_usage) {
+                    updateMappingUsageUI(response.sync_usage);
+                } else if (typeof response.used !== 'undefined' && typeof response.limit !== 'undefined') {
+                    updateMappingUsageUI(response);
+                }
+
                 $('#mapShopifyProductModal').modal('hide');
                 refreshMappingUI();
             },
@@ -1727,6 +1775,13 @@
                     text: response.message,
                     confirmButtonText: 'OK'
                 });
+
+                if (response.sync_usage) {
+                    updateMappingUsageUI(response.sync_usage);
+                } else if (typeof response.used !== 'undefined' && typeof response.limit !== 'undefined') {
+                    updateMappingUsageUI(response);
+                }
+
                 $('#mapAmazonProductModal').modal('hide');
                 refreshMappingUI();
             },

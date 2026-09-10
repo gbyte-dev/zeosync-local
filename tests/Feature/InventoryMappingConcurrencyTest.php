@@ -447,3 +447,113 @@ it('AutoSkuMappingService catches concurrent duplicate exception without crashin
     // Exactly 1 record in DB
     expect(ProductMarketplaceMapping::where('shop_id', $shop->id)->count())->toBe(1);
 });
+
+/* =========================================================================
+ * 4. MAPPING RESPONSE SYNC USAGE / QUOTA UPDATE TESTS
+ * ========================================================================= */
+
+it('returns updated sync_usage and quota counts on saveProductMapping, saveAmazonMapping, mappings, and unmap', function () {
+    $plan = Plan::create([
+        'name' => 'Growth',
+        'sync_limit' => 50,
+    ]);
+
+    $shop = Shop::create([
+        'id'           => 301,
+        'shop'         => 'quota-test.myshopify.com',
+        'access_token' => 'token-301',
+        'is_active'    => 1,
+    ]);
+
+    ShopSubscription::create([
+        'shop_id'            => $shop->id,
+        'plan_id'            => $plan->id,
+        'status'             => 'active',
+        'started_at'         => now()->subDays(5),
+        'current_period_end' => now()->addDays(25),
+    ]);
+
+    $product = Product::create([
+        'shop_id'    => $shop->id,
+        'shopify_id' => 'SHP-301',
+        'title'      => 'Sync Usage Test Product',
+        'variants'   => [
+            [
+                'id'                 => '30101',
+                'title'              => 'Variant 1',
+                'inventory_item_id' => 'INV-30101',
+                'inventory_quantity' => 10,
+            ],
+            [
+                'id'                 => '30102',
+                'title'              => 'Variant 2',
+                'inventory_item_id' => 'INV-30102',
+                'inventory_quantity' => 20,
+            ],
+        ],
+    ]);
+
+    $controller = new InventoryMappingController();
+
+    // 1. Test saveProductMapping response
+    $req1 = Request::create('/inventory/save-product-mapping', 'POST', [
+        'product_id'                => $product->id,
+        'variant_id'                => '30101',
+        'shopify_product_id'        => 'SHP-301',
+        'shopify_variant_id'        => '30101',
+        'shopify_inventory_item_id' => 'INV-30101',
+        'amazon_sku'                => 'AMZ-SKU-30101',
+    ]);
+    $req1->attributes->set('active_shop_model', $shop);
+
+    $res1 = $controller->saveProductMapping($req1);
+    expect($res1->getStatusCode())->toBe(200);
+    $data1 = $res1->getData(true);
+    expect($data1['success'])->toBeTrue()
+        ->and($data1['used'])->toBe(1)
+        ->and($data1['limit'])->toBe(50)
+        ->and($data1['remaining'])->toBe(49)
+        ->and($data1['sync_usage']['used'])->toBe(1);
+
+    // 2. Test saveAmazonMapping response
+    $req2 = Request::create('/inventory/save-amazon-mapping', 'POST', [
+        'product_id'         => 'SHP-301',
+        'shopify_variant_id' => '30102',
+        'amazon_sku'         => 'AMZ-SKU-30102',
+    ]);
+    $req2->attributes->set('active_shop_model', $shop);
+
+    $res2 = $controller->saveAmazonMapping($req2);
+    expect($res2->getStatusCode())->toBe(200);
+    $data2 = $res2->getData(true);
+    expect($data2['success'])->toBeTrue()
+        ->and($data2['used'])->toBe(2)
+        ->and($data2['limit'])->toBe(50)
+        ->and($data2['remaining'])->toBe(48)
+        ->and($data2['sync_usage']['used'])->toBe(2);
+
+    // 3. Test mappings endpoint response
+    $req3 = Request::create('/inventory/mappings', 'GET');
+    $req3->attributes->set('active_shop_model', $shop);
+
+    $res3 = $controller->mappings($req3);
+    expect($res3->getStatusCode())->toBe(200);
+    $data3 = $res3->getData(true);
+    expect($data3['success'])->toBeTrue()
+        ->and(count($data3['mappings']))->toBe(2)
+        ->and($data3['sync_usage']['used'])->toBe(2)
+        ->and($data3['sync_usage']['remaining'])->toBe(48);
+
+    // 4. Test unmap response
+    $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)->where('shopify_variant_id', '30101')->first();
+    $req4 = Request::create('/inventory/unmap/' . $mapping->id, 'DELETE');
+    $req4->attributes->set('active_shop_model', $shop);
+
+    $res4 = $controller->unmap($req4, $mapping);
+    expect($res4->getStatusCode())->toBe(200);
+    $data4 = $res4->getData(true);
+    expect($data4['success'])->toBeTrue()
+        ->and($data4['sync_usage']['used'])->toBe(1)
+        ->and($data4['sync_usage']['remaining'])->toBe(49);
+});
+
