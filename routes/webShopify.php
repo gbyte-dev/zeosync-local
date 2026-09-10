@@ -502,19 +502,6 @@ Route::get('/test/queue-work', function () {
     return 'Done';
 });
 
-// Route::get('/test-amazon-sync', function () {
-
-//     $shops = Shop::where('is_active', 1)
-//         ->whereNotNull('amazon_refresh_token')
-//         ->get();
-
-//     foreach ($shops as $shop) {
-//         SyncAmazonInventoryJob::dispatch($shop->id);
-//     }
-
-//     return 'Amazon inventory sync jobs dispatched.';
-// });
-
 Route::get('/test-amazon-sync', function () {
 
     $shops = Shop::where('is_active', 1)

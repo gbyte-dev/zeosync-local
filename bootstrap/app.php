@@ -30,7 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return route('crm.entry');
         });
-
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         $middleware->web(append: [
             \App\Http\Middleware\VerifyShopifyAuthentication::class,
             \App\Http\Middleware\ResolveActiveShop::class,
