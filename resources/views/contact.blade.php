@@ -1,150 +1,156 @@
-@extends('layouts.guest')
+@extends('layouts.zeosync')
+
+@section('title', 'Contact — Zeosync')
+@section('meta_description', 'Bring your channels, your catalog, and the parts that slow you down. Get in touch with the Zeosync team.')
+@section('preview-banner', 'Website preview  . Proposed launch plans & illustrative product experience')
 
 @section('content')
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-11">
-            <div class="text-center mb-5">
-                <h5 class="mb-3">Contact Us</h5>
-                <p class="text-muted">Have questions? We're here to help. Reach out to our team and we'll get back to you as soon as possible.</p>
-            </div>
 
-            <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="card h-100 text-center">
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <i class="bi bi-envelope fs-1 text-primary"></i>
-                            </div>
-                            <h6 class="card-title">Email Support</h6>
-                            <p class="card-text text-muted small">For general inquiries and support</p>
-                            <a href="mailto:support@zeosync.app" class="text-decoration-none">support@zeosync.app</a>
-                        </div>
-                    </div>
-                </div>
+    <section class="pagehead wrap">
+        <p class="eyebrow">FIND YOUR FIT</p>
+        <h1>Let&rsquo;s talk about<br><em>your store.</em></h1>
+        <p class="lead">Bring your channels, your catalog, and the parts that slow you down. Start with a clear picture of what you need.</p>
+    </section>
 
-                <div class="col-md-4">
-                    <div class="card h-100 text-center">
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <i class="bi bi-telephone fs-1 text-primary"></i>
-                            </div>
-                            <h6 class="card-title">Phone Support</h6>
-                            <p class="card-text text-muted small">Mon-Fri, 9am-6pm EST</p>
-                            <a href="tel:+1-555-123-4567" class="text-decoration-none">+1 (555) 123-4567</a>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="card h-100 text-center">
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <i class="bi bi-chat-dots fs-1 text-primary"></i>
-                            </div>
-                            <h6 class="card-title">Live Chat</h6>
-                            <p class="card-text text-muted small">Instant support for quick questions</p>
-                            <a href="#" class="text-decoration-none">Start Chat</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card mt-5">
-                <div class="card-body">
-                    <h6 class="card-title mb-4">Send Us a Message</h6>
-
-                    @if(session('success'))
-                    <div class="alert alert-success">
-                        {{ session('success') }}
-                    </div>
-                    @endif
-
-                    @if($errors->any())
-                    <div class="alert alert-danger">
-                        <ul class="mb-0">
-                            @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                    @endif
-
-                    <form action="{{ route('contact.store') }}" method="POST">
-                        @csrf
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="name" class="form-label">Full Name</label>
-                                <input type="text" name="name" class="form-control" id="name" placeholder="John Doe" value="{{ old('name') }}" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="email" class="form-label">Email Address</label>
-                                <input type="email" name="email" class="form-control" id="email" placeholder="john@example.com" value="{{ old('email') }}" required>
-                            </div>
-                            <div class="col-12">
-                                <label for="subject" class="form-label">Subject</label>
-                                <input type="text" name="subject" class="form-control" id="subject" placeholder="How can we help?" value="{{ old('subject') }}" required>
-                            </div>
-                            <div class="col-12">
-                                <label for="message" class="form-label">Message</label>
-                                <textarea name="message" class="form-control" id="message" rows="5" placeholder="Tell us more about your inquiry..." required>{{ old('message') }}</textarea>
-                            </div>
-                            <div class="col-12 text-center">
-                                <button type="submit" class="btn btn-primary px-5">Send Message</button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <div class="card mt-4">
-                <div class="card-body">
-                    <h6 class="card-title mb-3">Frequently Asked Questions</h6>
-                    <div class="accordion" id="faqAccordion">
-                        <div class="accordion-item">
-                            <h2 class="accordion-header">
-                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
-                                    How do I integrate my Amazon and Shopify stores?
-                                </button>
-                            </h2>
-                            <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
-                                <div class="accordion-body text-muted">
-                                    Getting started is easy! Sign up for an account, connect your Amazon and Shopify stores 
-                                    using our secure integration wizard, and start syncing your products, inventory, and orders 
-                                    within minutes.
-                                </div>
-                            </div>
-                        </div>
-                        <div class="accordion-item">
-                            <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
-                                    What platforms do you support?
-                                </button>
-                            </h2>
-                            <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                                <div class="accordion-body text-muted">
-                                    Currently, we support Amazon Seller Central and Shopify. We're constantly working on 
-                                    adding more platforms to provide you with a comprehensive multi-channel selling solution.
-                                </div>
-                            </div>
-                        </div>
-                        <div class="accordion-item">
-                            <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
-                                    Is my data secure?
-                                </button>
-                            </h2>
-                            <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                                <div class="accordion-body text-muted">
-                                    Absolutely. We use industry-standard encryption and security measures to protect your 
-                                    data. All API connections are secure, and we never share your information with third parties.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <section class="wrap">
+        <div class="cards" style="grid-template-columns: repeat(2, 1fr);">
+            <article class="card" \>
+                
+                <h3>Email support</h3>
+                <p>For general inquiries and support.</p>
+                <a class="textlink" href="mailto:support@zeosync.app">support@zeosync.app</a>
+            </article>
+            <article class="card">
+                <h3>Phone support</h3>
+                <p>Mon&ndash;Fri, 9am&ndash;6pm EST.</p>
+                <a class="textlink" href="tel:+1-555-123-4567">+1 (555) 123-4567</a>
+            </article>
         </div>
-    </div>
-</div>
+    </section>
+
+    <section class="wrap contactgrid">
+        <div>
+            <h2>A useful conversation<br>starts here.</h2>
+            <p>Tell us about your marketplace, order volume, and the part of the workflow that&rsquo;s slowing you down. We&rsquo;ll get back to you as soon as possible.</p>
+
+            <div class="contactnote">
+                <b>Keep it simple. Keep it safe.</b>
+                <p>Your marketplace, order volume, and main challenge are enough. Do not include passwords, API keys, customer records, or private order details.</p>
+            </div>
+
+        </div>
+
+        <form action="{{ route('contact.store') }}" method="POST" id="contact-form">
+            @csrf
+
+            <h3>Your store, at a glance.</h3>
+            @if (session('success'))
+                <div class="contactnote success alert alert-success">
+                    <p>{{ session('success') }}</p>
+                </div>
+            @endif
+
+            @if ($errors->any())
+                <div class="alert alert-danger">
+                    <ul>
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <div class="formrow">
+                <div>
+                    <label for="name">Full name</label>
+                    <input type="text" id="name" name="name" placeholder="John Doe" maxlength="200" value="{{ old('name') }}" required>
+                </div>
+                <div>
+                    <label for="email">Email address</label>
+                    <input type="email" id="email" name="email" placeholder="john@example.com" maxlength="200" value="{{ old('email') }}" required>
+                </div>
+            </div>
+
+            <label for="subject">Subject</label>
+            <input type="text" id="subject" name="subject" placeholder="How can we help?" maxlength="200" value="{{ old('subject') }}" required>
+
+            <label for="store">Shopify store URL <span>(optional)</span></label>
+            <input type="text" id="store" name="store" placeholder="your-store.myshopify.com" maxlength="200" value="{{ old('store') }}">
+
+            <div class="formrow">
+                <div>
+                    <label for="marketplace">Amazon marketplace</label>
+                    <select id="marketplace" name="marketplace">
+                        @foreach (['United States', 'United Kingdom', 'Canada', 'European Union', 'Other / multiple regions'] as $option)
+                            <option value="{{ $option }}" @selected(old('marketplace') === $option)>{{ $option }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="plan">Plan to discuss</label>
+                    <select id="plan" name="plan">
+                        @foreach (['Not sure yet', 'Starter', 'Growth', 'Scale', 'Custom'] as $option)
+                            <option value="{{ $option }}" @selected(old('plan') === $option)>{{ $option }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <label for="volume">Monthly Amazon orders</label>
+            <select id="volume" name="volume">
+                @foreach (['Under 100', '100–1,000', '1,001–5,000', 'More than 5,000', 'Not selling on Amazon yet'] as $option)
+                    <option value="{{ $option }}" @selected(old('volume') === $option)>{{ $option }}</option>
+                @endforeach
+            </select>
+
+            <label for="message">What would you like to improve?</label>
+            <textarea id="message" name="message" rows="5" maxlength="2000" placeholder="For example: less time checking stock and importing Amazon orders." required>{{ old('message') }}</textarea>
+
+            <button class="btn" type="submit">Send message <span aria-hidden="true">&#8599;</span></button>
+            <p class="micro">Your message goes directly to the Zeosync team. No account connection, no payment required.</p>
+        </form>
+    </section>
+
+    <section class="section wrap">
+        <div class="sectionintro">
+            <p class="eyebrow">KNOW WHAT YOU&rsquo;RE ASKING</p>
+            <h2>Frequently asked questions.</h2>
+        </div>
+
+        <div class="faqs">
+            <details open>
+                <summary>How do I integrate my Amazon and Shopify stores?</summary>
+                <p>Sign up for an account, connect your Amazon and Shopify stores using our secure integration wizard, and start syncing your products, inventory, and orders within minutes.</p>
+            </details>
+            <details>
+                <summary>What platforms do you support?</summary>
+                <p>Currently, we support Amazon Seller Central and Shopify. We&rsquo;re constantly working on adding more platforms to provide a comprehensive multi-channel selling solution.</p>
+            </details>
+            <details>
+                <summary>Is my data secure?</summary>
+                <p>We use industry-standard encryption and security measures to protect your data. All API connections are secure, and we never share your information with third parties.</p>
+            </details>
+            <details>
+                <summary>How long does setup usually take?</summary>
+                <p>Most stores are connected and syncing within a single session. The exact time depends on your catalog size and how many SKU mappings need to be reviewed before you go live.</p>
+            </details>
+            <details>
+                <summary>Will this affect my live Amazon or Shopify listings?</summary>
+                <p>Nothing changes on either channel until you confirm a sync. You&rsquo;ll be able to review products, inventory, and mappings before anything goes live.</p>
+            </details>
+            <details>
+                <summary>Do you support multiple Amazon seller accounts?</summary>
+                <p>Support for multiple accounts depends on your plan. Let us know your setup in the form above and we&rsquo;ll confirm what&rsquo;s included before you commit to anything.</p>
+            </details>
+            <details>
+                <summary>What happens after I submit this form?</summary>
+                <p>A member of the team will review your setup details and follow up by email, usually within one business day, to talk through next steps.</p>
+            </details>
+            <details>
+                <summary>Can I ask questions before connecting my store?</summary>
+                <p>Yes. Use the form above to share your marketplace, order volume, and main challenge, and we&rsquo;ll walk through fit and pricing before anything is connected.</p>
+            </details>
+        </div>
+    </section>
+
 @endsection

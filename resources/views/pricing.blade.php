@@ -1,110 +1,97 @@
-@extends('layouts.guest')
+@extends('layouts.zeosync')
+
+@section('title', 'Pricing — Zeosync')
+@section('meta_description', 'Simple, transparent pricing to fit your business needs. All plans include core synchronization features.')
+@section('preview-banner', 'Website preview &bull; Proposed launch plans & illustrative product experience')
 
 @section('content')
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-12">
-            <div class="text-center mb-5">
-                <h5 class="mb-3">Pricing Plans</h5>
-                <p class="text-muted">Simple, transparent pricing to fit your business needs. All plans include core synchronization features.</p>
-            </div>
 
-            <div class="row g-4">
-                @forelse ($plans as $plan)
-                    @php
-                        $month_price = $plan->prices['EVERY_30_DAYS'] ?? 0;
-                        $yearly_price = $plan->prices['ANNUAL'] ?? 0;
-                        $isHighlighted = $plan->is_highlighted;
-                        $isEnterprise = $plan->is_enterprise;
-                        $isTrial = $plan->is_trial;
-                    @endphp
+    <section class="pagehead wrap">
+        <p class="eyebrow">SIMPLE, TRANSPARENT PRICING</p>
+        <h1>Your sales are yours.<br><em>Keep it that way.</em></h1>
+        <p class="lead">Simple, transparent pricing to fit your business needs. All plans include core synchronization features.</p>
+    </section>
 
-                    <div class="col-md-4">
-                        <div class="card h-100 {{ $isHighlighted ? 'border-primary' : '' }}">
-                            @if ($isHighlighted)
-                                <div class="card-header bg-primary text-white text-center">
-                                    <strong>{{ $plan->badge ?: 'Most Popular' }}</strong>
-                                </div>
-                            @endif
-                            <div class="card-body">
-                                <h6 class="card-title">
-                                    {{ $plan->name }}
-                                    @if ($plan->badge && !$isHighlighted)
-                                        <span class="badge bg-primary ms-1">{{ $plan->badge }}</span>
-                                    @endif
-                                </h6>
+    <section class="wrap">
+        <p class="notice">USD &middot; Monthly and annual billing available &middot; Cancel anytime.</p>
 
-                                @if ($isEnterprise)
-                                    <h3 class="text-primary mb-3">Custom</h3>
-                                @elseif ($isTrial)
-                                    <h3 class="text-success mb-3">Free</h3>
-                                @else
-                                    <h3 class="text-primary mb-3">
-                                        @if ($month_price != 0)
-                                            ${{ number_format((float) $month_price, 0) }}<span class="text-muted fs-6">/month</span>
-                                        @elseif ($yearly_price != 0)
-                                            ${{ number_format((float) $yearly_price, 0) }}<span class="text-muted fs-6">/year</span>
-                                        @endif
-                                    </h3>
-                                    @if ($month_price != 0 && $yearly_price != 0)
-                                        <p class="text-muted small mb-3">or ${{ number_format((float) $yearly_price, 0) }}/year</p>
-                                    @endif
-                                @endif
+        <div class="pricinggrid">
+            @forelse ($plans as $plan)
+                @php
+                    $month_price = $plan->prices['EVERY_30_DAYS'] ?? 0;
+                    $yearly_price = $plan->prices['ANNUAL'] ?? 0;
+                    $isHighlighted = $plan->is_highlighted;
+                    $isEnterprise = $plan->is_enterprise;
+                    $isTrial = $plan->is_trial;
+                @endphp
 
-                                <p class="card-text text-muted">{{ $plan->description }}</p>
-                                <hr>
-                                <ul class="list-unstyled text-muted">
-                                    @forelse (($plan->features ?? []) as $feature)
-                                        <li class="mb-2">✓ {{ $feature }}</li>
-                                    @empty
-                                        <li class="mb-2 text-muted">Contact us for feature details</li>
-                                    @endforelse
-                                </ul>
-                            </div>
-                            <div class="card-footer bg-white border-top-0">
-                                @if ($isEnterprise)
-                                    <a href="{{ route('contact') }}" class="btn btn-outline-primary w-100">{{ $plan->contact_button_text ?: 'Contact Sales' }}</a>
-                                @else
-                                    <a href="{{ route('crm.entry') }}" class="btn {{ $isHighlighted ? 'btn-primary' : 'btn-outline-primary' }} w-100">Get Started</a>
-                                @endif
-                            </div>
-                        </div>
+                <article class="pricecard {{ $isHighlighted ? 'featured' : '' }}">
+                    <div class="planlabel">
+                        {{ $plan->name }}
+                        <span>{{ $isHighlighted ? ($plan->badge ?: 'MOST POPULAR') : '' }}</span>
                     </div>
-                @empty
-                    <div class="col-12">
-                        <div class="alert alert-info text-center">
-                            No plans are currently available. Please check back soon.
-                        </div>
-                    </div>
-                @endforelse
-            </div>
 
-            <div class="card mt-5">
-                <div class="card-body">
-                    <h6 class="card-title text-center mb-3">All Plans Include</h6>
-                    <div class="row text-center">
-                        <div class="col-md-3 mb-3 mb-md-0">
-                            <p class="text-muted mb-0">Real-time Sync</p>
-                        </div>
-                        <div class="col-md-3 mb-3 mb-md-0">
-                            <p class="text-muted mb-0">Secure API Connections</p>
-                        </div>
-                        <div class="col-md-3 mb-3 mb-md-0">
-                            <p class="text-muted mb-0">99.9% Uptime SLA</p>
-                        </div>
-                        <div class="col-md-3">
-                            <p class="text-muted mb-0">Cancel Anytime</p>
-                        </div>
+                    @if ($plan->badge && !$isHighlighted)
+                        <p class="planlimit"><b>{{ $plan->badge }}</b></p>
+                    @endif
+
+                    <p>{{ $plan->description }}</p>
+
+                    <div class="price">
+                        @if ($isEnterprise)
+                            <strong>Custom</strong>
+                        @elseif ($isTrial)
+                            <strong>Free</strong>
+                        @elseif ($month_price != 0)
+                            <strong>${{ number_format((float) $month_price, 0) }}</strong>
+                            <span>/ month</span>
+                        @elseif ($yearly_price != 0)
+                            <strong>${{ number_format((float) $yearly_price, 0) }}</strong>
+                            <span>/ year</span>
+                        @endif
                     </div>
+
+                    @if (!$isEnterprise && !$isTrial && $month_price != 0 && $yearly_price != 0)
+                        <p class="planlimit">or <b>${{ number_format((float) $yearly_price, 0) }}</b> / year</p>
+                    @endif
+
+                    @if ($isEnterprise)
+                        <a href="{{ route('contact') }}" class="btn {{ $isHighlighted ? '' : 'secondary' }}">
+                            {{ $plan->contact_button_text ?: 'Contact Sales' }}<span aria-hidden="true">&#8599;</span>
+                        </a>
+                    @else
+                        <a href="{{ route('contact') }}?plan={{$plan->name}}" class="btn {{ $isHighlighted ? '' : 'secondary' }}">
+                            Get Started<span aria-hidden="true">&#8599;</span>
+                        </a>
+                    @endif
+
+                    <ul class="checklist">
+                        @forelse (($plan->features ?? []) as $feature)
+                            <li>{{ $feature }}</li>
+                        @empty
+                            <li>Contact us for feature details</li>
+                        @endforelse
+                    </ul>
+                </article>
+            @empty
+                <div class="pricingnote">
+                    <p>No plans are currently available. Please check back soon.</p>
                 </div>
-            </div>
-
-            <div class="text-center mt-4">
-                <p class="text-muted">
-                    Questions about pricing? <a href="{{ route('contact') }}">Contact our sales team</a> for a personalized quote.
-                </p>
-            </div>
+            @endforelse
         </div>
-    </div>
-</div>
+
+        <div class="pricingnote">
+            <b>All plans include</b>
+            <p>Real-time sync &middot; Secure API connections &middot; 99.9% uptime SLA &middot; Cancel anytime.</p>
+        </div>
+    </section>
+
+    <section class="section wrap">
+        <div class="sectionintro">
+            <p class="eyebrow">STILL DECIDING?</p>
+            <h2>Questions about pricing?</h2>
+            <p><a href="{{ route('contact') }}">Contact our sales team</a> for a personalized quote.</p>
+        </div>
+    </section>
+
 @endsection

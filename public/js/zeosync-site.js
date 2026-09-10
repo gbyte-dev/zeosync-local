@@ -1,0 +1,7 @@
+const menu=document.querySelector('.menu');
+const nav=document.getElementById('navlinks');
+menu?.addEventListener('click',()=>{const open=menu.getAttribute('aria-expanded')!=='true';menu.setAttribute('aria-expanded',String(open));nav.classList.toggle('open',open);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&nav?.classList.contains('open')){nav.classList.remove('open');menu.setAttribute('aria-expanded','false');menu.focus();}});
+const form=document.getElementById('brief');
+if(form){const requested=new URLSearchParams(location.search).get('plan');const plan=document.getElementById('plan');if([...plan.options].some(o=>o.value===requested))plan.value=requested;
+let brief='';form.addEventListener('submit',e=>{e.preventDefault();if(!form.reportValidity())return;const data=new FormData(form);brief=['Zeosync — store setup brief','',...['store','market','plan','volume','challenge'].map((key,i)=>['Shopify store','Amazon marketplace','Plan to discuss','Monthly Amazon orders','What I would like to improve'][i]+': '+(data.get(key)||'Not provided')),'','Prepared locally. This inquiry has not been sent.'].join('\n');document.getElementById('brief-text').textContent=brief;document.getElementById('brief-result').hidden=false;});document.getElementById('download').addEventListener('click',()=>{if(!brief)return;const u=URL.createObjectURL(new Blob([brief],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=u;a.download='zeosync-store-brief.txt';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);});}

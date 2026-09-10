@@ -13,8 +13,7 @@ return new class extends Migration
     {
         Schema::table('plans', function (Blueprint $table) {
             $table->unsignedInteger('product_limit')
-                ->default(0)
-                ->after('sync_limit');
+                ->default(0);
         });
     }
 

@@ -81,7 +81,7 @@ class ShopifyController extends Controller
         }
 
         if (!$shop) {
-            return view('welcome'); // landing page
+            return view('welcomemain'); // landing page
         }
 
         $shopModel = $request->attributes->get('shopify_verified_model')
