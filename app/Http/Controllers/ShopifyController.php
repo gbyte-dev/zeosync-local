@@ -475,6 +475,7 @@ class ShopifyController extends Controller
         // =========================
         try {
             $this->shopifyWebhook->ensureOrdersCreateWebhook($shopModel);
+            $this->shopifyWebhook->ensureOrdersUpdateWebhook($shopModel);
             $this->shopifyWebhook->ensureAppUninstalledWebhook($shopModel);
         } catch (\Exception $e) {
             Log::error('WEBHOOK FAILED', [
@@ -1306,6 +1307,53 @@ class ShopifyController extends Controller
         return response('OK', 200);
     }
 
+    public function resolveAggregateShipmentStatus(array $fulfillments): ?string
+    {
+        $activeFulfillments = array_values(array_filter($fulfillments, function ($f) {
+            return is_array($f) && ($f['status'] ?? '') !== 'cancelled';
+        }));
+
+        if (empty($activeFulfillments)) {
+            return null;
+        }
+
+        $shipmentStatuses = array_map(function ($f) {
+            return $f['shipment_status'] ?? null;
+        }, $activeFulfillments);
+
+        $nonNullStatuses = array_values(array_filter($shipmentStatuses));
+
+        if (empty($nonNullStatuses)) {
+            return null;
+        }
+
+        // If all active fulfillments are delivered, the aggregate status is delivered
+        if (count($nonNullStatuses) === count($activeFulfillments) && collect($nonNullStatuses)->every(fn($s) => $s === 'delivered')) {
+            return 'delivered';
+        }
+
+        // Active delivery stage priority
+        $priorityOrder = [
+            'out_for_delivery',
+            'in_transit',
+            'attempted_delivery',
+            'failure',
+            'delivered',
+            'ready_for_pickup',
+            'label_printed',
+            'label_purchased',
+            'confirmed',
+        ];
+
+        foreach ($priorityOrder as $priority) {
+            if (in_array($priority, $nonNullStatuses, true)) {
+                return $priority;
+            }
+        }
+
+        return $nonNullStatuses[0] ?? null;
+    }
+
     public function upsertOrderFromWebhook(Request $request, string $action='create')
     {
         $payload = $request->getContent();
@@ -1337,6 +1385,15 @@ class ShopifyController extends Controller
         if ($eventId !== '' && ShopifyOrder::where('shopify_event_id', $eventId)->exists()) {
             return response('OK', 200);
         }
+
+        $existingOrder = ShopifyOrder::where('shopify_order_id', (int) $data['id'])->first();
+        $oldFulfillmentStatus = $existingOrder?->fulfillment_status;
+        $oldShipmentStatus = $existingOrder?->shipment_status;
+
+        $newFulfillmentStatus = data_get($data, 'fulfillment_status');
+        $fulfillments = data_get($data, 'fulfillments', []);
+        $newShipmentStatus = is_array($fulfillments) ? $this->resolveAggregateShipmentStatus($fulfillments) : null;
+
         $customer = data_get($data, 'customer', []);
         $lineItems = data_get($data, 'line_items', []);
         $order = ShopifyOrder::updateOrCreate(
@@ -1354,7 +1411,8 @@ class ShopifyController extends Controller
                 'customer_phone' => data_get($customer, 'phone'),
                 'phone' => data_get($data, 'phone'),
                 'financial_status' => data_get($data, 'financial_status'),
-                'fulfillment_status' => data_get($data, 'fulfillment_status'),
+                'fulfillment_status' => $newFulfillmentStatus,
+                'shipment_status' => $newShipmentStatus,
                 'currency' => data_get($data, 'currency'),
                 'subtotal_price' => (float) data_get($data, 'subtotal_price', 0),
                 'total_tax' => (float) data_get($data, 'total_tax', 0),
@@ -1378,68 +1436,91 @@ class ShopifyController extends Controller
             ]
         );
 
-        foreach ($lineItems as $item) {
+        // Only deduct Amazon inventory on order creation, never on fulfillment/delivery updates
+        if ($order->wasRecentlyCreated || $action === 'create') {
+            foreach ($lineItems as $item) {
 
-            $variantId = $item['variant_id'] ?? null;
-            $orderedQty = $item['quantity'] ?? 0;
+                $variantId = $item['variant_id'] ?? null;
+                $orderedQty = $item['quantity'] ?? 0;
 
-            if (!$variantId) {
-                continue;
+                if (!$variantId) {
+                    continue;
+                }
+
+                $query = ProductMarketplaceMapping::where('shop_id', $shopModel->id)
+                    ->where('shopify_variant_id', (string) $variantId);
+
+                $mapping = $query->first();
+
+                if (!$mapping) {
+                    Log::info('No marketplace mapping found.', [
+                        'shop_id' => $shopModel->id,
+                        'variant_id' => $variantId,
+                    ]);
+                    continue;
+                }
+
+                $newQuantity = max(0, ((int) $mapping->quantity) - ((int) $orderedQty));
+
+                try {
+
+                    $response = $this->amazonService->updateInventory(
+                        $shopModel,
+                        $mapping->amazon_sku,
+                        $newQuantity
+                    );
+
+                } catch (\Throwable $e) {
+
+                    Log::error('Webhook inventory sync failed.', [
+                        'variant_id' => $variantId,
+                        'amazon_sku' => $mapping->amazon_sku,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
-
-            $query = ProductMarketplaceMapping::where('shop_id', $shopModel->id)
-                ->where('shopify_variant_id', (string) $variantId);
-
-            $mapping = $query->first();
-
-            if (!$mapping) {
-                Log::info('No marketplace mapping found.', [
-                    'shop_id' => $shopModel->id,
-                    'variant_id' => $variantId,
-                ]);
-                continue;
-            }
-
-            $newQuantity = max(0, ((int) $mapping->quantity) - ((int) $orderedQty));
-
-            try {
-
-                $response = $this->amazonService->updateInventory(
-                    $shopModel,
-                    $mapping->amazon_sku,
-                    $newQuantity
-                );
-
-            } catch (\Throwable $e) {
-
-                Log::error('Webhook inventory sync failed.', [
-                    'variant_id' => $variantId,
-                    'amazon_sku' => $mapping->amazon_sku,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
-            // Next Step:
-            // Amazon inventory update yahin call hoga.
         }
 
-        // YAHAN TAK
-        if ($order->wasRecentlyCreated) {
+        $orderNumber = ltrim((string) ($data['name'] ?? ($data['order_number'] ?? '')), '#');
+        $orderDisplay = $data['name'] ?? ('#' . ($data['order_number'] ?? ''));
 
+        if ($order->wasRecentlyCreated && $action === 'create') {
             UserNotificationService::send(
                 $shopModel->id,
                 'order_sync',
                 'Shopify Order Received',
-                'Shopify Order ' . ($data['name'] ?? '#' . $data['order_number']) . ' received successfully.'
+                'Shopify Order ' . $orderDisplay . ' received successfully.'
             );
-        }
-        if( $action === 'update') {
-            UserNotificationService::send(
-                $shopModel->id,
-                'order_sync',
-                'Shopify Order Updated',
-                'Shopify Order ' . ($data['name'] ?? '#' . $data['order_number']) . ' updated successfully.'
-            );
+        } elseif ($action === 'update' || !$order->wasRecentlyCreated) {
+            $isFulfilledTransition = ($oldFulfillmentStatus !== 'fulfilled' && $newFulfillmentStatus === 'fulfilled');
+            $isDeliveredTransition = ($oldShipmentStatus !== 'delivered' && $newShipmentStatus === 'delivered');
+
+            if ($isFulfilledTransition) {
+                UserNotificationService::send(
+                    $shopModel->id,
+                    'order_sync',
+                    'Shopify Order Fulfilled',
+                    'Order #' . $orderNumber . ' has been fulfilled.'
+                );
+            }
+
+            if ($isDeliveredTransition) {
+                UserNotificationService::send(
+                    $shopModel->id,
+                    'order_sync',
+                    'Shopify Order Delivered',
+                    'Order #' . $orderNumber . ' has been delivered.'
+                );
+            }
+
+            if (!$isFulfilledTransition && !$isDeliveredTransition && $action === 'update') {
+                UserNotificationService::send(
+                    $shopModel->id,
+                    'order_sync',
+                    'Shopify Order Updated',
+                    'Shopify Order ' . $orderDisplay . ' updated successfully.'
+                );
+            }
         }
 
         return response('OK', 200);
