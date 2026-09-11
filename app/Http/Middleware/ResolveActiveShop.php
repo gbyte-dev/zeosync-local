@@ -90,6 +90,7 @@ class ResolveActiveShop
         // 3. Public / Setup / OAuth Entry routes allow legacy parameter-based discovery for onboarding
         if (
             $request->routeIs('crm.entry') ||
+            $request->routeIs('shopify.app.launch*') ||
             $request->routeIs('shopify.install') ||
             $request->routeIs('shopify.callback') ||
             $request->routeIs('setup.form') ||
