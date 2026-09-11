@@ -387,3 +387,168 @@ it('12. Existing normal login and public pages without Zeosync continue working'
     $responseAdminLogin = $this->get('/admin/login');
     $responseAdminLogin->assertStatus(200);
 });
+
+it('13. Valid encrypted token in path (/apps/{encrypted-value}/dashboard) decrypts, establishes session, and redirects cleanly', function () {
+    $shop = Shop::create([
+        'shop'                    => 'path-store.myshopify.com',
+        'shop_name'               => 'Path Store',
+        'email'                   => 'path@zeosync.app',
+        'access_token'            => 'shp_access_token_path',
+        'access_token_expires_at' => now()->addHour(),
+        'is_active'               => 1,
+    ]);
+
+    $encryptedValue = Crypt::encryptString('path-store.myshopify.com');
+
+    session()->flush();
+    $response = $this->get("/apps/{$encryptedValue}/dashboard");
+
+    $response->assertStatus(302);
+    $response->assertRedirect();
+
+    $redirectUrl = $response->headers->get('Location');
+    // Ensure sensitive encrypted token is not in redirect URL
+    expect($redirectUrl)->not->toContain($encryptedValue);
+    expect($redirectUrl)->toContain('dashboard');
+
+    // Verify session
+    expect(session('_shopify_verified_shop'))->toBe('path-store.myshopify.com');
+    expect(session('active_shop'))->toBe('path-store.myshopify.com');
+    expect(session('active_shop_id'))->toBe($shop->id);
+});
+
+it('14. Valid JSON encrypted token in path (/apps/{encrypted-value}/dashboard) decrypts and establishes session', function () {
+    $shop = Shop::create([
+        'shop'                    => 'json-store.myshopify.com',
+        'shop_name'               => 'JSON Store',
+        'email'                   => 'json@zeosync.app',
+        'access_token'            => 'shp_access_token_json',
+        'access_token_expires_at' => now()->addHour(),
+        'is_active'               => 1,
+    ]);
+
+    $payload = json_encode([
+        'shop' => 'json-store.myshopify.com',
+        'time' => time(),
+    ]);
+    $encryptedValue = Crypt::encryptString($payload);
+
+    session()->flush();
+    $response = $this->get("/apps/{$encryptedValue}/dashboard");
+
+    $response->assertStatus(302);
+    expect(session('_shopify_verified_shop'))->toBe('json-store.myshopify.com');
+    expect(session('active_shop'))->toBe('json-store.myshopify.com');
+    expect(session('active_shop_id'))->toBe($shop->id);
+});
+
+it('15. Invalid encrypted value in path fails safely without authenticating', function () {
+    session()->flush();
+    $response = $this->get('/apps/invalid-garbage-encrypted-string/dashboard');
+
+    expect(session('_shopify_verified_shop'))->toBeNull();
+    expect(session('active_shop'))->toBeNull();
+    // Browser request should redirect to crm.entry or install, never crash
+    $response->assertStatus(302);
+});
+
+it('16. Tampered encrypted value (modified ciphertext/mac) fails closed without authenticating', function () {
+    $encryptedValue = Crypt::encryptString('tampered-store.myshopify.com');
+    $tampered = substr($encryptedValue, 0, -4) . 'AAAA';
+
+    session()->flush();
+    $response = $this->get("/apps/{$tampered}/dashboard");
+
+    expect(session('_shopify_verified_shop'))->toBeNull();
+    expect(session('active_shop'))->toBeNull();
+    $response->assertStatus(302);
+});
+
+it('17. Expired launch state in encrypted payload is rejected', function () {
+    Shop::create([
+        'shop'                    => 'expired-store.myshopify.com',
+        'shop_name'               => 'Expired Store',
+        'email'                   => 'expired@zeosync.app',
+        'access_token'            => 'shp_access_token_expired',
+        'access_token_expires_at' => now()->addHour(),
+        'is_active'               => 1,
+    ]);
+
+    $payload = json_encode([
+        'shop' => 'expired-store.myshopify.com',
+        'exp'  => time() - 3600, // expired 1 hour ago
+    ]);
+    $encryptedValue = Crypt::encryptString($payload);
+
+    session()->flush();
+    $response = $this->get("/apps/{$encryptedValue}/dashboard");
+
+    expect(session('_shopify_verified_shop'))->toBeNull();
+    expect(session('active_shop'))->toBeNull();
+    $response->assertStatus(302);
+});
+
+it('18. Non-existent shop domain in encrypted payload redirects to install without session', function () {
+    $encryptedValue = Crypt::encryptString('non-existent-store.myshopify.com');
+
+    session()->flush();
+    $response = $this->get("/apps/{$encryptedValue}/dashboard");
+
+    expect(session('_shopify_verified_shop'))->toBeNull();
+    $response->assertStatus(302);
+});
+
+it('19. Store handle URL (/store/{shop}/apps/{token}/dashboard) decrypts and establishes session', function () {
+    $shop = Shop::create([
+        'shop'                    => 'handle-store.myshopify.com',
+        'shop_name'               => 'Handle Store',
+        'email'                   => 'handle@zeosync.app',
+        'access_token'            => 'shp_access_token_handle',
+        'access_token_expires_at' => now()->addHour(),
+        'is_active'               => 1,
+    ]);
+
+    $encryptedValue = Crypt::encryptString('handle-store.myshopify.com');
+
+    session()->flush();
+    $response = $this->get("/store/handle-store/apps/{$encryptedValue}/dashboard");
+
+    $response->assertStatus(302);
+    expect(session('_shopify_verified_shop'))->toBe('handle-store.myshopify.com');
+    expect(session('active_shop'))->toBe('handle-store.myshopify.com');
+    expect(session('active_shop_id'))->toBe($shop->id);
+
+    $redirectUrl = $response->headers->get('Location');
+    expect($redirectUrl)->not->toContain($encryptedValue);
+});
+
+it('20. Existing query-token authentication continues working alongside path token decryption', function () {
+    $shop = Shop::create([
+        'shop'                    => 'coexist-store.myshopify.com',
+        'shop_name'               => 'Coexist Store',
+        'email'                   => 'coexist@zeosync.app',
+        'access_token'            => 'shp_access_token_coexist',
+        'access_token_expires_at' => now()->addHour(),
+        'is_active'               => 1,
+    ]);
+
+    $jwt = generateZeosyncTestJwt('coexist-store.myshopify.com');
+    $crypt = Crypt::encryptString('coexist-store.myshopify.com');
+
+    // Query JWT
+    session()->flush();
+    $resJwt = $this->get("/?id_token={$jwt}&shop=coexist-store.myshopify.com");
+    expect(session('_shopify_verified_shop'))->toBe('coexist-store.myshopify.com');
+
+    // Path Crypt
+    session()->flush();
+    $resCrypt = $this->get("/apps/{$crypt}/dashboard");
+    expect(session('_shopify_verified_shop'))->toBe('coexist-store.myshopify.com');
+});
+
+it('21. Existing Shopify OAuth install flow continues working', function () {
+    $response = $this->get('/install?shop=new-install-store.myshopify.com');
+    $response->assertStatus(200);
+    $response->assertViewIs('shopify.auth-popup');
+    $response->assertViewHas('shop', 'new-install-store.myshopify.com');
+});
