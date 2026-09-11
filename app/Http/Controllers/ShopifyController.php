@@ -491,10 +491,14 @@ class ShopifyController extends Controller
             $shopModel->shop . ' connected successfully.'
         );
 
-        $setupUrl = route('setup.form', ['shop' => $shop]);
+        $isActivated = filled($shopModel->shop_name) && filled($shopModel->email);
+        $redirectUrl = $isActivated
+            ? route('dashboard', ['shop' => $shop])
+            : route('setup.form', ['shop' => $shop]);
+
         return response()->view('shopify.auth-callback', [
             'shop' => $shopModel->shop,
-            'redirectUrl' => $setupUrl,
+            'redirectUrl' => $redirectUrl,
         ]);
     }
     public function checkShopStatus(Request $request)

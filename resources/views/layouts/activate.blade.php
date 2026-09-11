@@ -23,9 +23,9 @@
     $faviconUrl = asset('storage/' . $favicon);
     }
     
-    $shopifyclient_id = \App\Models\AdminSetting::where('option_key', 'SHOPIFY_API_KEY')->value('option_value');
-    $shopifyclient_id = $shopifyclient_id ?? config('services.shopify.client_id', 'cc04d2b21de39debde846f2b0f70a763');
+    $shopifyclient_id = \App\Models\AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key', 'cc04d2b21de39debde846f2b0f70a763'));
     @endphp
+    <meta name="shopify-api-key" content="{{ $shopifyclient_id }}">
 
     <link rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
