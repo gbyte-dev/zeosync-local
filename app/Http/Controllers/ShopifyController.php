@@ -1289,6 +1289,53 @@ class ShopifyController extends Controller
         return response('OK', 200);
     }
 
+
+    public function returnCreate(Request $request){
+        $payload = $request->getContent();
+        $shopDomain = strtolower(trim((string) $request->header('X-Shopify-Shop-Domain')));
+        $eventId = trim((string) $request->header('X-Shopify-Event-Id'));
+        $webhookId = trim((string) $request->header('X-Shopify-Webhook-Id'));
+        if (!$this->shopifyWebhook->isValidWebhook($payload, $request->header('X-Shopify-Hmac-Sha256'))) {
+            Log::warning('Rejected Shopify order webhook because HMAC validation failed.', [
+                'shop' => $shopDomain,
+            ]);
+            return response('Invalid webhook signature', 401);
+        }
+        $shopModel = $this->findShopByIdentifier($shopDomain);
+
+        if (!$shopModel) {
+            Log::warning('Rejected Shopify order webhook because shop was not found.', [
+                'shop' => $shopDomain,
+            ]);
+            return response('Shop not found', 404);
+        }
+        $data = json_decode($payload, true);
+        return response('OK', 200);
+    }
+
+    public function returnUpdate(Request $request){
+        $payload = $request->getContent();
+        $shopDomain = strtolower(trim((string) $request->header('X-Shopify-Shop-Domain')));
+        $eventId = trim((string) $request->header('X-Shopify-Event-Id'));
+        $webhookId = trim((string) $request->header('X-Shopify-Webhook-Id'));
+        if (!$this->shopifyWebhook->isValidWebhook($payload, $request->header('X-Shopify-Hmac-Sha256'))) {
+            Log::warning('Rejected Shopify order webhook because HMAC validation failed.', [
+                'shop' => $shopDomain,
+            ]);
+            return response('Invalid webhook signature', 401);
+        }
+        $shopModel = $this->findShopByIdentifier($shopDomain);
+
+        if (!$shopModel) {
+            Log::warning('Rejected Shopify order webhook because shop was not found.', [
+                'shop' => $shopDomain,
+            ]);
+            return response('Shop not found', 404);
+        }
+        $data = json_decode($payload, true);
+        return response('OK', 200);
+    }
+
     public function upsertOrderFromWebhook(Request $request, string $action='create')
     {
         $payload = $request->getContent();
