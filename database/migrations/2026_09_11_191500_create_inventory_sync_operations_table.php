@@ -20,6 +20,8 @@ return new class extends Migration
             $table->string('shopify_location_id')->nullable();
             $table->string('amazon_sku')->nullable();
             $table->integer('desired_quantity');
+            $table->integer('baseline_quantity')->nullable();
+            $table->unsignedBigInteger('expected_inventory_version')->default(1);
             $table->string('source')->default('manual_ui');
             $table->string('status')->default('pending'); // pending, processing, completed, failed, superseded
             $table->string('stage')->default('pending'); // pending, shopify_completed, amazon_accepted, completed

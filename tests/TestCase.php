@@ -20,6 +20,8 @@ abstract class TestCase extends BaseTestCase
                 $table->string('shopify_location_id')->nullable();
                 $table->string('amazon_sku')->nullable();
                 $table->integer('desired_quantity');
+                $table->integer('baseline_quantity')->nullable();
+                $table->unsignedBigInteger('expected_inventory_version')->default(1);
                 $table->string('source')->default('manual_ui');
                 $table->string('status')->default('pending');
                 $table->string('stage')->default('pending');
@@ -40,6 +42,25 @@ abstract class TestCase extends BaseTestCase
                 $table->index(['status', 'processing_started_at'], 'idx_status_processing');
 
             });
+        }
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('product_marketplace_mappings') && !\Illuminate\Support\Facades\Schema::hasColumn('product_marketplace_mappings', 'inventory_version')) {
+            \Illuminate\Support\Facades\Schema::table('product_marketplace_mappings', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->unsignedBigInteger('inventory_version')->default(1);
+            });
+        }
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('inventory_sync_operations')) {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('inventory_sync_operations', 'baseline_quantity')) {
+                \Illuminate\Support\Facades\Schema::table('inventory_sync_operations', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->integer('baseline_quantity')->nullable();
+                });
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('inventory_sync_operations', 'expected_inventory_version')) {
+                \Illuminate\Support\Facades\Schema::table('inventory_sync_operations', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->unsignedBigInteger('expected_inventory_version')->default(1);
+                });
+            }
         }
     }
 }

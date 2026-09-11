@@ -50,6 +50,7 @@ beforeEach(function () {
             $table->string('amazon_marketplace_id')->nullable();
             $table->string('amazon_product_type')->nullable();
             $table->string('quantity')->nullable();
+            $table->unsignedBigInteger('inventory_version')->default(1);
             $table->string('sync_status')->default('pending');
             $table->string('submission_status')->default('not_submitted');
             $table->string('submission_id')->nullable();
@@ -61,6 +62,11 @@ beforeEach(function () {
             $table->unique(['shop_id', 'amazon_sku'], 'unique_shop_amazon_sku');
         });
     } else {
+        if (!Schema::hasColumn('product_marketplace_mappings', 'inventory_version')) {
+            Schema::table('product_marketplace_mappings', function (Blueprint $table) {
+                $table->unsignedBigInteger('inventory_version')->default(1);
+            });
+        }
         ProductMarketplaceMapping::truncate();
     }
 });
@@ -321,10 +327,23 @@ it('6. InventoryMappingController::updateShopifyInventory reports accurate user-
         'submission_status'         => 'not_submitted',
     ]);
 
-    // Mock Shopify HTTP calls
+    // Mock Shopify HTTP calls with dynamic state
+    $currentShopifyStock = 10;
     \Illuminate\Support\Facades\Http::fake([
-        '*/inventory_levels/set.json*' => \Illuminate\Support\Facades\Http::response(['inventory_level' => ['available' => 20]], 200),
-        '*/products.json*'             => \Illuminate\Support\Facades\Http::response(['products' => []], 200),
+        '*/inventory_levels/set.json*' => function (\Illuminate\Http\Client\Request $request) use (&$currentShopifyStock) {
+            $data = $request->data();
+            $currentShopifyStock = $data['available'] ?? 20;
+            return \Illuminate\Support\Facades\Http::response(['inventory_level' => ['available' => $currentShopifyStock]], 200);
+        },
+        '*/inventory_levels.json*' => function (\Illuminate\Http\Client\Request $request) use (&$currentShopifyStock) {
+            return \Illuminate\Support\Facades\Http::response([
+                'inventory_levels' => [
+                    ['inventory_item_id' => 'INV-506', 'location_id' => 'loc_123', 'available' => $currentShopifyStock]
+                ]
+            ], 200);
+        },
+        '*/products.json*' => \Illuminate\Support\Facades\Http::response(['products' => []], 200),
+        '*' => \Illuminate\Support\Facades\Http::response(['access_token' => 'dummy_token', 'expires_in' => 3600], 200),
     ]);
 
     // Test Success (Accepted) Flow

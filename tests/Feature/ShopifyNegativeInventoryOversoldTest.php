@@ -27,7 +27,20 @@ beforeEach(function () {
 
     Http::fake([
         '*graphql.json*'              => Http::response(['data' => ['currentAppInstallation' => ['activeSubscriptions' => [['id' => 'gid://shopify/AppSubscription/1', 'name' => 'Pro', 'status' => 'ACTIVE', 'currentPeriodEnd' => '2030-01-01T00:00:00Z']]]]], 200),
-        '*inventory_levels/set.json*' => Http::response(['inventory_level' => ['available' => 0]], 200),
+        '*inventory_levels/set.json*' => function (\Illuminate\Http\Client\Request $request) {
+            $data = $request->data();
+            $qty = $data['available'] ?? 0;
+            return Http::response(['inventory_level' => ['available' => $qty]], 200);
+        },
+        '*inventory_levels.json*'     => function (\Illuminate\Http\Client\Request $request) {
+            $params = [];
+            parse_str(parse_url($request->url(), PHP_URL_QUERY) ?? '', $params);
+            $itemId = $params['inventory_item_ids'] ?? null;
+            $locId = $params['location_ids'] ?? 'loc_101';
+            $mapping = $itemId ? \App\Models\ProductMarketplaceMapping::where('shopify_inventory_item_id', $itemId)->first() : null;
+            $qty = $mapping && $mapping->quantity !== null ? (int) $mapping->quantity : 0;
+            return Http::response(['inventory_levels' => [['inventory_item_id' => $itemId, 'location_id' => $locId, 'available' => $qty]]], 200);
+        },
         '*products.json*'             => Http::response(['products' => []], 200),
         '*'                           => Http::response(['access_token' => 'dummy_token', 'expires_in' => 3600], 200),
     ]);
@@ -82,6 +95,7 @@ beforeEach(function () {
             $table->string('amazon_marketplace_id')->nullable();
             $table->string('amazon_product_type')->nullable();
             $table->string('quantity')->nullable();
+            $table->unsignedBigInteger('inventory_version')->default(1);
             $table->string('sync_status')->default('pending');
             $table->string('submission_status')->default('not_submitted');
             $table->string('submission_id')->nullable();

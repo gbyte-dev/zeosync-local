@@ -25,7 +25,20 @@ beforeEach(function () {
     ]);
 
     Http::fake([
-        '*inventory_levels/set.json*' => Http::response(['inventory_level' => ['available' => 0]], 200),
+        '*inventory_levels/set.json*' => function (\Illuminate\Http\Client\Request $request) {
+            $data = $request->data();
+            $qty = $data['available'] ?? 0;
+            return Http::response(['inventory_level' => ['available' => $qty]], 200);
+        },
+        '*inventory_levels.json*'     => function (\Illuminate\Http\Client\Request $request) {
+            $params = [];
+            parse_str(parse_url($request->url(), PHP_URL_QUERY) ?? '', $params);
+            $itemId = $params['inventory_item_ids'] ?? null;
+            $locId = $params['location_ids'] ?? '10001';
+            $mapping = $itemId ? ProductMarketplaceMapping::where('shopify_inventory_item_id', (string) $itemId)->first() : null;
+            $qty = $mapping && $mapping->quantity !== null ? (int) $mapping->quantity : 10;
+            return Http::response(['inventory_levels' => [['inventory_item_id' => $itemId, 'location_id' => $locId, 'available' => $qty]]], 200);
+        },
         '*products.json*'             => Http::response(['products' => []], 200),
         '*'                           => Http::response(['access_token' => 'dummy_token', 'expires_in' => 3600], 200),
     ]);
@@ -78,6 +91,7 @@ beforeEach(function () {
             $table->string('amazon_marketplace_id')->nullable();
             $table->string('amazon_product_type')->nullable();
             $table->string('quantity')->nullable();
+            $table->unsignedBigInteger('inventory_version')->default(1);
             $table->string('sync_status')->default('pending');
             $table->string('submission_status')->default('not_submitted');
             $table->string('submission_id')->nullable();
@@ -454,6 +468,11 @@ it('Requirement 11: Manual Shopify inventory update while location 1 is selected
             expect($data['available'])->toBe(25);
             return Http::response(['inventory_level' => ['available' => 25]], 200);
         },
+        '*inventory_levels.json*' => Http::response([
+            'inventory_levels' => [
+                ['inventory_item_id' => 'ITEM-LOC-1', 'location_id' => '10002', 'available' => 10]
+            ]
+        ], 200),
         '*' => Http::response(['access_token' => 'dummy_token', 'expires_in' => 3600], 200),
     ]);
 
@@ -496,6 +515,11 @@ it('Requirement 12: Manual Shopify inventory update while location 2 is selected
             expect($data['available'])->toBe(40);
             return Http::response(['inventory_level' => ['available' => 40]], 200);
         },
+        '*inventory_levels.json*' => Http::response([
+            'inventory_levels' => [
+                ['inventory_item_id' => 'ITEM-LOC-2', 'location_id' => '10003', 'available' => 10]
+            ]
+        ], 200),
         '*' => Http::response(['access_token' => 'dummy_token', 'expires_in' => 3600], 200),
     ]);
 

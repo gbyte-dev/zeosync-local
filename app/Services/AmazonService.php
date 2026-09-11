@@ -400,6 +400,7 @@ class AmazonService
 
                         $mapping->update([
                             'quantity'          => $mappingQuantityToSave,
+                            'inventory_version' => ($mapping->inventory_version ?? 1) + 1,
                             'sync_status'       => 'success',
                             'submission_status' => 'accepted',
                             'submission_id'     => $submissionId ?? $mapping->submission_id,

@@ -141,6 +141,7 @@ beforeEach(function () {
             $table->string('shopify_variant_id')->nullable();
             $table->string('amazon_sku')->nullable();
             $table->integer('quantity')->default(0);
+            $table->unsignedBigInteger('inventory_version')->default(1);
             $table->timestamps();
         });
     }

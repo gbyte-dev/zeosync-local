@@ -460,10 +460,19 @@ class InventoryMappingController extends Controller
             ->where('shopify_inventory_item_id', $request->inventory_item_id)
             ->first();
 
+        $expectedVersion = (int) ($mapping?->inventory_version ?? 1);
+
+        $baselineQuantity = null;
+        if ($request->has('baseline_quantity') && $request->baseline_quantity !== null && $request->baseline_quantity !== '') {
+            $baselineQuantity = (int) $request->baseline_quantity;
+        } elseif ($mapping && $mapping->quantity !== null && $mapping->quantity !== '') {
+            $baselineQuantity = (int) $mapping->quantity;
+        }
+
         // -------------------------------------------------------------
         // TRANSACTIONAL OUTBOX: Persist desired final quantity in DB
         // -------------------------------------------------------------
-        $operation = DB::transaction(function () use ($shop, $mapping, $request, $locationId) {
+        $operation = DB::transaction(function () use ($shop, $mapping, $request, $locationId, $baselineQuantity, $expectedVersion) {
             // Latest-wins: Supersede any older pending operations for the same item
             InventorySyncOperation::where('shop_id', $shop->id)
                 ->where('shopify_inventory_item_id', (string) $request->inventory_item_id)
@@ -474,26 +483,28 @@ class InventoryMappingController extends Controller
                 ]);
 
             return InventorySyncOperation::create([
-                'operation_uuid'            => (string) Str::uuid(),
-                'shop_id'                   => $shop->id,
-                'mapping_id'                => $mapping?->id,
-                'shopify_inventory_item_id' => (string) $request->inventory_item_id,
-                'shopify_location_id'       => (string) $locationId,
-                'amazon_sku'                => $mapping?->amazon_sku,
-                'desired_quantity'          => (int) $request->quantity,
-                'source'                    => 'manual_ui',
-                'status'                    => 'pending',
-                'stage'                     => 'pending',
-                'attempts'                  => 0,
-                'max_attempts'              => 4,
-                'created_by'                => auth()->id(),
-                'last_dispatched_at'        => now(),
+                'operation_uuid'             => (string) Str::uuid(),
+                'shop_id'                    => $shop->id,
+                'mapping_id'                 => $mapping?->id,
+                'shopify_inventory_item_id'  => (string) $request->inventory_item_id,
+                'shopify_location_id'        => (string) $locationId,
+                'amazon_sku'                 => $mapping?->amazon_sku,
+                'desired_quantity'           => (int) $request->quantity,
+                'baseline_quantity'          => $baselineQuantity,
+                'expected_inventory_version' => $expectedVersion,
+                'source'                     => 'manual_ui',
+                'status'                     => 'pending',
+                'stage'                      => 'pending',
+                'attempts'                   => 0,
+                'max_attempts'               => 4,
+                'created_by'                 => auth()->id(),
+                'last_dispatched_at'         => now(),
             ]);
         });
 
 
-        // Dispatch background processing job after DB transaction commits
-        ProcessInventoryUpdateJob::dispatch($operation->id)->afterCommit();
+        // Dispatch background processing job after DB transaction has committed
+        ProcessInventoryUpdateJob::dispatch($operation->id);
 
         // Invalidate cache
         Cache::forget("shopify_inventory_{$shop->shop}_location_{$selectedIndex}");

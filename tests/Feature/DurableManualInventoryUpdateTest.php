@@ -27,7 +27,20 @@ beforeEach(function () {
 
     Http::fake([
         '*graphql.json*'              => Http::response(['data' => ['currentAppInstallation' => ['activeSubscriptions' => [['id' => 'gid://shopify/AppSubscription/1', 'name' => 'Pro', 'status' => 'ACTIVE', 'currentPeriodEnd' => '2030-01-01T00:00:00Z']]]]], 200),
-        '*inventory_levels/set.json*' => Http::response(['inventory_level' => ['available' => 25]], 200),
+        '*inventory_levels/set.json*' => function (\Illuminate\Http\Client\Request $request) {
+            $data = $request->data();
+            $qty = $data['available'] ?? 25;
+            return Http::response(['inventory_level' => ['available' => $qty]], 200);
+        },
+        '*inventory_levels.json*'     => function (\Illuminate\Http\Client\Request $request) {
+            $params = [];
+            parse_str(parse_url($request->url(), PHP_URL_QUERY) ?? '', $params);
+            $itemId = $params['inventory_item_ids'] ?? 12345;
+            $locId = $params['location_ids'] ?? 'loc_101';
+            $mapping = ProductMarketplaceMapping::where('shopify_inventory_item_id', (string) $itemId)->first();
+            $qty = $mapping && $mapping->quantity !== null ? (int) $mapping->quantity : 20;
+            return Http::response(['inventory_levels' => [['inventory_item_id' => $itemId, 'location_id' => $locId, 'available' => $qty]]], 200);
+        },
         '*products.json*'             => Http::response(['products' => []], 200),
         '*'                           => Http::response(['access_token' => 'dummy_token', 'expires_in' => 3600], 200),
     ]);
@@ -83,6 +96,7 @@ beforeEach(function () {
             $table->string('amazon_marketplace_id')->nullable();
             $table->string('amazon_product_type')->nullable();
             $table->string('quantity')->nullable();
+            $table->unsignedBigInteger('inventory_version')->default(1);
             $table->string('sync_status')->default('pending');
             $table->string('submission_status')->default('not_submitted');
             $table->string('submission_id')->nullable();
@@ -102,6 +116,8 @@ beforeEach(function () {
             $table->string('shopify_location_id')->nullable();
             $table->string('amazon_sku')->nullable();
             $table->integer('desired_quantity');
+            $table->integer('baseline_quantity')->nullable();
+            $table->unsignedBigInteger('expected_inventory_version')->default(1);
             $table->string('source')->default('manual_ui');
             $table->string('status')->default('pending');
             $table->string('stage')->default('pending');
@@ -121,6 +137,25 @@ beforeEach(function () {
             $table->index(['status', 'processing_started_at'], 'idx_status_processing');
             $table->index(['status', 'last_dispatched_at'], 'idx_status_dispatched');
         });
+    }
+
+    if (Schema::hasTable('product_marketplace_mappings') && !Schema::hasColumn('product_marketplace_mappings', 'inventory_version')) {
+        Schema::table('product_marketplace_mappings', function (Blueprint $table) {
+            $table->unsignedBigInteger('inventory_version')->default(1);
+        });
+    }
+
+    if (Schema::hasTable('inventory_sync_operations')) {
+        if (!Schema::hasColumn('inventory_sync_operations', 'baseline_quantity')) {
+            Schema::table('inventory_sync_operations', function (Blueprint $table) {
+                $table->integer('baseline_quantity')->nullable();
+            });
+        }
+        if (!Schema::hasColumn('inventory_sync_operations', 'expected_inventory_version')) {
+            Schema::table('inventory_sync_operations', function (Blueprint $table) {
+                $table->unsignedBigInteger('expected_inventory_version')->default(1);
+            });
+        }
     }
 
     Shop::query()->truncate();
@@ -489,7 +524,8 @@ test('12. Amazon transient failure throws exception to trigger queue retry while
         'shop_id'                   => $shop->id,
         'shopify_inventory_item_id' => 'item_amz_retry',
         'amazon_sku'                => 'RETRY-SKU',
-        'quantity'                  => '10',
+        'quantity'                  => '18',
+        'inventory_version'         => 2,
     ]);
 
     $operation = InventorySyncOperation::create([
@@ -732,7 +768,8 @@ test('19. worker crash after Shopify but before Amazon resumes at Amazon stage w
         'shop_id'                   => $shop->id,
         'shopify_inventory_item_id' => 'item_crash_2',
         'amazon_sku'                => 'CRASH-SKU',
-        'quantity'                  => '10',
+        'quantity'                  => '60',
+        'inventory_version'         => 2,
     ]);
 
     $op = InventorySyncOperation::create([
@@ -1389,7 +1426,8 @@ test('AUDIT 11. Shopify success + Amazon failure retries only Amazon stage', fun
         'shop_id'                   => $shop->id,
         'shopify_inventory_item_id' => 'item_audit_11',
         'amazon_sku'                => 'SKU-AUDIT-11',
-        'quantity'                  => '10',
+        'quantity'                  => '65',
+        'inventory_version'         => 2,
     ]);
 
     $op = InventorySyncOperation::create([

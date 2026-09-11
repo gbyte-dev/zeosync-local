@@ -48,6 +48,7 @@ beforeEach(function () {
             $table->string('amazon_marketplace_id')->nullable();
             $table->string('amazon_product_type')->nullable();
             $table->string('quantity')->nullable();
+            $table->unsignedBigInteger('inventory_version')->default(1);
             $table->string('sync_status')->default('pending');
             $table->string('submission_status')->default('not_submitted');
             $table->string('submission_id')->nullable();
@@ -59,6 +60,11 @@ beforeEach(function () {
             $table->unique(['shop_id', 'amazon_sku'], 'unique_shop_amazon_sku');
         });
     } else {
+        if (!Schema::hasColumn('product_marketplace_mappings', 'inventory_version')) {
+            Schema::table('product_marketplace_mappings', function (Blueprint $table) {
+                $table->unsignedBigInteger('inventory_version')->default(1);
+            });
+        }
         ProductMarketplaceMapping::truncate();
     }
 });

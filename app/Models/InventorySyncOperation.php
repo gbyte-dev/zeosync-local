@@ -20,6 +20,8 @@ class InventorySyncOperation extends Model
         'shopify_location_id',
         'amazon_sku',
         'desired_quantity',
+        'baseline_quantity',
+        'expected_inventory_version',
         'source',
         'status',
         'stage',
@@ -33,15 +35,17 @@ class InventorySyncOperation extends Model
     ];
 
     protected $casts = [
-        'shop_id'               => 'integer',
-        'mapping_id'            => 'integer',
-        'desired_quantity'      => 'integer',
-        'attempts'              => 'integer',
-        'max_attempts'          => 'integer',
-        'created_by'            => 'integer',
-        'last_dispatched_at'    => 'datetime',
-        'processing_started_at' => 'datetime',
-        'completed_at'          => 'datetime',
+        'shop_id'                    => 'integer',
+        'mapping_id'                 => 'integer',
+        'desired_quantity'           => 'integer',
+        'baseline_quantity'          => 'integer',
+        'expected_inventory_version' => 'integer',
+        'attempts'                   => 'integer',
+        'max_attempts'               => 'integer',
+        'created_by'                 => 'integer',
+        'last_dispatched_at'         => 'datetime',
+        'processing_started_at'      => 'datetime',
+        'completed_at'               => 'datetime',
     ];
 
     public function shop(): BelongsTo
@@ -81,7 +85,12 @@ class InventorySyncOperation extends Model
 
     public function isSuperseded(): bool
     {
-        return $this->status === 'superseded';
+        return in_array($this->status, ['superseded', 'stale_external_state'], true);
+    }
+
+    public function isStale(): bool
+    {
+        return in_array($this->status, ['superseded', 'stale_external_state'], true);
     }
 
 }

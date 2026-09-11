@@ -1372,7 +1372,7 @@ class ShopifyController extends Controller
             Log::warning('Rejected Shopify order webhook because shop was not found.', [
                 'shop' => $shopDomain,
             ]);
-            return response('Shop not found', 404);
+            return response('Shop not found', 200);
         }
  
         $data = json_decode($payload, true);
