@@ -7,7 +7,7 @@ embedded = true
 automatically_update_urls_on_dev = true
 
 [access_scopes]
-scopes = "read_products,write_products,read_orders,write_orders,read_inventory,write_inventory,read_locations,write_locations"
+scopes = "read_products,write_products,read_orders,write_orders,read_inventory,write_inventory,read_locations,write_locations,read_returns"
 optional_scopes = [
   "read_files",
   "write_files",
@@ -55,7 +55,7 @@ topics = ["orders/delete"]
 
 [[webhooks.subscriptions]]
 uri = "https://zeosync.app/webhooks/shopify/returns/create"
-topics = ["returns/create"]
+topics = ["returns/request"]
 
 [[webhooks.subscriptions]]
 uri = "https://zeosync.app/webhooks/shopify/returns/update"
