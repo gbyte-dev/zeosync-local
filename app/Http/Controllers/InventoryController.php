@@ -392,13 +392,27 @@ class InventoryController extends ShopifyController
 
         $amazonService = app(AmazonService::class);
 
-        return response()->json(
-            $amazonService->updateInventory(
+        try {
+            $response = $amazonService->updateInventory(
                 $shop,
                 $childSku,
                 (int) $request->quantity
-            )
-        );
+            );
+
+            return response()->json($response);
+        } catch (\Throwable $e) {
+            Log::error('Amazon manual quantity update failed', [
+                'shop_id'   => $shop->id,
+                'child_sku' => $childSku,
+                'quantity'  => $request->quantity,
+                'error'     => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error'   => true,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
 

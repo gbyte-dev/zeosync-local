@@ -285,127 +285,198 @@ class AmazonService
         $lock = Cache::lock($lockKey, 15);
 
         return $lock->block(10, function () use ($shop, $sku, $quantity) {
-            // Fetch latest listing
-            $listing = $this->checkAmazonListing($shop, $sku);
-
-            // Product Type
-            $productType =
-                $listing['summaries'][0]['productType']
-                ?? throw new \Exception("Product type not found for SKU: {$sku}");
-
-            // Fulfillment Channel
-            $fulfillmentChannel =
-                $listing['attributes']['fulfillment_availability'][0]['fulfillment_channel_code']
-                ?? 'DEFAULT';
-
-            // Connector
-            $connector = $this->getDbConnectorFromCredentials($shop);
-
-            // PATCH Body
-            $patchRequest = new ListingsItemPatchRequest(
-                productType: $productType,
-                patches: [
-                    new PatchOperation(
-                        op: 'replace',
-                        path: '/attributes/fulfillment_availability',
-                        value: [[
-                            'fulfillment_channel_code' => $fulfillmentChannel,
-                            'quantity' => $quantity,
-                        ]]
-                    )
-                ]
-            );
-
-            Log::info('Amazon Inventory PATCH Request', [
-                'seller_id'      => $shop->amazon_seller_id,
-                'marketplace_id' => $shop->amazon_marketplace_id,
-                'sku'            => $sku,
-                'product_type'   => $productType,
-                'quantity'       => $quantity,
-                'payload'        => $patchRequest->toArray(),
-            ]);
-
-            $response = $connector->patchListingsItem(
-                sellerId: $shop->amazon_seller_id,
-                sku: $sku,
-                listingsItemPatchRequest: $patchRequest,
-                marketplaceIds: [
-                    $shop->amazon_marketplace_id
-                ],
-                includedData: [
-                    'issues'
-                ]
-            );
-
-            $responseBody = $response->json();
-
-            Log::info('Amazon Inventory PATCH Response', [
-                'sku'    => $sku,
-                'status' => $response->status(),
-                'body'   => $responseBody,
-            ]);
-
             $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
                 ->where('amazon_sku', $sku)
                 ->first();
 
-            // Update DB only if Amazon update succeeded
-            if (
-                $mapping &&
-                $response->status() >= 200 &&
-                $response->status() < 300 &&
-                empty($responseBody['issues'])
-            ) {
-                $mapping->update([
-                    'quantity' => $quantity,
-                    'last_synced_at' => now(),
-                ]);
+            $requestSubmitted = false;
 
-                Log::info('Marketplace mapping quantity updated.', [
-                    'mapping_id' => $mapping->id,
-                    'sku'        => $sku,
-                    'quantity'   => $quantity,
-                ]);
+            try {
+                // Fetch latest listing
+                $listing = $this->checkAmazonListing($shop, $sku);
 
-                // Update Shopify Inventory
-                $shopify = new ShopifyService(
-                    $shop->shop,
-                    $shop->access_token
-                );
+                // Product Type
+                $productType =
+                    $listing['summaries'][0]['productType']
+                    ?? throw new \Exception("Product type not found for SKU: {$sku}");
 
-                $locations = $shop->shopify_locations ?? [];
-                $selectedIndex = $shop->selected_location_index;
+                // Fulfillment Channel
+                $fulfillmentChannel =
+                    $listing['attributes']['fulfillment_availability'][0]['fulfillment_channel_code']
+                    ?? 'DEFAULT';
 
-                $locationId = null;
+                // Connector
+                $connector = $this->getDbConnectorFromCredentials($shop);
 
-                if ($selectedIndex !== null && isset($locations[$selectedIndex])) {
-                    $locationId = $locations[$selectedIndex]['id'] ?? null;
-                }
-
-                if (!$locationId) {
-                    Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
-                        'shop_id' => $shop->id,
-                        'selected_location_index' => $selectedIndex,
-                    ]);
-
-                    throw new \Exception(
-                        'Please select a valid Shopify inventory location in Settings.'
-                    );
-                }
-
-                $shopify->shopifyRest(
-                    $shop,
-                    'post',
-                    'inventory_levels/set.json',
-                    [
-                        'location_id'       => $locationId,
-                        'inventory_item_id' => $mapping->shopify_inventory_item_id,
-                        'available'         => $quantity,
+                // PATCH Body
+                $patchRequest = new ListingsItemPatchRequest(
+                    productType: $productType,
+                    patches: [
+                        new PatchOperation(
+                            op: 'replace',
+                            path: '/attributes/fulfillment_availability',
+                            value: [[
+                                'fulfillment_channel_code' => $fulfillmentChannel,
+                                'quantity' => $quantity,
+                            ]]
+                        )
                     ]
                 );
-            }
 
-            return $responseBody;
+                Log::info('Amazon Inventory PATCH Request', [
+                    'seller_id'      => $shop->amazon_seller_id,
+                    'marketplace_id' => $shop->amazon_marketplace_id,
+                    'sku'            => $sku,
+                    'product_type'   => $productType,
+                    'quantity'       => $quantity,
+                    'payload'        => $patchRequest->toArray(),
+                ]);
+
+                $requestSubmitted = true;
+
+                $response = $connector->patchListingsItem(
+                    sellerId: $shop->amazon_seller_id,
+                    sku: $sku,
+                    listingsItemPatchRequest: $patchRequest,
+                    marketplaceIds: [
+                        $shop->amazon_marketplace_id
+                    ],
+                    includedData: [
+                        'issues'
+                    ]
+                );
+
+                $responseBody = $response->json() ?? [];
+
+                Log::info('Amazon Inventory PATCH Response', [
+                    'sku'    => $sku,
+                    'status' => $response->status(),
+                    'body'   => $responseBody,
+                ]);
+
+                $httpStatus = $response->status();
+                $amazonStatus = strtoupper((string) ($responseBody['status'] ?? ''));
+                $submissionId = $responseBody['submissionId'] ?? null;
+                $issues = $responseBody['issues'] ?? [];
+
+                // CASE B: HTTP 2xx but contains issues or status is not ACCEPTED (e.g. INVALID / REJECTED)
+                if ($httpStatus >= 200 && $httpStatus < 300 && (!empty($issues) || ($amazonStatus !== '' && $amazonStatus !== 'ACCEPTED'))) {
+                    $formattedIssues = array_map(function ($issue) {
+                        $severity = $issue['severity'] ?? 'ERROR';
+                        $code = $issue['code'] ?? 'ISSUE';
+                        $msg = $issue['message'] ?? 'Validation issue';
+                        return "{$severity} [{$code}]: {$msg}";
+                    }, $issues);
+
+                    $errorMessage = !empty($formattedIssues)
+                        ? implode('; ', $formattedIssues)
+                        : ($responseBody['message'] ?? 'Amazon rejected the inventory update submission.');
+
+                    if ($mapping) {
+                        $mapping->update([
+                            'sync_status'       => 'failed',
+                            'submission_status' => 'rejected',
+                            'submission_id'     => $submissionId ?? $mapping->submission_id,
+                            'error_message'     => $errorMessage,
+                        ]);
+                    }
+
+                    throw new \Exception($errorMessage);
+                }
+
+                // CASE A: HTTP 2xx and ACCEPTED with no issues
+                if (
+                    $httpStatus >= 200 &&
+                    $httpStatus < 300 &&
+                    empty($issues)
+                ) {
+                    if ($mapping) {
+                        $mapping->update([
+                            'quantity'          => $quantity,
+                            'sync_status'       => 'success',
+                            'submission_status' => 'accepted',
+                            'submission_id'     => $submissionId ?? $mapping->submission_id,
+                            'last_synced_at'    => now(),
+                            'error_message'     => null,
+                        ]);
+
+                        Log::info('Marketplace mapping quantity updated.', [
+                            'mapping_id'        => $mapping->id,
+                            'sku'               => $sku,
+                            'quantity'          => $quantity,
+                            'submission_status' => 'accepted',
+                            'submission_id'     => $submissionId,
+                        ]);
+
+                        // Update Shopify Inventory
+                        $shopify = new ShopifyService(
+                            $shop->shop,
+                            $shop->access_token
+                        );
+
+                        $locations = $shop->shopify_locations ?? [];
+                        $selectedIndex = $shop->selected_location_index;
+
+                        $locationId = null;
+
+                        if ($selectedIndex !== null && isset($locations[$selectedIndex])) {
+                            $locationId = $locations[$selectedIndex]['id'] ?? null;
+                        }
+
+                        if (!$locationId) {
+                            Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
+                                'shop_id' => $shop->id,
+                                'selected_location_index' => $selectedIndex,
+                            ]);
+
+                            throw new \Exception(
+                                'Please select a valid Shopify inventory location in Settings.'
+                            );
+                        }
+
+                        $shopify->shopifyRest(
+                            $shop,
+                            'post',
+                            'inventory_levels/set.json',
+                            [
+                                'location_id'       => $locationId,
+                                'inventory_item_id' => $mapping->shopify_inventory_item_id,
+                                'available'         => $quantity,
+                            ]
+                        );
+                    }
+
+                    return $responseBody;
+                }
+
+                // Any other non-2xx status without an exception
+                $errorMsg = $responseBody['message'] ?? "Amazon API returned status code {$httpStatus}";
+                if ($mapping) {
+                    $mapping->update([
+                        'sync_status'       => 'failed',
+                        'submission_status' => 'failed',
+                        'submission_id'     => $submissionId ?? $mapping->submission_id,
+                        'error_message'     => $errorMsg,
+                    ]);
+                }
+
+                throw new \Exception($errorMsg);
+            } catch (\Throwable $e) {
+                if ($mapping) {
+                    $freshMapping = $mapping->fresh();
+                    $currentSubmissionStatus = $freshMapping?->submission_status;
+                    if ($currentSubmissionStatus !== 'rejected') {
+                        $newSubmissionStatus = $requestSubmitted ? 'failed' : 'not_submitted';
+                        $mapping->update([
+                            'sync_status'       => 'failed',
+                            'submission_status' => $newSubmissionStatus,
+                            'error_message'     => $e->getMessage(),
+                        ]);
+                    }
+                }
+
+                throw $e;
+            }
         });
     }
 

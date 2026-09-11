@@ -497,20 +497,24 @@ class InventoryMappingController extends Controller
         if ($mapping) {
             try {
 
-                app(AmazonService::class)->updateInventory(
+                $amazonResult = app(AmazonService::class)->updateInventory(
                     $shop,
                     $mapping->amazon_sku,
                     (int) $request->quantity
                 );
 
+                $submissionId = $amazonResult['submissionId'] ?? ($mapping->fresh()?->submission_id ?? null);
+
                 $mapping->update([
-                    'quantity'       => (int) $request->quantity,
-                    'sync_status'    => 'success',
-                    'last_synced_at' => now(),
-                    'error_message'  => null,
+                    'quantity'          => (int) $request->quantity,
+                    'sync_status'       => 'success',
+                    'submission_status' => 'accepted',
+                    'submission_id'     => $submissionId,
+                    'last_synced_at'    => now(),
+                    'error_message'     => null,
                 ]);
 
-                $message = 'Shopify and Amazon inventory updated successfully.';
+                $message = 'Shopify and Amazon inventory updated successfully. Amazon accepted the inventory update.';
             } catch (\Throwable $e) {
 
                 \Log::error('Amazon inventory sync failed', [
@@ -521,12 +525,19 @@ class InventoryMappingController extends Controller
                     'message'           => $e->getMessage(),
                 ]);
 
+                $freshMapping = $mapping->fresh();
+                $submissionStatus = $freshMapping?->submission_status ?? 'failed';
+                if ($submissionStatus !== 'rejected') {
+                    $submissionStatus = 'failed';
+                }
+
                 $mapping->update([
-                    'sync_status'   => 'failed',
-                    'error_message' => $e->getMessage(),
+                    'sync_status'       => 'failed',
+                    'submission_status' => $submissionStatus,
+                    'error_message'     => $e->getMessage(),
                 ]);
 
-                $message = 'Shopify inventory updated successfully. Amazon sync failed.';
+                $message = 'Shopify inventory updated successfully. Amazon sync failed: ' . $e->getMessage();
             }
         }
 
