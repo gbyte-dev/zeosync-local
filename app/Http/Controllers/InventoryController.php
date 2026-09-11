@@ -149,7 +149,7 @@ class InventoryController extends ShopifyController
 
         // Overlay authoritative database mapping state onto cached Amazon products
         $mappings = ProductMarketplaceMapping::where('shop_id', $shop->id)
-            ->get(['id', 'amazon_sku', 'shopify_variant_id', 'shopify_product_id'])
+            ->get(['id', 'amazon_sku', 'shopify_variant_id', 'shopify_product_id', 'quantity'])
             ->keyBy(fn($m) => (string) $m->amazon_sku);
 
         if (is_array($products)) {
@@ -165,6 +165,9 @@ class InventoryController extends ShopifyController
                 $item['mapping_id'] = $isMapped ? $mapping->id : null;
                 $item['mapped_shopify_variant_id'] = $isMapped ? $mapping->shopify_variant_id : null;
                 $item['mapped_shopify_product_id'] = $isMapped ? $mapping->shopify_product_id : null;
+                if ($isMapped && $mapping->quantity !== null && $mapping->quantity !== '') {
+                    $item['quantity'] = (int) $mapping->quantity;
+                }
             }
             unset($item);
         }

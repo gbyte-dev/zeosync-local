@@ -118,8 +118,11 @@ class AmazonInventoryReportService
     /**
      * Step 4
      */
-    public function parseReport(string $content, Shop $shop): array
-    {
+    public function parseReport(
+        string $content,
+        Shop $shop,
+        ?\Carbon\Carbon $reportSnapshotTime = null
+    ): array {
         $lines = preg_split("/\r\n|\n|\r/", trim($content));
 
         $header = array_map(function ($column) {
@@ -160,7 +163,29 @@ class AmazonInventoryReportService
                 && !empty($mapping->shopify_variant_id)
                 && !empty($mapping->amazon_sku);
 
+            $reportQty = (int) ($row['quantity'] ?? 0);
+            $finalQty = $reportQty;
 
+            if ($isMapped && !empty($mapping->last_synced_at) && $reportSnapshotTime) {
+                try {
+                    $lastSynced = \Carbon\Carbon::parse($mapping->last_synced_at);
+                    if ($lastSynced->greaterThan($reportSnapshotTime) && $mapping->quantity !== null && $mapping->quantity !== '') {
+                        $finalQty = (int) $mapping->quantity;
+                        Log::info('Stale Amazon report quantity overridden by more recent manual DB sync', [
+                            'shop_id'              => $shop->id,
+                            'sku'                  => $row['seller-sku'] ?? null,
+                            'report_quantity'      => $reportQty,
+                            'mapping_quantity'     => $finalQty,
+                            'last_synced_at'       => $mapping->last_synced_at,
+                            'report_snapshot_time' => $reportSnapshotTime->toDateTimeString(),
+                        ]);
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to compare last_synced_at timestamp during report parsing', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
 
             $products[] = [
                 'listing_id'          => $row['listing-id'] ?? null,
@@ -169,7 +194,7 @@ class AmazonInventoryReportService
                 'description'         => $row['item-description'] ?? null,
                 'asin'                => $row['asin1'] ?? null,
                 'price'               => $row['price'] ?? null,
-                'quantity'            => (int) ($row['quantity'] ?? 0),
+                'quantity'            => $finalQty,
                 'status'              => $row['status'] ?? null,
                 'fulfillment_channel' => $row['fulfillment-channel'] ?? null,
                 'shipping_group'      => $row['merchant-shipping-group'] ?? null,
@@ -194,6 +219,7 @@ class AmazonInventoryReportService
         $this->updateProgress($shop, 0, 'Preparing...');
         $this->updateProgress($shop, 10, 'Creating Report...');
 
+        $reportSnapshotTime = now();
         $report = $this->createReport($shop, $marketplaceId);
         $reportId = $report['reportId'];
 
@@ -203,6 +229,14 @@ class AmazonInventoryReportService
             sleep(5);
             $status = $this->getReport($shop, $reportId);
         } while (($status['processingStatus'] ?? '') !== 'DONE');
+
+        if (!empty($status['createdTime'])) {
+            try {
+                $reportSnapshotTime = \Carbon\Carbon::parse($status['createdTime']);
+            } catch (\Throwable) {
+                // Fallback to recorded $reportSnapshotTime
+            }
+        }
 
         $this->updateProgress($shop, 60, 'Downloading Report...');
 
@@ -219,7 +253,7 @@ class AmazonInventoryReportService
 
         $this->updateProgress($shop, 95, 'Parsing Inventory...');
 
-        $rows = $this->parseReport($content, $shop);
+        $rows = $this->parseReport($content, $shop, $reportSnapshotTime);
 
         $inventoryCacheKey = "amazon_inventory_{$shop->id}_{$marketplaceId}";
         $statusCacheKey = "amazon_inventory_status_{$shop->id}_{$marketplaceId}";

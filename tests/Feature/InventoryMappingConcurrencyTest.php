@@ -17,9 +17,19 @@ beforeEach(function () {
         Schema::create('shops', function (Blueprint $table) {
             $table->id();
             $table->string('shop')->unique();
+            $table->string('shop_name')->nullable();
             $table->string('email')->nullable();
-            $table->string('access_token')->nullable();
+            $table->text('access_token')->nullable();
+            $table->timestamp('access_token_expires_at')->nullable();
+            $table->text('refresh_token')->nullable();
+            $table->timestamp('refresh_token_expires_at')->nullable();
+            $table->json('shopify_locations')->nullable();
+            $table->integer('selected_location_index')->nullable();
+            $table->string('amazon_marketplace_id')->nullable();
+            $table->string('amazon_mws_region')->nullable();
+            $table->text('amazon_refresh_token')->nullable();
             $table->boolean('is_active')->default(1);
+            $table->softDeletes();
             $table->timestamps();
         });
     }
@@ -556,4 +566,221 @@ it('returns updated sync_usage and quota counts on saveProductMapping, saveAmazo
         ->and($data4['sync_usage']['used'])->toBe(1)
         ->and($data4['sync_usage']['remaining'])->toBe(49);
 });
+
+/* =========================================================================
+ * 5. CONCURRENCY & STALE REPORT PROTECTION TESTS (PART 1 - PART 3)
+ * ========================================================================= */
+
+it('A & B: per-SKU lock serializes concurrent updates for same SKU while allowing different SKUs', function () {
+    $shop = Shop::create([
+        'id'           => 401,
+        'shop'         => 'sku-lock-test.myshopify.com',
+        'access_token' => 'token-401',
+        'is_active'    => 1,
+    ]);
+
+    // Acquire lock for SKU A manually to simulate an active in-flight update
+    $skuALock = Cache::lock("inventory_sku_lock_{$shop->id}_SKU-A", 10);
+    expect($skuALock->get())->toBeTrue();
+
+    // SKU A cannot acquire another lock immediately
+    $skuASecondLock = Cache::lock("inventory_sku_lock_{$shop->id}_SKU-A", 10);
+    expect($skuASecondLock->get())->toBeFalse();
+
+    // SKU B in the SAME shop can acquire its own lock without being blocked
+    $skuBLock = Cache::lock("inventory_sku_lock_{$shop->id}_SKU-B", 10);
+    expect($skuBLock->get())->toBeTrue();
+
+    $skuALock->release();
+    $skuBLock->release();
+});
+
+it('C: same SKU in different shops does NOT share a lock (tenant isolation)', function () {
+    $shop1 = Shop::create([
+        'id'           => 402,
+        'shop'         => 'tenant1.myshopify.com',
+        'access_token' => 'token-402',
+        'is_active'    => 1,
+    ]);
+
+    $shop2 = Shop::create([
+        'id'           => 403,
+        'shop'         => 'tenant2.myshopify.com',
+        'access_token' => 'token-403',
+        'is_active'    => 1,
+    ]);
+
+    $sameSku = 'SHARED-SKU-99';
+
+    // Lock SKU in Shop 1
+    $shop1Lock = Cache::lock("inventory_sku_lock_{$shop1->id}_{$sameSku}", 10);
+    expect($shop1Lock->get())->toBeTrue();
+
+    // Shop 2 can acquire lock for the exact same SKU name independently
+    $shop2Lock = Cache::lock("inventory_sku_lock_{$shop2->id}_{$sameSku}", 10);
+    expect($shop2Lock->get())->toBeTrue();
+
+    $shop1Lock->release();
+    $shop2Lock->release();
+});
+
+it('D: existing Amazon refresh lock in InventoryCacheService prevents duplicate concurrent refreshes', function () {
+    $shop = Shop::create([
+        'id'                    => 404,
+        'shop'                  => 'refresh-lock.myshopify.com',
+        'access_token'          => 'token-404',
+        'amazon_marketplace_id' => 'ATVPDKIKX0DER',
+        'is_active'             => 1,
+    ]);
+
+    $refreshLockKey = "amazon_inventory_lock_{$shop->id}_ATVPDKIKX0DER";
+    $lock = Cache::lock($refreshLockKey, 300);
+    expect($lock->get())->toBeTrue();
+
+    // Second refresh lock attempt fails
+    $secondLock = Cache::lock($refreshLockKey, 300);
+    expect($secondLock->get())->toBeFalse();
+
+    $lock->release();
+});
+
+it('E: stale Amazon report does NOT overwrite a newer successful manual quantity in parseReport', function () {
+    $shop = Shop::create([
+        'id'           => 405,
+        'shop'         => 'stale-report.myshopify.com',
+        'access_token' => 'token-405',
+        'is_active'    => 1,
+    ]);
+
+    // Create DB mapping updated at T1 (e.g. 1 minute ago) with quantity 50
+    $mapping = ProductMarketplaceMapping::create([
+        'shop_id'            => $shop->id,
+        'shopify_variant_id' => 'V-405',
+        'amazon_sku'         => 'SKU-STALE-CHECK',
+        'quantity'           => 50,
+        'last_synced_at'     => now()->subMinute(),
+    ]);
+
+    // TSV content from an older Amazon report snapshot taken at T0 (2 minutes ago) with quantity 10
+    $reportContent = "seller-sku\titem-name\titem-description\tlisting-id\tasin1\tprice\tquantity\tstatus\tfulfillment-channel\tmerchant-shipping-group\n" .
+        "SKU-STALE-CHECK\tTest Product\tDesc\tL1\tB001\t19.99\t10\tActive\tDEFAULT\tDEFAULT";
+
+    $reportSnapshotTime = now()->subMinutes(2);
+
+    $reportService = app(\App\Services\AmazonInventoryReportService::class);
+    $products = $reportService->parseReport($reportContent, $shop, $reportSnapshotTime);
+
+    expect($products)->toBeArray()->toHaveCount(1);
+    // Because mapping.last_synced_at (now - 1m) > reportSnapshotTime (now - 2m), DB quantity (50) is preserved!
+    expect($products[0]['quantity'])->toBe(50);
+    expect($products[0]['is_mapped'])->toBeTrue();
+});
+
+it('F: newer Amazon report updates quantity normally in parseReport', function () {
+    $shop = Shop::create([
+        'id'           => 406,
+        'shop'         => 'fresh-report.myshopify.com',
+        'access_token' => 'token-406',
+        'is_active'    => 1,
+    ]);
+
+    // Create DB mapping updated at T0 (5 minutes ago) with quantity 50
+    $mapping = ProductMarketplaceMapping::create([
+        'shop_id'            => $shop->id,
+        'shopify_variant_id' => 'V-406',
+        'amazon_sku'         => 'SKU-FRESH-CHECK',
+        'quantity'           => 50,
+        'last_synced_at'     => now()->subMinutes(5),
+    ]);
+
+    // TSV content from a fresh Amazon report snapshot taken at T1 (1 minute ago) with quantity 75
+    $reportContent = "seller-sku\titem-name\titem-description\tlisting-id\tasin1\tprice\tquantity\tstatus\tfulfillment-channel\tmerchant-shipping-group\n" .
+        "SKU-FRESH-CHECK\tTest Product\tDesc\tL1\tB001\t19.99\t75\tActive\tDEFAULT\tDEFAULT";
+
+    $reportSnapshotTime = now()->subMinute();
+
+    $reportService = app(\App\Services\AmazonInventoryReportService::class);
+    $products = $reportService->parseReport($reportContent, $shop, $reportSnapshotTime);
+
+    expect($products)->toBeArray()->toHaveCount(1);
+    // Because reportSnapshotTime (now - 1m) > mapping.last_synced_at (now - 5m), report quantity (75) is used!
+    expect($products[0]['quantity'])->toBe(75);
+    expect($products[0]['is_mapped'])->toBeTrue();
+});
+
+it('G: unmapped products always use raw Amazon report quantity in parseReport', function () {
+    $shop = Shop::create([
+        'id'           => 407,
+        'shop'         => 'unmapped-report.myshopify.com',
+        'access_token' => 'token-407',
+        'is_active'    => 1,
+    ]);
+
+    $reportContent = "seller-sku\titem-name\titem-description\tlisting-id\tasin1\tprice\tquantity\tstatus\tfulfillment-channel\tmerchant-shipping-group\n" .
+        "SKU-UNMAPPED-99\tRaw Product\tDesc\tL1\tB001\t9.99\t33\tActive\tDEFAULT\tDEFAULT";
+
+    $reportSnapshotTime = now();
+
+    $reportService = app(\App\Services\AmazonInventoryReportService::class);
+    $products = $reportService->parseReport($reportContent, $shop, $reportSnapshotTime);
+
+    expect($products)->toBeArray()->toHaveCount(1);
+    expect($products[0]['quantity'])->toBe(33);
+    expect($products[0]['is_mapped'])->toBeFalse();
+});
+
+it('H: authoritative DB quantity overlays onto cached Amazon inventory in InventoryController::amazon', function () {
+    $shop = Shop::create([
+        'id'                    => 408,
+        'shop'                  => 'authoritative-overlay.myshopify.com',
+        'access_token'          => 'token-408',
+        'amazon_marketplace_id' => 'ATVPDKIKX0DER',
+        'is_active'             => 1,
+    ]);
+
+    // 1. Put cached Amazon inventory with stale quantity 10
+    Cache::forever("amazon_inventory_{$shop->id}_ATVPDKIKX0DER", [
+        [
+            'sku'                       => 'SKU-OVERLAY-1',
+            'title'                     => 'Cached Product',
+            'quantity'                  => 10,
+            'is_mapped'                 => false,
+            'mapped_shopify_product_id' => null,
+            'mapped_shopify_variant_id' => null,
+            'mapping_id'                => null,
+        ]
+    ]);
+    Cache::forever("amazon_inventory_status_{$shop->id}_ATVPDKIKX0DER", [
+        'refreshing'     => false,
+        'sync_completed' => true,
+        'cache_version'  => 1,
+        'last_synced_at' => now()->toDateTimeString(),
+    ]);
+
+    // 2. DB mapping has confirmed manual update quantity 99
+    ProductMarketplaceMapping::create([
+        'shop_id'            => $shop->id,
+        'shopify_product_id' => 'P-408',
+        'shopify_variant_id' => 'V-408',
+        'amazon_sku'         => 'SKU-OVERLAY-1',
+        'quantity'           => 99,
+        'last_synced_at'     => now(),
+    ]);
+
+    $controller = app(\App\Http\Controllers\InventoryController::class);
+    $request = Request::create('/inventory/amazon', 'GET');
+    $request->attributes->set('active_shop_model', $shop);
+
+    $response = $controller->amazon($request);
+    expect($response->getStatusCode())->toBe(200);
+
+    $data = $response->getData(true);
+    $products = $data['products'] ?? [];
+    expect($products)->toHaveCount(1);
+    expect($products[0]['sku'])->toBe('SKU-OVERLAY-1');
+    expect($products[0]['is_mapped'])->toBeTrue();
+    // Authoritative DB mapping quantity 99 overlays stale cached quantity 10
+    expect($products[0]['quantity'])->toBe(99);
+});
+
 
