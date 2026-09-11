@@ -74,9 +74,7 @@ class ResolveActiveShop
                 if (
                     !$isActivated &&
                     !$request->routeIs('setup.form') &&
-                    !$request->routeIs('setup.store') &&
-                    !$request->routeIs('shopify.callback') &&
-                    !$request->routeIs('shopify.install')
+                    !$request->routeIs('setup.store')
                 ) {
                     return redirect()
                         ->route('setup.form', [
