@@ -12,8 +12,7 @@ class ShopifyInventoryService
 {
     public function getInventory(Shop $shop): array
     {
-        // $cacheKey = "shopify_inventory_{$shop->shop}";
-        $cacheKey = "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}";
+        $cacheKey = "shopify_inventory_{$shop->shop}_location_0";
 
         return Cache::remember(
             $cacheKey,
@@ -95,21 +94,16 @@ class ShopifyInventoryService
         $selectedLocationId = null;
 
         $locations = $shop->shopify_locations ?? [];
-        $selectedIndex = $shop->selected_location_index;
-        Log::info('SHOPIFY INVENTORY LOCATION DEBUG', [
-            'shop_id' => $shop->id,
-            'selected_location_index' => $selectedIndex,
-            'locations' => $locations,
-        ]);
+        $mainLocation = $locations[0] ?? null;
 
-        if ($selectedIndex !== null && isset($locations[$selectedIndex])) {
-            $selectedLocationId = (string) ($locations[$selectedIndex]['id'] ?? '');
+        if ($mainLocation && !empty($mainLocation['id'])) {
+            $selectedLocationId = (string) $mainLocation['id'];
         }
 
-        Log::info('SHOPIFY SELECTED LOCATION RESOLVED', [
+        Log::info('SHOPIFY SELECTED MAIN LOCATION RESOLVED', [
             'shop_id' => $shop->id,
-            'selected_location_index' => $selectedIndex,
             'selected_location_id' => $selectedLocationId,
+            'main_location' => $mainLocation,
         ]);
 
         $mappings = ProductMarketplaceMapping::where(
@@ -252,7 +246,7 @@ class ShopifyInventoryService
     }
     public function isExpired(Shop $shop): bool
     {
-        $cacheKey = "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}";
+        $cacheKey = "shopify_inventory_{$shop->shop}_location_0";
 
         return !Cache::has($cacheKey);
     }

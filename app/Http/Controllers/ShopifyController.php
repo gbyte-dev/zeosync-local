@@ -445,7 +445,7 @@ class ShopifyController extends Controller
 
                 $shopModel->update([
                     'shopify_locations' => $locations,
-                    'selected_location_index' => null,
+                    'selected_location_index' => !empty($locations) ? 0 : null,
                 ]);
 
                 Log::info('SHOPIFY LOCATIONS SAVED', [
@@ -2747,9 +2747,9 @@ class ShopifyController extends Controller
     protected function getSelectedShopifyLocationId(Shop $shop): ?int
     {
         $locations = $shop->shopify_locations ?? [];
-        $index = $shop->selected_location_index;
+        $index = $shop->selected_location_index ?? 0;
 
-        if ($index === null || !isset($locations[$index])) {
+        if (!isset($locations[$index])) {
             Log::warning('SHOPIFY LOCATION NOT SELECTED', [
                 'shop_id' => $shop->id,
                 'selected_location_index' => $index,

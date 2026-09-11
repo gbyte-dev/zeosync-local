@@ -416,11 +416,11 @@ class AmazonService
                         );
 
                         $locations = $shop->shopify_locations ?? [];
-                        $selectedIndex = $shop->selected_location_index;
+                        $selectedIndex = $shop->selected_location_index ?? 0;
 
                         $locationId = null;
 
-                        if ($selectedIndex !== null && isset($locations[$selectedIndex])) {
+                        if (isset($locations[$selectedIndex])) {
                             $locationId = $locations[$selectedIndex]['id'] ?? null;
                         }
 

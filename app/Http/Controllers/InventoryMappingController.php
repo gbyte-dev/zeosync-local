@@ -436,25 +436,19 @@ class InventoryMappingController extends Controller
             $shop->access_token
         );
 
-        // Get Shopify Location
+        // Always use Main Shopify Location (index 0) for Inventory flow
         $locations = $shop->shopify_locations ?? [];
-        $selectedIndex = $shop->selected_location_index;
-
-        $locationId = null;
-
-        if ($selectedIndex !== null && isset($locations[$selectedIndex])) {
-            $locationId = $locations[$selectedIndex]['id'] ?? null;
-        }
+        $mainLocation = $locations[0] ?? null;
+        $locationId = $mainLocation['id'] ?? null;
 
         if (!$locationId) {
-            Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
+            Log::warning('SHOPIFY MAIN LOCATION NOT FOUND', [
                 'shop_id' => $shop->id,
-                'selected_location_index' => $selectedIndex,
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Please select a valid Shopify inventory location in Settings.'
+                'message' => 'No Shopify location found for this store.'
             ], 422);
         }
 
@@ -478,7 +472,7 @@ class InventoryMappingController extends Controller
         }
 
         Cache::forget(
-            "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}"
+            "shopify_inventory_{$shop->shop}_location_0"
         );
 
         // Check existing mapping scoped strictly to active shop

@@ -179,7 +179,7 @@ class InventoryController extends ShopifyController
             ->handle(
                 $shop,
                 Cache::get(
-                    "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}",
+                    "shopify_inventory_{$shop->shop}_location_0",
                     []
                 ),
                 $data
@@ -240,7 +240,10 @@ class InventoryController extends ShopifyController
         $type = $request->type;
 
         if ($type === 'shopify') {
-            Cache::forget("shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}" );
+            Cache::forget("shopify_inventory_{$shop->shop}_location_0");
+            if ($shop->selected_location_index !== null) {
+                Cache::forget("shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}");
+            }
         } elseif ($type === 'amazon') {
 
             $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
