@@ -827,7 +827,9 @@
             if (original === 'inactive' || original === 'incomplete') return 'pending';
         }
         if (original === 'synced') return 'synced';
+        if (original === 'out_of_stock') return 'out_of_stock';
         if (original === 'pending') return 'pending';
+        if (original === 'unknown') return 'unknown';
         return 'error';
     }
 
@@ -985,8 +987,12 @@
         switch (mapped) {
             case 'synced':
                 return `<span class="soft-badge bg-success-subtle text-success">Synced</span>`;
+            case 'out_of_stock':
+                return `<span class="soft-badge bg-danger-subtle text-danger">Out of Stock</span>`;
             case 'pending':
                 return `<span class="soft-badge bg-warning-subtle text-warning">Pending</span>`;
+            case 'unknown':
+                return `<span class="soft-badge bg-secondary-subtle text-secondary">Unknown</span>`;
             default:
                 return `<span class="soft-badge bg-danger-subtle text-danger">Error</span>`;
         }
@@ -1203,8 +1209,10 @@
                     {
                         data: 'available',
                         render: function(data, type, row) {
-                            if (type === 'sort' || type === 'filter') return row.available || 0;
-                            return `<input type="number" value="${row.available || 0}" class="form-control form-control-sm qty-input">`;
+                            if (type === 'sort' || type === 'filter') return (row.available !== null && row.available !== undefined) ? row.available : -1;
+                            const availableVal = (row.available !== null && row.available !== undefined) ? row.available : '';
+                            const availablePlaceholder = (row.available === null || row.available === undefined) ? 'Unknown' : '';
+                            return `<input type="number" value="${availableVal}" placeholder="${availablePlaceholder}" class="form-control form-control-sm qty-input" min="0">`;
                         }
                     },
                     {
@@ -1581,6 +1589,12 @@
         const inventoryItemId = button.data('inventory-item');
         const quantity = qtyInput.val();
         const shop = new URLSearchParams(window.location.search).get('shop');
+
+        if (quantity === '' || quantity === null || quantity === undefined) {
+            showToast('Please enter a valid numeric quantity before updating.', 'warning');
+            qtyInput.focus();
+            return;
+        }
 
         button.prop('disabled', true).text('Updating...');
         qtyInput.prop('disabled', true);

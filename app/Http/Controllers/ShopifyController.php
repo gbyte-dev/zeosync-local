@@ -1460,6 +1460,15 @@ class ShopifyController extends Controller
                     continue;
                 }
 
+                if ($mapping->quantity === null || $mapping->quantity === '') {
+                    Log::info('Skipping Amazon inventory sync: mapping quantity is unknown/null.', [
+                        'shop_id' => $shopModel->id,
+                        'variant_id' => $variantId,
+                        'amazon_sku' => $mapping->amazon_sku,
+                    ]);
+                    continue;
+                }
+
                 $newQuantity = max(0, ((int) $mapping->quantity) - ((int) $orderedQty));
 
                 try {

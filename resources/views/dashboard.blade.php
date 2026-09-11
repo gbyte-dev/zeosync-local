@@ -446,12 +446,18 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                                 </td>
 
                                 <td class="text-end">
-                                    @php $qty = $product['available'] ?? 0; @endphp
+                                    @php $qty = $product['available'] ?? null; @endphp
 
+                                    @if($qty !== null)
                                     <span class="saas-badge
             {{ $qty <= 3 ? 'saas-badge-danger' : ($qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral') }}">
                                         {{ $qty }}
                                     </span>
+                                    @else
+                                    <span class="saas-badge saas-badge-neutral">
+                                        Unknown
+                                    </span>
+                                    @endif
                                 </td>
                             </tr>
                             @empty

@@ -123,12 +123,14 @@ class ShopifyInventoryService
 
             foreach ($product['variants']['nodes'] ?? [] as $variant) {
 
-                $qty = $variant['inventoryQuantity'] ?? 0;
+                $qty = isset($variant['inventoryQuantity']) && $variant['inventoryQuantity'] !== null
+                    ? (int) $variant['inventoryQuantity']
+                    : null;
 
-                $available = 0;
-                $committed = 0;
-                $onHand = 0;
-                $unavailable = 0;
+                $available = null;
+                $committed = null;
+                $onHand = null;
+                $unavailable = null;
 
                 $levels = $variant['inventoryItem']['inventoryLevels']['nodes'] ?? [];
 
@@ -166,20 +168,22 @@ class ShopifyInventoryService
 
                     foreach ($selectedLevel['quantities'] ?? [] as $q) {
 
-                        if ($q['name'] === 'available') {
-                            $available = $q['quantity'];
+                        if ($q['name'] === 'available' && isset($q['quantity']) && $q['quantity'] !== null) {
+                            $available = (int) $q['quantity'];
                         }
 
-                        if ($q['name'] === 'committed') {
-                            $committed = $q['quantity'];
+                        if ($q['name'] === 'committed' && isset($q['quantity']) && $q['quantity'] !== null) {
+                            $committed = (int) $q['quantity'];
                         }
 
-                        if ($q['name'] === 'on_hand') {
-                            $onHand = $q['quantity'];
+                        if ($q['name'] === 'on_hand' && isset($q['quantity']) && $q['quantity'] !== null) {
+                            $onHand = (int) $q['quantity'];
                         }
                     }
 
-                    $unavailable = $onHand - $available;
+                    if ($onHand !== null && $available !== null) {
+                        $unavailable = max(0, $onHand - $available);
+                    }
                 }
 
                 $productId = str_replace(
@@ -208,6 +212,14 @@ class ShopifyInventoryService
                     )
                     : null;
 
+                if ($available === null) {
+                    $status = 'unknown';
+                } elseif ($available === 0) {
+                    $status = 'out_of_stock';
+                } else {
+                    $status = 'synced';
+                }
+
                 $result[] = [
                     'pid' => $productId,
                     'vid' => $variantId,
@@ -218,9 +230,9 @@ class ShopifyInventoryService
                     'available' => $available,
                     'committed' => $committed,
                     'on_hand' => $onHand,
-                    'unavailable' => max(0, $unavailable),
+                    'unavailable' => $unavailable,
                     'qty' => $qty,
-                    'status' => $available > 0 ? 'synced' : 'pending',
+                    'status' => $status,
                     'image' => $variant['image']['url']
                         ?? $product['featuredImage']['url']
                         ?? null,

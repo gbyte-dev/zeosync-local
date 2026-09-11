@@ -148,7 +148,7 @@ class DashboardController extends ShopifyController
 
         $lowInventoryProducts = collect($inventory)
             ->filter(function ($item) {
-                return ($item['available'] ?? 0) < 10;
+                return isset($item['available']) && $item['available'] !== null && $item['available'] < 10;
             })
             ->sortBy('available')
             ->take(7)

@@ -140,7 +140,7 @@ class AutoSkuMappingService
                 'shopify_variant_id'        => (string) $shopifyItem['vid'],
                 'shopify_inventory_item_id' => (string) $shopifyItem['inventory_item_id'],
                 'amazon_sku'                => (string) $amazonItem['sku'],
-                'quantity'                  => (int) ($shopifyItem['qty'] ?? 0),
+                'quantity'                  => isset($shopifyItem['qty']) && $shopifyItem['qty'] !== null ? (int) $shopifyItem['qty'] : null,
                 'sync_status'               => 'pending',
                 'submission_status'         => 'not_submitted',
             ]);
