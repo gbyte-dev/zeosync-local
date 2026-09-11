@@ -2747,24 +2747,26 @@ class ShopifyController extends Controller
     protected function getSelectedShopifyLocationId(Shop $shop): ?int
     {
         $locations = $shop->shopify_locations ?? [];
-        $index = $shop->selected_location_index ?? 0;
-
-        if (!isset($locations[$index])) {
-            Log::warning('SHOPIFY LOCATION NOT SELECTED', [
+        if (empty($locations)) {
+            Log::warning('SHOPIFY LOCATION NOT SELECTED - NO LOCATIONS', [
                 'shop_id' => $shop->id,
-                'selected_location_index' => $index,
             ]);
 
             return null;
         }
+
+        $index = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
 
         $locationId = $locations[$index]['id'] ?? null;
 
         if (!$locationId) {
             Log::warning('SHOPIFY SELECTED LOCATION ID MISSING', [
                 'shop_id' => $shop->id,
-                'selected_location_index' => $index,
-                'location' => $locations[$index],
+                'selected_location_index' => $shop->selected_location_index,
+                'effective_index' => $index,
+                'location' => $locations[$index] ?? null,
             ]);
 
             return null;

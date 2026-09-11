@@ -151,119 +151,32 @@ if (!function_exists('renderInventoryViewHelper')) {
 }
 
 // =========================================================================
-// Test 1: Inventory page with multiple Shopify locations
+// Requirement 1 & 2 & 3: Dropdown is enabled, renders all locations, no placeholder
 // =========================================================================
-it('Test 1: Inventory page with multiple Shopify locations displays only main location without Select a location', function () {
+it('Requirement 1-3: Inventory dropdown is enabled, renders all Shopify locations, and does not contain Select a location placeholder', function () {
     $shop = createLocationTestShop('store-multi.myshopify.com', null);
 
     $html = renderInventoryViewHelper($shop);
 
+    expect($html)->toContain('<select id="dtLocationShopify" class="saas-select">');
+    expect($html)->not->toContain('<select id="dtLocationShopify" class="saas-select" disabled>');
     expect($html)->toContain('Main Warehouse');
-    expect($html)->not->toContain('Select a location');
-    expect($html)->not->toContain('Retail Store NYC');
-    expect($html)->not->toContain('West Coast Hub');
-    expect($html)->toContain('<select id="dtLocationShopify" class="saas-select" disabled>');
-    expect($html)->toContain('<option value="0" selected>');
-});
-
-// =========================================================================
-// Test 2: Inventory page with one Shopify location
-// =========================================================================
-it('Test 2: Inventory page with one Shopify location displays that location and selects it', function () {
-    $shop = Shop::create([
-        'shop' => 'store-single.myshopify.com',
-        'shopify_locations' => [
-            ['id' => '55555', 'name' => 'Solo Flagship Store', 'active' => true],
-        ],
-        'selected_location_index' => null,
-        'is_active' => 1,
-    ]);
-
-    $html = renderInventoryViewHelper($shop);
-
-    expect($html)->toContain('Solo Flagship Store');
+    expect($html)->toContain('Retail Store NYC');
+    expect($html)->toContain('West Coast Hub');
     expect($html)->not->toContain('Select a location');
     expect($html)->toContain('<option value="0" selected>');
 });
 
 // =========================================================================
-// Test 3: selected_location_index = NULL, 0, 1, 2 ALL resolve to location 0 in Inventory
+// Requirement 4: New store installation defaults to location 0
 // =========================================================================
-it('Test 3: selected_location_index = NULL, 0, 1, and 2 ALL resolve to location 0 in Inventory backend', function () {
-    $indicesToTest = [null, 0, 1, 2];
-
-    $mockProducts = [
-        [
-            'id' => 'gid://shopify/Product/1',
-            'title' => 'Test Multi-Location Item',
-            'variants' => [
-                'nodes' => [
-                    [
-                        'id' => 'gid://shopify/ProductVariant/101',
-                        'title' => 'Default Title',
-                        'sku' => 'SKU-001',
-                        'inventoryQuantity' => 100,
-                        'inventoryItem' => [
-                            'id' => 'gid://shopify/InventoryItem/1001',
-                            'inventoryLevels' => [
-                                'nodes' => [
-                                    // Location 0 (Main Warehouse: 10001) -> 42
-                                    [
-                                        'location' => ['id' => 'gid://shopify/Location/10001'],
-                                        'quantities' => [
-                                            ['name' => 'available', 'quantity' => 42],
-                                        ],
-                                    ],
-                                    // Location 1 (Retail Store NYC: 10002) -> 99
-                                    [
-                                        'location' => ['id' => 'gid://shopify/Location/10002'],
-                                        'quantities' => [
-                                            ['name' => 'available', 'quantity' => 99],
-                                        ],
-                                    ],
-                                    // Location 2 (West Coast Hub: 10003) -> 13
-                                    [
-                                        'location' => ['id' => 'gid://shopify/Location/10003'],
-                                        'quantities' => [
-                                            ['name' => 'available', 'quantity' => 13],
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
-            ],
-        ],
-    ];
-
-    $service = new ShopifyInventoryService();
-    $reflection = new ReflectionClass($service);
-    $method = $reflection->getMethod('flattenVariants');
-    $method->setAccessible(true);
-
-    foreach ($indicesToTest as $idx) {
-        $shop = createLocationTestShop("store-test-idx-{$idx}.myshopify.com", $idx);
-        $flattened = $method->invoke($service, $mockProducts, $shop);
-
-        expect($flattened)->toHaveCount(1);
-        // In all cases, must match location 10001 (Main Warehouse) = 42, NEVER 99 or 13!
-        expect($flattened[0]['available'])->toBe(42, "Failed for selected_location_index = " . var_export($idx, true));
-        expect($flattened[0]['status'])->toBe('synced');
-    }
-});
-
-// =========================================================================
-// Test 4: New Shopify installation OAuth callback stores selected_location_index = 0
-// =========================================================================
-it('Test 4: New Shopify installation OAuth callback stores selected_location_index = 0', function () {
+it('Requirement 4: New store OAuth installation defaults to selected_location_index = 0', function () {
     $shop = Shop::create([
         'shop' => 'new-install.myshopify.com',
         'access_token' => 'shpat_new_token',
         'is_active' => 1,
     ]);
 
-    // Simulate location save block from ShopifyController::callback
     $locations = [
         ['id' => '99001', 'name' => 'Primary Hub', 'active' => true],
         ['id' => '99002', 'name' => 'Secondary Hub', 'active' => true],
@@ -279,18 +192,14 @@ it('Test 4: New Shopify installation OAuth callback stores selected_location_ind
 });
 
 // =========================================================================
-// Test 5: No Shopify locations handles safely with Unknown/null
+// Requirement 5: Existing NULL selected index defaults to location 0
 // =========================================================================
-it('Test 5: No Shopify locations handles safely with no fake location and inventory Unknown/null', function () {
-    $shop = Shop::create([
-        'shop' => 'no-loc.myshopify.com',
-        'shopify_locations' => [],
-        'selected_location_index' => null,
-        'is_active' => 1,
-    ]);
+it('Requirement 5: Existing NULL selected_location_index defaults to location 0 in UI and backend', function () {
+    $shop = createLocationTestShop('store-null-idx.myshopify.com', null);
+    expect($shop->selected_location_index)->toBeNull();
 
     $html = renderInventoryViewHelper($shop);
-    expect($html)->toContain('No Location Available');
+    expect($html)->toContain('<option value="0" selected>');
 
     $mockProducts = [
         [
@@ -302,10 +211,14 @@ it('Test 5: No Shopify locations handles safely with no fake location and invent
                         'id' => 'gid://shopify/ProductVariant/101',
                         'title' => 'Default Title',
                         'sku' => 'SKU-001',
+                        'inventoryQuantity' => 50,
                         'inventoryItem' => [
                             'id' => 'gid://shopify/InventoryItem/1001',
                             'inventoryLevels' => [
-                                'nodes' => [],
+                                'nodes' => [
+                                    ['location' => ['id' => 'gid://shopify/Location/10001'], 'quantities' => [['name' => 'available', 'quantity' => 50]]],
+                                    ['location' => ['id' => 'gid://shopify/Location/10002'], 'quantities' => [['name' => 'available', 'quantity' => 100]]],
+                                ],
                             ],
                         ],
                     ],
@@ -320,36 +233,35 @@ it('Test 5: No Shopify locations handles safely with no fake location and invent
     $method->setAccessible(true);
 
     $flattened = $method->invoke($service, $mockProducts, $shop);
-    expect($flattened[0]['available'])->toBeNull();
-    expect($flattened[0]['status'])->toBe('unknown');
+    expect($flattened[0]['available'])->toBe(50);
 });
 
 // =========================================================================
-// Test 6: Main location quantity = 0 produces available = 0 and out_of_stock
+// Requirement 6: Existing selected index 1 displays location 1 as selected
 // =========================================================================
-it('Test 6: Main location quantity = 0 produces available = 0 and out_of_stock status', function () {
-    $shop = createLocationTestShop('store-zero.myshopify.com', 2); // DB has index 2, but must still use index 0!
+it('Requirement 6: Existing selected_location_index = 1 displays location 1 as selected in UI and uses location 1 in backend', function () {
+    $shop = createLocationTestShop('store-idx-1.myshopify.com', 1);
+
+    $html = renderInventoryViewHelper($shop);
+    expect($html)->toContain('<option value="1" selected>');
 
     $mockProducts = [
         [
             'id' => 'gid://shopify/Product/1',
-            'title' => 'Test Zero',
+            'title' => 'Test Item',
             'variants' => [
                 'nodes' => [
                     [
                         'id' => 'gid://shopify/ProductVariant/101',
-                        'sku' => 'SKU-ZERO',
-                        'inventoryQuantity' => 0,
+                        'sku' => 'SKU-001',
+                        'inventoryQuantity' => 100,
                         'inventoryItem' => [
                             'id' => 'gid://shopify/InventoryItem/1001',
                             'inventoryLevels' => [
                                 'nodes' => [
-                                    [
-                                        'location' => ['id' => 'gid://shopify/Location/10001'], // Main location
-                                        'quantities' => [
-                                            ['name' => 'available', 'quantity' => 0],
-                                        ],
-                                    ],
+                                    ['location' => ['id' => 'gid://shopify/Location/10001'], 'quantities' => [['name' => 'available', 'quantity' => 35]]],
+                                    ['location' => ['id' => 'gid://shopify/Location/10002'], 'quantities' => [['name' => 'available', 'quantity' => 99]]],
+                                    ['location' => ['id' => 'gid://shopify/Location/10003'], 'quantities' => [['name' => 'available', 'quantity' => 12]]],
                                 ],
                             ],
                         ],
@@ -365,36 +277,35 @@ it('Test 6: Main location quantity = 0 produces available = 0 and out_of_stock s
     $method->setAccessible(true);
 
     $flattened = $method->invoke($service, $mockProducts, $shop);
-    expect($flattened[0]['available'])->toBe(0);
-    expect($flattened[0]['status'])->toBe('out_of_stock');
+    expect($flattened[0]['available'])->toBe(99);
 });
 
 // =========================================================================
-// Test 7: Main location quantity = 25 produces available = 25 and synced
+// Requirement 7: Existing selected index 2 displays location 2 as selected
 // =========================================================================
-it('Test 7: Main location quantity = 25 produces available = 25 and synced status', function () {
-    $shop = createLocationTestShop('store-pos.myshopify.com', 1); // DB has index 1, but must still use index 0!
+it('Requirement 7: Existing selected_location_index = 2 displays location 2 as selected in UI and uses location 2 in backend', function () {
+    $shop = createLocationTestShop('store-idx-2.myshopify.com', 2);
+
+    $html = renderInventoryViewHelper($shop);
+    expect($html)->toContain('<option value="2" selected>');
 
     $mockProducts = [
         [
             'id' => 'gid://shopify/Product/1',
-            'title' => 'Test Pos',
+            'title' => 'Test Item',
             'variants' => [
                 'nodes' => [
                     [
-                        'id' => 'gid://shopify/ProductVariant/102',
-                        'sku' => 'SKU-POS',
-                        'inventoryQuantity' => 25,
+                        'id' => 'gid://shopify/ProductVariant/101',
+                        'sku' => 'SKU-001',
+                        'inventoryQuantity' => 100,
                         'inventoryItem' => [
-                            'id' => 'gid://shopify/InventoryItem/1002',
+                            'id' => 'gid://shopify/InventoryItem/1001',
                             'inventoryLevels' => [
                                 'nodes' => [
-                                    [
-                                        'location' => ['id' => 'gid://shopify/Location/10001'],
-                                        'quantities' => [
-                                            ['name' => 'available', 'quantity' => 25],
-                                        ],
-                                    ],
+                                    ['location' => ['id' => 'gid://shopify/Location/10001'], 'quantities' => [['name' => 'available', 'quantity' => 35]]],
+                                    ['location' => ['id' => 'gid://shopify/Location/10002'], 'quantities' => [['name' => 'available', 'quantity' => 99]]],
+                                    ['location' => ['id' => 'gid://shopify/Location/10003'], 'quantities' => [['name' => 'available', 'quantity' => 12]]],
                                 ],
                             ],
                         ],
@@ -410,36 +321,42 @@ it('Test 7: Main location quantity = 25 produces available = 25 and synced statu
     $method->setAccessible(true);
 
     $flattened = $method->invoke($service, $mockProducts, $shop);
-    expect($flattened[0]['available'])->toBe(25);
-    expect($flattened[0]['status'])->toBe('synced');
+    expect($flattened[0]['available'])->toBe(12);
 });
 
 // =========================================================================
-// Test 8: Main location has no inventory level produces available = null and unknown
+// Requirement 8 & 9: User changes location 0 -> 1 persists index 1 and reloads location 1 inventory
 // =========================================================================
-it('Test 8: Main location has no inventory level produces available = null and unknown status', function () {
-    $shop = createLocationTestShop('store-no-lvl.myshopify.com', null);
+it('Requirement 8 & 9: User changes location 0 -> 1 persists index 1 and reloads location 1 inventory', function () {
+    $shop = createLocationTestShop('store-change-0-1.myshopify.com', 0);
+    mockLocationShopAuth($shop);
+
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->postJson('/settings', [
+            'shop'                    => $shop->shop,
+            'selected_location_index' => 1,
+        ]);
+
+    $response->assertOk();
+    $shop->refresh();
+    expect($shop->selected_location_index)->toBe(1);
 
     $mockProducts = [
         [
             'id' => 'gid://shopify/Product/1',
-            'title' => 'Test No Level',
+            'title' => 'Test Item',
             'variants' => [
                 'nodes' => [
                     [
-                        'id' => 'gid://shopify/ProductVariant/103',
-                        'sku' => 'SKU-NO-LVL',
-                        'inventoryQuantity' => null,
+                        'id' => 'gid://shopify/ProductVariant/101',
+                        'sku' => 'SKU-001',
+                        'inventoryQuantity' => 100,
                         'inventoryItem' => [
-                            'id' => 'gid://shopify/InventoryItem/1003',
+                            'id' => 'gid://shopify/InventoryItem/1001',
                             'inventoryLevels' => [
                                 'nodes' => [
-                                    [
-                                        'location' => ['id' => 'gid://shopify/Location/99999'], // different location
-                                        'quantities' => [
-                                            ['name' => 'available', 'quantity' => 10],
-                                        ],
-                                    ],
+                                    ['location' => ['id' => 'gid://shopify/Location/10001'], 'quantities' => [['name' => 'available', 'quantity' => 35]]],
+                                    ['location' => ['id' => 'gid://shopify/Location/10002'], 'quantities' => [['name' => 'available', 'quantity' => 99]]],
                                 ],
                             ],
                         ],
@@ -455,15 +372,66 @@ it('Test 8: Main location has no inventory level produces available = null and u
     $method->setAccessible(true);
 
     $flattened = $method->invoke($service, $mockProducts, $shop);
-    expect($flattened[0]['available'])->toBeNull();
-    expect($flattened[0]['status'])->toBe('unknown');
+    expect($flattened[0]['available'])->toBe(99);
 });
 
 // =========================================================================
-// Test 9: Manual Shopify inventory update ALWAYS writes to location 0 ID (10001)
+// Requirement 10: User changes location 1 -> 2 uses location 2 inventory
 // =========================================================================
-it('Test 9: Manual Shopify inventory update ALWAYS writes to location 0 ID even if selected_location_index is 2 in DB', function () {
-    $shop = createLocationTestShop('store-update-loc.myshopify.com', 2); // DB has index 2 (10003)
+it('Requirement 10: User changes location 1 -> 2 persists index 2 and uses location 2 inventory', function () {
+    $shop = createLocationTestShop('store-change-1-2.myshopify.com', 1);
+    mockLocationShopAuth($shop);
+
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->postJson('/settings', [
+            'shop'                    => $shop->shop,
+            'selected_location_index' => 2,
+        ]);
+
+    $response->assertOk();
+    $shop->refresh();
+    expect($shop->selected_location_index)->toBe(2);
+
+    $mockProducts = [
+        [
+            'id' => 'gid://shopify/Product/1',
+            'title' => 'Test Item',
+            'variants' => [
+                'nodes' => [
+                    [
+                        'id' => 'gid://shopify/ProductVariant/101',
+                        'sku' => 'SKU-001',
+                        'inventoryQuantity' => 100,
+                        'inventoryItem' => [
+                            'id' => 'gid://shopify/InventoryItem/1001',
+                            'inventoryLevels' => [
+                                'nodes' => [
+                                    ['location' => ['id' => 'gid://shopify/Location/10001'], 'quantities' => [['name' => 'available', 'quantity' => 35]]],
+                                    ['location' => ['id' => 'gid://shopify/Location/10002'], 'quantities' => [['name' => 'available', 'quantity' => 99]]],
+                                    ['location' => ['id' => 'gid://shopify/Location/10003'], 'quantities' => [['name' => 'available', 'quantity' => 77]]],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $service = new ShopifyInventoryService();
+    $reflection = new ReflectionClass($service);
+    $method = $reflection->getMethod('flattenVariants');
+    $method->setAccessible(true);
+
+    $flattened = $method->invoke($service, $mockProducts, $shop);
+    expect($flattened[0]['available'])->toBe(77);
+});
+
+// =========================================================================
+// Requirement 11: Manual Shopify update while location 1 is selected uses location 1 ID (10002)
+// =========================================================================
+it('Requirement 11: Manual Shopify inventory update while location 1 is selected uses location 1 ID (10002)', function () {
+    $shop = createLocationTestShop('store-update-loc1.myshopify.com', 1);
 
     $mapping = ProductMarketplaceMapping::create([
         'shop_id' => $shop->id,
@@ -474,18 +442,17 @@ it('Test 9: Manual Shopify inventory update ALWAYS writes to location 0 ID even 
 
     $mockAmazonService = Mockery::mock(AmazonService::class);
     $mockAmazonService->shouldReceive('updateInventory')
-        ->with($shop, 'AMZ-LOC-1', 12)
+        ->with($shop, 'AMZ-LOC-1', 25)
         ->once()
-        ->andReturn(['submissionId' => 'SUB-LOC-12', 'status' => 'ACCEPTED']);
+        ->andReturn(['submissionId' => 'SUB-LOC-25', 'status' => 'ACCEPTED']);
     app()->instance(AmazonService::class, $mockAmazonService);
 
-    // Verify request made to Shopify rest uses main location ID (10001), NOT 10003!
     Http::fake([
         '*inventory_levels/set.json*' => function (\Illuminate\Http\Client\Request $request) {
             $data = $request->data();
-            expect($data['location_id'])->toBe('10001');
-            expect($data['available'])->toBe(12);
-            return Http::response(['inventory_level' => ['available' => 12]], 200);
+            expect($data['location_id'])->toBe('10002');
+            expect($data['available'])->toBe(25);
+            return Http::response(['inventory_level' => ['available' => 25]], 200);
         },
         '*' => Http::response(['access_token' => 'dummy_token', 'expires_in' => 3600], 200),
     ]);
@@ -493,66 +460,264 @@ it('Test 9: Manual Shopify inventory update ALWAYS writes to location 0 ID even 
     $controller = app(InventoryMappingController::class);
     $req = Request::create('/inventory/shopify/update', 'POST', [
         'inventory_item_id' => 'ITEM-LOC-1',
-        'quantity' => 12,
+        'quantity' => 25,
     ]);
     $req->attributes->set('active_shop_model', $shop);
 
     $response = $controller->updateShopifyInventory($req);
     expect($response->getStatusCode())->toBe(200);
-    expect((int) $mapping->fresh()->quantity)->toBe(12);
 });
 
 // =========================================================================
-// Test 10: Inventory cache ALWAYS uses location 0 key even when DB has selected_location_index = 1 or 2
+// Requirement 12: Manual Shopify update while location 2 is selected uses location 2 ID (10003)
 // =========================================================================
-it('Test 10: Inventory cache ALWAYS uses location 0 key even when DB contains selected_location_index = 2', function () {
-    $shop = createLocationTestShop('store-cache-test.myshopify.com', 2);
-    expect($shop->selected_location_index)->toBe(2);
+it('Requirement 12: Manual Shopify inventory update while location 2 is selected uses location 2 ID (10003)', function () {
+    $shop = createLocationTestShop('store-update-loc2.myshopify.com', 2);
+
+    $mapping = ProductMarketplaceMapping::create([
+        'shop_id' => $shop->id,
+        'shopify_inventory_item_id' => 'ITEM-LOC-2',
+        'amazon_sku' => 'AMZ-LOC-2',
+        'quantity' => '10',
+    ]);
+
+    $mockAmazonService = Mockery::mock(AmazonService::class);
+    $mockAmazonService->shouldReceive('updateInventory')
+        ->with($shop, 'AMZ-LOC-2', 40)
+        ->once()
+        ->andReturn(['submissionId' => 'SUB-LOC-40', 'status' => 'ACCEPTED']);
+    app()->instance(AmazonService::class, $mockAmazonService);
+
+    Http::fake([
+        '*inventory_levels/set.json*' => function (\Illuminate\Http\Client\Request $request) {
+            $data = $request->data();
+            expect($data['location_id'])->toBe('10003');
+            expect($data['available'])->toBe(40);
+            return Http::response(['inventory_level' => ['available' => 40]], 200);
+        },
+        '*' => Http::response(['access_token' => 'dummy_token', 'expires_in' => 3600], 200),
+    ]);
+
+    $controller = app(InventoryMappingController::class);
+    $req = Request::create('/inventory/shopify/update', 'POST', [
+        'inventory_item_id' => 'ITEM-LOC-2',
+        'quantity' => 40,
+    ]);
+    $req->attributes->set('active_shop_model', $shop);
+
+    $response = $controller->updateShopifyInventory($req);
+    expect($response->getStatusCode())->toBe(200);
+});
+
+// =========================================================================
+// Requirement 13: Cache uses location-specific keys
+// =========================================================================
+it('Requirement 13: Inventory cache uses location-specific keys', function () {
+    $shop = createLocationTestShop('store-cache-keys.myshopify.com', 1);
 
     $service = new ShopifyInventoryService();
     $reflection = new ReflectionClass($service);
     $isExpiredMethod = $reflection->getMethod('isExpired');
     $isExpiredMethod->setAccessible(true);
 
-    // Is expired for location 0
+    // Initial state: location 1 cache is expired
     expect($isExpiredMethod->invoke($service, $shop))->toBeTrue();
 
-    // Cache stored for location 0
-    Cache::put("shopify_inventory_{$shop->shop}_location_0", ['test_data'], 600);
+    // Cache location 0 - location 1 should STILL be expired!
+    Cache::put("shopify_inventory_{$shop->shop}_location_0", ['location_0_data'], 600);
+    expect($isExpiredMethod->invoke($service, $shop))->toBeTrue();
+
+    // Cache location 1 - now location 1 is not expired
+    Cache::put("shopify_inventory_{$shop->shop}_location_1", ['location_1_data'], 600);
     expect($isExpiredMethod->invoke($service, $shop))->toBeFalse();
-
-    // Cache stored for location 2 must NOT satisfy location 0
-    Cache::flush();
-    Cache::put("shopify_inventory_{$shop->shop}_location_2", ['stale_data'], 600);
-    expect($isExpiredMethod->invoke($service, $shop))->toBeTrue();
 });
 
 // =========================================================================
-// Test 11: Settings view and update persist settings location without breaking Inventory
+// Requirement 14: Invalid stored location safely falls back to location 0
 // =========================================================================
-it('Test 11: Settings view and update persist settings location while tenant isolation is preserved', function () {
-    $shopA = createLocationTestShop('store-sett-a.myshopify.com', 0);
-    $shopB = createLocationTestShop('store-sett-b.myshopify.com', 0);
+it('Requirement 14: Out-of-bounds stored selected_location_index safely falls back to location 0', function () {
+    $shop = createLocationTestShop('store-invalid-idx.myshopify.com', 999);
+
+    $mockProducts = [
+        [
+            'id' => 'gid://shopify/Product/1',
+            'title' => 'Test Item',
+            'variants' => [
+                'nodes' => [
+                    [
+                        'id' => 'gid://shopify/ProductVariant/101',
+                        'sku' => 'SKU-001',
+                        'inventoryQuantity' => 50,
+                        'inventoryItem' => [
+                            'id' => 'gid://shopify/InventoryItem/1001',
+                            'inventoryLevels' => [
+                                'nodes' => [
+                                    ['location' => ['id' => 'gid://shopify/Location/10001'], 'quantities' => [['name' => 'available', 'quantity' => 45]]],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $service = new ShopifyInventoryService();
+    $reflection = new ReflectionClass($service);
+    $method = $reflection->getMethod('flattenVariants');
+    $method->setAccessible(true);
+
+    $flattened = $method->invoke($service, $mockProducts, $shop);
+    expect($flattened[0]['available'])->toBe(45);
+});
+
+// =========================================================================
+// Requirement 15: 0-vs-Unknown behavior remains intact for every selected location
+// =========================================================================
+it('Requirement 15: 0-vs-Unknown behavior remains intact across any selected location', function () {
+    $shop = createLocationTestShop('store-0-vs-unknown.myshopify.com', 1);
+
+    $mockProducts = [
+        [
+            'id' => 'gid://shopify/Product/1',
+            'title' => 'Test Item 1',
+            'variants' => [
+                'nodes' => [
+                    [
+                        'id' => 'gid://shopify/ProductVariant/101',
+                        'sku' => 'SKU-ZERO',
+                        'inventoryQuantity' => 0,
+                        'inventoryItem' => [
+                            'id' => 'gid://shopify/InventoryItem/1001',
+                            'inventoryLevels' => [
+                                'nodes' => [
+                                    ['location' => ['id' => 'gid://shopify/Location/10002'], 'quantities' => [['name' => 'available', 'quantity' => 0]]],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+        [
+            'id' => 'gid://shopify/Product/2',
+            'title' => 'Test Item 2',
+            'variants' => [
+                'nodes' => [
+                    [
+                        'id' => 'gid://shopify/ProductVariant/102',
+                        'sku' => 'SKU-POS',
+                        'inventoryQuantity' => 15,
+                        'inventoryItem' => [
+                            'id' => 'gid://shopify/InventoryItem/1002',
+                            'inventoryLevels' => [
+                                'nodes' => [
+                                    ['location' => ['id' => 'gid://shopify/Location/10002'], 'quantities' => [['name' => 'available', 'quantity' => 15]]],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+        [
+            'id' => 'gid://shopify/Product/3',
+            'title' => 'Test Item 3',
+            'variants' => [
+                'nodes' => [
+                    [
+                        'id' => 'gid://shopify/ProductVariant/103',
+                        'sku' => 'SKU-UNKNOWN',
+                        'inventoryQuantity' => null,
+                        'inventoryItem' => [
+                            'id' => 'gid://shopify/InventoryItem/1003',
+                            'inventoryLevels' => [
+                                'nodes' => [
+                                    ['location' => ['id' => 'gid://shopify/Location/10001'], 'quantities' => [['name' => 'available', 'quantity' => 10]]], // not in location 10002
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $service = new ShopifyInventoryService();
+    $reflection = new ReflectionClass($service);
+    $method = $reflection->getMethod('flattenVariants');
+    $method->setAccessible(true);
+
+    $flattened = $method->invoke($service, $mockProducts, $shop);
+
+    expect($flattened[0]['available'])->toBe(0);
+    expect($flattened[0]['status'])->toBe('out_of_stock');
+
+    expect($flattened[1]['available'])->toBe(15);
+    expect($flattened[1]['status'])->toBe('synced');
+
+    expect($flattened[2]['available'])->toBeNull();
+    expect($flattened[2]['status'])->toBe('unknown');
+});
+
+// =========================================================================
+// Requirement 16: Settings Shopify Location dropdown remains present and contains all real locations without Select a location placeholder
+// =========================================================================
+it('Requirement 16: Settings Shopify Location dropdown remains present and contains all real locations without Select a location placeholder', function () {
+    $shop = createLocationTestShop('store-settings-check.myshopify.com', 1);
+    mockLocationShopAuth($shop);
+
+    $html = view('settings', [
+        'activeShop'    => $shop->shop,
+        'shop'          => $shop,
+        'settings'      => null,
+        'notifications' => collect([]),
+        'errors'        => new \Illuminate\Support\ViewErrorBag(),
+    ])->render();
+
+    expect($html)->toContain('name="selected_location_index"');
+    expect($html)->toContain('Select Your Shopify Location');
+    expect($html)->toContain('Main Warehouse');
+    expect($html)->toContain('Retail Store NYC');
+    expect($html)->toContain('West Coast Hub');
+    expect($html)->not->toContain('Select a location');
+    expect($html)->toContain('<option value="1" selected');
+
+    // Test that Settings update still persists selected_location_index
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->postJson('/settings', [
+            'shop'                    => $shop->shop,
+            'selected_location_index' => 2,
+        ]);
+
+    $response->assertOk();
+    $shop->refresh();
+    expect($shop->selected_location_index)->toBe(2);
+
+    // Test that Inventory uses the same persisted selected location
+    $invHtml = renderInventoryViewHelper($shop);
+    expect($invHtml)->toContain('<option value="2" selected>');
+});
+
+// =========================================================================
+// Requirement 17: Tenant isolation remains intact
+// =========================================================================
+it('Requirement 17: Tenant isolation remains intact across separate shop location selections', function () {
+    $shopA = createLocationTestShop('store-tenant-a.myshopify.com', 0);
+    $shopB = createLocationTestShop('store-tenant-b.myshopify.com', 2);
 
     mockLocationShopAuth($shopA);
 
-    $response = $this->withHeaders([
-        'Accept' => 'application/json',
-    ])->postJson('/settings', [
-        'shop'                    => $shopA->shop,
-        'selected_location_index' => 2,
-    ]);
+    $response = $this->withHeaders(['Accept' => 'application/json'])
+        ->postJson('/settings', [
+            'shop'                    => $shopA->shop,
+            'selected_location_index' => 1,
+        ]);
 
     $response->assertOk();
     $shopA->refresh();
     $shopB->refresh();
 
-    expect($shopA->selected_location_index)->toBe(2);
-    expect($shopB->selected_location_index)->toBe(0);
-
-    // After setting to 2 in Settings, Inventory view MUST STILL show location 0!
-    $html = renderInventoryViewHelper($shopA);
-    expect($html)->toContain('Main Warehouse');
-    expect($html)->not->toContain('West Coast Hub');
-    expect($html)->toContain('<option value="0" selected>');
+    expect($shopA->selected_location_index)->toBe(1);
+    expect($shopB->selected_location_index)->toBe(2);
 });

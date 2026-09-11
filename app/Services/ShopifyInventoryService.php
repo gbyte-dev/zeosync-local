@@ -12,7 +12,12 @@ class ShopifyInventoryService
 {
     public function getInventory(Shop $shop): array
     {
-        $cacheKey = "shopify_inventory_{$shop->shop}_location_0";
+        $locations = $shop->shopify_locations ?? [];
+        $effectiveIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+
+        $cacheKey = "shopify_inventory_{$shop->shop}_location_{$effectiveIndex}";
 
         return Cache::remember(
             $cacheKey,
@@ -94,16 +99,21 @@ class ShopifyInventoryService
         $selectedLocationId = null;
 
         $locations = $shop->shopify_locations ?? [];
-        $mainLocation = $locations[0] ?? null;
+        $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+        $selectedLocation = $locations[$selectedIndex] ?? null;
 
-        if ($mainLocation && !empty($mainLocation['id'])) {
-            $selectedLocationId = (string) $mainLocation['id'];
+        if ($selectedLocation && !empty($selectedLocation['id'])) {
+            $selectedLocationId = (string) $selectedLocation['id'];
         }
 
-        Log::info('SHOPIFY SELECTED MAIN LOCATION RESOLVED', [
+        Log::info('SHOPIFY SELECTED LOCATION RESOLVED', [
             'shop_id' => $shop->id,
+            'selected_location_index' => $shop->selected_location_index,
+            'effective_index' => $selectedIndex,
             'selected_location_id' => $selectedLocationId,
-            'main_location' => $mainLocation,
+            'selected_location' => $selectedLocation,
         ]);
 
         $mappings = ProductMarketplaceMapping::where(
@@ -246,7 +256,12 @@ class ShopifyInventoryService
     }
     public function isExpired(Shop $shop): bool
     {
-        $cacheKey = "shopify_inventory_{$shop->shop}_location_0";
+        $locations = $shop->shopify_locations ?? [];
+        $effectiveIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+
+        $cacheKey = "shopify_inventory_{$shop->shop}_location_{$effectiveIndex}";
 
         return !Cache::has($cacheKey);
     }

@@ -175,11 +175,16 @@ class InventoryController extends ShopifyController
         $response['products'] = $products;
         $data = $products;
 
+        $locations = $shop->shopify_locations ?? [];
+        $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+
         app(AutoSkuMappingService::class)
             ->handle(
                 $shop,
                 Cache::get(
-                    "shopify_inventory_{$shop->shop}_location_0",
+                    "shopify_inventory_{$shop->shop}_location_{$selectedIndex}",
                     []
                 ),
                 $data

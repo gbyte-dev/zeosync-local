@@ -74,8 +74,13 @@ class AutoSkuMappingService
 
     private function loadShopifyInventory(Shop $shop): array
     {
+        $locations = $shop->shopify_locations ?? [];
+        $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+
         return Cache::get(
-            "shopify_inventory_{$shop->shop}_location_0",
+            "shopify_inventory_{$shop->shop}_location_{$selectedIndex}",
             []
         );
     }

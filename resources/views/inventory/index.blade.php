@@ -629,13 +629,18 @@
                     <div class="col-md-3 col-6">
                         <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Shopify Location</label>
                         @php
-                            $mainLocation = ($shop->shopify_locations ?? [])[0] ?? null;
+                            $locations = $shop->shopify_locations ?? [];
+                            $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+                                ? (int) $shop->selected_location_index
+                                : 0;
                         @endphp
-                        <select id="dtLocationShopify" class="saas-select" disabled>
-                            @if($mainLocation)
-                                <option value="0" selected>
-                                    {{ $mainLocation['name'] ?? 'Main Location' }}
-                                </option>
+                        <select id="dtLocationShopify" class="saas-select">
+                            @if(!empty($locations))
+                                @foreach($locations as $index => $location)
+                                    <option value="{{ $index }}" {{ $selectedIndex === $index ? 'selected' : '' }}>
+                                        {{ $location['name'] ?? 'Location ' . ($index + 1) }}
+                                    </option>
+                                @endforeach
                             @else
                                 <option value="" selected>No Location Available</option>
                             @endif
@@ -1375,6 +1380,37 @@
         localStorage.setItem('zeosync_shopify_length', val); // Lock in local override
         savedShopifyLength = val; // Sync active variable
         if (dtShopify) dtShopify.page.len(val).draw();
+    });
+    $('#dtLocationShopify').on('change', function() {
+        const selectedIndex = $(this).val();
+        if (selectedIndex === '' || selectedIndex === null) return;
+        const shop = new URLSearchParams(window.location.search).get('shop') || '{{ $shop->shop }}';
+
+        $.ajax({
+            url: "{{ route('settings.update') }}",
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                shop: shop,
+                selected_location_index: selectedIndex
+            },
+            success: function(response) {
+                if (response.success) {
+                    fetch(`{{ route('shopify.inventory.refresh') }}?shop=${encodeURIComponent(shop)}&type=shopify`)
+                        .then(() => {
+                            loadShopify();
+                        })
+                        .catch(() => {
+                            loadShopify();
+                        });
+                }
+            },
+            error: function(xhr) {
+                showToast(xhr.responseJSON?.message ?? 'Failed to update Shopify location.', 'danger');
+            }
+        });
     });
 
     // Amazon Inputs
