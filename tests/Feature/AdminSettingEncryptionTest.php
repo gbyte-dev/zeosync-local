@@ -323,3 +323,48 @@ it('TEST 14: invalidates cache immediately after an Admin Setting update', funct
     // Cache must immediately return updated decrypted value
     expect(AdminSetting::get('stripe_secret_key'))->toBe($updatedSecret);
 });
+
+it('TEST 15: renders decrypted plain SHOPIFY_API_KEY in shopify-api-key meta tag and never ciphertext', function () {
+    $plainApiKey = 'test_shopify_client_id_1234567890';
+    $plainApiSecret = 'test_shopify_secret_shpss_9999999999';
+
+    AdminSetting::create([
+        'option_key'   => 'SHOPIFY_API_KEY',
+        'option_value' => $plainApiKey,
+    ]);
+
+    AdminSetting::create([
+        'option_key'   => 'SHOPIFY_API_SECRET',
+        'option_value' => $plainApiSecret,
+    ]);
+
+    // 1. Raw DB representation must be encrypted ciphertext
+    $rawDbValue = DB::table('admin_settings')->where('option_key', 'SHOPIFY_API_KEY')->value('option_value');
+    expect($rawDbValue)->not->toBeNull()
+        ->and($rawDbValue)->not->toBe($plainApiKey);
+    expect(Crypt::decryptString($rawDbValue))->toBe($plainApiKey);
+
+    // 2. Runtime AdminSetting::get() must return decrypted plaintext
+    expect(AdminSetting::get('SHOPIFY_API_KEY'))->toBe($plainApiKey);
+
+    // 3. Render layouts.app and layouts.activate views
+    $viewData = ['errors' => new \Illuminate\Support\ViewErrorBag(), 'shopModel' => null];
+    $htmlApp = view('layouts.app', $viewData)->render();
+    $htmlActivate = view('layouts.activate', $viewData)->render();
+
+    // 4. Assert rendered meta tag contains plaintext API key in both layouts
+    expect($htmlApp)->toContain('<meta name="shopify-api-key" content="' . $plainApiKey . '">');
+    expect($htmlActivate)->toContain('<meta name="shopify-api-key" content="' . $plainApiKey . '">');
+
+    // 5. Assert rendered HTML does NOT contain raw ciphertext
+    expect($htmlApp)->not->toContain($rawDbValue);
+    expect($htmlApp)->not->toContain('eyJpdiI6');
+    expect($htmlActivate)->not->toContain($rawDbValue);
+    expect($htmlActivate)->not->toContain('eyJpdiI6');
+
+    // 6. Assert rendered HTML does NOT contain secrets or app key
+    expect($htmlApp)->not->toContain($plainApiSecret);
+    expect($htmlApp)->not->toContain(config('app.key'));
+    expect($htmlActivate)->not->toContain($plainApiSecret);
+    expect($htmlActivate)->not->toContain(config('app.key'));
+});

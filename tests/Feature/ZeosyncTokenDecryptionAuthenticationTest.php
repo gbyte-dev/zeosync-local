@@ -504,3 +504,44 @@ it('18. Successful OAuth callback establishes shop session and completes install
     expect(session('_shopify_verified_shop'))->toBe('new-store.myshopify.com');
     expect(session('active_shop'))->toBe('new-store.myshopify.com');
 });
+
+it('19. Dashboard HTML contains decrypted plaintext shopify-api-key meta tag and never ciphertext', function () {
+    $plainApiKey = 'test_dashboard_client_id_445566';
+    $plainApiSecret = 'test_dashboard_secret_shpss_778899';
+
+    AdminSetting::create([
+        'option_key'   => 'SHOPIFY_API_KEY',
+        'option_value' => $plainApiKey,
+    ]);
+
+    AdminSetting::create([
+        'option_key'   => 'SHOPIFY_API_SECRET',
+        'option_value' => $plainApiSecret,
+    ]);
+
+    $shop = Shop::create([
+        'shop'                    => 'dash-store.myshopify.com',
+        'shop_name'               => 'Dash Store',
+        'email'                   => 'merchant@dash.app',
+        'access_token'            => 'shp_access_token_dash',
+        'access_token_expires_at' => now()->addHour(),
+        'is_active'               => 1,
+    ]);
+
+    $token = generateZeosyncTestJwt('dash-store.myshopify.com', $plainApiKey, $plainApiSecret);
+
+    $viewData = ['errors' => new \Illuminate\Support\ViewErrorBag(), 'shopModel' => $shop];
+    $content = view('layouts.app', $viewData)->render();
+
+    // Plain API key must be in the meta tag
+    expect($content)->toContain('<meta name="shopify-api-key" content="' . $plainApiKey . '">');
+
+    // Raw encrypted database string must NOT be in the HTML
+    $rawDbValue = DB::table('admin_settings')->where('option_key', 'SHOPIFY_API_KEY')->value('option_value');
+    expect($content)->not->toContain($rawDbValue);
+    expect($content)->not->toContain('eyJpdiI6');
+
+    // Secret keys must NOT be in the HTML
+    expect($content)->not->toContain($plainApiSecret);
+    expect($content)->not->toContain(config('app.key'));
+});
