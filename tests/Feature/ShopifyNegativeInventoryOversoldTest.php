@@ -543,10 +543,11 @@ it('Replenishment recovery: mapping restores from -3 to 3 and Amazon receives 3'
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with($shop, 'AMZ-REPLENISH', 3)
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-REPLENISH', 3)
         ->andReturn(['submissionId' => 'SUB-REPL-3', 'status' => 'ACCEPTED']);
 
     app()->instance(AmazonService::class, $mockAmazon);
+
 
     $controller = app(InventoryMappingController::class);
     $req = Request::create('/inventory/shopify/update', 'POST', [
@@ -558,10 +559,21 @@ it('Replenishment recovery: mapping restores from -3 to 3 and Amazon receives 3'
     $response = $controller->updateShopifyInventory($req);
     expect($response->getStatusCode())->toBe(200);
 
+    $data = $response->getData(true);
+    expect($data['success'])->toBeTrue()
+        ->and($data['status'])->toBe('pending');
+
+    $operation = \App\Models\InventorySyncOperation::find($data['operation_id']);
+    expect($operation)->not->toBeNull();
+
+    $job = new \App\Jobs\ProcessInventoryUpdateJob($operation->id);
+    $job->handle($mockAmazon);
+
     $fresh = $mapping->fresh();
     expect((int) $fresh->quantity)->toBe(3);
     expect($fresh->submission_status)->toBe('accepted');
 });
+
 
 // =========================================================================
 // 7. Manual Input: Rejects manual negative numbers while accepting 0 and positive

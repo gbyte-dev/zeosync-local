@@ -330,7 +330,7 @@ it('6. InventoryMappingController::updateShopifyInventory reports accurate user-
     // Test Success (Accepted) Flow
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
-        ->once()
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-CTRL-TEST', 20)
         ->andReturn([
             'status'       => 'ACCEPTED',
             'submissionId' => 'SUB-999',
@@ -348,7 +348,16 @@ it('6. InventoryMappingController::updateShopifyInventory reports accurate user-
     expect($response->getStatusCode())->toBe(200);
 
     $data = $response->getData(true);
-    expect($data['message'])->toBe('Shopify and Amazon inventory updated successfully. Amazon accepted the inventory update.');
+    expect($data['success'])->toBeTrue()
+        ->and($data['status'])->toBe('pending')
+        ->and($data['message'])->toBe('Inventory update queued successfully.');
+
+    // Process outbox operation via worker job
+    $operation = \App\Models\InventorySyncOperation::find($data['operation_id']);
+    expect($operation)->not->toBeNull();
+
+    $job = new \App\Jobs\ProcessInventoryUpdateJob($operation->id);
+    $job->handle($mockAmazon);
 
     $freshMapping = $mapping->fresh();
     expect($freshMapping->sync_status)->toBe('success');
@@ -359,9 +368,10 @@ it('6. InventoryMappingController::updateShopifyInventory reports accurate user-
     // Test Rejection Flow
     $mockAmazonRejected = Mockery::mock(AmazonService::class);
     $mockAmazonRejected->shouldReceive('updateInventory')
-        ->once()
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-CTRL-TEST', 30)
         ->andThrow(new \Exception('ERROR [90001]: Amazon rejected the inventory update submission.'));
     app()->instance(AmazonService::class, $mockAmazonRejected);
+
 
     $request2 = Request::create('/inventory/shopify/update', 'POST', [
         'inventory_item_id' => 'INV-506',
@@ -373,12 +383,24 @@ it('6. InventoryMappingController::updateShopifyInventory reports accurate user-
     expect($response2->getStatusCode())->toBe(200);
 
     $data2 = $response2->getData(true);
-    expect($data2['message'])->toContain('Shopify inventory updated successfully. Amazon sync failed: ERROR [90001]');
+    expect($data2['success'])->toBeTrue()
+        ->and($data2['status'])->toBe('pending');
+
+    $operation2 = \App\Models\InventorySyncOperation::find($data2['operation_id']);
+    expect($operation2)->not->toBeNull();
+
+    $job2 = new \App\Jobs\ProcessInventoryUpdateJob($operation2->id);
+    try {
+        $job2->handle($mockAmazonRejected);
+    } catch (\Throwable $e) {
+        // Expected transient / permanent exception
+    }
 
     $freshMapping2 = $mapping->fresh();
     expect($freshMapping2->sync_status)->toBe('failed');
     expect($freshMapping2->error_message)->toContain('ERROR [90001]');
 });
+
 
 it('7. InventoryController::updateAmazonQuantity aligns with status semantics and returns consistent responses', function () {
     $shop = createMockShop(507);

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\InventorySyncOperation;
 use App\Models\ProductMarketplaceMapping;
 use App\Models\Shop;
 use App\Services\AmazonService;
@@ -159,6 +160,18 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
                     'error_message'     => null,
                 ]);
 
+                // Transition matching awaiting_verification operations to completed
+                if (!empty($fresh->shopify_inventory_item_id)) {
+                    InventorySyncOperation::where('shop_id', $this->shopId)
+                        ->where('shopify_inventory_item_id', $fresh->shopify_inventory_item_id)
+                        ->whereIn('status', ['awaiting_verification', 'processing'])
+                        ->update([
+                            'status'       => 'completed',
+                            'stage'        => 'completed',
+                            'completed_at' => now(),
+                        ]);
+                }
+
                 Log::info('VerifyAmazonInventoryQuantityJob: Amazon inventory quantity CONFIRMED.', [
                     'shop_id'  => $this->shopId,
                     'sku'      => $this->sku,
@@ -220,6 +233,17 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
                 'submission_status' => 'mismatch',
                 'error_message'     => $failureReason,
             ]);
+
+            // Mark matching awaiting_verification operations as failed
+            if (!empty($fresh->shopify_inventory_item_id)) {
+                InventorySyncOperation::where('shop_id', $this->shopId)
+                    ->where('shopify_inventory_item_id', $fresh->shopify_inventory_item_id)
+                    ->whereIn('status', ['awaiting_verification'])
+                    ->update([
+                        'status'     => 'failed',
+                        'last_error' => $failureReason,
+                    ]);
+            }
 
             Log::warning('VerifyAmazonInventoryQuantityJob: Max verification attempts reached (mismatch).', [
                 'shop_id' => $this->shopId,

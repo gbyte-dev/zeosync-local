@@ -30,3 +30,9 @@ Schedule::command('shopify:refresh-inventory-cache')
     ->everyFifteenMinutes()
     ->withoutOverlapping()
     ->runInBackground();
+
+Schedule::command('inventory:recover-operations')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground();
+
