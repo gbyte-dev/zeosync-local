@@ -836,13 +836,87 @@ class ShopifyController extends Controller
         if ((int) $order->shop_id !== (int) $shopModel->id) {
             abort(404, 'Order not found.');
         }
-
+        $order = $this->refreshOrderFromShopify($shopModel, $order);
+        // dd($order->toArray());
         return view('order-details', [
             'order'      => $order,
             'source'     => $source,
             'activeShop' => $shopModel->shop,
         ]);
     }
+
+    /**
+     * Pulls the current order state from Shopify's Admin API and syncs it into
+     * the local row before display. Falls back to the cached row on failure
+     * so a Shopify API hiccup never breaks the page — it just shows slightly
+     * stale data with a logged warning.
+     */
+    protected function refreshOrderFromShopify(Shop $shopModel, ShopifyOrder $order): ShopifyOrder
+    {
+
+        try {
+                $shopifyService = app(ShopifyService::class, [
+                    'shop'  => $shopModel->shop,
+                    'token' => $shopModel->access_token
+                ]);
+                $data = $shopifyService->getOrder($order->shopify_order_id);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to refresh order from Shopify; showing cached data.', [
+                'shop_id' => $shopModel->id,
+                'shopify_order_id' => $order->shopify_order_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $order;
+        }
+
+        if (!is_array($data) || empty($data['id'])) {
+            return $order;
+        }
+
+        $customer = data_get($data, 'customer', []);
+        $lineItems = data_get($data, 'line_items', []);
+
+        $order->fill([
+            'admin_graphql_api_id' => data_get($data, 'admin_graphql_api_id', $order->admin_graphql_api_id),
+            'order_number'         => data_get($data, 'order_number', $order->order_number),
+            'name'                 => data_get($data, 'name', $order->name),
+            'email'                => data_get($data, 'email', $order->email),
+            'customer_first_name'  => data_get($customer, 'first_name', $order->customer_first_name),
+            'customer_last_name'   => data_get($customer, 'last_name', $order->customer_last_name),
+            'customer_phone'       => data_get($customer, 'phone', $order->customer_phone),
+            'phone'                => data_get($data, 'phone', $order->phone),
+            'financial_status'     => data_get($data, 'financial_status', $order->financial_status),
+            'fulfillment_status'   => data_get($data, 'fulfillment_status', $order->fulfillment_status),
+            'currency'             => data_get($data, 'currency', $order->currency),
+            'subtotal_price'       => (float) data_get($data, 'subtotal_price', $order->subtotal_price),
+            'total_tax'            => (float) data_get($data, 'total_tax', $order->total_tax),
+            'total_discounts'      => (float) data_get($data, 'total_discounts', $order->total_discounts),
+            'total_price'          => (float) data_get($data, 'total_price', $order->total_price),
+            'line_items_count'     => $lineItems ? count($lineItems) : $order->line_items_count,
+            'source_name'          => data_get($data, 'source_name', $order->source_name),
+            'tags'                 => data_get($data, 'tags', $order->tags),
+            'note'                 => data_get($data, 'note', $order->note),
+            'customer'             => $customer ?: $order->customer,
+            'billing_address'      => data_get($data, 'billing_address', $order->billing_address),
+            'shipping_address'     => data_get($data, 'shipping_address', $order->shipping_address),
+            'line_items'           => $lineItems ?: $order->line_items,
+            'discount_codes'       => data_get($data, 'discount_codes', $order->discount_codes),
+            'shipping_lines'       => data_get($data, 'shipping_lines', $order->shipping_lines),
+            'tax_lines'            => data_get($data, 'tax_lines', $order->tax_lines),
+            'raw_payload'          => $data,
+            'order_created_at'     => $this->parseNullableDate(data_get($data, 'created_at')) ?? $order->order_created_at,
+            'processed_at'         => $this->parseNullableDate(data_get($data, 'processed_at')) ?? $order->processed_at,
+            'cancelled_at'         => $this->parseNullableDate(data_get($data, 'cancelled_at')) ?? $order->cancelled_at,
+        ]);
+
+        if ($order->isDirty()) {
+            $order->save();
+        }
+
+        return $order;
+    }
+
     public function syncToAmazon(Request $request, $id)
     {
         try {
@@ -1264,7 +1338,7 @@ class ShopifyController extends Controller
                 'Shopify Order ' . ($data['name'] ?? '#' . $data['order_number']) . ' updated successfully.'
             );
         }
-        
+
         return response('OK', 200);
     }
     public function products(Request $request)

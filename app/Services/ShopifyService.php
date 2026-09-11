@@ -415,4 +415,117 @@ class ShopifyService
 
         return $response->json();
     }
+
+    public function getOrder(string|int $orderId): ?array
+    {
+        $id = str_starts_with((string) $orderId, 'gid://')
+            ? $orderId
+            : "gid://shopify/Order/{$orderId}";
+
+        $query = <<<'GRAPHQL'
+    query ($id: ID!) {
+    order(id: $id) {
+        id legacyResourceId name orderNumber email phone createdAt processedAt cancelledAt
+        currencyCode displayFinancialStatus displayFulfillmentStatus note tags
+        customer { id firstName lastName email phone }
+        billingAddress { firstName lastName company address1 address2 city province provinceCode country countryCodeV2 zip phone }
+        shippingAddress { firstName lastName company address1 address2 city province provinceCode country countryCodeV2 zip phone }
+        subtotalPriceSet { shopMoney { amount } }
+        totalTaxSet { shopMoney { amount } }
+        totalDiscountsSet { shopMoney { amount } }
+        totalPriceSet { shopMoney { amount } }
+        lineItems(first: 250) {
+        nodes {
+            id name title quantity sku variantTitle
+            originalUnitPriceSet { shopMoney { amount } }
+            discountedUnitPriceSet { shopMoney { amount } }
+            variant { id legacyResourceId title sku }
+            product { id legacyResourceId title }
+        }
+        }
+        discountCodes { code applicable }
+        shippingLines(first: 50) {
+        nodes { title code originalPriceSet { shopMoney { amount } } }
+        }
+        taxLines { title rate priceSet { shopMoney { amount } } }
+    }
+    }
+    GRAPHQL;
+
+        $response = $this->graphql($query, ['id' => $id]);
+
+        if (!empty($response['error']) || !empty($response['errors'])) {
+            throw new \RuntimeException(
+                'Shopify GraphQL error: ' .
+                ($response['message'] ?? json_encode($response['errors']))
+            );
+        }
+
+        $o = data_get($response, 'data.order');
+
+        if (!$o) {
+            return null;
+        }
+
+        $customer = $o['customer'] ?? [];
+        $items = collect(data_get($o, 'lineItems.nodes', []))
+            ->map(fn ($i) => [
+                'id' => $i['id'] ?? null,
+                'name' => $i['name'] ?? null,
+                'title' => $i['title'] ?? null,
+                'quantity' => $i['quantity'] ?? 0,
+                'sku' => $i['sku'] ?? null,
+                'variant_title' => $i['variantTitle'] ?? null,
+                'price' => data_get($i, 'originalUnitPriceSet.shopMoney.amount'),
+                'discounted_price' => data_get($i, 'discountedUnitPriceSet.shopMoney.amount'),
+                'variant' => $i['variant'] ?? null,
+                'product' => $i['product'] ?? null,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'id' => $o['legacyResourceId'] ?? $o['id'],
+            'admin_graphql_api_id' => $o['id'],
+            'order_number' => $o['orderNumber'] ?? null,
+            'name' => $o['name'] ?? null,
+            'email' => $o['email'] ?? null,
+            'phone' => $o['phone'] ?? null,
+            'customer' => [
+                'id' => $customer['id'] ?? null,
+                'first_name' => $customer['firstName'] ?? null,
+                'last_name' => $customer['lastName'] ?? null,
+                'email' => $customer['email'] ?? null,
+                'phone' => $customer['phone'] ?? null,
+            ],
+            'financial_status' => $o['displayFinancialStatus'] ?? null,
+            'fulfillment_status' => $o['displayFulfillmentStatus'] ?? null,
+            'currency' => $o['currencyCode'] ?? null,
+            'subtotal_price' => (float) data_get($o, 'subtotalPriceSet.shopMoney.amount', 0),
+            'total_tax' => (float) data_get($o, 'totalTaxSet.shopMoney.amount', 0),
+            'total_discounts' => (float) data_get($o, 'totalDiscountsSet.shopMoney.amount', 0),
+            'total_price' => (float) data_get($o, 'totalPriceSet.shopMoney.amount', 0),
+            'line_items_count' => count($items),
+            'source_name' => null,
+            'tags' => $o['tags'] ?? [],
+            'note' => $o['note'] ?? null,
+            'customer' => $customer ? [
+                'id' => $customer['id'] ?? null,
+                'first_name' => $customer['firstName'] ?? null,
+                'last_name' => $customer['lastName'] ?? null,
+                'email' => $customer['email'] ?? null,
+                'phone' => $customer['phone'] ?? null,
+            ] : [],
+            'billing_address' => $o['billingAddress'] ?? null,
+            'shipping_address' => $o['shippingAddress'] ?? null,
+            'line_items' => $items,
+            'discount_codes' => $o['discountCodes'] ?? [],
+            'shipping_lines' => data_get($o, 'shippingLines.nodes', []),
+            'tax_lines' => $o['taxLines'] ?? [],
+            'created_at' => $o['createdAt'] ?? null,
+            'processed_at' => $o['processedAt'] ?? null,
+            'cancelled_at' => $o['cancelledAt'] ?? null,
+            'raw_payload' => $o,
+        ];
+    }
 }

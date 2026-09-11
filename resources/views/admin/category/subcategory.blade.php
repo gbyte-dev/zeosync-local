@@ -55,8 +55,22 @@
 
             {{-- Desktop Table --}}
             <div class="p-3">
+                {{-- Separate Filter Form --}}
+                <form id="filter-subcategories-form" class="mb-3" onsubmit="return false;">
+                    <div class="d-flex gap-2 align-items-center">
+                        <label class="mb-0 small text-muted">Filter by status</label>
+                        <select id="status-filter" name="status_filter" class="form-select form-select-sm w-auto">
+                            <option value="all" {{ request()->get('status', 'all') === 'all' ? 'selected' : '' }}>All</option>
+                            <option value="Active" {{ request()->get('status') === 'Active' ? 'selected' : '' }}>Active</option>
+                            <option value="Inactive" {{ request()->get('status') === 'Inactive' ? 'selected' : '' }}>Inactive</option>
+                        </select>
+                        <button type="button" id="clear-status-filter" class="btn btn-sm btn-outline-secondary">Clear</button>
+                    </div>
+                </form>
+
                 <form id="move-subcategories-form" method="post" action="{{ route('admin.subcategories.move') }}">
                     @csrf
+                    <input type="hidden" name="status" id="move-form-status" value="{{ request()->get('status','all') }}">
                     <div class="d-flex gap-2 align-items-center mb-3">
                         <label class="mb-0 small text-muted">Move selected to</label>
                         <select class="form-select form-select-sm w-auto" name="target_parent_id">
@@ -201,7 +215,8 @@
 <script>
     $(document).ready(function () {
         // Desktop DataTable — pagination + search + sorting, styled for Bootstrap 5
-        $('#subcategory-table').DataTable({
+        var initialStatus = '{{ request()->get('status','all') }}';
+        var subcatTable = $('#subcategory-table').DataTable({
             pagingType: 'simple_numbers',
             pageLength: 10,
             lengthChange: true,
@@ -226,6 +241,55 @@
                     next: "Next"
                 }
             }
+        });
+        // apply initial status filter (if any)
+        if (initialStatus && initialStatus !== 'all') {
+            $('#status-filter').val(initialStatus);
+            subcatTable.column(3).search(initialStatus).draw();
+        } else {
+            $('#status-filter').val('all');
+        }
+
+        // wire the separate status filter — also update URL so selection persists on refresh
+        $('#status-filter').on('change', function () {
+            var val = $(this).val();
+            if (!subcatTable) return;
+            if (val === 'all') {
+                subcatTable.column(3).search('').draw();
+            } else {
+                subcatTable.column(3).search(val).draw();
+            }
+
+            // update URL query param 'status' (so refresh keeps it)
+            try {
+                var url = new URL(window.location.href);
+                var params = url.searchParams;
+                if (val === 'all') {
+                    params.delete('status');
+                } else {
+                    params.set('status', val);
+                }
+                var newUrl = url.pathname + (params.toString() ? ('?' + params.toString()) : '');
+                history.replaceState(null, '', newUrl);
+            } catch (e) {
+                // older browsers fallback: do nothing
+            }
+
+            // keep move form hidden field in sync
+            var moveStatus = document.getElementById('move-form-status');
+            if (moveStatus) moveStatus.value = val;
+        });
+
+        // clear button: remove filter and URL param
+        $('#clear-status-filter').on('click', function () {
+            $('#status-filter').val('all').trigger('change');
+            try {
+                var url = new URL(window.location.href);
+                var params = url.searchParams;
+                params.delete('status');
+                var newUrl = url.pathname + (params.toString() ? ('?' + params.toString()) : '');
+                history.replaceState(null, '', newUrl);
+            } catch (e) {}
         });
 
         // // Mobile card search (simple client-side filter, mirrors desktop search behavior)
