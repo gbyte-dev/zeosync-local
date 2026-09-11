@@ -40,9 +40,10 @@ class VerifyShopifyAuthentication
             }
         }
 
-        // 2. Priority 2: App Bridge Session Token (Authorization header, custom header, or URL query token)
+        // 2. Priority 2: App Bridge Session Token (Authorization header, custom header, or URL query token) OR Laravel Crypt Path/Query Token
         $sessionToken = $this->extractSessionToken($request);
         if ($sessionToken) {
+            // 2a. Validate App Bridge JWT Session Token
             $tokenResult = $this->validator->validate($sessionToken);
 
             if ($tokenResult) {
@@ -55,6 +56,23 @@ class VerifyShopifyAuthentication
                     '_shopify_verified_at'   => time(),
                     'active_shop'            => $tokenResult['shop'],
                     'active_shop_id'         => $tokenResult['shop_model']->id,
+                ]);
+
+                return $next($request);
+            }
+
+            // 2b. Validate Laravel Crypt Token (from path /apps/{token} or query)
+            $cryptResult = $this->verifyCryptToken($sessionToken);
+            if ($cryptResult) {
+                $request->attributes->set('shopify_verified_shop', $cryptResult['shop']);
+                $request->attributes->set('shopify_verified_model', $cryptResult['shop_model']);
+                $request->attributes->set('shopify_auth_source', 'bearer_token');
+
+                session([
+                    '_shopify_verified_shop' => $cryptResult['shop'],
+                    '_shopify_verified_at'   => time(),
+                    'active_shop'            => $cryptResult['shop'],
+                    'active_shop_id'         => $cryptResult['shop_model']->id,
                 ]);
 
                 return $next($request);
@@ -115,7 +133,7 @@ class VerifyShopifyAuthentication
     }
 
     /**
-     * Extract session token from Bearer header, X-Shopify-Session-Token header, or query parameters.
+     * Extract session token from Bearer header, X-Shopify-Session-Token header, route param, path, or query parameters.
      */
     protected function extractSessionToken(Request $request): ?string
     {
@@ -129,6 +147,20 @@ class VerifyShopifyAuthentication
             return trim($headerToken);
         }
 
+        // Route parameter 'token' (e.g. /apps/{token}/dashboard)
+        $routeToken = $request->route('token');
+        if (!empty($routeToken) && is_string($routeToken)) {
+            return trim($routeToken);
+        }
+
+        // Path fallback (e.g. apps/{token}/dashboard or store/{store}/apps/{token})
+        $path = $request->path();
+        if (preg_match('~apps/([^/?#]+)~i', $path, $matches)) {
+            if (!empty($matches[1]) && $matches[1] !== 'dashboard') {
+                return trim($matches[1]);
+            }
+        }
+
         $queryCandidates = ['id_token', 'token', 'session_token', 'session', 'shopify_token'];
         foreach ($queryCandidates as $param) {
             $val = $request->query($param);
@@ -138,6 +170,81 @@ class VerifyShopifyAuthentication
         }
 
         return null;
+    }
+
+    /**
+     * Verify a Laravel Crypt encrypted string (e.g. from /apps/{token}/dashboard or query).
+     */
+    public function verifyCryptToken(string $token): ?array
+    {
+        $candidates = [
+            $token,
+            urldecode($token),
+            strtr($token, '-_', '+/'),
+            strtr(urldecode($token), '-_', '+/'),
+        ];
+
+        $decrypted = null;
+        foreach (array_unique($candidates) as $candidate) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($candidate);
+                if (!empty($decrypted)) {
+                    break;
+                }
+            } catch (\Throwable $e) {
+                // Decryption failed for this candidate, try next
+            }
+        }
+
+        if (empty($decrypted)) {
+            return null;
+        }
+
+        $shopDomain = null;
+
+        // Check if decrypted payload is JSON
+        $json = json_decode($decrypted, true);
+        if (is_array($json)) {
+            $shopDomain = $json['shop'] ?? $json['shop_domain'] ?? $json['store'] ?? null;
+
+            // Check expiration if present
+            if (isset($json['exp']) && is_numeric($json['exp']) && $json['exp'] < time()) {
+                Log::warning('VerifyShopifyAuthentication: Crypt token expired.');
+                return null;
+            }
+            if (isset($json['time']) && is_numeric($json['time']) && (time() - $json['time'] > 86400)) {
+                Log::warning('VerifyShopifyAuthentication: Crypt token timestamp expired.');
+                return null;
+            }
+        } elseif (is_string($decrypted)) {
+            $shopDomain = trim($decrypted);
+        }
+
+        if (empty($shopDomain)) {
+            return null;
+        }
+
+        $normalizedShop = $this->validator->normalizeShopDomain($shopDomain);
+        if (!$normalizedShop) {
+            return null;
+        }
+
+        try {
+            $shopModel = Shop::where('shop', $normalizedShop)
+                ->where('is_active', 1)
+                ->first();
+        } catch (\Throwable $e) {
+            $shopModel = null;
+        }
+
+        if (!$shopModel || empty($shopModel->access_token)) {
+            return null;
+        }
+
+        return [
+            'shop'       => $normalizedShop,
+            'shop_model' => $shopModel,
+        ];
     }
 
     /**

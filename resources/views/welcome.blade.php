@@ -15,7 +15,7 @@
                 Connect your store, automate product sync, and manage orders & returns — all in one place.
             </p>
 
-            <form method="GET" action="{{ route('crm.entry') }}" class="d-flex justify-content-center">
+            <form method="GET" action="{{ route('shopify.install') }}" class="d-flex justify-content-center">
                 <div class="input-group" style="max-width: 450px;">
 
                     <input type="text" name="shop" class="form-control" placeholder="your-store-name" value="{{session('active_shop')}}" required>

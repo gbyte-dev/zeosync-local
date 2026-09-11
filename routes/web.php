@@ -31,6 +31,10 @@ require base_path('routes/webnotification.php');
 // Route::get('/verify', [DashboardController::class, 'install'])->name('dashboard');
 
 Route::get('/', [ShopifyController::class, 'entry'])->name('crm.entry');
+Route::get('/apps/{token}/dashboard', [ShopifyController::class, 'appLaunch'])->name('shopify.app.launch.dashboard');
+Route::get('/apps/{token}', [ShopifyController::class, 'appLaunch'])->name('shopify.app.launch');
+Route::get('/store/{shop_handle}/apps/{token}/dashboard', [ShopifyController::class, 'appLaunchStore'])->name('shopify.app.launch.store.dashboard');
+Route::get('/store/{shop_handle}/apps/{token}', [ShopifyController::class, 'appLaunchStore'])->name('shopify.app.launch.store');
 Route::get('/install', [ShopifyController::class, 'install'])->name('shopify.install');
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/callback', [ShopifyController::class, 'callback'])->name('shopify.callback');

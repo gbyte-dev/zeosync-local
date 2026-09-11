@@ -60,6 +60,15 @@ beforeEach(function () {
     AdminSetting::forget('SHOPIFY_API_KEY');
     AdminSetting::forget('SHOPIFY_API_SECRET');
 
+    if (!\Illuminate\Support\Facades\Schema::hasTable('admin_settings')) {
+        \Illuminate\Support\Facades\Schema::create('admin_settings', function (\Illuminate\Database\Schema\Blueprint $table) {
+            $table->id();
+            $table->string('option_key')->unique();
+            $table->text('option_value')->nullable();
+            $table->timestamps();
+        });
+    }
+
     if (!\Illuminate\Support\Facades\Schema::hasTable('shops')) {
         \Illuminate\Support\Facades\Schema::create('shops', function (\Illuminate\Database\Schema\Blueprint $table) {
             $table->id();
@@ -343,7 +352,7 @@ it('Test 12: Expired launch HMAC is rejected without authenticating', function (
     $response->assertStatus(401);
 });
 
-it('Test 13: Direct /?shop=victim.myshopify.com without HMAC redirects to install and does not authenticate victim', function () {
+it('Test 13: Direct /?shop=victim.myshopify.com without HMAC remains on public landing page and does not authenticate victim', function () {
     Shop::create([
         'shop'         => 'victim.myshopify.com',
         'shop_name'    => 'Victim Store',
@@ -355,8 +364,9 @@ it('Test 13: Direct /?shop=victim.myshopify.com without HMAC redirects to instal
     // Attacker visits /?shop=victim.myshopify.com without HMAC
     $response = $this->get('/?shop=victim.myshopify.com');
 
-    // Must redirect to install (OAuth), NOT dashboard
-    $response->assertRedirect(route('shopify.install', ['shop' => 'victim.myshopify.com']));
+    // Must remain on public landing page, NOT authenticate or redirect to dashboard
+    $response->assertStatus(200);
+    $response->assertViewIs('welcomemain');
 
     // Must NOT have set verified session for victim
     expect(session('_shopify_verified_shop'))->toBeNull();

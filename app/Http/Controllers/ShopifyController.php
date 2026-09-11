@@ -51,123 +51,175 @@ class ShopifyController extends Controller
     }
     public function entry(Request $request)
     {
-        $verifiedShop = $request->attributes->get('shopify_verified_shop')
-            ?? (session()->has('_shopify_verified_shop') ? session('_shopify_verified_shop') : null);
-
-        $shop = null;
+        // 1. Authenticated Shopify Launch:
+        // Only proceed to dashboard if the CURRENT request has been cryptographically verified
+        // by VerifyShopifyAuthentication middleware (via launch HMAC, query session token, or header token).
+        $verifiedShop = $request->attributes->get('shopify_verified_shop');
 
         if ($verifiedShop) {
             $shop = $verifiedShop;
-        } else {
-            //   PRIORITY 1: Shopify HOST (REAL SOURCE)
-            if ($request->has('host')) {
-                $decoded = base64_decode($request->get('host'));
-                Log::info('HOST DECODED', [
-                    'host' => $request->get('host'),
-                    'decoded' => $decoded
-                ]);
-                preg_match('/store\/([a-z0-9\-]+)/', $decoded, $matches);
-                if (!empty($matches[1])) {
-                    $shop = strtolower($matches[1] . '.myshopify.com');
-                }
-            }
-            //   PRIORITY 2: Query param (manual entry)
-            if (!$shop && $request->has('shop')) {
-                $shop = strtolower(trim($request->get('shop')));
-                if (!str_contains($shop, '.myshopify.com')) {
-                    $shop .= '.myshopify.com';
-                }
-            }
-        }
+            $shopModel = $request->attributes->get('shopify_verified_model')
+                ?? \App\Models\Shop::where('shop', $shop)->where('is_active', 1)->first();
 
-        if (!$shop) {
-            return view('welcomemain'); // landing page
-        }
+            if ($shopModel && $shopModel->is_active == 1 && !empty($shopModel->access_token)) {
+                if (!$this->isShopActive($shopModel)) {
+                    $shopModel->update([
+                        'is_active' => 0,
+                    ]);
 
-        $shopModel = $request->attributes->get('shopify_verified_model')
-            ?? \App\Models\Shop::where('shop', $shop)->where('is_active', 1)->first();
-
-        if (
-            $verifiedShop &&
-            $shopModel &&  $shopModel->is_active == 1 && !empty($shopModel->access_token)
-        ) {
-            if (!$this->isShopActive($shopModel)) {
-
-                $shopModel->update([
-                    'is_active' => 0,
-                ]);
-
-                session()->forget(['active_shop', 'active_shop_id', '_shopify_verified_shop', '_shopify_verified_at']);
-                return redirect()->route('shopify.install', [
-                    'shop' => $shopModel->shop,
-                ]);
-            }
-            session([
-                'active_shop'            => $shop,
-                'active_shop_id'         => $shopModel->id,
-                '_shopify_verified_shop' => $shop,
-                '_shopify_verified_at'   => session('_shopify_verified_at', time()),
-            ]);
-
-            if ($request->filled('charge_id')) {
-                $chargeId = $request->query('charge_id');
-
-                $subscriptionGid = 'gid://shopify/AppSubscription/' . $chargeId;
-
-                Log::info('MANAGED PRICING RETURN', [
-                    'shop' => $shop,
-                    'charge_id' => $chargeId,
-                    'subscription_gid' => $subscriptionGid,
-                ]);
-
-                $subscription = ShopSubscription::with('plan')
-                    ->where('shop_id', $shopModel->id)
-                    ->first();
-
-                try {
-                    $subscription = $this->shopifyBilling->syncSubscriptionByGid(
-                        $shopModel,
-                        $subscriptionGid,
-                        $subscription
-                    );
-                } catch (\Throwable $e) {
-                    Log::error('MANAGED PRICING SYNC FAILED', [
-                        'shop_id' => $shopModel->id,
-                        'charge_id' => $chargeId,
-                        'subscription_gid' => $subscriptionGid,
-                        'error' => $e->getMessage(),
+                    session()->forget(['active_shop', 'active_shop_id', '_shopify_verified_shop', '_shopify_verified_at']);
+                    return redirect()->route('shopify.install', [
+                        'shop' => $shopModel->shop,
                     ]);
                 }
 
-                if (
-                    $subscription &&
-                    $this->shopifyBilling->isActivatedStatus($subscription->status)
-                ) {
-                    return redirect($this->shopAwareUrl('/planview', $shopModel->shop))
-                        ->with('success', ($subscription->plan?->name ?? 'Selected') . ' plan is now active.');
+                session([
+                    'active_shop'            => $shop,
+                    'active_shop_id'         => $shopModel->id,
+                    '_shopify_verified_shop' => $shop,
+                    '_shopify_verified_at'   => session('_shopify_verified_at', time()),
+                ]);
+
+                if ($request->filled('charge_id')) {
+                    $chargeId = $request->query('charge_id');
+                    $subscriptionGid = 'gid://shopify/AppSubscription/' . $chargeId;
+
+                    $subscription = ShopSubscription::with('plan')
+                        ->where('shop_id', $shopModel->id)
+                        ->first();
+
+                    try {
+                        $subscription = $this->shopifyBilling->syncSubscriptionByGid(
+                            $shopModel,
+                            $subscriptionGid,
+                            $subscription
+                        );
+                    } catch (\Throwable $e) {
+                        Log::error('MANAGED PRICING SYNC FAILED', [
+                            'shop_id' => $shopModel->id,
+                            'charge_id' => $chargeId,
+                            'subscription_gid' => $subscriptionGid,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+
+                    if (
+                        $subscription &&
+                        $this->shopifyBilling->isActivatedStatus($subscription->status)
+                    ) {
+                        return redirect($this->shopAwareUrl('/planview', $shopModel->shop))
+                            ->with('success', ($subscription->plan?->name ?? 'Selected') . ' plan is now active.');
+                    }
+                }
+
+                $redirectParams = $request->query();
+                unset(
+                    $redirectParams['id_token'],
+                    $redirectParams['token'],
+                    $redirectParams['session_token'],
+                    $redirectParams['session'],
+                    $redirectParams['shopify_token']
+                );
+                $redirectParams['shop'] = $shop;
+                if ($request->filled('host')) {
+                    $redirectParams['host'] = $request->query('host');
+                }
+                if ($request->filled('embedded')) {
+                    $redirectParams['embedded'] = $request->query('embedded');
+                }
+
+                return redirect()->route('dashboard', $redirectParams);
+            }
+
+            return redirect()->route('shopify.install', ['shop' => $shop]);
+        }
+
+        // 2. Public website / landing page:
+        // All unauthenticated visits to / (with or without existing session cookies or ?shop parameter)
+        // land on the public ZeoSync website without automatic redirection.
+        return view('welcomemain');
+    }
+
+    public function appLaunch(Request $request, ?string $token = null)
+    {
+        $verifiedShop = $request->attributes->get('shopify_verified_shop')
+            ?? (session()->has('_shopify_verified_shop') ? session('_shopify_verified_shop') : null);
+
+        if (!$verifiedShop && !empty($token)) {
+            $cryptResult = app(\App\Http\Middleware\VerifyShopifyAuthentication::class)->verifyCryptToken($token);
+            if ($cryptResult) {
+                $verifiedShop = $cryptResult['shop'];
+                $request->attributes->set('shopify_verified_shop', $cryptResult['shop']);
+                $request->attributes->set('shopify_verified_model', $cryptResult['shop_model']);
+                $request->attributes->set('shopify_auth_source', 'bearer_token');
+
+                session([
+                    '_shopify_verified_shop' => $cryptResult['shop'],
+                    '_shopify_verified_at'   => time(),
+                    'active_shop'            => $cryptResult['shop'],
+                    'active_shop_id'         => $cryptResult['shop_model']->id,
+                ]);
+            }
+        }
+
+        if (!$verifiedShop) {
+            $shopParam = $request->query('shop');
+            if (!$shopParam && $request->has('host')) {
+                $decoded = base64_decode($request->get('host'));
+                if (preg_match('/store\/([a-z0-9\-]+)/', $decoded, $matches)) {
+                    $shopParam = $matches[1] . '.myshopify.com';
                 }
             }
 
-            $redirectParams = $request->query();
-            unset(
-                $redirectParams['id_token'],
-                $redirectParams['token'],
-                $redirectParams['session_token'],
-                $redirectParams['session'],
-                $redirectParams['shopify_token']
-            );
-            $redirectParams['shop'] = $shop;
-            if ($request->filled('host')) {
-                $redirectParams['host'] = $request->query('host');
-            }
-            if ($request->filled('embedded')) {
-                $redirectParams['embedded'] = $request->query('embedded');
+            if ($shopParam) {
+                return redirect()->route('shopify.install', ['shop' => $shopParam]);
             }
 
-            return redirect()->route('dashboard', $redirectParams);
+            return redirect()->route('crm.entry');
         }
 
-        return redirect()->route('shopify.install', ['shop' => $shop]);
+        $shopModel = $request->attributes->get('shopify_verified_model')
+            ?? Shop::where('shop', $verifiedShop)->where('is_active', 1)->first();
+
+        if (!$shopModel || empty($shopModel->access_token)) {
+            return redirect()->route('shopify.install', ['shop' => $verifiedShop]);
+        }
+
+        if (!$this->isShopActive($shopModel)) {
+            $shopModel->update(['is_active' => 0]);
+            session()->forget(['active_shop', 'active_shop_id', '_shopify_verified_shop', '_shopify_verified_at']);
+            return redirect()->route('shopify.install', ['shop' => $shopModel->shop]);
+        }
+
+        session([
+            'active_shop'            => $verifiedShop,
+            'active_shop_id'         => $shopModel->id,
+            '_shopify_verified_shop' => $verifiedShop,
+            '_shopify_verified_at'   => session('_shopify_verified_at', time()),
+        ]);
+
+        $redirectParams = $request->query();
+        unset(
+            $redirectParams['id_token'],
+            $redirectParams['token'],
+            $redirectParams['session_token'],
+            $redirectParams['session'],
+            $redirectParams['shopify_token']
+        );
+        $redirectParams['shop'] = $verifiedShop;
+        if ($request->filled('host')) {
+            $redirectParams['host'] = $request->query('host');
+        }
+        if ($request->filled('embedded')) {
+            $redirectParams['embedded'] = $request->query('embedded');
+        }
+
+        return redirect()->route('dashboard', $redirectParams);
+    }
+
+    public function appLaunchStore(Request $request, string $shop_handle, ?string $token = null)
+    {
+        return $this->appLaunch($request, $token);
     }
     private function isShopActive(Shop $shop): bool
     {
