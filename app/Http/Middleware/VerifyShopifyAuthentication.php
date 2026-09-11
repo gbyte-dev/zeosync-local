@@ -40,15 +40,10 @@ class VerifyShopifyAuthentication
             }
         }
 
-        // 2. Bypass unauthenticated / public / webhook / admin routes
-        if ($this->shouldBypass($request)) {
-            return $next($request);
-        }
-
-        // 3. Priority 2: App Bridge Session Token (Authorization: Bearer <token>)
-        $bearerToken = $request->bearerToken();
-        if ($bearerToken) {
-            $tokenResult = $this->validator->validate($bearerToken);
+        // 2. Priority 2: App Bridge Session Token (Authorization header, custom header, or URL query token)
+        $sessionToken = $this->extractSessionToken($request);
+        if ($sessionToken) {
+            $tokenResult = $this->validator->validate($sessionToken);
 
             if ($tokenResult) {
                 $request->attributes->set('shopify_verified_shop', $tokenResult['shop']);
@@ -65,15 +60,22 @@ class VerifyShopifyAuthentication
                 return $next($request);
             }
 
-            // If Bearer token is provided but invalid, fail closed immediately
-            Log::warning('VerifyShopifyAuthentication: Invalid Bearer token provided.', [
-                'url' => $request->fullUrl(),
+            // If a session token was provided but is invalid, fail closed for AJAX/JSON
+            Log::warning('VerifyShopifyAuthentication: Invalid session token provided.', [
+                'path' => $request->path(),
             ]);
 
-            return response()->json([
-                'error'   => 'Unauthorized',
-                'message' => 'Invalid, expired, or untrusted Shopify session token.',
-            ], 401);
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    'error'   => 'Unauthorized',
+                    'message' => 'Invalid, expired, or untrusted Shopify session token.',
+                ], 401);
+            }
+        }
+
+        // 3. Bypass unauthenticated / public / webhook / admin routes
+        if ($this->shouldBypass($request)) {
+            return $next($request);
         }
 
         // 4. Priority 3: Established Cryptographically Verified Session
@@ -110,6 +112,32 @@ class VerifyShopifyAuthentication
 
         // 6. Non-AJAX browser requests continue to ResolveActiveShop
         return $next($request);
+    }
+
+    /**
+     * Extract session token from Bearer header, X-Shopify-Session-Token header, or query parameters.
+     */
+    protected function extractSessionToken(Request $request): ?string
+    {
+        $bearer = $request->bearerToken();
+        if (!empty($bearer)) {
+            return trim($bearer);
+        }
+
+        $headerToken = $request->header('X-Shopify-Session-Token');
+        if (!empty($headerToken) && is_string($headerToken)) {
+            return trim($headerToken);
+        }
+
+        $queryCandidates = ['id_token', 'token', 'session_token', 'session', 'shopify_token'];
+        foreach ($queryCandidates as $param) {
+            $val = $request->query($param);
+            if (!empty($val) && is_string($val)) {
+                return trim($val);
+            }
+        }
+
+        return null;
     }
 
     /**

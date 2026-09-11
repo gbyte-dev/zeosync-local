@@ -149,6 +149,13 @@ class ShopifyController extends Controller
             }
 
             $redirectParams = $request->query();
+            unset(
+                $redirectParams['id_token'],
+                $redirectParams['token'],
+                $redirectParams['session_token'],
+                $redirectParams['session'],
+                $redirectParams['shopify_token']
+            );
             $redirectParams['shop'] = $shop;
             if ($request->filled('host')) {
                 $redirectParams['host'] = $request->query('host');
