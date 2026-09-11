@@ -83,6 +83,8 @@ function createMockShop(int $id = 1, string $domain = 'test-shop.myshopify.com')
 }
 
 it('1. Amazon 200 + ACCEPTED updates mapping to success + accepted with submission_id', function () {
+    \Illuminate\Support\Facades\Queue::fake();
+
     $shop = createMockShop(501);
 
     $mapping = ProductMarketplaceMapping::create([

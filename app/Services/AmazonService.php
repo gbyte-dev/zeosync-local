@@ -19,6 +19,7 @@ use SellingPartnerApi\Seller\ListingsItemsV20210801\Dto\ListingsItemPutRequest;
 use SellingPartnerApi\Seller\ProductTypeDefinitionsV20200901\Requests\GetDefinitionsProductType;
 use App\Models\Shop;
 use App\Models\ProductMarketplaceMapping;
+use App\Jobs\VerifyAmazonInventoryQuantityJob;
 
 class AmazonService
 {
@@ -444,6 +445,15 @@ class AmazonService
                                 'available'         => $quantity,
                             ]
                         );
+                        // Schedule delayed verification (delay ~25 seconds for Amazon propagation)
+                        VerifyAmazonInventoryQuantityJob::dispatch(
+                            $shop->id,
+                            $sku,
+                            $quantity,
+                            $submissionId,
+                            now()->toDateTimeString(),
+                            1
+                        )->delay(now()->addSeconds(25));
                     }
 
                     return $responseBody;
