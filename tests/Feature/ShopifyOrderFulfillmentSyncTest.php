@@ -41,6 +41,7 @@ beforeEach(function () {
         Schema::create('shops', function (Blueprint $table) {
             $table->id();
             $table->string('shop')->unique();
+            $table->string('domain')->nullable();
             $table->string('shop_name')->nullable();
             $table->string('email')->nullable();
             $table->text('access_token')->nullable();
@@ -608,3 +609,146 @@ it('Test K: Multiple fulfillments aggregation logic', function () {
     ];
     expect($controller->resolveAggregateShipmentStatus($fulfillments4))->toBe('out_for_delivery');
 });
+
+
+it('Test L: Webhook for completely unknown shop returns 200 OK and does NOT create a shop or order', function () {
+    $unregisteredDomain = 'brand-new-unregistered-store.myshopify.com';
+    expect(Shop::where('shop', $unregisteredDomain)->exists())->toBeFalse();
+
+    $payload = [
+        'id'                => 8881001,
+        'order_number'      => '8881001',
+        'name'              => '#8881001',
+        'financial_status'  => 'paid',
+        'fulfillment_status'=> null,
+        'line_items'        => [],
+    ];
+
+    $rawPayload = json_encode($payload);
+    $hmac = base64_encode(hash_hmac('sha256', $rawPayload, 'test-api-secret', true));
+
+    $response = $this->call(
+        'POST',
+        route('shopify.webhooks.orders.create'),
+        [],
+        [],
+        [],
+        [
+            'HTTP_CONTENT_TYPE'           => 'application/json',
+            'CONTENT_TYPE'                => 'application/json',
+            'HTTP_X_SHOPIFY_SHOP_DOMAIN'  => $unregisteredDomain,
+            'HTTP_X_SHOPIFY_HMAC_SHA256'  => $hmac,
+            'HTTP_X_SHOPIFY_EVENT_ID'     => 'evt_unreg_1',
+        ],
+        $rawPayload
+    );
+
+    // Must acknowledge Shopify (so the endpoint is not marked broken)
+    $response->assertOk();
+
+    // Must NOT create a placeholder shop
+    expect(Shop::withTrashed()->where('shop', $unregisteredDomain)->exists())->toBeFalse();
+
+    // Must NOT persist any order
+    expect(ShopifyOrder::where('shopify_order_id', 8881001)->exists())->toBeFalse();
+});
+
+it('Test M: Webhook for soft-deleted (uninstalled) shop returns 200 OK and does NOT restore the shop or save an order', function () {
+    $softDeletedShop = createTestShopForOrders('soft-deleted-store.myshopify.com');
+    $softDeletedShop->delete();
+
+    // Confirm it is soft-deleted
+    expect(Shop::where('shop', 'soft-deleted-store.myshopify.com')->exists())->toBeFalse();
+    expect(Shop::withTrashed()->where('shop', 'soft-deleted-store.myshopify.com')->exists())->toBeTrue();
+
+    $payload = [
+        'id'                => 8881002,
+        'order_number'      => '8881002',
+        'name'              => '#8881002',
+        'financial_status'  => 'paid',
+        'fulfillment_status'=> null,
+        'line_items'        => [],
+    ];
+
+    $rawPayload = json_encode($payload);
+    $hmac = base64_encode(hash_hmac('sha256', $rawPayload, 'test-api-secret', true));
+
+    $response = $this->call(
+        'POST',
+        route('shopify.webhooks.orders.create'),
+        [],
+        [],
+        [],
+        [
+            'HTTP_CONTENT_TYPE'           => 'application/json',
+            'CONTENT_TYPE'                => 'application/json',
+            'HTTP_X_SHOPIFY_SHOP_DOMAIN'  => 'soft-deleted-store.myshopify.com',
+            'HTTP_X_SHOPIFY_HMAC_SHA256'  => $hmac,
+            'HTTP_X_SHOPIFY_EVENT_ID'     => 'evt_softdel_1',
+        ],
+        $rawPayload
+    );
+
+    // Must acknowledge without processing
+    $response->assertOk();
+
+    // Shop must remain soft-deleted — NOT restored
+    expect(Shop::where('shop', 'soft-deleted-store.myshopify.com')->exists())->toBeFalse();
+    $stillTrashed = Shop::withTrashed()->where('shop', 'soft-deleted-store.myshopify.com')->first();
+    expect($stillTrashed)->not->toBeNull();
+    expect($stillTrashed->trashed())->toBeTrue();
+
+    // No order must be created
+    expect(ShopifyOrder::where('shopify_order_id', 8881002)->exists())->toBeFalse();
+});
+
+it('Test N: Delete and uninstalled webhooks return 200 OK when shop is missing', function () {
+    $missingShop = 'non-existent-shop.myshopify.com';
+
+    // 1. Delete order webhook for completely unknown shop
+    $deletePayload = ['id' => 999999];
+    $rawDelete = json_encode($deletePayload);
+    $hmacDelete = base64_encode(hash_hmac('sha256', $rawDelete, 'test-api-secret', true));
+
+    $resDelete = $this->call(
+        'POST',
+        route('shopify.webhooks.orders.delete'),
+        [],
+        [],
+        [],
+        [
+            'HTTP_CONTENT_TYPE'           => 'application/json',
+            'CONTENT_TYPE'                => 'application/json',
+            'HTTP_X_SHOPIFY_SHOP_DOMAIN'  => $missingShop,
+            'HTTP_X_SHOPIFY_HMAC_SHA256'  => $hmacDelete,
+        ],
+        $rawDelete
+    );
+    $resDelete->assertOk();
+
+    // 2. App/uninstalled webhook for completely unknown shop
+    $uninstallPayload = ['id' => 12345];
+    $rawUninstall = json_encode($uninstallPayload);
+    $hmacUninstall = base64_encode(hash_hmac('sha256', $rawUninstall, 'test-api-secret', true));
+
+    $resUninstall = $this->call(
+        'POST',
+        route('shopify.webhooks.app.uninstalled'),
+        [],
+        [],
+        [],
+        [
+            'HTTP_CONTENT_TYPE'           => 'application/json',
+            'CONTENT_TYPE'                => 'application/json',
+            'HTTP_X_SHOPIFY_SHOP_DOMAIN'  => $missingShop,
+            'HTTP_X_SHOPIFY_HMAC_SHA256'  => $hmacUninstall,
+        ],
+        $rawUninstall
+    );
+    $resUninstall->assertOk();
+
+    // Neither webhook should create any shop record
+    expect(Shop::withTrashed()->where('shop', $missingShop)->exists())->toBeFalse();
+});
+
+
