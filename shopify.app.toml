@@ -52,3 +52,11 @@ topics = ["orders/updated"]
 [[webhooks.subscriptions]]
 uri = "https://zeosync.app/webhooks/shopify/orders/delete"
 topics = ["orders/delete"]
+
+[[webhooks.subscriptions]]
+uri = "https://zeosync.app/webhooks/shopify/returns/create"
+topics = ["returns/create"]
+
+[[webhooks.subscriptions]]
+uri = "https://zeosync.app/webhooks/shopify/returns/update"
+topics = ["returns/update"]
