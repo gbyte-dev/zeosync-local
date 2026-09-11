@@ -607,7 +607,10 @@
                         <select id="dtStatusShopify" class="saas-select">
                             <option value="">All Status</option>
                             <option value="synced">Synced</option>
+                            <option value="oversold">Oversold</option>
+                            <option value="out_of_stock">Out of Stock</option>
                             <option value="pending">Pending</option>
+                            <option value="unknown">Unknown</option>
                             <option value="error">Error</option>
                         </select>
                     </div>
@@ -836,6 +839,7 @@
             if (original === 'inactive' || original === 'incomplete') return 'pending';
         }
         if (original === 'synced') return 'synced';
+        if (original === 'oversold') return 'oversold';
         if (original === 'out_of_stock') return 'out_of_stock';
         if (original === 'pending') return 'pending';
         if (original === 'unknown') return 'unknown';
@@ -996,6 +1000,8 @@
         switch (mapped) {
             case 'synced':
                 return `<span class="soft-badge bg-success-subtle text-success">Synced</span>`;
+            case 'oversold':
+                return `<span class="soft-badge bg-danger-subtle text-danger">Oversold</span>`;
             case 'out_of_stock':
                 return `<span class="soft-badge bg-danger-subtle text-danger">Out of Stock</span>`;
             case 'pending':
@@ -1218,7 +1224,7 @@
                     {
                         data: 'available',
                         render: function(data, type, row) {
-                            if (type === 'sort' || type === 'filter') return (row.available !== null && row.available !== undefined) ? row.available : -1;
+                            if (type === 'sort' || type === 'filter') return (row.available !== null && row.available !== undefined) ? row.available : -999999;
                             const availableVal = (row.available !== null && row.available !== undefined) ? row.available : '';
                             const availablePlaceholder = (row.available === null || row.available === undefined) ? 'Unknown' : '';
                             return `<input type="number" value="${availableVal}" placeholder="${availablePlaceholder}" class="form-control form-control-sm qty-input" min="0">`;

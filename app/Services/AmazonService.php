@@ -280,12 +280,14 @@ class AmazonService
     public function updateInventory(
         Shop $shop,
         string $sku,
-        int $quantity
+        int $quantity,
+        bool $syncToShopify = true,
+        ?int $shopifyMappingQuantity = null
     ) {
         $lockKey = "inventory_sku_lock_{$shop->id}_{$sku}";
         $lock = Cache::lock($lockKey, 15);
 
-        return $lock->block(10, function () use ($shop, $sku, $quantity) {
+        return $lock->block(10, function () use ($shop, $sku, $quantity, $syncToShopify, $shopifyMappingQuantity) {
             $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
                 ->where('amazon_sku', $sku)
                 ->first();
@@ -392,8 +394,12 @@ class AmazonService
                     empty($issues)
                 ) {
                     if ($mapping) {
+                        $mappingQuantityToSave = $shopifyMappingQuantity !== null
+                            ? $shopifyMappingQuantity
+                            : $quantity;
+
                         $mapping->update([
-                            'quantity'          => $quantity,
+                            'quantity'          => $mappingQuantityToSave,
                             'sync_status'       => 'success',
                             'submission_status' => 'accepted',
                             'submission_id'     => $submissionId ?? $mapping->submission_id,
@@ -404,47 +410,51 @@ class AmazonService
                         Log::info('Marketplace mapping quantity updated.', [
                             'mapping_id'        => $mapping->id,
                             'sku'               => $sku,
-                            'quantity'          => $quantity,
+                            'quantity'          => $mappingQuantityToSave,
+                            'amazon_quantity'   => $quantity,
                             'submission_status' => 'accepted',
                             'submission_id'     => $submissionId,
                         ]);
 
-                        // Update Shopify Inventory
-                        $shopify = new ShopifyService(
-                            $shop->shop,
-                            $shop->access_token
-                        );
+                        if ($syncToShopify) {
+                            // Update Shopify Inventory
+                            $shopify = new ShopifyService(
+                                $shop->shop,
+                                $shop->access_token
+                            );
 
-                        $locations = $shop->shopify_locations ?? [];
-                        $selectedIndex = $shop->selected_location_index ?? 0;
+                            $locations = $shop->shopify_locations ?? [];
+                            $selectedIndex = $shop->selected_location_index ?? 0;
 
-                        $locationId = null;
+                            $locationId = null;
 
-                        if (isset($locations[$selectedIndex])) {
-                            $locationId = $locations[$selectedIndex]['id'] ?? null;
-                        }
+                            if (isset($locations[$selectedIndex])) {
+                                $locationId = $locations[$selectedIndex]['id'] ?? null;
+                            }
 
-                        if (!$locationId) {
-                            Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
-                                'shop_id' => $shop->id,
-                                'selected_location_index' => $selectedIndex,
-                            ]);
+                            if (!$locationId) {
+                                Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
+                                    'shop_id' => $shop->id,
+                                    'selected_location_index' => $selectedIndex,
+                                ]);
 
-                            throw new \Exception(
-                                'Please select a valid Shopify inventory location in Settings.'
+                                throw new \Exception(
+                                    'Please select a valid Shopify inventory location in Settings.'
+                                );
+                            }
+
+                            $shopify->shopifyRest(
+                                $shop,
+                                'post',
+                                'inventory_levels/set.json',
+                                [
+                                    'location_id'       => $locationId,
+                                    'inventory_item_id' => $mapping->shopify_inventory_item_id,
+                                    'available'         => $quantity,
+                                ]
                             );
                         }
 
-                        $shopify->shopifyRest(
-                            $shop,
-                            'post',
-                            'inventory_levels/set.json',
-                            [
-                                'location_id'       => $locationId,
-                                'inventory_item_id' => $mapping->shopify_inventory_item_id,
-                                'available'         => $quantity,
-                            ]
-                        );
                         // Schedule delayed verification (delay ~25 seconds for Amazon propagation)
                         VerifyAmazonInventoryQuantityJob::dispatch(
                             $shop->id,

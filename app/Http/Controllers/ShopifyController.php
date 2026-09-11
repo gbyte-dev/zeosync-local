@@ -1436,8 +1436,8 @@ class ShopifyController extends Controller
             ]
         );
 
-        // Only deduct Amazon inventory on order creation, never on fulfillment/delivery updates
-        if ($order->wasRecentlyCreated || $action === 'create') {
+        // Only deduct Amazon inventory on order creation, never on duplicate/fulfillment/delivery updates
+        if ($order->wasRecentlyCreated) {
             foreach ($lineItems as $item) {
 
                 $variantId = $item['variant_id'] ?? null;
@@ -1469,14 +1469,17 @@ class ShopifyController extends Controller
                     continue;
                 }
 
-                $newQuantity = max(0, ((int) $mapping->quantity) - ((int) $orderedQty));
+                $newShopifyQuantity = ((int) $mapping->quantity) - ((int) $orderedQty);
+                $amazonTargetQuantity = max(0, $newShopifyQuantity);
 
                 try {
 
                     $response = $this->amazonService->updateInventory(
                         $shopModel,
                         $mapping->amazon_sku,
-                        $newQuantity
+                        $amazonTargetQuantity,
+                        false,
+                        $newShopifyQuantity
                     );
 
                 } catch (\Throwable $e) {

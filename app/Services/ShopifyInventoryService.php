@@ -218,6 +218,8 @@ class ShopifyInventoryService
 
                 if ($available === null) {
                     $status = 'unknown';
+                } elseif ($available < 0) {
+                    $status = 'oversold';
                 } elseif ($available === 0) {
                     $status = 'out_of_stock';
                 } else {

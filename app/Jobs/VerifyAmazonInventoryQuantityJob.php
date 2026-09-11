@@ -59,12 +59,14 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
             return;
         }
 
-        if ((int) $mapping->quantity !== (int) $this->expectedQuantity) {
+        $expectedAmazonQty = max(0, (int) $mapping->quantity);
+        if ($expectedAmazonQty !== (int) $this->expectedQuantity) {
             Log::info('VerifyAmazonInventoryQuantityJob: Abandoning verification (quantity changed).', [
-                'shop_id'      => $this->shopId,
-                'sku'          => $this->sku,
-                'job_expected' => $this->expectedQuantity,
-                'db_quantity'  => $mapping->quantity,
+                'shop_id'            => $this->shopId,
+                'sku'                => $this->sku,
+                'job_expected'       => $this->expectedQuantity,
+                'db_quantity'        => $mapping->quantity,
+                'db_amazon_expected' => $expectedAmazonQty,
             ]);
             return;
         }
@@ -237,7 +239,8 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
             return false;
         }
 
-        if ((int) $mapping->quantity !== (int) $this->expectedQuantity) {
+        $expectedAmazonQty = max(0, (int) $mapping->quantity);
+        if ($expectedAmazonQty !== (int) $this->expectedQuantity) {
             return false;
         }
 
