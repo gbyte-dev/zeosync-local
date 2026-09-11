@@ -12,7 +12,7 @@
 				<p class="lead">Keep products, inventory, and orders moving together. Zeosync brings Amazon and Shopify into a clearer workflow—so you can get back to growing your business.</p>
                 <p class="lead">  Connect your store, automate product sync, and manage orders & returns — all in one place.</p>
 
-				<div class="actions"> <form method="GET" action="{{ route('crm.entry') }}" class="d-flex justify-content-center">
+				<div class="actions"> <form method="GET" action="{{ route('shopify.install') }}" class="d-flex justify-content-center">
                 <div class="input-group" style="max-width: 450px;">
 
                     <input type="text" name="shop" class="form-control" placeholder="your-store-name" value="{{session('active_shop')}}" required>
