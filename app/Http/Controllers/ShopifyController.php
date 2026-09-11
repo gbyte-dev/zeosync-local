@@ -1326,7 +1326,11 @@ class ShopifyController extends Controller
             ]);
             return response('Shop not found', 404);
         }
+ 
         $data = json_decode($payload, true);
+
+        Log::warning('Shopify order webhook received.', $data);
+
         if (!is_array($data) || empty($data['id'])) {
             return response('Invalid order payload', 400);
         }
