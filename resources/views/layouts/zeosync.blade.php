@@ -56,5 +56,54 @@
     @stack('scripts')
     <script src="{{ asset('js/bootstrap.bundle.min.js') }}" defer></script>
 
+    <script>
+
+            function isInIframe() {
+                try {
+                    return window.self !== window.top;
+                } catch (e) {
+                    // If accessing window.top throws, you're definitely cross-origin framed
+                    return true;
+                }
+            }
+
+            function getIframeSrc(iframeElement) {
+                return iframeElement.getAttribute('src'); // the src you set
+            }
+
+            // or, if you need the *actual* URL the iframe navigated to (same-origin only)
+            function getIframeCurrentUrl(iframeElement) {
+                try {
+                    return iframeElement.contentWindow.location.href;
+                } catch (e) {
+                    // Cross-origin — browser blocks this, only the src attribute is visible
+                    return iframeElement.getAttribute('src');
+                }
+            }
+
+            function getTopPageUrl() {
+                try {
+                    // Works only if the parent page is same-origin
+                    return window.top.location.href;
+                } catch (e) {
+                    // Cross-origin iframe: can't read parent's URL directly.
+                    // Fall back to document.referrer (often set to the parent page URL)
+                    return document.referrer || null;
+                }
+            }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (isInIframe()) {
+            console.log("Running inside an iframe");
+            console.log("Top page URL:", getTopPageUrl());
+            console.log("Iframe current URL:", getIframeCurrentUrl());
+            console.log("Iframe src URL:", getIframeSrc());
+
+            } else {
+            console.log("Not in an iframe");
+            console.log("Current page URL:", window.location.href);
+            }
+});
+    </script>
 </body>
 </html>
