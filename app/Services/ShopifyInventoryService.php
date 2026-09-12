@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Log;
 
 class ShopifyInventoryService
 {
+    public int $maxPages = 250;
+
     public function getInventory(Shop $shop): array
     {
         $locations = $shop->shopify_locations ?? [];
@@ -64,21 +66,95 @@ class ShopifyInventoryService
                 // Fetch Shopify Products
                 $allProducts = [];
                 $cursor = null;
+                $visitedCursors = [];
+                $pageCount = 0;
+                $maxPages = $this->maxPages ?? 250;
 
                 do {
+                    $pageCount++;
+
                     $response = $shopify->paginate(
                         $structure,
                         20,
                         $cursor
                     );
 
-                    $allProducts = array_merge(
-                        $allProducts,
-                        $response['data']
-                    );
+                    if (!is_array($response)) {
+                        Log::warning('Shopify pagination stopped: invalid page data.', [
+                            'shop'       => $shop->shop,
+                            'page_count' => $pageCount,
+                            'cursor'     => $cursor,
+                            'item_count' => count($allProducts),
+                        ]);
+                        break;
+                    }
 
-                    $cursor = $response['next_cursor'];
-                } while ($response['has_next']);
+                    $pageData = is_array($response['data'] ?? null) ? $response['data'] : [];
+                    if (!empty($pageData)) {
+                        $allProducts = array_merge(
+                            $allProducts,
+                            $pageData
+                        );
+                    }
+
+                    $hasNext = (bool) ($response['has_next'] ?? false);
+                    $nextCursor = $response['next_cursor'] ?? null;
+
+                    // 1. Normal completion
+                    if (!$hasNext) {
+                        break;
+                    }
+
+                    // 2. Empty page protection
+                    if (empty($pageData)) {
+                        Log::warning('Shopify pagination stopped: empty page returned while has_next is true.', [
+                            'shop'        => $shop->shop,
+                            'page_count'  => $pageCount,
+                            'cursor'      => $cursor,
+                            'next_cursor' => $nextCursor,
+                            'item_count'  => count($allProducts),
+                        ]);
+                        break;
+                    }
+
+                    // 3. Missing cursor protection
+                    if (empty($nextCursor)) {
+                        Log::warning('Shopify pagination stopped: next cursor is missing while has_next is true.', [
+                            'shop'       => $shop->shop,
+                            'page_count' => $pageCount,
+                            'cursor'     => $cursor,
+                            'item_count' => count($allProducts),
+                        ]);
+                        break;
+                    }
+
+                    // 4. Repeated cursor protection
+                    if ($nextCursor === $cursor || isset($visitedCursors[$nextCursor])) {
+                        Log::warning('Shopify pagination stopped: repeated cursor detected.', [
+                            'shop'        => $shop->shop,
+                            'page_count'  => $pageCount,
+                            'cursor'      => $cursor,
+                            'next_cursor' => $nextCursor,
+                            'item_count'  => count($allProducts),
+                        ]);
+                        break;
+                    }
+
+                    // 5. Maximum page limit reached
+                    if ($pageCount >= $maxPages) {
+                        Log::warning('Shopify pagination stopped: maximum page limit reached.', [
+                            'shop'       => $shop->shop,
+                            'page_count' => $pageCount,
+                            'max_pages'  => $maxPages,
+                            'item_count' => count($allProducts),
+                        ]);
+                        break;
+                    }
+
+                    $visitedCursors[$nextCursor] = true;
+                    $cursor = $nextCursor;
+
+                } while (true);
 
                 // Convert Product → Variant Inventory
                 return $this->flattenVariants(
