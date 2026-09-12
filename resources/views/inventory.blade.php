@@ -332,6 +332,13 @@
 
             paginated.forEach(item => {
                 if (activeTab === 'shopify') {
+                    const unavailableDisplay = (item.unavailable !== null && item.unavailable !== undefined) ? item.unavailable : '-';
+                    const committedDisplay = (item.committed !== null && item.committed !== undefined) ? item.committed : '-';
+                    const availableVal = (item.available !== null && item.available !== undefined) ? item.available : '';
+                    const availablePlaceholder = (item.available === null || item.available === undefined) ? 'Unknown' : '';
+                    const onHandVal = (item.on_hand !== null && item.on_hand !== undefined) ? item.on_hand : '';
+                    const onHandPlaceholder = (item.on_hand === null || item.on_hand === undefined) ? 'Unknown' : '';
+
                     rows += `
         <tr>
             <td><input type="checkbox"></td>
@@ -345,15 +352,15 @@
                 </div>
             </td>
             <td>${item.sku || 'No SKU'}</td>
-            <td>${item.unavailable || 0}</td>
-            <td>${item.committed || 0}</td>
+            <td>${unavailableDisplay}</td>
+            <td>${committedDisplay}</td>
             <td>
-                <input type="number" value="${item.available || 0}"
-                    class="form-control form-control-sm" style="width:80px">
+                <input type="number" value="${availableVal}" placeholder="${availablePlaceholder}"
+                    class="form-control form-control-sm" style="width:80px" min="0">
             </td>
             <td>
-                <input type="number" value="${item.on_hand || 0}"
-                    class="form-control form-control-sm" style="width:80px">
+                <input type="number" value="${onHandVal}" placeholder="${onHandPlaceholder}"
+                    class="form-control form-control-sm" style="width:80px" min="0">
             </td>
         </tr>`;
                 }
@@ -468,6 +475,7 @@
         function badge(status) {
 
             if (status === 'synced') return `<span class="badge bg-success">Synced</span>`;
+            if (status === 'out_of_stock') return `<span class="badge bg-danger">Out of Stock</span>`;
             if (status === 'pending') return `<span class="badge bg-warning">Pending</span>`;
             if (status === 'error') return `<span class="badge bg-danger">Error</span>`;
             return `<span class="badge bg-secondary">Unknown</span>`;

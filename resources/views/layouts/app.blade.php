@@ -21,7 +21,7 @@
     ) {
     $faviconUrl = asset('storage/' . $favicon);
     }
-    $shopifyclient_id = \App\Models\AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key', 'cc04d2b21de39debde846f2b0f70a763'));
+    $shopifyclient_id = \App\Models\AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key'));
     @endphp
     <meta name="shopify-api-key" content="{{ $shopifyclient_id }}">
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>

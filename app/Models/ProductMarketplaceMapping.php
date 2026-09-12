@@ -22,6 +22,7 @@ class ProductMarketplaceMapping extends Model
         'amazon_marketplace_id',
         'amazon_product_type',
         'quantity',
+        'inventory_version',
         'sync_status',
         'submission_status',
         'submission_id',
@@ -30,6 +31,7 @@ class ProductMarketplaceMapping extends Model
     ];
 
     protected $casts = [
-        'last_synced_at' => 'datetime',
+        'inventory_version' => 'integer',
+        'last_synced_at'    => 'datetime',
     ];
 }

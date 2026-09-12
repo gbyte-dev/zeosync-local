@@ -24,6 +24,7 @@ class ShopifyOrder extends Model
         'phone',
         'financial_status',
         'fulfillment_status',
+        'shipment_status',
         'currency',
         'subtotal_price',
         'total_tax',

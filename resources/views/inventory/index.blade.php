@@ -607,7 +607,10 @@
                         <select id="dtStatusShopify" class="saas-select">
                             <option value="">All Status</option>
                             <option value="synced">Synced</option>
+                            <option value="oversold">Oversold</option>
+                            <option value="out_of_stock">Out of Stock</option>
                             <option value="pending">Pending</option>
+                            <option value="unknown">Unknown</option>
                             <option value="error">Error</option>
                         </select>
                     </div>
@@ -628,13 +631,22 @@
                     </div>
                     <div class="col-md-3 col-6">
                         <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Shopify Location</label>
+                        @php
+                            $locations = $shop->shopify_locations ?? [];
+                            $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+                                ? (int) $shop->selected_location_index
+                                : 0;
+                        @endphp
                         <select id="dtLocationShopify" class="saas-select">
-                            <option value="">Select a location</option>
-                            @foreach(($shop->shopify_locations ?? []) as $index => $location)
-                            <option value="{{ $index }}" {{ old('selected_location_index', $shop->selected_location_index) !== null && (string)$shop->selected_location_index === (string)$index ? 'selected' : '' }}>
-                                {{ $location['name'] ?? 'Unnamed Location' }}
-                            </option>
-                            @endforeach
+                            @if(!empty($locations))
+                                @foreach($locations as $index => $location)
+                                    <option value="{{ $index }}" {{ $selectedIndex === $index ? 'selected' : '' }}>
+                                        {{ $location['name'] ?? 'Location ' . ($index + 1) }}
+                                    </option>
+                                @endforeach
+                            @else
+                                <option value="" selected>No Location Available</option>
+                            @endif
                         </select>
                     </div>
                 </div>
@@ -827,7 +839,10 @@
             if (original === 'inactive' || original === 'incomplete') return 'pending';
         }
         if (original === 'synced') return 'synced';
+        if (original === 'oversold') return 'oversold';
+        if (original === 'out_of_stock') return 'out_of_stock';
         if (original === 'pending') return 'pending';
+        if (original === 'unknown') return 'unknown';
         return 'error';
     }
 
@@ -985,8 +1000,14 @@
         switch (mapped) {
             case 'synced':
                 return `<span class="soft-badge bg-success-subtle text-success">Synced</span>`;
+            case 'oversold':
+                return `<span class="soft-badge bg-danger-subtle text-danger">Oversold</span>`;
+            case 'out_of_stock':
+                return `<span class="soft-badge bg-danger-subtle text-danger">Out of Stock</span>`;
             case 'pending':
                 return `<span class="soft-badge bg-warning-subtle text-warning">Pending</span>`;
+            case 'unknown':
+                return `<span class="soft-badge bg-secondary-subtle text-secondary">Unknown</span>`;
             default:
                 return `<span class="soft-badge bg-danger-subtle text-danger">Error</span>`;
         }
@@ -1203,8 +1224,10 @@
                     {
                         data: 'available',
                         render: function(data, type, row) {
-                            if (type === 'sort' || type === 'filter') return row.available || 0;
-                            return `<input type="number" value="${row.available || 0}" class="form-control form-control-sm qty-input">`;
+                            if (type === 'sort' || type === 'filter') return (row.available !== null && row.available !== undefined) ? row.available : -999999;
+                            const availableVal = (row.available !== null && row.available !== undefined) ? row.available : '';
+                            const availablePlaceholder = (row.available === null || row.available === undefined) ? 'Unknown' : '';
+                            return `<input type="number" value="${availableVal}" placeholder="${availablePlaceholder}" class="form-control form-control-sm qty-input" min="0">`;
                         }
                     },
                     {
@@ -1365,38 +1388,33 @@
         if (dtShopify) dtShopify.page.len(val).draw();
     });
     $('#dtLocationShopify').on('change', function() {
-        const locationSelect = $(this);
-        const selectedIndex = locationSelect.val();
+        const selectedIndex = $(this).val();
+        if (selectedIndex === '' || selectedIndex === null) return;
         const shop = new URLSearchParams(window.location.search).get('shop') || '{{ $shop->shop }}';
-
-        locationSelect.prop('disabled', true);
 
         $.ajax({
             url: "{{ route('settings.update') }}",
-            type: "POST",
+            type: 'POST',
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                'Accept': 'application/json'
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
             data: {
                 shop: shop,
-                selected_location_index: selectedIndex !== '' ? selectedIndex : null
+                selected_location_index: selectedIndex
             },
             success: function(response) {
-                showToast(response.message || 'Shopify location updated.', 'success');
-                fetch(`{{ route('shopify.inventory.refresh') }}?shop=${encodeURIComponent(shop)}&type=shopify`)
-                    .then(() => {
-                        loadShopify();
-                    })
-                    .catch(() => {
-                        loadShopify();
-                    });
+                if (response.success) {
+                    fetch(`{{ route('shopify.inventory.refresh') }}?shop=${encodeURIComponent(shop)}&type=shopify`)
+                        .then(() => {
+                            loadShopify();
+                        })
+                        .catch(() => {
+                            loadShopify();
+                        });
+                }
             },
             error: function(xhr) {
-                showToast(xhr.responseJSON?.message || 'Failed to update location.', 'danger');
-            },
-            complete: function() {
-                locationSelect.prop('disabled', false);
+                showToast(xhr.responseJSON?.message ?? 'Failed to update Shopify location.', 'danger');
             }
         });
     });
@@ -1581,6 +1599,12 @@
         const inventoryItemId = button.data('inventory-item');
         const quantity = qtyInput.val();
         const shop = new URLSearchParams(window.location.search).get('shop');
+
+        if (quantity === '' || quantity === null || quantity === undefined) {
+            showToast('Please enter a valid numeric quantity before updating.', 'warning');
+            qtyInput.focus();
+            return;
+        }
 
         button.prop('disabled', true).text('Updating...');
         qtyInput.prop('disabled', true);

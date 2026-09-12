@@ -57,8 +57,8 @@ class InventoryCacheService
             'request_query'  => request()->all(),
         ]);
 
-        // State 1: No usable cache, never synced, or previous sync invalid
-        if (!$hasCache || !$syncCompleted) {
+        // State 1: No usable cache exists at all
+        if (!$hasCache) {
             if (!($status['refreshing'] ?? false)) {
                 $this->updateStatus($shop, $marketplaceId, [
                     'refreshing'     => true,
@@ -85,7 +85,7 @@ class InventoryCacheService
             ];
         }
 
-        // Cache exists and sync was completed successfully (State 2 or State 3)
+        // State 2 & 3: Cache exists — return cached products immediately
         $inventory = Cache::get($cacheKey, []);
 
         Log::info('Inventory cache loaded', [
@@ -130,7 +130,7 @@ class InventoryCacheService
         ]);
 
         return [
-            'products' => $inventory,
+            'products' => is_array($inventory) ? $inventory : [],
             'status'   => $currentStatus,
         ];
     }
@@ -141,10 +141,8 @@ class InventoryCacheService
     public function refreshAmazonInventory(
         Shop $shop,
         ?string $marketplaceId = null
-
     ): array {
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
-
 
         $lock = Cache::lock(
             $this->getLockCacheKey($shop, $marketplaceId),
@@ -189,9 +187,12 @@ class InventoryCacheService
                 'message' => $exception->getMessage(),
             ]);
 
+            $hasCache = Cache::has($this->getInventoryCacheKey($shop, $marketplaceId));
+
             $this->updateStatus($shop, $marketplaceId, [
                 'refreshing'     => false,
-                'sync_completed' => false,
+                'sync_completed' => $hasCache ? true : false,
+                'last_error'     => $exception->getMessage(),
             ]);
 
             throw $exception;

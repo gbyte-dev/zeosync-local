@@ -445,7 +445,7 @@ class ShopifyController extends Controller
 
                 $shopModel->update([
                     'shopify_locations' => $locations,
-                    'selected_location_index' => null,
+                    'selected_location_index' => !empty($locations) ? 0 : null,
                 ]);
 
                 Log::info('SHOPIFY LOCATIONS SAVED', [
@@ -475,6 +475,7 @@ class ShopifyController extends Controller
         // =========================
         try {
             $this->shopifyWebhook->ensureOrdersCreateWebhook($shopModel);
+            $this->shopifyWebhook->ensureOrdersUpdateWebhook($shopModel);
             $this->shopifyWebhook->ensureAppUninstalledWebhook($shopModel);
         } catch (\Exception $e) {
             Log::error('WEBHOOK FAILED', [
@@ -491,14 +492,10 @@ class ShopifyController extends Controller
             $shopModel->shop . ' connected successfully.'
         );
 
-        $isActivated = filled($shopModel->shop_name) && filled($shopModel->email);
-        $redirectUrl = $isActivated
-            ? route('dashboard', ['shop' => $shop])
-            : route('setup.form', ['shop' => $shop]);
-
+        $setupUrl = route('setup.form', ['shop' => $shop]);
         return response()->view('shopify.auth-callback', [
             'shop' => $shopModel->shop,
-            'redirectUrl' => $redirectUrl,
+            'redirectUrl' => $setupUrl,
         ]);
     }
     public function checkShopStatus(Request $request)
@@ -1247,7 +1244,11 @@ class ShopifyController extends Controller
         $shopModel = $this->findShopByIdentifier($shopDomain);
 
         if (!$shopModel) {
+
             return response('Shop not found', 403);
+
+            return response('OK', 200);
+
         }
 
         $data = json_decode($payload, true);
@@ -1278,10 +1279,13 @@ class ShopifyController extends Controller
         $shopModel = $this->findShopByIdentifier($shopDomain);
 
         if (!$shopModel) {
-            Log::warning('Rejected Shopify order webhook because shop was not found.', [
+            Log::warning('Shopify return create webhook received for unregistered shop.', [
                 'shop' => $shopDomain,
             ]);
+
             return response('Shop not found', 403);
+            return response('OK', 200);
+
         }
         $data = json_decode($payload, true);
         return response('OK', 200);
@@ -1301,13 +1305,64 @@ class ShopifyController extends Controller
         $shopModel = $this->findShopByIdentifier($shopDomain);
 
         if (!$shopModel) {
-            Log::warning('Rejected Shopify order webhook because shop was not found.', [
+            Log::warning('Shopify return update webhook received for unregistered shop.', [
                 'shop' => $shopDomain,
             ]);
+
             return response('Shop not found', 403);
+
+            return response('OK', 200);
+
         }
         $data = json_decode($payload, true);
         return response('OK', 200);
+    }
+
+    public function resolveAggregateShipmentStatus(array $fulfillments): ?string
+    {
+        $activeFulfillments = array_values(array_filter($fulfillments, function ($f) {
+            return is_array($f) && ($f['status'] ?? '') !== 'cancelled';
+        }));
+
+        if (empty($activeFulfillments)) {
+            return null;
+        }
+
+        $shipmentStatuses = array_map(function ($f) {
+            return $f['shipment_status'] ?? null;
+        }, $activeFulfillments);
+
+        $nonNullStatuses = array_values(array_filter($shipmentStatuses));
+
+        if (empty($nonNullStatuses)) {
+            return null;
+        }
+
+        // If all active fulfillments are delivered, the aggregate status is delivered
+        if (count($nonNullStatuses) === count($activeFulfillments) && collect($nonNullStatuses)->every(fn($s) => $s === 'delivered')) {
+            return 'delivered';
+        }
+
+        // Active delivery stage priority
+        $priorityOrder = [
+            'out_for_delivery',
+            'in_transit',
+            'attempted_delivery',
+            'failure',
+            'delivered',
+            'ready_for_pickup',
+            'label_printed',
+            'label_purchased',
+            'confirmed',
+        ];
+
+        foreach ($priorityOrder as $priority) {
+            if (in_array($priority, $nonNullStatuses, true)) {
+                return $priority;
+            }
+        }
+
+        return $nonNullStatuses[0] ?? null;
     }
 
     public function upsertOrderFromWebhook(Request $request, string $action='create')
@@ -1325,15 +1380,27 @@ class ShopifyController extends Controller
         $shopModel = $this->findShopByIdentifier($shopDomain);
 
         if (!$shopModel) {
-            Log::warning('Rejected Shopify order webhook because shop was not found.', [
-                'shop' => $shopDomain,
+            // ACK the webhook so Shopify does not mark the endpoint as broken.
+            // Do NOT create a placeholder Shop or restore a soft-deleted/uninstalled
+            // Shop — that would manufacture unauthorized tenant state.
+            Log::warning('Shopify order webhook received for unknown/inactive shop — acknowledged without processing.', [
+                'shop_domain' => $shopDomain,
+                'topic'       => 'orders/' . $action,
+                'reason'      => 'shop_not_found_or_inactive',
             ]);
+
             return response('Shop not found', 403);
+            return response('OK', 200);
+
         }
- 
+
         $data = json_decode($payload, true);
 
-        Log::warning('Shopify order webhook received.', $data);
+        Log::info('Shopify order webhook received.', [
+            'shop'     => $shopDomain,
+            'order_id' => $data['id'] ?? null,
+            'topic'    => 'orders/' . $action,
+        ]);
 
         if (!is_array($data) || empty($data['id'])) {
             return response('Invalid order payload', 400);
@@ -1341,6 +1408,15 @@ class ShopifyController extends Controller
         if ($eventId !== '' && ShopifyOrder::where('shopify_event_id', $eventId)->exists()) {
             return response('OK', 200);
         }
+
+        $existingOrder = ShopifyOrder::where('shopify_order_id', (int) $data['id'])->first();
+        $oldFulfillmentStatus = $existingOrder?->fulfillment_status;
+        $oldShipmentStatus = $existingOrder?->shipment_status;
+
+        $newFulfillmentStatus = data_get($data, 'fulfillment_status');
+        $fulfillments = data_get($data, 'fulfillments', []);
+        $newShipmentStatus = is_array($fulfillments) ? $this->resolveAggregateShipmentStatus($fulfillments) : null;
+
         $customer = data_get($data, 'customer', []);
         $lineItems = data_get($data, 'line_items', []);
         $order = ShopifyOrder::updateOrCreate(
@@ -1358,7 +1434,8 @@ class ShopifyController extends Controller
                 'customer_phone' => data_get($customer, 'phone'),
                 'phone' => data_get($data, 'phone'),
                 'financial_status' => data_get($data, 'financial_status'),
-                'fulfillment_status' => data_get($data, 'fulfillment_status'),
+                'fulfillment_status' => $newFulfillmentStatus,
+                'shipment_status' => $newShipmentStatus,
                 'currency' => data_get($data, 'currency'),
                 'subtotal_price' => (float) data_get($data, 'subtotal_price', 0),
                 'total_tax' => (float) data_get($data, 'total_tax', 0),
@@ -1382,68 +1459,103 @@ class ShopifyController extends Controller
             ]
         );
 
-        foreach ($lineItems as $item) {
+        // Only deduct Amazon inventory on order creation, never on duplicate/fulfillment/delivery updates
+        if ($order->wasRecentlyCreated) {
+            foreach ($lineItems as $item) {
 
-            $variantId = $item['variant_id'] ?? null;
-            $orderedQty = $item['quantity'] ?? 0;
+                $variantId = $item['variant_id'] ?? null;
+                $orderedQty = $item['quantity'] ?? 0;
 
-            if (!$variantId) {
-                continue;
+                if (!$variantId) {
+                    continue;
+                }
+
+                $query = ProductMarketplaceMapping::where('shop_id', $shopModel->id)
+                    ->where('shopify_variant_id', (string) $variantId);
+
+                $mapping = $query->first();
+
+                if (!$mapping) {
+                    Log::info('No marketplace mapping found.', [
+                        'shop_id' => $shopModel->id,
+                        'variant_id' => $variantId,
+                    ]);
+                    continue;
+                }
+
+                if ($mapping->quantity === null || $mapping->quantity === '') {
+                    Log::info('Skipping Amazon inventory sync: mapping quantity is unknown/null.', [
+                        'shop_id' => $shopModel->id,
+                        'variant_id' => $variantId,
+                        'amazon_sku' => $mapping->amazon_sku,
+                    ]);
+                    continue;
+                }
+
+                $newShopifyQuantity = ((int) $mapping->quantity) - ((int) $orderedQty);
+                $amazonTargetQuantity = max(0, $newShopifyQuantity);
+
+                try {
+
+                    $response = $this->amazonService->updateInventory(
+                        $shopModel,
+                        $mapping->amazon_sku,
+                        $amazonTargetQuantity,
+                        false,
+                        $newShopifyQuantity
+                    );
+
+                } catch (\Throwable $e) {
+
+                    Log::error('Webhook inventory sync failed.', [
+                        'variant_id' => $variantId,
+                        'amazon_sku' => $mapping->amazon_sku,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
-
-            $query = ProductMarketplaceMapping::where('shop_id', $shopModel->id)
-                ->where('shopify_variant_id', (string) $variantId);
-
-            $mapping = $query->first();
-
-            if (!$mapping) {
-                Log::info('No marketplace mapping found.', [
-                    'shop_id' => $shopModel->id,
-                    'variant_id' => $variantId,
-                ]);
-                continue;
-            }
-
-            $newQuantity = max(0, ((int) $mapping->quantity) - ((int) $orderedQty));
-
-            try {
-
-                $response = $this->amazonService->updateInventory(
-                    $shopModel,
-                    $mapping->amazon_sku,
-                    $newQuantity
-                );
-
-            } catch (\Throwable $e) {
-
-                Log::error('Webhook inventory sync failed.', [
-                    'variant_id' => $variantId,
-                    'amazon_sku' => $mapping->amazon_sku,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
-            // Next Step:
-            // Amazon inventory update yahin call hoga.
         }
 
-        // YAHAN TAK
-        if ($order->wasRecentlyCreated) {
+        $orderNumber = ltrim((string) ($data['name'] ?? ($data['order_number'] ?? '')), '#');
+        $orderDisplay = $data['name'] ?? ('#' . ($data['order_number'] ?? ''));
 
+        if ($order->wasRecentlyCreated && $action === 'create') {
             UserNotificationService::send(
                 $shopModel->id,
                 'order_sync',
                 'Shopify Order Received',
-                'Shopify Order ' . ($data['name'] ?? '#' . $data['order_number']) . ' received successfully.'
+                'Shopify Order ' . $orderDisplay . ' received successfully.'
             );
-        }
-        if( $action === 'update') {
-            UserNotificationService::send(
-                $shopModel->id,
-                'order_sync',
-                'Shopify Order Updated',
-                'Shopify Order ' . ($data['name'] ?? '#' . $data['order_number']) . ' updated successfully.'
-            );
+        } elseif ($action === 'update' || !$order->wasRecentlyCreated) {
+            $isFulfilledTransition = ($oldFulfillmentStatus !== 'fulfilled' && $newFulfillmentStatus === 'fulfilled');
+            $isDeliveredTransition = ($oldShipmentStatus !== 'delivered' && $newShipmentStatus === 'delivered');
+
+            if ($isFulfilledTransition) {
+                UserNotificationService::send(
+                    $shopModel->id,
+                    'order_sync',
+                    'Shopify Order Fulfilled',
+                    'Order #' . $orderNumber . ' has been fulfilled.'
+                );
+            }
+
+            if ($isDeliveredTransition) {
+                UserNotificationService::send(
+                    $shopModel->id,
+                    'order_sync',
+                    'Shopify Order Delivered',
+                    'Order #' . $orderNumber . ' has been delivered.'
+                );
+            }
+
+            if (!$isFulfilledTransition && !$isDeliveredTransition && $action === 'update') {
+                UserNotificationService::send(
+                    $shopModel->id,
+                    'order_sync',
+                    'Shopify Order Updated',
+                    'Shopify Order ' . $orderDisplay . ' updated successfully.'
+                );
+            }
         }
 
         return response('OK', 200);
@@ -2540,16 +2652,57 @@ class ShopifyController extends Controller
 
         return null;
     }
+    /**
+     * Resolve a Shopify shop identifier (domain, URL variant) to an active, non-deleted Shop.
+     *
+     * Rules:
+     *  - Strips https?://, www., and trailing slashes before matching.
+     *  - Tries both "store.myshopify.com" and bare "store" forms.
+     *  - Only returns a Shop that is NOT soft-deleted.
+     *  - Never restores a soft-deleted shop — that is only the explicit OAuth/install flow's job.
+     */
     public function findShopByIdentifier(?string $identifier): ?Shop
     {
-        $identifier = strtolower(trim((string) $identifier));
-        if ($identifier === '') {
+        $raw = trim((string) $identifier);
+        if ($raw === '') {
             return null;
         }
-        if (str_contains($identifier, '.myshopify.com')) {
-            return Shop::whereRaw('LOWER(shop) = ?', [$identifier])->first();
+
+        // Normalize: strip protocol, www prefix, and trailing slashes.
+        $cleaned = preg_replace('#^https?://#i', '', $raw);
+        $cleaned = preg_replace('#^www\.#i', '', $cleaned);
+        $cleaned = strtolower(trim($cleaned, "/ \t\n\r\0\x0B"));
+
+        if ($cleaned === '') {
+            return null;
         }
-        return Shop::whereRaw('LOWER(shop) = ?', [$identifier . '.myshopify.com'])->first();
+
+        // Build candidate forms: full myshopify domain and bare slug.
+        $candidates = array_unique(array_filter([
+            $cleaned,
+            str_contains($cleaned, '.myshopify.com') ? $cleaned : ($cleaned . '.myshopify.com'),
+            str_replace('.myshopify.com', '', $cleaned),
+        ]));
+
+        $hasDomainCol   = \Illuminate\Support\Facades\Schema::hasColumn('shops', 'domain');
+
+        foreach ($candidates as $cand) {
+            // Only match active (non-soft-deleted) shops.
+            $query = Shop::where(function ($q) use ($cand, $hasDomainCol) {
+                $q->whereRaw('LOWER(shop) = ?', [$cand]);
+                if ($hasDomainCol) {
+                    $q->orWhereRaw('LOWER(domain) = ?', [$cand]);
+                }
+            });
+
+            $shop = $query->first();
+
+            if ($shop) {
+                return $shop;
+            }
+        }
+
+        return null;
     }
     protected function getActiveShop(?Request $request = null): ?Shop
     {
@@ -2661,24 +2814,26 @@ class ShopifyController extends Controller
     protected function getSelectedShopifyLocationId(Shop $shop): ?int
     {
         $locations = $shop->shopify_locations ?? [];
-        $index = $shop->selected_location_index;
-
-        if ($index === null || !isset($locations[$index])) {
-            Log::warning('SHOPIFY LOCATION NOT SELECTED', [
+        if (empty($locations)) {
+            Log::warning('SHOPIFY LOCATION NOT SELECTED - NO LOCATIONS', [
                 'shop_id' => $shop->id,
-                'selected_location_index' => $index,
             ]);
 
             return null;
         }
+
+        $index = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
 
         $locationId = $locations[$index]['id'] ?? null;
 
         if (!$locationId) {
             Log::warning('SHOPIFY SELECTED LOCATION ID MISSING', [
                 'shop_id' => $shop->id,
-                'selected_location_index' => $index,
-                'location' => $locations[$index],
+                'selected_location_index' => $shop->selected_location_index,
+                'effective_index' => $index,
+                'location' => $locations[$index] ?? null,
             ]);
 
             return null;
@@ -3130,9 +3285,33 @@ class ShopifyController extends Controller
             return response('Invalid webhook', 401);
         }
         try {
-            $shop = \App\Models\Shop::where('shop', $shopDomain)->first();
+            // For the uninstall webhook we intentionally search including soft-deleted records
+            // so that a re-sent uninstall webhook for an already-deactivated shop still
+            // acknowledges cleanly. We do NOT restore the shop — we only deactivate it.
+            $normalizedDomain = strtolower(trim(
+                preg_replace('#^www\.#i', '',
+                    preg_replace('#^https?://#i', '', $shopDomain)
+                ),
+                "/ \t\n\r\0\x0B"
+            ));
+            $shop = \App\Models\Shop::withTrashed()
+                ->where(function ($q) use ($normalizedDomain) {
+                    $q->whereRaw('LOWER(shop) = ?', [$normalizedDomain]);
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('shops', 'domain')) {
+                        $q->orWhereRaw('LOWER(domain) = ?', [$normalizedDomain]);
+                    }
+                })
+                ->first();
             if (!$shop) {
+
                 return response('Shop not found', 403);
+
+                Log::info('App uninstalled webhook received for unknown shop — acknowledged.', [
+                    'shop_domain' => $shopDomain,
+                    'reason'      => 'shop_not_found',
+                ]);
+                return response('OK', 200);
+
             }
             $template = \App\Models\MailTemplate::active()
                 ->where('slug', 'app-uninstalled')

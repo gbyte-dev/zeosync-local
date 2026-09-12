@@ -164,11 +164,7 @@ class SettingsController extends ShopifyController
     public function showForm(Request $request)
     {
         $shopModel = $this->getActiveShop($request);
-        if ($shopModel && filled($shopModel->shop_name) && filled($shopModel->email)) {
-            return redirect()->route('dashboard', [
-                'shop' => $shopModel->shop,
-            ]);
-        }
+        $activeShop = $shopModel?->shop;
         return view('setup.activate', compact('shopModel'));
     }
 

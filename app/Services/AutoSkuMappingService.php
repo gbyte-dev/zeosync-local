@@ -74,8 +74,13 @@ class AutoSkuMappingService
 
     private function loadShopifyInventory(Shop $shop): array
     {
+        $locations = $shop->shopify_locations ?? [];
+        $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+
         return Cache::get(
-            "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}",
+            "shopify_inventory_{$shop->shop}_location_{$selectedIndex}",
             []
         );
     }
@@ -140,7 +145,7 @@ class AutoSkuMappingService
                 'shopify_variant_id'        => (string) $shopifyItem['vid'],
                 'shopify_inventory_item_id' => (string) $shopifyItem['inventory_item_id'],
                 'amazon_sku'                => (string) $amazonItem['sku'],
-                'quantity'                  => (int) ($shopifyItem['qty'] ?? 0),
+                'quantity'                  => isset($shopifyItem['qty']) && $shopifyItem['qty'] !== null ? (int) $shopifyItem['qty'] : null,
                 'sync_status'               => 'pending',
                 'submission_status'         => 'not_submitted',
             ]);

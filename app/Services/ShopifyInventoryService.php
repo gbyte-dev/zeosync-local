@@ -10,10 +10,16 @@ use Illuminate\Support\Facades\Log;
 
 class ShopifyInventoryService
 {
+    public int $maxPages = 250;
+
     public function getInventory(Shop $shop): array
     {
-        // $cacheKey = "shopify_inventory_{$shop->shop}";
-        $cacheKey = "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}";
+        $locations = $shop->shopify_locations ?? [];
+        $effectiveIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+
+        $cacheKey = "shopify_inventory_{$shop->shop}_location_{$effectiveIndex}";
 
         return Cache::remember(
             $cacheKey,
@@ -60,21 +66,95 @@ class ShopifyInventoryService
                 // Fetch Shopify Products
                 $allProducts = [];
                 $cursor = null;
+                $visitedCursors = [];
+                $pageCount = 0;
+                $maxPages = $this->maxPages ?? 250;
 
                 do {
+                    $pageCount++;
+
                     $response = $shopify->paginate(
                         $structure,
                         20,
                         $cursor
                     );
 
-                    $allProducts = array_merge(
-                        $allProducts,
-                        $response['data']
-                    );
+                    if (!is_array($response)) {
+                        Log::warning('Shopify pagination stopped: invalid page data.', [
+                            'shop'       => $shop->shop,
+                            'page_count' => $pageCount,
+                            'cursor'     => $cursor,
+                            'item_count' => count($allProducts),
+                        ]);
+                        break;
+                    }
 
-                    $cursor = $response['next_cursor'];
-                } while ($response['has_next']);
+                    $pageData = is_array($response['data'] ?? null) ? $response['data'] : [];
+                    if (!empty($pageData)) {
+                        $allProducts = array_merge(
+                            $allProducts,
+                            $pageData
+                        );
+                    }
+
+                    $hasNext = (bool) ($response['has_next'] ?? false);
+                    $nextCursor = $response['next_cursor'] ?? null;
+
+                    // 1. Normal completion
+                    if (!$hasNext) {
+                        break;
+                    }
+
+                    // 2. Empty page protection
+                    if (empty($pageData)) {
+                        Log::warning('Shopify pagination stopped: empty page returned while has_next is true.', [
+                            'shop'        => $shop->shop,
+                            'page_count'  => $pageCount,
+                            'cursor'      => $cursor,
+                            'next_cursor' => $nextCursor,
+                            'item_count'  => count($allProducts),
+                        ]);
+                        break;
+                    }
+
+                    // 3. Missing cursor protection
+                    if (empty($nextCursor)) {
+                        Log::warning('Shopify pagination stopped: next cursor is missing while has_next is true.', [
+                            'shop'       => $shop->shop,
+                            'page_count' => $pageCount,
+                            'cursor'     => $cursor,
+                            'item_count' => count($allProducts),
+                        ]);
+                        break;
+                    }
+
+                    // 4. Repeated cursor protection
+                    if ($nextCursor === $cursor || isset($visitedCursors[$nextCursor])) {
+                        Log::warning('Shopify pagination stopped: repeated cursor detected.', [
+                            'shop'        => $shop->shop,
+                            'page_count'  => $pageCount,
+                            'cursor'      => $cursor,
+                            'next_cursor' => $nextCursor,
+                            'item_count'  => count($allProducts),
+                        ]);
+                        break;
+                    }
+
+                    // 5. Maximum page limit reached
+                    if ($pageCount >= $maxPages) {
+                        Log::warning('Shopify pagination stopped: maximum page limit reached.', [
+                            'shop'       => $shop->shop,
+                            'page_count' => $pageCount,
+                            'max_pages'  => $maxPages,
+                            'item_count' => count($allProducts),
+                        ]);
+                        break;
+                    }
+
+                    $visitedCursors[$nextCursor] = true;
+                    $cursor = $nextCursor;
+
+                } while (true);
 
                 // Convert Product → Variant Inventory
                 return $this->flattenVariants(
@@ -95,21 +175,21 @@ class ShopifyInventoryService
         $selectedLocationId = null;
 
         $locations = $shop->shopify_locations ?? [];
-        $selectedIndex = $shop->selected_location_index;
-        Log::info('SHOPIFY INVENTORY LOCATION DEBUG', [
-            'shop_id' => $shop->id,
-            'selected_location_index' => $selectedIndex,
-            'locations' => $locations,
-        ]);
+        $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+        $selectedLocation = $locations[$selectedIndex] ?? null;
 
-        if ($selectedIndex !== null && isset($locations[$selectedIndex])) {
-            $selectedLocationId = (string) ($locations[$selectedIndex]['id'] ?? '');
+        if ($selectedLocation && !empty($selectedLocation['id'])) {
+            $selectedLocationId = (string) $selectedLocation['id'];
         }
 
         Log::info('SHOPIFY SELECTED LOCATION RESOLVED', [
             'shop_id' => $shop->id,
-            'selected_location_index' => $selectedIndex,
+            'selected_location_index' => $shop->selected_location_index,
+            'effective_index' => $selectedIndex,
             'selected_location_id' => $selectedLocationId,
+            'selected_location' => $selectedLocation,
         ]);
 
         $mappings = ProductMarketplaceMapping::where(
@@ -123,12 +203,14 @@ class ShopifyInventoryService
 
             foreach ($product['variants']['nodes'] ?? [] as $variant) {
 
-                $qty = $variant['inventoryQuantity'] ?? 0;
+                $qty = isset($variant['inventoryQuantity']) && $variant['inventoryQuantity'] !== null
+                    ? (int) $variant['inventoryQuantity']
+                    : null;
 
-                $available = 0;
-                $committed = 0;
-                $onHand = 0;
-                $unavailable = 0;
+                $available = null;
+                $committed = null;
+                $onHand = null;
+                $unavailable = null;
 
                 $levels = $variant['inventoryItem']['inventoryLevels']['nodes'] ?? [];
 
@@ -166,20 +248,22 @@ class ShopifyInventoryService
 
                     foreach ($selectedLevel['quantities'] ?? [] as $q) {
 
-                        if ($q['name'] === 'available') {
-                            $available = $q['quantity'];
+                        if ($q['name'] === 'available' && isset($q['quantity']) && $q['quantity'] !== null) {
+                            $available = (int) $q['quantity'];
                         }
 
-                        if ($q['name'] === 'committed') {
-                            $committed = $q['quantity'];
+                        if ($q['name'] === 'committed' && isset($q['quantity']) && $q['quantity'] !== null) {
+                            $committed = (int) $q['quantity'];
                         }
 
-                        if ($q['name'] === 'on_hand') {
-                            $onHand = $q['quantity'];
+                        if ($q['name'] === 'on_hand' && isset($q['quantity']) && $q['quantity'] !== null) {
+                            $onHand = (int) $q['quantity'];
                         }
                     }
 
-                    $unavailable = $onHand - $available;
+                    if ($onHand !== null && $available !== null) {
+                        $unavailable = max(0, $onHand - $available);
+                    }
                 }
 
                 $productId = str_replace(
@@ -208,6 +292,16 @@ class ShopifyInventoryService
                     )
                     : null;
 
+                if ($available === null) {
+                    $status = 'unknown';
+                } elseif ($available < 0) {
+                    $status = 'oversold';
+                } elseif ($available === 0) {
+                    $status = 'out_of_stock';
+                } else {
+                    $status = 'synced';
+                }
+
                 $result[] = [
                     'pid' => $productId,
                     'vid' => $variantId,
@@ -218,9 +312,9 @@ class ShopifyInventoryService
                     'available' => $available,
                     'committed' => $committed,
                     'on_hand' => $onHand,
-                    'unavailable' => max(0, $unavailable),
+                    'unavailable' => $unavailable,
                     'qty' => $qty,
-                    'status' => $available > 0 ? 'synced' : 'pending',
+                    'status' => $status,
                     'image' => $variant['image']['url']
                         ?? $product['featuredImage']['url']
                         ?? null,
@@ -240,7 +334,12 @@ class ShopifyInventoryService
     }
     public function isExpired(Shop $shop): bool
     {
-        $cacheKey = "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}";
+        $locations = $shop->shopify_locations ?? [];
+        $effectiveIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+
+        $cacheKey = "shopify_inventory_{$shop->shop}_location_{$effectiveIndex}";
 
         return ! Cache::has($cacheKey);
     }
@@ -316,5 +415,19 @@ class ShopifyInventoryService
         $index = $shop->selected_location_index;
 
         return isset($locations[$index]['id']) ? (string) $locations[$index]['id'] : null;
+    }
+
+    public function refreshShopifyInventory(Shop $shop): array
+    {
+        $locations = $shop->shopify_locations ?? [];
+        $effectiveIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+
+        $cacheKey = "shopify_inventory_{$shop->shop}_location_{$effectiveIndex}";
+
+        Cache::forget($cacheKey);
+
+        return $this->getInventory($shop);
     }
 }

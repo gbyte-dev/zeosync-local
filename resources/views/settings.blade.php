@@ -404,6 +404,7 @@
                 </div>
             </div>
         </div>
+
         {{-- Shopify Inventory Location --}}
         <div class="saas-card">
             <div class="saas-card-body">
@@ -417,16 +418,25 @@
                     <div class="col-md-6">
                         <label class="saas-label">Select Your Shopify Location</label>
 
+                        @php
+                            $locations = $shop->shopify_locations ?? [];
+                            $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+                                ? (int) $shop->selected_location_index
+                                : 0;
+                        @endphp
+
                         <select
                             name="selected_location_index"
                             class="saas-select">
-                            <option value="">Select a location</option>
-
-                            @foreach(($shop->shopify_locations ?? []) as $index => $location)
-                            <option value="{{ $index }}" {{ old('selected_location_index', $shop->selected_location_index) !== null && (string)old('selected_location_index', $shop->selected_location_index) === (string)$index ? 'selected' : '' }}>
-                                {{ $location['name'] ?? 'Unnamed Location' }}
-                            </option>
-                            @endforeach
+                            @if(!empty($locations))
+                                @foreach($locations as $index => $location)
+                                <option value="{{ $index }}" {{ (string) old('selected_location_index', $selectedIndex) === (string) $index ? 'selected' : '' }}>
+                                    {{ $location['name'] ?? 'Unnamed Location' }}
+                                </option>
+                                @endforeach
+                            @else
+                                <option value="" selected>No Location Available</option>
+                            @endif
                         </select>
 
                         @if(empty($shop->shopify_locations))
@@ -438,6 +448,7 @@
                 </div>
             </div>
         </div>
+
         {{-- Save Button for General Settings --}}
         <div class="d-flex justify-content-end mb-3">
             <button class="saas-btn saas-btn-primary">

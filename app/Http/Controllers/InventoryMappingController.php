@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductMarketplaceMapping;
+use App\Models\InventorySyncOperation;
+use App\Jobs\ProcessInventoryUpdateJob;
 use Illuminate\Http\Request;
 use App\Services\ShopifyService;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use App\Services\AmazonService;
 use App\Services\SyncLimitService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use App\Models\Shop;
 
 
@@ -461,142 +464,89 @@ class InventoryMappingController extends Controller
             ], 401);
         }
 
-        $shopify = new ShopifyService(
-            $shop->shop,
-            $shop->access_token
-        );
-
-        // Get Shopify Location
+        // Use currently selected Shopify Location
         $locations = $shop->shopify_locations ?? [];
-        $selectedIndex = $shop->selected_location_index;
-
-        $locationId = null;
-
-        if ($selectedIndex !== null && isset($locations[$selectedIndex])) {
-            $locationId = $locations[$selectedIndex]['id'] ?? null;
-        }
+        $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+        $selectedLocation = $locations[$selectedIndex] ?? null;
+        $locationId = $selectedLocation['id'] ?? null;
 
         if (!$locationId) {
             Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
-                'shop_id' => $shop->id,
-                'selected_location_index' => $selectedIndex,
+                'shop_id'                 => $shop->id,
+                'selected_location_index' => $shop->selected_location_index,
+                'effective_index'         => $selectedIndex,
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Please select a valid Shopify inventory location in Settings.'
+                'message' => 'No Shopify location found for this store.'
             ], 422);
         }
-
-        // Update Shopify Inventory on active shop
-        $response = $shopify->shopifyRest(
-            $shop,
-            'post',
-            'inventory_levels/set.json',
-            [
-                'location_id'       => $locationId,
-                'inventory_item_id' => $request->inventory_item_id,
-                'available'         => (int) $request->quantity,
-            ]
-        );
-
-        if (!empty($response['error'])) {
-            return response()->json([
-                'success' => false,
-                'message' => $response['message'] ?? 'Shopify inventory update failed.'
-            ], 422);
-        }
-
-        Cache::forget(
-            "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}"
-        );
 
         // Check existing mapping scoped strictly to active shop
         $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
             ->where('shopify_inventory_item_id', $request->inventory_item_id)
             ->first();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Amazon Sync
-        |--------------------------------------------------------------------------
-        */
+        $expectedVersion = (int) ($mapping?->inventory_version ?? 1);
 
-        $message = 'Shopify inventory updated successfully.';
-
-        if ($mapping) {
-            try {
-
-                app(AmazonService::class)->updateInventory(
-                    $shop,
-                    $mapping->amazon_sku,
-                    (int) $request->quantity
-                );
-
-                $mapping->update([
-                    'quantity'       => (int) $request->quantity,
-                    'sync_status'    => 'success',
-                    'last_synced_at' => now(),
-                    'error_message'  => null,
-                ]);
-
-                $message = 'Shopify and Amazon inventory updated successfully.';
-            } catch (\Throwable $e) {
-
-                \Log::error('Amazon inventory sync failed', [
-                    'shop_id'           => $shop->id,
-                    'amazon_sku'        => $mapping->amazon_sku,
-                    'inventory_item_id' => $request->inventory_item_id,
-                    'quantity'          => $request->quantity,
-                    'message'           => $e->getMessage(),
-                ]);
-
-                $mapping->update([
-                    'sync_status'   => 'failed',
-                    'error_message' => $e->getMessage(),
-                ]);
-
-                $message = 'Shopify inventory updated successfully. Amazon sync failed.';
-            }
+        $baselineQuantity = null;
+        if ($request->has('baseline_quantity') && $request->baseline_quantity !== null && $request->baseline_quantity !== '') {
+            $baselineQuantity = (int) $request->baseline_quantity;
+        } elseif ($mapping && $mapping->quantity !== null && $mapping->quantity !== '') {
+            $baselineQuantity = (int) $mapping->quantity;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | ALWAYS GET LATEST SHOPIFY PRODUCTS
-        |--------------------------------------------------------------------------
-        */
+        // -------------------------------------------------------------
+        // TRANSACTIONAL OUTBOX: Persist desired final quantity in DB
+        // -------------------------------------------------------------
+        $operation = DB::transaction(function () use ($shop, $mapping, $request, $locationId, $baselineQuantity, $expectedVersion) {
+            // Latest-wins: Supersede any older pending operations for the same item
+            InventorySyncOperation::where('shop_id', $shop->id)
+                ->where('shopify_inventory_item_id', (string) $request->inventory_item_id)
+                ->where('status', 'pending')
+                ->update([
+                    'status'     => 'superseded',
+                    'last_error' => 'Superseded by newer manual update.',
+                ]);
 
-        $productsResponse = $shopify->shopifyRest(
-            $shop,
-            'get',
-            'products.json',
-            [
-                'limit'  => 250,
-                'status' => 'active',
-            ]
-        );
-
-        if (!empty($productsResponse['error'])) {
-            \Log::error('Failed to fetch latest Shopify products', [
-                'shop_id' => $shop->id,
-                'message' => $productsResponse['message'] ?? null,
+            return InventorySyncOperation::create([
+                'operation_uuid'             => (string) Str::uuid(),
+                'shop_id'                    => $shop->id,
+                'mapping_id'                 => $mapping?->id,
+                'shopify_inventory_item_id'  => (string) $request->inventory_item_id,
+                'shopify_location_id'        => (string) $locationId,
+                'amazon_sku'                 => $mapping?->amazon_sku,
+                'desired_quantity'           => (int) $request->quantity,
+                'baseline_quantity'          => $baselineQuantity,
+                'expected_inventory_version' => $expectedVersion,
+                'source'                     => 'manual_ui',
+                'status'                     => 'pending',
+                'stage'                      => 'pending',
+                'attempts'                   => 0,
+                'max_attempts'               => 4,
+                'created_by'                 => auth()->id(),
+                'last_dispatched_at'         => now(),
             ]);
+        });
 
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-                'products' => [],
-            ]);
-        }
 
-        $latestProducts = $productsResponse['products'] ?? [];
+        // Dispatch background processing job after DB transaction has committed
+        ProcessInventoryUpdateJob::dispatch($operation->id);
+
+        // Invalidate cache
+        Cache::forget("shopify_inventory_{$shop->shop}_location_{$selectedIndex}");
 
         return response()->json([
-            'success'  => true,
-            'message'  => $message,
-            'products' => $latestProducts,
+            'success'      => true,
+            'status'       => 'pending',
+            'operation_id' => $operation->id,
+            'message'      => 'Inventory update queued successfully.',
         ]);
     }
+
 
     public function unmap(Request $request, ProductMarketplaceMapping $mapping)
     {

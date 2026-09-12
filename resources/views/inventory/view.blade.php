@@ -241,9 +241,9 @@ function updateVariant(){
         document.getElementById('price').innerText='₹'+v.price;
         if(v.image_src) document.getElementById('mainImage').src=v.image_src;
 
-        document.getElementById('availableQty').innerText=v.available||0;
-        document.getElementById('committedQty').innerText=v.committed||0;
-        document.getElementById('onHandQty').innerText=v.on_hand||0;
+        document.getElementById('availableQty').innerText = (v.available !== null && v.available !== undefined) ? v.available : 'Unknown';
+        document.getElementById('committedQty').innerText = (v.committed !== null && v.committed !== undefined) ? v.committed : 'Unknown';
+        document.getElementById('onHandQty').innerText = (v.on_hand !== null && v.on_hand !== undefined) ? v.on_hand : 'Unknown';
     }
 }
 

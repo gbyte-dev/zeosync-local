@@ -149,7 +149,7 @@ class InventoryController extends ShopifyController
 
         // Overlay authoritative database mapping state onto cached Amazon products
         $mappings = ProductMarketplaceMapping::where('shop_id', $shop->id)
-            ->get(['id', 'amazon_sku', 'shopify_variant_id', 'shopify_product_id'])
+            ->get(['id', 'amazon_sku', 'shopify_variant_id', 'shopify_product_id', 'quantity'])
             ->keyBy(fn($m) => (string) $m->amazon_sku);
 
         if (is_array($products)) {
@@ -165,6 +165,9 @@ class InventoryController extends ShopifyController
                 $item['mapping_id'] = $isMapped ? $mapping->id : null;
                 $item['mapped_shopify_variant_id'] = $isMapped ? $mapping->shopify_variant_id : null;
                 $item['mapped_shopify_product_id'] = $isMapped ? $mapping->shopify_product_id : null;
+                if ($isMapped && $mapping->quantity !== null && $mapping->quantity !== '') {
+                    $item['quantity'] = (int) $mapping->quantity;
+                }
             }
             unset($item);
         }
@@ -172,11 +175,16 @@ class InventoryController extends ShopifyController
         $response['products'] = $products;
         $data = $products;
 
+        $locations = $shop->shopify_locations ?? [];
+        $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+
         app(AutoSkuMappingService::class)
             ->handle(
                 $shop,
                 Cache::get(
-                    "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}",
+                    "shopify_inventory_{$shop->shop}_location_{$selectedIndex}",
                     []
                 ),
                 $data
@@ -237,20 +245,19 @@ class InventoryController extends ShopifyController
         $type = $request->type;
 
         if ($type === 'shopify') {
-            Cache::forget("shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}" );
+            Cache::forget("shopify_inventory_{$shop->shop}_location_0");
+            if ($shop->selected_location_index !== null) {
+                Cache::forget("shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}");
+            }
         } elseif ($type === 'amazon') {
 
             $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
-            Cache::forget("amazon_inventory_{$shop->id}_{$marketplaceId}");
+            // Preserve active inventory cache; only clear progress and dispatch background refresh
             Cache::forget("amazon_progress_{$shop->shop}");
 
             $inventoryCacheService = app(InventoryCacheService::class);
-            $inventoryCacheService->updateStatus($shop, $marketplaceId, [
-                'refreshing'     => false,
-                'sync_completed' => false,
-                'last_synced_at' => null,
-            ]);
+            $inventoryCacheService->dispatchRefresh($shop, $marketplaceId);
         }
 
         return response()->json([
@@ -389,13 +396,27 @@ class InventoryController extends ShopifyController
 
         $amazonService = app(AmazonService::class);
 
-        return response()->json(
-            $amazonService->updateInventory(
+        try {
+            $response = $amazonService->updateInventory(
                 $shop,
                 $childSku,
                 (int) $request->quantity
-            )
-        );
+            );
+
+            return response()->json($response);
+        } catch (\Throwable $e) {
+            Log::error('Amazon manual quantity update failed', [
+                'shop_id'   => $shop->id,
+                'child_sku' => $childSku,
+                'quantity'  => $request->quantity,
+                'error'     => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error'   => true,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 
 
