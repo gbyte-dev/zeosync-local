@@ -1,26 +1,4 @@
 <?php
-<<<<<<< HEAD
-namespace App\Models;
-use Illuminate\Database\Eloquent\Model;
-class InventorySyncOperation extends Model
-{
-    protected $fillable = [
-        'shop_id','webhook_event_id','mapping_id','source_key','sku',
-        'source','source_state','inventory_item_id','location_id','marketplace_id',
-        'submitted_at','next_attempt_at','delta','requested_quantity',
-        'observed_quantity','desired_quantity','status','attempts','error','processed_at',
-    ];
-    protected $casts = [
-        'submitted_at' => 'datetime',
-        'next_attempt_at' => 'datetime',
-        'delta' => 'integer',
-        'requested_quantity' => 'integer',
-        'observed_quantity' => 'integer',
-        'desired_quantity' => 'integer',
-        'attempts' => 'integer',
-        'processed_at' => 'datetime',
-    ];
-=======
 
 namespace App\Models;
 
@@ -37,37 +15,57 @@ class InventorySyncOperation extends Model
     protected $fillable = [
         'operation_uuid',
         'shop_id',
+        'webhook_event_id',
         'mapping_id',
-        'shopify_inventory_item_id',
-        'shopify_location_id',
+        'source_key',
+        'sku',
         'amazon_sku',
-        'desired_quantity',
-        'baseline_quantity',
-        'expected_inventory_version',
         'source',
+        'source_state',
+        'inventory_item_id',
+        'shopify_inventory_item_id',
+        'location_id',
+        'shopify_location_id',
+        'marketplace_id',
+        'desired_quantity',
+        'requested_quantity',
+        'observed_quantity',
+        'baseline_quantity',
+        'delta',
+        'expected_inventory_version',
         'status',
         'stage',
         'attempts',
         'max_attempts',
+        'error',
         'last_error',
         'created_by',
+        'submitted_at',
+        'next_attempt_at',
         'last_dispatched_at',
         'processing_started_at',
         'completed_at',
+        'processed_at',
     ];
 
     protected $casts = [
         'shop_id'                    => 'integer',
         'mapping_id'                 => 'integer',
+        'delta'                      => 'integer',
+        'requested_quantity'         => 'integer',
+        'observed_quantity'          => 'integer',
         'desired_quantity'           => 'integer',
         'baseline_quantity'          => 'integer',
         'expected_inventory_version' => 'integer',
         'attempts'                   => 'integer',
         'max_attempts'               => 'integer',
         'created_by'                 => 'integer',
+        'submitted_at'               => 'datetime',
+        'next_attempt_at'            => 'datetime',
         'last_dispatched_at'         => 'datetime',
         'processing_started_at'      => 'datetime',
         'completed_at'               => 'datetime',
+        'processed_at'               => 'datetime',
     ];
 
     public function shop(): BelongsTo
@@ -114,6 +112,4 @@ class InventorySyncOperation extends Model
     {
         return in_array($this->status, ['superseded', 'stale_external_state'], true);
     }
-
->>>>>>> 3b69e68f5368e7f49ac33bb657a3435dc75b8bf9
 }

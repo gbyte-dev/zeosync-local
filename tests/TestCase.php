@@ -2,56 +2,62 @@
 
 namespace Tests;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
 
 abstract class TestCase extends BaseTestCase
 {
-<<<<<<< HEAD
-    // Rebuild the full schema from database/migrations before tests, then
-    // wrap each test in a transaction (rolled back after) so the DB stays clean.
-    use RefreshDatabase;
-
-=======
->>>>>>> 3b69e68f5368e7f49ac33bb657a3435dc75b8bf9
     protected function setUp(): void
     {
         parent::setUp();
 
-<<<<<<< HEAD
-        // These tests were written for SQLite :memory:, which never blocks
-        // TRUNCATE on FK-referenced tables and doesn't enforce STRICT_TRANS_TABLES
-        // for NOT-NULL-without-default columns. When running against MySQL, relax
-        // those server-side strictness rules so the suite behaves the same way:
-        //  - SET FOREIGN_KEY_CHECKS=0   => allows `truncate` on parent tables
-        //  - SET SESSION sql_mode=''    => omits STRICT_TRANS_TABLES (insert fallback)
-        if (config('database.default', 'mysql') === 'mysql') {
-            DB::statement('SET FOREIGN_KEY_CHECKS = 0');
-            DB::statement('SET SESSION sql_mode = ""');
-=======
-        if (!\Illuminate\Support\Facades\Schema::hasTable('inventory_sync_operations')) {
-            \Illuminate\Support\Facades\Schema::create('inventory_sync_operations', function (\Illuminate\Database\Schema\Blueprint $table) {
+        if (config('database.default') === 'mysql') {
+            try {
+                DB::statement('SET FOREIGN_KEY_CHECKS = 0');
+                DB::statement('SET SESSION sql_mode = ""');
+            } catch (\Throwable $e) {
+                // Ignore if MySQL server is not connected during in-memory testing
+            }
+        }
+
+        if (!Schema::hasTable('inventory_sync_operations')) {
+            Schema::create('inventory_sync_operations', function (Blueprint $table) {
                 $table->id();
-                $table->string('operation_uuid')->unique();
+                $table->string('operation_uuid')->nullable()->unique();
                 $table->unsignedBigInteger('shop_id')->index();
+                $table->unsignedBigInteger('webhook_event_id')->nullable();
                 $table->unsignedBigInteger('mapping_id')->nullable()->index();
-                $table->string('shopify_inventory_item_id');
-                $table->string('shopify_location_id')->nullable();
+                $table->string('source_key')->nullable()->unique();
+                $table->string('sku')->nullable()->default('');
                 $table->string('amazon_sku')->nullable();
-                $table->integer('desired_quantity');
-                $table->integer('baseline_quantity')->nullable();
-                $table->unsignedBigInteger('expected_inventory_version')->default(1);
                 $table->string('source')->default('manual_ui');
+                $table->string('source_state')->nullable()->default('pending');
+                $table->string('inventory_item_id')->nullable();
+                $table->string('shopify_inventory_item_id')->nullable();
+                $table->string('location_id')->nullable();
+                $table->string('shopify_location_id')->nullable();
+                $table->string('marketplace_id')->nullable();
+                $table->integer('desired_quantity')->default(0);
+                $table->unsignedInteger('requested_quantity')->nullable();
+                $table->unsignedInteger('observed_quantity')->nullable();
+                $table->integer('baseline_quantity')->nullable();
+                $table->integer('delta')->default(0);
+                $table->unsignedBigInteger('expected_inventory_version')->default(1);
                 $table->string('status')->default('pending');
                 $table->string('stage')->default('pending');
                 $table->unsignedSmallInteger('attempts')->default(0);
                 $table->unsignedSmallInteger('max_attempts')->default(4);
+                $table->text('error')->nullable();
                 $table->text('last_error')->nullable();
                 $table->unsignedBigInteger('created_by')->nullable();
+                $table->timestamp('submitted_at')->nullable();
+                $table->timestamp('next_attempt_at')->nullable()->index();
                 $table->timestamp('last_dispatched_at')->nullable();
                 $table->timestamp('processing_started_at')->nullable();
                 $table->timestamp('completed_at')->nullable();
+                $table->timestamp('processed_at')->nullable();
                 $table->timestamps();
 
                 $table->index(['shop_id', 'status'], 'idx_shop_status');
@@ -60,29 +66,26 @@ abstract class TestCase extends BaseTestCase
                 $table->index(['status', 'created_at'], 'idx_status_created');
                 $table->index(['status', 'last_dispatched_at'], 'idx_status_dispatched');
                 $table->index(['status', 'processing_started_at'], 'idx_status_processing');
-
             });
         }
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('product_marketplace_mappings') && !\Illuminate\Support\Facades\Schema::hasColumn('product_marketplace_mappings', 'inventory_version')) {
-            \Illuminate\Support\Facades\Schema::table('product_marketplace_mappings', function (\Illuminate\Database\Schema\Blueprint $table) {
+        if (Schema::hasTable('product_marketplace_mappings') && !Schema::hasColumn('product_marketplace_mappings', 'inventory_version')) {
+            Schema::table('product_marketplace_mappings', function (Blueprint $table) {
                 $table->unsignedBigInteger('inventory_version')->default(1);
             });
         }
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('inventory_sync_operations')) {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('inventory_sync_operations', 'baseline_quantity')) {
-                \Illuminate\Support\Facades\Schema::table('inventory_sync_operations', function (\Illuminate\Database\Schema\Blueprint $table) {
+        if (Schema::hasTable('inventory_sync_operations')) {
+            if (!Schema::hasColumn('inventory_sync_operations', 'baseline_quantity')) {
+                Schema::table('inventory_sync_operations', function (Blueprint $table) {
                     $table->integer('baseline_quantity')->nullable();
                 });
             }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('inventory_sync_operations', 'expected_inventory_version')) {
-                \Illuminate\Support\Facades\Schema::table('inventory_sync_operations', function (\Illuminate\Database\Schema\Blueprint $table) {
+            if (!Schema::hasColumn('inventory_sync_operations', 'expected_inventory_version')) {
+                Schema::table('inventory_sync_operations', function (Blueprint $table) {
                     $table->unsignedBigInteger('expected_inventory_version')->default(1);
                 });
             }
->>>>>>> 3b69e68f5368e7f49ac33bb657a3435dc75b8bf9
         }
     }
 }
-

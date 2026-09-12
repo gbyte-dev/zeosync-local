@@ -1244,11 +1244,7 @@ class ShopifyController extends Controller
         $shopModel = $this->findShopByIdentifier($shopDomain);
 
         if (!$shopModel) {
-
-            return response('Shop not found', 403);
-
             return response('OK', 200);
-
         }
 
         $data = json_decode($payload, true);
@@ -1283,9 +1279,7 @@ class ShopifyController extends Controller
                 'shop' => $shopDomain,
             ]);
 
-            return response('Shop not found', 403);
             return response('OK', 200);
-
         }
         $data = json_decode($payload, true);
         return response('OK', 200);
@@ -1309,10 +1303,7 @@ class ShopifyController extends Controller
                 'shop' => $shopDomain,
             ]);
 
-            return response('Shop not found', 403);
-
             return response('OK', 200);
-
         }
         $data = json_decode($payload, true);
         return response('OK', 200);
@@ -1389,9 +1380,7 @@ class ShopifyController extends Controller
                 'reason'      => 'shop_not_found_or_inactive',
             ]);
 
-            return response('Shop not found', 403);
             return response('OK', 200);
-
         }
 
         $data = json_decode($payload, true);
@@ -3303,15 +3292,11 @@ class ShopifyController extends Controller
                 })
                 ->first();
             if (!$shop) {
-
-                return response('Shop not found', 403);
-
                 Log::info('App uninstalled webhook received for unknown shop — acknowledged.', [
                     'shop_domain' => $shopDomain,
                     'reason'      => 'shop_not_found',
                 ]);
                 return response('OK', 200);
-
             }
             $template = \App\Models\MailTemplate::active()
                 ->where('slug', 'app-uninstalled')

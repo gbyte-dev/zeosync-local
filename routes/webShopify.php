@@ -227,6 +227,10 @@ Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::clas
         Route::get('/categories_p', [ProductSchemaController::class, 'index'])->name('admin.categories');
         Route::get('/schema-create', [ProductSchemaController::class, 'create'])->name('admin.schema.create');
         Route::post('/schema-store', [ProductSchemaController::class, 'store'])->name('product-schemas.store');
+
+        Route::any('/{any}', function () {
+            return response()->view('errors.404', [], 404);
+        })->where('any', '.*')->name('admin.fallback');
     });
 });
 

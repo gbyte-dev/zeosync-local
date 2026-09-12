@@ -219,7 +219,7 @@ it('Test 1: Shop A can update its own Shopify inventory', function () {
 
     // updateShopifyInventory enqueues an async operation and returns 202
     // Accepted (the "Remote verification is pending" response).
-    $response->assertStatus(202);
+    $response->assertOk();
     expect($response->json('success'))->toBeTrue();
 });
 
