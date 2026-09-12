@@ -694,6 +694,7 @@
         }
 
         (function() {
+            // 1. Intercept jQuery $.ajax
             const originalAjax = $.ajax;
 
             $.ajax = async function(url, options) {
@@ -720,26 +721,51 @@
                 }
 
                 try {
-                    if (typeof shopify === 'undefined') {
-                        console.error('Shopify App Bridge is not loaded');
-                        return originalAjax.call(this, options);
+                    if (typeof shopify !== 'undefined' && shopify.idToken) {
+                        const token = await shopify.idToken();
+                        if (token) {
+                            options.headers = {
+                                ...(options.headers || {}),
+                                'Authorization': `Bearer ${token}`,
+                                'Accept': 'application/json'
+                            };
+                        }
                     }
-
-                    const token = await shopify.idToken();
-
-                    options.headers = {
-                        ...(options.headers || {}),
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json'
-                    };
-
                     return originalAjax.call(this, options);
-
                 } catch (error) {
-                    console.error('Failed to get Shopify session token:', error);
-                    throw error;
+                    console.warn('App Bridge $.ajax token error:', error);
+                    return originalAjax.call(this, options);
                 }
             };
+
+            // 2. Intercept native window.fetch for internal same-origin requests
+            if (window.fetch) {
+                const originalFetch = window.fetch;
+                window.fetch = async function(resource, init) {
+                    init = init || {};
+                    let urlStr = typeof resource === 'string' ? resource : (resource.url || '');
+
+                    const isInternal = !urlStr.startsWith('http://') && !urlStr.startsWith('https://')
+                        || urlStr.startsWith(window.location.origin);
+
+                    if (isInternal && typeof shopify !== 'undefined' && shopify.idToken) {
+                        try {
+                            const token = await shopify.idToken();
+                            if (token) {
+                                let headers = new Headers(init.headers || {});
+                                if (!headers.has('Authorization')) {
+                                    headers.set('Authorization', `Bearer ${token}`);
+                                }
+                                init.headers = headers;
+                            }
+                        } catch (e) {
+                            console.warn('App Bridge fetch token error:', e);
+                        }
+                    }
+
+                    return originalFetch.call(this, resource, init);
+                };
+            }
         })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

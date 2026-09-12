@@ -137,17 +137,62 @@ class ResolveActiveShop
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json([
                 'error'   => 'Unauthorized',
-                'message' => 'Unauthenticated Shopify request.',
-            ], 401);
+                'message' => 'Shopify authentication required.',
+            ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');
         }
 
-        // For protected browser routes without verified identity, fail closed to entry/install
-        Log::warning('UNAUTHENTICATED ACCESS TO PROTECTED ROUTE BLOCKED', [
-            'path' => $request->path(),
-            'shop' => $request->query('shop'),
-        ]);
+        // For protected browser routes without verified identity:
+        // Only return the lightweight App Bridge reauth bounce view when the request originates
+        // from the embedded Shopify app context (e.g. inside Shopify Admin iframe).
+        if ($this->isEmbeddedShopifyRequest($request)) {
+            $targetUrl = $request->fullUrl();
+            $resolvedShop = $this->resolveShopDomain($request);
+            $host = $request->query('host');
 
-        return redirect()->route('crm.entry')->with('error', 'Session expired or unauthenticated.');
+            Log::info('EMBEDDED REAUTH BOUNCE TRIGGERED', [
+                'path' => $request->path(),
+                'shop' => $resolvedShop,
+            ]);
+
+            return response()->view('shopify.reauth', [
+                'targetUrl' => $targetUrl,
+                'shop'      => $resolvedShop,
+                'host'      => $host,
+            ]);
+        }
+
+        // Standalone non-Shopify browser requests redirect to the entry/landing page
+        return redirect()->route('crm.entry');
+    }
+
+    private function isEmbeddedShopifyRequest(Request $request): bool
+    {
+        if ($request->query('embedded') === '1' || $request->query('embedded') === 'true') {
+            return true;
+        }
+
+        if ($request->filled('host')) {
+            return true;
+        }
+
+        if ($request->filled('shop')) {
+            return true;
+        }
+
+        if ($request->header('Sec-Fetch-Dest') === 'iframe') {
+            return true;
+        }
+
+        $referer = (string) $request->header('referer');
+        if ($referer !== '' && (str_contains($referer, 'admin.shopify.com') || str_contains($referer, '.myshopify.com'))) {
+            return true;
+        }
+
+        if ($request->has('id_token') || $request->has('session_token')) {
+            return true;
+        }
+
+        return false;
     }
 
     private function resolveShopDomain(Request $request): ?string

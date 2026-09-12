@@ -58,6 +58,26 @@ class VerifyShopifyAuthentication
                     'active_shop_id'         => $tokenResult['shop_model']->id,
                 ]);
 
+                // Clean URL redirect if token was passed in query on a protected GET route
+                if (
+                    !$request->ajax() &&
+                    !$request->expectsJson() &&
+                    $request->isMethod('GET') &&
+                    $request->hasAny(['id_token', 'session_token', 'shopify_token']) &&
+                    !$request->routeIs('crm.entry') &&
+                    !$request->routeIs('shopify.app.launch*')
+                ) {
+                    $cleanParams = $request->query();
+                    unset(
+                        $cleanParams['id_token'],
+                        $cleanParams['token'],
+                        $cleanParams['session_token'],
+                        $cleanParams['shopify_token']
+                    );
+                    $cleanUrl = $request->url() . (!empty($cleanParams) ? '?' . http_build_query($cleanParams) : '');
+                    return redirect($cleanUrl);
+                }
+
                 return $next($request);
             }
 
@@ -87,7 +107,7 @@ class VerifyShopifyAuthentication
                 return response()->json([
                     'error'   => 'Unauthorized',
                     'message' => 'Invalid, expired, or untrusted Shopify session token.',
-                ], 401);
+                ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');
             }
         }
 
@@ -125,7 +145,7 @@ class VerifyShopifyAuthentication
             return response()->json([
                 'error'   => 'Unauthorized',
                 'message' => 'Shopify authentication required.',
-            ], 401);
+            ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');
         }
 
         // 6. Non-AJAX browser requests continue to ResolveActiveShop
