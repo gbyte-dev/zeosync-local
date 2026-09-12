@@ -3,8 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\NotificationController;
 
-Route::prefix('admin')->group(function () {
-    Route::middleware('auth:admin')->group(function () {
+Route::prefix('admin')->middleware([\App\Http\Middleware\VerifyAdminRequest::class, \App\Http\Middleware\EnsureAdminAuthenticated::class])->group(function () {
 
         //notification
         Route::get('/notification', [NotificationController::class, 'index'])
@@ -20,7 +19,6 @@ Route::prefix('admin')->group(function () {
 
         Route::post('/admin/notification/{id}/read', [NotificationController::class, 'markAdminNotificationRead'])
             ->name('admin.notification.read');
-    });
 });
 
 Route::post('/user/notification/{id}/read', [NotificationController::class, 'markUserNotificationRead'])

@@ -183,7 +183,7 @@ Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::clas
         Route::post('/login', [AdminAuthController::class, 'login'])
             ->name('admin.login.submit');
     });
-    Route::middleware('auth:admin')->group(function () {
+    Route::middleware(\App\Http\Middleware\EnsureAdminAuthenticated::class)->group(function () {
         Route::get('/', [AdminController::class, 'dashboard'])
             ->name('admin.dashboard');
         Route::get('/dashboard', [AdminController::class, 'dashboard'])

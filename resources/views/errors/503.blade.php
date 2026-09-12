@@ -1,5 +1,5 @@
 @php
-    $isAdmin = request()->is('admin*');
+    $isAdmin = auth()->guard('admin')->check();
     $layout = $isAdmin ? 'admin.layout.app' : 'layouts.app';
 @endphp
 

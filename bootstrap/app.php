@@ -30,6 +30,14 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return route('crm.entry');
         });
+
+        $middleware->redirectUsersTo(function (Request $request) {
+            if (auth('admin')->check() || $request->is('admin') || $request->is('admin/*')) {
+                return route('admin.dashboard');
+            }
+
+            return route('dashboard');
+        });
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         $middleware->web(append: [
             \App\Http\Middleware\VerifyShopifyAuthentication::class,
@@ -37,11 +45,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
+            'guest'                => \App\Http\Middleware\RedirectIfAuthenticated::class,
             'shopify.auth'         => \App\Http\Middleware\VerifyShopifyAuthentication::class,
             'shopify.subscription' => \App\Http\Middleware\VerifyShopifySubscription::class,
             'subscription.check'   => \App\Http\Middleware\CheckSubscription::class,
             'ip.rate'              => \App\Http\Middleware\EnforceIpAndRateLimit::class,
             'admin.verify'         => \App\Http\Middleware\VerifyAdminRequest::class,
+            'admin.auth'           => \App\Http\Middleware\EnsureAdminAuthenticated::class,
         ]);
 
         // $middleware->validateCsrfTokens(except: [

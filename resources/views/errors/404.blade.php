@@ -1,5 +1,5 @@
 @php
-    $isAdmin = request()->is('admin*');
+    $isAdmin = auth()->guard('admin')->check();
     if(!$isAdmin && session('active_shop') === null && !request()->has('shop')) {
         $layout = 'layouts.zeosync';
     } else {

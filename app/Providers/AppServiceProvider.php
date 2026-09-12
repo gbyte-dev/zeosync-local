@@ -40,13 +40,18 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('*', function ($view) {
             try {
-                $adminNotifications = AdminNotification::where('is_read', 0)
-                    ->latest()
-                    ->take(3)
-                    ->get();
+                $adminNotifications = collect();
+                $adminUnreadCount = 0;
 
-                $adminUnreadCount = AdminNotification::where('is_read', 0)
-                    ->count();
+                if (auth()->guard('admin')->check()) {
+                    $adminNotifications = AdminNotification::where('is_read', 0)
+                        ->latest()
+                        ->take(3)
+                        ->get();
+
+                    $adminUnreadCount = AdminNotification::where('is_read', 0)
+                        ->count();
+                }
 
                 // ---------------- User ----------------
                 $currentShop = request('shop') ?? session('active_shop');
