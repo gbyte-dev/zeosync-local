@@ -456,7 +456,7 @@ it('Requirement 11: Manual Shopify inventory update while location 1 is selected
 
     $mockAmazonService = Mockery::mock(AmazonService::class);
     $mockAmazonService->shouldReceive('updateInventory')
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-LOC-1', 25)
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-LOC-1', 25, false)
         ->once()
         ->andReturn(['submissionId' => 'SUB-LOC-25', 'status' => 'ACCEPTED']);
     app()->instance(AmazonService::class, $mockAmazonService);
@@ -502,7 +502,7 @@ it('Requirement 12: Manual Shopify inventory update while location 2 is selected
 
     $mockAmazonService = Mockery::mock(AmazonService::class);
     $mockAmazonService->shouldReceive('updateInventory')
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-LOC-2', 40)
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-LOC-2', 40, false)
         ->once()
         ->andReturn(['submissionId' => 'SUB-LOC-40', 'status' => 'ACCEPTED']);
     app()->instance(AmazonService::class, $mockAmazonService);

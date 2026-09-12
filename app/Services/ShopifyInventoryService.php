@@ -267,4 +267,18 @@ class ShopifyInventoryService
 
         return !Cache::has($cacheKey);
     }
+
+    public function refreshShopifyInventory(Shop $shop): array
+    {
+        $locations = $shop->shopify_locations ?? [];
+        $effectiveIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+
+        $cacheKey = "shopify_inventory_{$shop->shop}_location_{$effectiveIndex}";
+
+        Cache::forget($cacheKey);
+
+        return $this->getInventory($shop);
+    }
 }

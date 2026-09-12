@@ -476,11 +476,11 @@ it('Backend Shopify inventory update accepts explicit 0, positive integer, and r
 
     $mockAmazonService = Mockery::mock(AmazonService::class);
     $mockAmazonService->shouldReceive('updateInventory')
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-SKU-123', 0)
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-SKU-123', 0, false)
         ->once()
         ->andReturn(['submissionId' => 'SUB-000', 'status' => 'ACCEPTED']);
     $mockAmazonService->shouldReceive('updateInventory')
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-SKU-123', 15)
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-SKU-123', 15, false)
         ->once()
         ->andReturn(['submissionId' => 'SUB-015', 'status' => 'ACCEPTED']);
     app()->instance(AmazonService::class, $mockAmazonService);
