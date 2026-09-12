@@ -253,15 +253,11 @@ class InventoryController extends ShopifyController
 
             $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
-            Cache::forget("amazon_inventory_{$shop->id}_{$marketplaceId}");
+            // Preserve active inventory cache; only clear progress and dispatch background refresh
             Cache::forget("amazon_progress_{$shop->shop}");
 
             $inventoryCacheService = app(InventoryCacheService::class);
-            $inventoryCacheService->updateStatus($shop, $marketplaceId, [
-                'refreshing'     => false,
-                'sync_completed' => false,
-                'last_synced_at' => null,
-            ]);
+            $inventoryCacheService->dispatchRefresh($shop, $marketplaceId);
         }
 
         return response()->json([
