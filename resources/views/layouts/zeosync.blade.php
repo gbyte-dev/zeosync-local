@@ -71,12 +71,14 @@
                 return iframeElement.getAttribute('src'); // the src you set
             }
 
-            // or, if you need the *actual* URL the iframe navigated to (same-origin only)
             function getIframeCurrentUrl(iframeElement) {
+                if (!iframeElement) {
+                    console.warn('No iframe element passed in');
+                    return null;
+                }
                 try {
                     return iframeElement.contentWindow.location.href;
                 } catch (e) {
-                    // Cross-origin — browser blocks this, only the src attribute is visible
                     return iframeElement.getAttribute('src');
                 }
             }
