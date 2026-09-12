@@ -2,14 +2,34 @@
 
 namespace Tests;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\DB;
 
 abstract class TestCase extends BaseTestCase
 {
+<<<<<<< HEAD
+    // Rebuild the full schema from database/migrations before tests, then
+    // wrap each test in a transaction (rolled back after) so the DB stays clean.
+    use RefreshDatabase;
+
+=======
+>>>>>>> 3b69e68f5368e7f49ac33bb657a3435dc75b8bf9
     protected function setUp(): void
     {
         parent::setUp();
 
+<<<<<<< HEAD
+        // These tests were written for SQLite :memory:, which never blocks
+        // TRUNCATE on FK-referenced tables and doesn't enforce STRICT_TRANS_TABLES
+        // for NOT-NULL-without-default columns. When running against MySQL, relax
+        // those server-side strictness rules so the suite behaves the same way:
+        //  - SET FOREIGN_KEY_CHECKS=0   => allows `truncate` on parent tables
+        //  - SET SESSION sql_mode=''    => omits STRICT_TRANS_TABLES (insert fallback)
+        if (config('database.default', 'mysql') === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS = 0');
+            DB::statement('SET SESSION sql_mode = ""');
+=======
         if (!\Illuminate\Support\Facades\Schema::hasTable('inventory_sync_operations')) {
             \Illuminate\Support\Facades\Schema::create('inventory_sync_operations', function (\Illuminate\Database\Schema\Blueprint $table) {
                 $table->id();
@@ -61,6 +81,7 @@ abstract class TestCase extends BaseTestCase
                     $table->unsignedBigInteger('expected_inventory_version')->default(1);
                 });
             }
+>>>>>>> 3b69e68f5368e7f49ac33bb657a3435dc75b8bf9
         }
     }
 }

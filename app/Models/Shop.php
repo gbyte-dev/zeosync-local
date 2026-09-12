@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
+use App\Casts\LegacyEncryptedString;
+
 class Shop extends Model
 {
     /**
@@ -43,6 +45,7 @@ class Shop extends Model
         'last_status_check_at',
         'shopify_locations',
         'selected_location_index',
+        'selected_location_id',
     ];
 
     protected $hidden = [
@@ -54,9 +57,9 @@ class Shop extends Model
     ];
 
     protected $casts = [
-        'access_token' => 'encrypted',
-        'refresh_token' => 'encrypted',
-        'amazon_refresh_token' => 'encrypted',
+        'access_token' => LegacyEncryptedString::class,
+        'refresh_token' => LegacyEncryptedString::class,
+        'amazon_refresh_token' => LegacyEncryptedString::class,
         'access_token_expires_at' => 'datetime',
         'refresh_token_expires_at' => 'datetime',
         'last_status_check_at' => 'datetime',

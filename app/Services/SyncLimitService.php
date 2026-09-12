@@ -21,8 +21,12 @@ class SyncLimitService
 
         if (!$subscription) {
             return [
-                'allowed' => false,
-                'message' => 'No active subscription found.',
+                'allowed'   => false,
+                'message'   => 'No active subscription found.',
+                'used'      => 0,
+                'limit'     => 0,
+                'remaining' => 0,
+                'plan_name' => null,
             ];
         }
 
@@ -32,15 +36,23 @@ class SyncLimitService
             now()->gt($subscription->current_period_end)
         ) {
             return [
-                'allowed' => false,
-                'message' => 'Your subscription has expired. Please renew your plan.',
+                'allowed'   => false,
+                'message'   => 'Your subscription has expired. Please renew your plan.',
+                'used'      => 0,
+                'limit'     => 0,
+                'remaining' => 0,
+                'plan_name' => $subscription->plan?->name,
             ];
         }
 
         if (!$subscription->plan) {
             return [
-                'allowed' => false,
-                'message' => 'Subscribed plan not found.',
+                'allowed'   => false,
+                'message'   => 'Subscribed plan not found.',
+                'used'      => 0,
+                'limit'     => 0,
+                'remaining' => 0,
+                'plan_name' => null,
             ];
         }
 

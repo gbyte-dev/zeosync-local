@@ -105,8 +105,18 @@ beforeEach(function () {
             $table->unique(['shop_id', 'amazon_sku'], 'unique_shop_amazon_sku');
         });
     } else {
-        // In memory test or shared DB, ensure table is clean
-        ProductMarketplaceMapping::truncate();
+        // Shared/MySQL DB: clear rows with a transactional DELETE. TRUNCATE
+        // would implicitly COMMIT and silently break the surrounding
+        // RefreshDatabase transaction (causing leaked rows + afterCommit()
+        // jobs to run synchronously).
+        ProductMarketplaceMapping::query()->delete();
+        // The real migrations seed plans (Starter/Growth/Scale). Delete them so
+        // each test can create its own plans (e.g. a fresh 'Growth') without
+        // colliding with the seeded rows on plans.name_unique.
+        Plan::query()->delete();
+        ShopSubscription::query()->delete();
+        Product::query()->delete();
+        Shop::query()->delete();
     }
 });
 

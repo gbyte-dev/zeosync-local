@@ -10,6 +10,7 @@ use App\Services\AmazonService;
 use App\Services\ShopifySessionTokenValidator;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 
 beforeEach(function () {
@@ -18,6 +19,13 @@ beforeEach(function () {
         'services.shopify.api_secret' => 'test-api-secret',
         'app.disable_subscription'    => true,
     ]);
+
+    // Queue the async ProcessInventoryOperation instead of letting the sync
+    // driver run it inline. updateShopifyInventory() holds a per-shop cache
+    // lock and then dispatches the job with ->afterCommit(); when there is no
+    // active DB transaction the sync driver executes the job right away, which
+    // re-acquires the same cache lock and deadlocks (LockTimeoutException).
+    Queue::fake();
 
     Http::fake([
         '*inventory_levels/set.json*' => Http::response(['inventory_level' => ['available' => 10]], 200),
@@ -135,11 +143,14 @@ beforeEach(function () {
         });
     }
 
-    ProductMarketplaceMapping::truncate();
-    Product::truncate();
-    ShopSubscription::truncate();
-    Plan::truncate();
-    Shop::truncate();
+    // Clear rows with transactional DELETEs (MUST NOT use TRUNCATE on MySQL:
+    // TRUNCATE implicitly commits and breaks the RefreshDatabase transaction,
+    // leaking rows across tests and forcing afterCommit() jobs to run inline).
+    ProductMarketplaceMapping::query()->delete();
+    Product::query()->delete();
+    ShopSubscription::query()->delete();
+    Plan::query()->delete();
+    Shop::query()->delete();
 
     Plan::create([
         'id'         => 1,
@@ -167,7 +178,10 @@ function createTestShop(int $id, string $domain, string $name = 'Store'): Shop
 
     ShopSubscription::create([
         'shop_id'            => $shop->id,
-        'plan_id'            => 1,
+        // Resolve the actual 'Pro Plan' id at runtime. The beforeEach creates it
+        // with an auto-increment id (id is not mass-assignable on Plan), so it is
+        // NOT guaranteed to be 1 once DELETE (not TRUNCATE) is used in setup.
+        'plan_id'            => Plan::where('name', 'Pro Plan')->value('id'),
         'status'             => 'active',
         'started_at'         => now()->subDays(5),
         'current_period_end' => now()->addDays(25),
@@ -203,7 +217,9 @@ it('Test 1: Shop A can update its own Shopify inventory', function () {
         'quantity'          => 15,
     ]);
 
-    $response->assertStatus(200);
+    // updateShopifyInventory enqueues an async operation and returns 202
+    // Accepted (the "Remote verification is pending" response).
+    $response->assertStatus(202);
     expect($response->json('success'))->toBeTrue();
 });
 
@@ -248,7 +264,9 @@ it('Test 3: Shop A cannot create a mapping using Shop B product', function () {
 
     $productB = Product::create([
         'shop_id'    => $shopB->id,
-        'shopify_id' => 'shop_prod_b',
+        // Numeric: products.shopify_id is unsignedBigInteger + unique, so string
+        // ids would all cast to 0 and collide on MySQL.
+        'shopify_id' => 3001,
         'title'      => 'Shop B Product',
         'variants'   => [
             ['id' => 'var_b_1', 'inventory_item_id' => 'inv_b_1', 'inventory_quantity' => 10]
@@ -279,7 +297,8 @@ it('Test 4: Shop A cannot save a mapping under Shop B by passing shop=ShopB', fu
 
     $productA = Product::create([
         'shop_id'    => $shopA->id,
-        'shopify_id' => 'shop_prod_a',
+        // Numeric (see Test 3 note).
+        'shopify_id' => 3002,
         'title'      => 'Shop A Product',
         'variants'   => [
             ['id' => 'var_a_1', 'inventory_item_id' => 'inv_a_1', 'inventory_quantity' => 10]
@@ -319,7 +338,8 @@ it('Test 5: Shop A cannot update Shop B Amazon mapping or reference Shop B produ
 
     $productB = Product::create([
         'shop_id'    => $shopB->id,
-        'shopify_id' => 'shop_prod_b_99',
+        // Numeric (see Test 3 note).
+        'shopify_id' => 3003,
         'title'      => 'Shop B Product',
         'variants'   => [
             ['id' => 999, 'inventory_item_id' => 'inv_999', 'inventory_quantity' => 10]
@@ -378,12 +398,13 @@ it('Test 7: Shop A cannot enumerate Shop B Shopify products', function () {
 
     Product::create([
         'shop_id'    => $shopA->id,
-        'shopify_id' => 'prod_a',
+        // Numeric (see Test 3 note).
+        'shopify_id' => 3004,
         'title'      => 'Store A Item',
     ]);
     Product::create([
         'shop_id'    => $shopB->id,
-        'shopify_id' => 'prod_b',
+        'shopify_id' => 3005,
         'title'      => 'Store B Secret Item',
     ]);
 
@@ -407,7 +428,8 @@ it('Test 8: Shop A cannot enumerate Shop B product variants', function () {
 
     $productB = Product::create([
         'shop_id'    => $shopB->id,
-        'shopify_id' => 'prod_b_secret',
+        // Numeric (see Test 3 note).
+        'shopify_id' => 3006,
         'title'      => 'Store B Product',
         'variants'   => [
             ['id' => 'var_b_secret', 'title' => 'Secret Variant', 'inventory_item_id' => 'inv_b_secret']

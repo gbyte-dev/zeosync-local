@@ -277,6 +277,18 @@ class AmazonService
         );
     }
 
+    public function getAvailableQuantity(Shop $shop, string $sku): ?int
+    {
+        try {
+            $listing = $this->checkAmazonListing($shop, $sku);
+        } catch (\Throwable) {
+            return null;
+        }
+        $offers = $listing['offers'] ?? $listing['summaries'] ?? null;
+
+        return is_numeric($offers) ? (int) $offers : null;
+    }
+
     public function updateInventory(
         Shop $shop,
         string $sku,

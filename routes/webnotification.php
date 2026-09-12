@@ -22,12 +22,12 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\VerifyAdminRequest::cla
 });
 
 Route::post('/user/notification/{id}/read', [NotificationController::class, 'markUserNotificationRead'])
-    ->name('user.notification.read');
+    ->middleware('ip.rate:5,60')->name('user.notification.read');
 
 Route::post(
     '/user/notifications/mark-viewed',
     [NotificationController::class, 'markViewedUserNotificationsRead']
-)->name('user.notifications.markViewed');
+)->middleware('ip.rate:5,60')->name('user.notifications.markViewed');
 
 /* Route::post('/user/notification/mark-all-read', [NotificationController::class, 'markAllUserNotificationsRead'])
     ->name('user.notification.markAllRead'); */

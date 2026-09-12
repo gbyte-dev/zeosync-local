@@ -7,12 +7,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
 beforeEach(function () {
-    Schema::create('images', function (Blueprint $table) {
-        $table->id();
-        $table->unsignedBigInteger('shop_id');
-        $table->string('image');
-        $table->timestamps();
-    });
+    // The images table is already created by the real migrations via
+    // RefreshDatabase; only create it if it does not exist.
+    if (!Schema::hasTable('images')) {
+        Schema::create('images', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id');
+            $table->string('image');
+            $table->timestamps();
+        });
+    }
 });
 
 it('returns shop images for the image picker', function () {
