@@ -129,10 +129,13 @@ Route::get('/clear-cache-temp', function () {
 
 Route::post('/amazon/test-update/{sku}', function (Illuminate\Http\Request $request, $sku) {
 
-    $shop = \App\Models\Shop::where(
-        'shop',
-        $request->query('shop')
-    )->firstOrFail();
+    $shop = getActiveShopModel($request);
+    if (!$shop) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthorized or shop not found.'
+        ], 401);
+    }
 
     return app(\App\Services\AmazonService::class)
         ->updateInventory(
@@ -141,13 +144,15 @@ Route::post('/amazon/test-update/{sku}', function (Illuminate\Http\Request $requ
             (int) $request->quantity
         );
 });
-Route::get('/amazon/cache-clear', function () {
+Route::get('/amazon/cache-clear', function (Illuminate\Http\Request $request) {
 
-    $activeShop = session('active_shop');
-
-    $shop = is_numeric($activeShop)
-        ? Shop::findOrFail($activeShop)
-        : Shop::where('shop', $activeShop)->firstOrFail();
+    $shop = getActiveShopModel($request);
+    if (!$shop) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthorized or shop not found.'
+        ], 401);
+    }
 
     $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
@@ -161,6 +166,7 @@ Route::get('/amazon/cache-clear', function () {
         'cache_key' => $cacheKey,
     ]);
 });
+
 
 // Stripe webhook for payment updates
 Route::post('webhooks/stripe', [StripeWebhookController::class, 'handle'])
@@ -276,7 +282,7 @@ Route::get('/amazon-schema-test-2', function () {
 });
 Route::get('/amazon-check/{sku}', function (Request $request, $sku) {
 
-    $shop = Shop::where('shop', $request->query('shop'))->first();
+    $shop = getActiveShopModel($request);
 
     if (!$shop) {
         return response()->json([
@@ -291,6 +297,7 @@ Route::get('/amazon-check/{sku}', function (Request $request, $sku) {
         $service->checkAmazonListing($shop, $sku)
     );
 });
+
 
 Route::get(
     '/amazon/schema-fields/{slug}',
@@ -323,14 +330,14 @@ Route::post('/amazon/load-missing-fields', [AmazonSchemaController::class, 'load
 
 
 Route::get('/inventory/amazon/test-report', function (
+    Illuminate\Http\Request $request,
     \App\Services\AmazonInventoryReportService $service
 ) {
 
-    $activeShop = session('active_shop');
-
-    $shop = is_numeric($activeShop)
-        ? \App\Models\Shop::findOrFail($activeShop)
-        : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
+    $shop = getActiveShopModel($request);
+    if (!$shop) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized or shop not found.'], 401);
+    }
 
     return response()->json(
         $service->createReport(
@@ -341,14 +348,14 @@ Route::get('/inventory/amazon/test-report', function (
 });
 
 Route::get('/inventory/amazon/test-report/{reportId}', function (
+    Illuminate\Http\Request $request,
     $reportId,
     \App\Services\AmazonInventoryReportService $service
 ) {
-    $activeShop = session('active_shop');
-
-    $shop = is_numeric($activeShop)
-        ? \App\Models\Shop::findOrFail($activeShop)
-        : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
+    $shop = getActiveShopModel($request);
+    if (!$shop) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized or shop not found.'], 401);
+    }
 
     return response()->json(
         $service->getReport(
@@ -364,11 +371,10 @@ Route::get('/inventory/amazon/test-download', function (
 ) {
     $documentId = $request->get('documentId');
 
-    $activeShop = session('active_shop');
-
-    $shop = is_numeric($activeShop)
-        ? \App\Models\Shop::findOrFail($activeShop)
-        : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
+    $shop = getActiveShopModel($request);
+    if (!$shop) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized or shop not found.'], 401);
+    }
 
     $download = $service->downloadReport($shop, $documentId);
 
@@ -385,11 +391,10 @@ Route::get('/inventory/amazon/test-extract', function (
 
     $documentId = $request->get('documentId');
 
-    $activeShop = session('active_shop');
-
-    $shop = is_numeric($activeShop)
-        ? \App\Models\Shop::findOrFail($activeShop)
-        : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
+    $shop = getActiveShopModel($request);
+    if (!$shop) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized or shop not found.'], 401);
+    }
 
     $download = $service->downloadReport(
         $shop,
@@ -416,11 +421,10 @@ Route::get('/inventory/amazon/test-parser', function (
     \App\Services\AmazonInventoryReportService $service
 ) {
 
-    $activeShop = session('active_shop');
-
-    $shop = is_numeric($activeShop)
-        ? \App\Models\Shop::findOrFail($activeShop)
-        : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
+    $shop = getActiveShopModel($request);
+    if (!$shop) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized or shop not found.'], 401);
+    }
 
     $download = $service->downloadReport(
         $shop,
@@ -442,6 +446,7 @@ Route::get('/inventory/amazon/test-parser', function (
         $service->parseReport($content)
     );
 });
+
 
 Route::get(
     '/inventory/amazon/progress',

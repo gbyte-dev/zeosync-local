@@ -3327,8 +3327,7 @@ class ShopifyController extends Controller
     // testing static amazon listing 
     public function getAmazonSchema(Request $request)
     {
-        $shop = $request->query('shop');
-        $shopModel = \App\Models\Shop::where('shop', $shop)->first();
+        $shopModel = getActiveShopModel($request);
         if (!$shopModel) {
             return response()->json(['error' => 'Shop not found'], 403);
         }
@@ -3362,8 +3361,7 @@ class ShopifyController extends Controller
     public function searchAmazonSchema(Request $request, $keyword)
     {
         try {
-            $shop      = $request->query('shop');
-            $shopModel = \App\Models\Shop::where('shop', $shop)->first();
+            $shopModel = getActiveShopModel($request);
             if (!$shopModel) {
                 return response()->json([
                     'success' => false,
@@ -3463,11 +3461,11 @@ class ShopifyController extends Controller
     }
     public function testSchemaBasedStatic(Request $request)
     {
-        $shop = $request->query('shop');
-        $shopModel = \App\Models\Shop::where('shop', $shop)->first();
+        $shopModel = getActiveShopModel($request);
         if (!$shopModel) {
             return response()->json(['error' => 'Shop not found'], 403);
         }
+
         $amazonService = new \App\Services\AmazonService();
         $attributes = [
             "item_name" => [["value" => "Wireless Bluetooth Earbuds", "marketplace_id" => "ATVPDKIKX0DER"]],

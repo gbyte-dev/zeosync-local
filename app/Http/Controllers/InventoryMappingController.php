@@ -445,6 +445,34 @@ class InventoryMappingController extends Controller
         $selectedLocation = $locations[$selectedIndex] ?? null;
         $locationId = $selectedLocation['id'] ?? null;
 
+        // If locations are missing or selected location could not be resolved, self-heal by refreshing from Shopify
+        if (!$locationId) {
+            try {
+                $shopifyService = new ShopifyService($shop->shop, $shop->access_token);
+                $locResponse = $shopifyService->shopifyRest($shop, 'get', 'locations.json');
+                if (empty($locResponse['error']) && !empty($locResponse['locations'])) {
+                    $fetchedLocations = $locResponse['locations'];
+                    $effectiveIndex = (isset($shop->selected_location_index) && isset($fetchedLocations[$shop->selected_location_index]))
+                        ? (int) $shop->selected_location_index
+                        : 0;
+                    $shop->update([
+                        'shopify_locations'       => $fetchedLocations,
+                        'selected_location_index' => $effectiveIndex,
+                    ]);
+                    $shop->refresh();
+                    $locations = $shop->shopify_locations ?? [];
+                    $selectedIndex = $effectiveIndex;
+                    $selectedLocation = $locations[$selectedIndex] ?? null;
+                    $locationId = $selectedLocation['id'] ?? null;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('SHOPIFY LOCATIONS SELF-HEAL FAILED', [
+                    'shop_id' => $shop->id,
+                    'error'   => $e->getMessage(),
+                ]);
+            }
+        }
+
         if (!$locationId) {
             Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
                 'shop_id'                 => $shop->id,
@@ -457,6 +485,7 @@ class InventoryMappingController extends Controller
                 'message' => 'No Shopify location found for this store.'
             ], 422);
         }
+
 
         // Check existing mapping scoped strictly to active shop
         $mapping = null;

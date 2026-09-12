@@ -237,3 +237,37 @@ if (!function_exists('sanitize_html')) {
     }
 }
 
+if (!function_exists('getActiveShopModel')) {
+    function getActiveShopModel(?\Illuminate\Http\Request $request = null): ?\App\Models\Shop
+    {
+        $request ??= request();
+
+        if ($request?->attributes->has('active_shop_model')) {
+            $shop = $request->attributes->get('active_shop_model');
+            if ($shop instanceof \App\Models\Shop && (int) $shop->is_active === 1 && !empty($shop->access_token)) {
+                return $shop;
+            }
+        }
+
+        if (session()->has('_shopify_verified_shop')) {
+            $sessionShop = session('_shopify_verified_shop');
+            $shop = \App\Models\Shop::where('shop', $sessionShop)->where('is_active', 1)->first();
+            if ($shop && !empty($shop->access_token)) {
+                return $shop;
+            }
+        }
+
+        if (session()->has('active_shop')) {
+            $sessionShop = session('active_shop');
+            $shop = is_numeric($sessionShop)
+                ? \App\Models\Shop::find($sessionShop)
+                : \App\Models\Shop::where('shop', $sessionShop)->where('is_active', 1)->first();
+            if ($shop && (int) $shop->is_active === 1 && !empty($shop->access_token)) {
+                return $shop;
+            }
+        }
+
+        return null;
+    }
+}
+

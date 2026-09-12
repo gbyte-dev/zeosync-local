@@ -1609,74 +1609,94 @@
         button.prop('disabled', true).text('Updating...');
         qtyInput.prop('disabled', true);
 
-        // Step 1: Update Shopify inventory
-        $.ajax({
-            url: "{{ route('inventory.shopify.update') }}",
-            type: 'POST',
-            data: {
-                shop: shop,
-                inventory_item_id: inventoryItemId,
-                quantity: quantity,
-                _token: $('meta[name="csrf-token"]').attr('content')
-            },
+        const requestData = {
+            shop: shop,
+            inventory_item_id: inventoryItemId,
+            quantity: quantity,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        };
 
-            success: function(response) {
+        function sendInventoryUpdate(retryCount = 0) {
+            $.ajax({
+                url: "{{ route('inventory.shopify.update') }}",
+                type: 'POST',
+                data: requestData,
 
-                // Show success toast immediately
-                showToast(response.message, 'success');
+                success: function(response) {
 
-                // Step 2: Wait 2 seconds, then fetch fresh Shopify data
-                setTimeout(function() {
+                    // Show success toast immediately
+                    showToast(response.message, 'success');
 
-                    $.ajax({
-                        url: "{{ route('shopify.inventory.shopify') }}",
-                        type: 'GET',
-                        data: {
-                            shop: shop
-                        },
-                        success: function(data) {
+                    // Step 2: Wait 2 seconds, then fetch fresh Shopify data
+                    setTimeout(function() {
 
-                            const items = Array.isArray(data) ? data : [];
+                        $.ajax({
+                            url: "{{ route('shopify.inventory.shopify') }}",
+                            type: 'GET',
+                            data: {
+                                shop: shop
+                            },
+                            success: function(data) {
 
-                            // Step 3: Render latest Shopify data
-                            renderShopifyTable(items);
-                        },
-                        error: function(xhr) {
-                            console.error(
-                                'Failed to refresh Shopify products:',
-                                xhr.responseText
-                            );
+                                const items = Array.isArray(data) ? data : [];
 
-                            showToast(
-                                'Inventory updated, but latest Shopify data could not be loaded.',
-                                'danger'
-                            );
+                                // Step 3: Render latest Shopify data
+                                renderShopifyTable(items);
+                            },
+                            error: function(xhr) {
+                                console.error(
+                                    'Failed to refresh Shopify products:',
+                                    xhr.responseText
+                                );
+
+                                showToast(
+                                    'Inventory updated, but latest Shopify data could not be loaded.',
+                                    'danger'
+                                );
+                            }
+                        });
+
+                    }, 2000);
+
+                    // Refresh Amazon data if Amazon tab is active
+                    if (activeTab === 'amazon') {
+                        loadAmazon();
+                    }
+                },
+
+                error: async function(xhr) {
+                    const isRetryHeader = xhr.getResponseHeader('X-Shopify-Retry-Invalid-Session-Request') === '1'
+                        || xhr.getResponseHeader('x-shopify-retry-invalid-session-request') === '1';
+
+                    if (xhr.status === 401 && isRetryHeader && retryCount === 0 && typeof shopify !== 'undefined' && shopify.idToken) {
+                        try {
+                            const freshToken = await shopify.idToken();
+                            if (freshToken) {
+                                sendInventoryUpdate(1);
+                                return;
+                            }
+                        } catch (tokenErr) {
+                            console.warn('App Bridge token retrieval failed on 401 retry:', tokenErr);
                         }
-                    });
+                    }
 
-                }, 2000);
+                    showToast(
+                        xhr.responseJSON?.message ?? 'Inventory update failed.',
+                        'danger'
+                    );
+                },
 
-                // Refresh Amazon data if Amazon tab is active
-                if (activeTab === 'amazon') {
-                    loadAmazon();
+                complete: function() {
+                    button.prop('disabled', false).text('Update');
+                    qtyInput.prop('disabled', false);
                 }
-            },
+            });
+        }
 
-            error: function(xhr) {
-
-                showToast(
-                    xhr.responseJSON?.message ?? 'Inventory update failed.',
-                    'danger'
-                );
-            },
-
-            complete: function() {
-
-                button.prop('disabled', false).text('Update');
-                qtyInput.prop('disabled', false);
-            }
-        });
+        // Step 1: Update Shopify inventory
+        sendInventoryUpdate(0);
     });
+
 
     // ==========================================
     // Modals & Mappings Logic
