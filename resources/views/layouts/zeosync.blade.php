@@ -9,6 +9,7 @@
     }
 
      $faviconUrl = getFavicon();
+     $shopifyclient_id = \App\Models\AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key'));
     @endphp
 
 <!doctype html>
@@ -19,6 +20,8 @@
     <title>@yield('title', config('app.name', 'Zeosync'))</title>
     <meta name="description" content="@yield('meta_description', 'Connect Amazon and Shopify with clearer product, inventory, order and returns workflows.')">
     <meta name="theme-color" content="#111c25">
+    <meta name="shopify-api-key" content="{{ $shopifyclient_id }}">
+    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
     <link rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
@@ -57,55 +60,89 @@
     <script src="{{ asset('js/bootstrap.bundle.min.js') }}" defer></script>
 
     <script>
-
+        (function() {
             function isInIframe() {
                 try {
                     return window.self !== window.top;
                 } catch (e) {
-                    // If accessing window.top throws, you're definitely cross-origin framed
                     return true;
                 }
             }
 
-            function getIframeSrc(iframeElement) {
-                return iframeElement.getAttribute('src'); // the src you set
+            // 1. Normal standalone browser window: do nothing
+            if (!isInIframe()) {
+                return;
             }
 
-            function getIframeCurrentUrl(iframeElement) {
-                if (!iframeElement) {
-                    console.warn('No iframe element passed in');
-                    return null;
+            // 2. Loop prevention & explicit logout checks
+            const REAUTH_GUARD_KEY = 'zeosync_iframe_reauth_ts';
+            const REAUTH_COOLDOWN_MS = 60000;
+            const urlParams = new URLSearchParams(window.location.search);
+
+            if (urlParams.get('logged_out') === '1' || sessionStorage.getItem('zeosync_explicit_logout') === '1') {
+                return;
+            }
+
+            const lastAttempt = sessionStorage.getItem(REAUTH_GUARD_KEY);
+            const now = Date.now();
+            if (lastAttempt && (now - parseInt(lastAttempt, 10)) < REAUTH_COOLDOWN_MS) {
+                return;
+            }
+
+            // 3. Embedded Shopify Recovery via App Bridge
+            async function recoverEmbeddedShopifySession() {
+                if (typeof shopify === 'undefined' || typeof shopify.idToken !== 'function') {
+                    // Not in Shopify App Bridge environment (e.g. generic iframe)
+                    return;
                 }
+
                 try {
-                    return iframeElement.contentWindow.location.href;
-                } catch (e) {
-                    return iframeElement.getAttribute('src');
+                    sessionStorage.setItem(REAUTH_GUARD_KEY, String(Date.now()));
+                    const token = await shopify.idToken();
+                    if (!token) {
+                        return;
+                    }
+
+                    let targetPath = window.location.pathname;
+                    if (targetPath === '' || targetPath === '/') {
+                        targetPath = '/dashboard';
+                    }
+
+                    if (targetPath.startsWith('http://') || targetPath.startsWith('https://')) {
+                        try {
+                            const parsed = new URL(targetPath, window.location.origin);
+                            if (parsed.origin !== window.location.origin) {
+                                targetPath = '/dashboard';
+                            } else {
+                                targetPath = parsed.pathname;
+                            }
+                        } catch (e) {
+                            targetPath = '/dashboard';
+                        }
+                    }
+
+                    const shop = urlParams.get('shop');
+                    const host = urlParams.get('host');
+
+                    const outParams = new URLSearchParams();
+                    if (shop) outParams.set('shop', shop);
+                    if (host) outParams.set('host', host);
+                    outParams.set('embedded', '1');
+                    outParams.set('id_token', token);
+
+                    sessionStorage.removeItem(REAUTH_GUARD_KEY);
+                    window.location.replace(targetPath + '?' + outParams.toString());
+                } catch (err) {
+                    console.warn('Shopify iframe re-auth skipped or unavailable:', err);
                 }
             }
 
-            function getTopPageUrl() {
-                try {
-                    // Works only if the parent page is same-origin
-                    return window.top.location.href;
-                } catch (e) {
-                    // Cross-origin iframe: can't read parent's URL directly.
-                    // Fall back to document.referrer (often set to the parent page URL)
-                    return document.referrer || null;
-                }
-            }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            if (isInIframe()) {
-            console.log("Running inside an iframe");
-            console.log("Top page URL:", getTopPageUrl());
-            console.log("Iframe current URL:", getIframeCurrentUrl());
-            console.log("Iframe src URL:", getIframeSrc());
-
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', recoverEmbeddedShopifySession);
             } else {
-            console.log("Not in an iframe");
-            console.log("Current page URL:", window.location.href);
+                recoverEmbeddedShopifySession();
             }
-});
+        })();
     </script>
 </body>
 </html>

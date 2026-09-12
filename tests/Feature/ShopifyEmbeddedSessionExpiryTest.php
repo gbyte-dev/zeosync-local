@@ -402,3 +402,22 @@ it('12. Cross-tenant isolation: Token for Shop A cannot authenticate Shop B', fu
     expect(session('active_shop_id'))->toBe($shopA->id);
     expect(session('active_shop_id'))->not->toBe($shopB->id);
 });
+
+it('13. zeosync.blade.php contains App Bridge meta tag and iframe recovery safety net', function () {
+    $response = $this->get('/');
+
+    $response->assertStatus(200);
+    $response->assertSee('shopify-api-key', false);
+    $response->assertSee('app-bridge.js', false);
+    $response->assertSee('isInIframe', false);
+    $response->assertSee('recoverEmbeddedShopifySession', false);
+    $response->assertSee('zeosync_iframe_reauth_ts', false);
+});
+
+it('14. zeosync.blade.php honors explicit logout without triggering auto-reauth loop', function () {
+    $response = $this->get('/?logged_out=1');
+
+    $response->assertStatus(200);
+    $response->assertSee('logged_out', false);
+    $response->assertSee('zeosync_explicit_logout', false);
+});
