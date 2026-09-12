@@ -79,6 +79,77 @@ beforeEach(function () {
             $table->timestamps();
         });
     }
+
+    if (!Schema::hasTable('categories')) {
+        Schema::create('categories', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->nullable();
+            $table->string('category')->nullable();
+            $table->string('slug')->nullable();
+            $table->string('marketplaceIds')->nullable();
+            $table->unsignedBigInteger('parent_id')->nullable();
+            $table->string('status')->default('Active');
+            $table->tinyInteger('self_added')->default(0);
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('notification_settings')) {
+        Schema::create('notification_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('notification_key')->nullable();
+            $table->string('name')->nullable();
+            $table->boolean('email_enabled')->default(1);
+            $table->boolean('in_app_enabled')->default(1);
+            $table->boolean('mail_enabled')->default(1);
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('plans')) {
+        Schema::create('plans', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->nullable();
+            $table->unsignedBigInteger('shop_id')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('products')) {
+        Schema::create('products', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id')->nullable();
+            $table->string('title')->nullable();
+            $table->softDeletes();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('product_sync_logs')) {
+        Schema::create('product_sync_logs', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('shopify_orders')) {
+        Schema::create('shopify_orders', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('shop_subscriptions')) {
+        Schema::create('shop_subscriptions', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id')->nullable();
+            $table->unsignedBigInteger('plan_id')->nullable();
+            $table->string('status')->nullable();
+            $table->timestamps();
+        });
+    }
 });
 
 /*
@@ -278,4 +349,138 @@ it('H1: redirects logged-in admin from /admin/login to /admin/dashboard', functi
 
     $response->assertStatus(302);
     $response->assertRedirect('/admin/dashboard');
+});
+
+/*
+|--------------------------------------------------------------------------
+| I. Valid Sub-Page Access for Authorized Admin (Regression Protection)
+|--------------------------------------------------------------------------
+*/
+it('I1: allows authorized admin to access /admin/notification with 200 OK and admin layout', function () {
+    $admin = Admin::forceCreate([
+        'name' => 'Admin User',
+        'email' => 'admin_notif@example.com',
+        'password' => 'adminpass123',
+    ]);
+
+    $response = $this->actingAs($admin, 'admin')->get('/admin/notification');
+
+    $response->assertStatus(200);
+    $response->assertSee('admin-layout', false);
+    $response->assertSee('desktop-sidebar', false);
+    $response->assertSee('Notification', false);
+});
+
+it('I2: allows authorized admin to access /admin/import-categories with valid response', function () {
+    $admin = Admin::forceCreate([
+        'name' => 'Admin User',
+        'email' => 'admin_cat@example.com',
+        'password' => 'adminpass123',
+    ]);
+
+    $response = $this->actingAs($admin, 'admin')->get('/admin/import-categories');
+
+    // Should return 200 (not 404)
+    $response->assertStatus(200);
+});
+
+it('I3: allows authorized admin to access /admin/search-categories with valid response/redirect', function () {
+    $admin = Admin::forceCreate([
+        'name' => 'Admin User',
+        'email' => 'admin_search@example.com',
+        'password' => 'adminpass123',
+    ]);
+
+    $response = $this->actingAs($admin, 'admin')->get('/admin/search-categories?category=NonExistent');
+
+    // Controller handles search (redirects back with message or 200, not router 404)
+    expect($response->status())->toBeIn([200, 302]);
+    expect($response->status())->not->toBe(404);
+});
+
+it('I4: allows authorized admin to access /admin/shops/{id} with 200 OK and shop details view', function () {
+    $admin = Admin::forceCreate([
+        'name' => 'Admin User',
+        'email' => 'admin_shop@example.com',
+        'password' => 'adminpass123',
+    ]);
+
+    $shop = Shop::create([
+        'shop' => 'inspection-store.myshopify.com',
+        'is_active' => 1,
+    ]);
+
+    $response = $this->actingAs($admin, 'admin')->get("/admin/shops/{$shop->id}");
+
+    $response->assertStatus(200);
+    $response->assertSee('admin-layout', false);
+    $response->assertSee('inspection-store.myshopify.com', false);
+});
+
+it('I5: allows authorized admin to create category via POST /admin/create-category', function () {
+    $admin = Admin::forceCreate([
+        'name' => 'Admin User',
+        'email' => 'admin_cat_create@example.com',
+        'password' => 'adminpass123',
+    ]);
+
+    $response = $this->actingAs($admin, 'admin')->post('/admin/create-category', [
+        'name' => 'Electronics New',
+        'category' => 'Electronics New',
+        'slug' => 'electronics-new-' . uniqid(),
+        'status' => 'Active',
+    ]);
+
+    $response->assertStatus(302);
+    expect(\App\Models\Category::where('name', 'Electronics New')->exists())->toBeTrue();
+});
+
+it('I6: guest accessing /admin/notification or /admin/shops/{id} redirects to login without layout', function () {
+    $shop = Shop::create([
+        'shop' => 'guest-shop.myshopify.com',
+        'is_active' => 1,
+    ]);
+
+    $response1 = $this->get('/admin/notification');
+    $response1->assertStatus(302);
+    $response1->assertRedirect(route('admin.login'));
+
+    $response2 = $this->get("/admin/shops/{$shop->id}");
+    $response2->assertStatus(302);
+    $response2->assertRedirect(route('admin.login'));
+});
+
+it('I7: normal user accessing /admin/notification or /admin/shops/{id} gets 403 Forbidden without layout', function () {
+    $user = User::forceCreate([
+        'name' => 'Normal User',
+        'email' => 'normal_notif@example.com',
+        'password' => 'secret123',
+    ]);
+
+    $shop = Shop::create([
+        'shop' => 'user-shop.myshopify.com',
+        'is_active' => 1,
+    ]);
+
+    $response1 = $this->actingAs($user, 'web')->get('/admin/notification');
+    $response1->assertStatus(403);
+    $response1->assertDontSee('desktop-sidebar', false);
+
+    $response2 = $this->actingAs($user, 'web')->get("/admin/shops/{$shop->id}");
+    $response2->assertStatus(403);
+    $response2->assertDontSee('desktop-sidebar', false);
+});
+
+it('I8: route shadowing test: truly non-existent admin routes still return 404 for authorized admins', function () {
+    $admin = Admin::forceCreate([
+        'name' => 'Admin User',
+        'email' => 'admin_404_check@example.com',
+        'password' => 'adminpass123',
+    ]);
+
+    $response = $this->actingAs($admin, 'admin')->get('/admin/truly-non-existent-wildcard-page-xyz');
+
+    $response->assertStatus(404);
+    $response->assertSee('404', false);
+    $response->assertSee('admin-layout', false);
 });

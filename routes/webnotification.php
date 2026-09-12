@@ -13,11 +13,11 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\VerifyAdminRequest::cla
             ->name('admin.notification.settings.save');
 
         Route::post(
-            '/admin/trial-ending-notify',
+            '/trial-ending-notify',
             [NotificationController::class, 'sendTrialEndingNotifications']
         )->name('admin.trial.ending.notify');
 
-        Route::post('/admin/notification/{id}/read', [NotificationController::class, 'markAdminNotificationRead'])
+        Route::post('/notification/{id}/read', [NotificationController::class, 'markAdminNotificationRead'])
             ->name('admin.notification.read');
 });
 

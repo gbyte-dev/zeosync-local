@@ -131,21 +131,24 @@ Route::get('/support_front', function () {    return view('support_front'); })->
 Route::get('/test/{type}', [TestController::class, 'test'])->name('test.by.productype');
 
 Route::get('/logout', [SettingsController::class, 'logout'])->name('site.logout');
-Route::prefix('admin')->group(function () {
-    Route::middleware('auth:admin')->group(function () {
-        Route::get('/cat_activate/{category}', [ProductSchemaController::class, 'importSchema'])->name('admin.importSchema');
-        Route::get('/cat_deactivate/{category}', [ProductSchemaController::class, 'deactivateSchema'])->name('admin.schema.deactivate');
-        Route::post('/notification-mark-all', [NotificationController::class, 'markAllAdminNotificationsRead'])->name('admin.notification.marked');
-        Route::delete('/notification/admin/all', [NotificationController::class, 'removeAllAdminNotifications'])->name('admin.notification.delete.all');
-        Route::delete('/notification/admin/{id}', [NotificationController::class, 'removeAdminNotification'])->name('admin.notification.delete');
-        Route::post('/create-category', [AdminController::class, 'categoryCreate'])->name('admin.category.create');
-        Route::post('/update-category/{category}', [AdminController::class, 'categoryEdit'])->name('admin.category.update');
-        Route::post('/delete-category/{category}', [AdminController::class, 'deleteCategory'])->name('admin.category.delete');
-        Route::post('/move-subcategories', [AdminController::class, 'moveSubcategories'])->name('admin.subcategories.move');
-        Route::get('/import-categories', [CategoryController::class, 'importCategories'])->name('admin.import.categories');
-        Route::get('/search-categories', [AdminController::class, 'categoryserchedChildren'])->name('admin.search.categories');
-        Route::get('/shops/{id}', [ShopifyController::class, 'show'])->name('admin.shops.show');
-    });
+Route::prefix('admin')->middleware([\App\Http\Middleware\VerifyAdminRequest::class, \App\Http\Middleware\EnsureAdminAuthenticated::class])->group(function () {
+    Route::get('/cat_activate/{category}', [ProductSchemaController::class, 'importSchema'])->name('admin.importSchema');
+    Route::get('/cat_deactivate/{category}', [ProductSchemaController::class, 'deactivateSchema'])->name('admin.schema.deactivate');
+    Route::post('/notification-mark-all', [NotificationController::class, 'markAllAdminNotificationsRead'])->name('admin.notification.marked');
+    Route::delete('/notification/admin/all', [NotificationController::class, 'removeAllAdminNotifications'])->name('admin.notification.delete.all');
+    Route::delete('/notification/admin/{id}', [NotificationController::class, 'removeAdminNotification'])->name('admin.notification.delete');
+    Route::post('/create-category', [AdminController::class, 'categoryCreate'])->name('admin.category.create');
+    Route::post('/update-category/{category}', [AdminController::class, 'categoryEdit'])->name('admin.category.update');
+    Route::post('/delete-category/{category}', [AdminController::class, 'deleteCategory'])->name('admin.category.delete');
+    Route::post('/move-subcategories', [AdminController::class, 'moveSubcategories'])->name('admin.subcategories.move');
+    Route::get('/import-categories', [CategoryController::class, 'importCategories'])->name('admin.import.categories');
+    Route::get('/search-categories', [AdminController::class, 'categoryserchedChildren'])->name('admin.search.categories');
+    Route::get('/shops/{id}', [ShopifyController::class, 'show'])->name('admin.shops.show');
+
+    // Admin catch-all fallback: MUST BE AT THE VERY END OF ALL ADMIN ROUTES
+    Route::any('/{any}', function () {
+        return response()->view('errors.404', [], 404);
+    })->where('any', '.*')->name('admin.fallback');
 });
 
 // webhook routes

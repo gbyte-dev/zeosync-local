@@ -211,7 +211,7 @@ Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::clas
         Route::get('/plans/create', [PlanController::class, 'create'])->name('admin.plans.create');
         Route::post('/plans/create', [PlanController::class, 'store'])->name('admin.plans.store');
         Route::get('/plans/{plan}/edit', [PlanController::class, 'edit'])->name('admin.plans.edit');
-        Route::post('/admin/shops/{shop}/cancel', [AdminController::class, 'cancel'])
+        Route::post('/shops/{shop}/cancel', [AdminController::class, 'cancel'])
             ->name('admin.shops.cancel');
         Route::put('/plans/{plan}', [PlanController::class, 'update'])->name('admin.plans.update');
         Route::delete('/plans/{plan}', [PlanController::class, 'destroy'])
@@ -227,10 +227,6 @@ Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::clas
         Route::get('/categories_p', [ProductSchemaController::class, 'index'])->name('admin.categories');
         Route::get('/schema-create', [ProductSchemaController::class, 'create'])->name('admin.schema.create');
         Route::post('/schema-store', [ProductSchemaController::class, 'store'])->name('product-schemas.store');
-
-        Route::any('/{any}', function () {
-            return response()->view('errors.404', [], 404);
-        })->where('any', '.*')->name('admin.fallback');
     });
 });
 
