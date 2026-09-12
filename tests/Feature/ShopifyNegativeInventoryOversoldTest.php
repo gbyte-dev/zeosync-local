@@ -557,7 +557,7 @@ it('Replenishment recovery: mapping restores from -3 to 3 and Amazon receives 3'
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-REPLENISH', 3)
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-REPLENISH', 3, false)
         ->andReturn(['submissionId' => 'SUB-REPL-3', 'status' => 'ACCEPTED']);
 
     app()->instance(AmazonService::class, $mockAmazon);

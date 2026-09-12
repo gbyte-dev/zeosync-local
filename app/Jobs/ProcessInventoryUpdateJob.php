@@ -483,7 +483,8 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                         $amazonResult = $amazonService->updateInventory(
                             $shop,
                             $amazonSku,
-                            $amazonTargetQty
+                            $amazonTargetQty,
+                            syncToShopify: false
                         );
                     }
 

@@ -405,7 +405,8 @@ test('9. worker updates Amazon with desired quantity when mapped', function () {
         ->with(
             Mockery::on(fn($s) => $s->id === $shop->id),
             'AMZN-SKU-77',
-            50
+            50,
+            false
         )
         ->andReturn(['submissionId' => 'sub_123']);
 
@@ -806,7 +807,8 @@ test('19. worker crash after Shopify but before Amazon resumes at Amazon stage w
         ->with(
             Mockery::on(fn($s) => $s->id === $shop->id),
             'CRASH-SKU',
-            60
+            60,
+            false
         )
         ->andReturn(['submissionId' => 'sub_recovered']);
 
@@ -1445,7 +1447,7 @@ test('AUDIT 11. Shopify success + Amazon failure retries only Amazon stage', fun
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-AUDIT-11', 65)
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-AUDIT-11', 65, false)
         ->andReturn(['submissionId' => 'SUB-RETRY-OK']);
 
     $job = new ProcessInventoryUpdateJob($op->id);
@@ -1581,7 +1583,7 @@ test('AUDIT 14. multi-tenant operation isolation remains intact', function () {
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(Mockery::on(fn($s) => $s->id === $shop1->id), 'SHARED-SKU', 20)
+        ->with(Mockery::on(fn($s) => $s->id === $shop1->id), 'SHARED-SKU', 20, false)
         ->andReturn(['submissionId' => 'SUB-TENANT-1']);
 
     $job1 = new ProcessInventoryUpdateJob($op1->id);
@@ -1594,5 +1596,79 @@ test('AUDIT 14. multi-tenant operation isolation remains intact', function () {
     expect((int) $mapping1->quantity)->toBe(20);
     // Tenant 2 was untouched
     expect((int) $mapping2->quantity)->toBe(100);
+});
+
+// AUDIT 15: Manual update calls Shopify set.json exactly once with absolute quantity and prevents duplicate Shopify update from AmazonService
+test('AUDIT 15. Manual inventory update calls Shopify set.json exactly once and passes syncToShopify false to AmazonService', function () {
+    $shop = createDurableTestShop();
+
+    $mapping = ProductMarketplaceMapping::create([
+        'shop_id'                   => $shop->id,
+        'shopify_inventory_item_id' => 'item_single_shopify_call',
+        'amazon_sku'                => 'SINGLE-CALL-SKU',
+        'quantity'                  => '10',
+        'inventory_version'         => 1,
+    ]);
+
+    $operation = InventorySyncOperation::create([
+        'operation_uuid'            => (string) Str::uuid(),
+        'shop_id'                   => $shop->id,
+        'mapping_id'                => $mapping->id,
+        'shopify_inventory_item_id' => 'item_single_shopify_call',
+        'shopify_location_id'       => 'loc_101',
+        'amazon_sku'                => 'SINGLE-CALL-SKU',
+        'desired_quantity'          => 25,
+        'status'                    => 'pending',
+        'stage'                     => 'pending',
+    ]);
+
+    Http::fake([
+        '*/inventory_levels.json*' => Http::response([
+            'inventory_levels' => [
+                [
+                    'inventory_item_id' => 'item_single_shopify_call',
+                    'location_id'       => 'loc_101',
+                    'available'         => 25,
+                ],
+            ],
+        ], 200),
+        '*/inventory_levels/set.json' => Http::response([
+            'inventory_level' => [
+                'inventory_item_id' => 'item_single_shopify_call',
+                'location_id'       => 'loc_101',
+                'available'         => 25,
+            ],
+        ], 200),
+    ]);
+
+    $mockAmazon = Mockery::mock(AmazonService::class);
+    $mockAmazon->shouldReceive('updateInventory')
+        ->once()
+        ->with(
+            Mockery::on(fn($s) => $s->id === $shop->id),
+            'SINGLE-CALL-SKU',
+            25,
+            false // Assert syncToShopify is explicitly false
+        )
+        ->andReturn(['submissionId' => 'sub_single_call_ok']);
+
+    $job = new ProcessInventoryUpdateJob($operation->id);
+    $job->handle($mockAmazon);
+
+    $operation->refresh();
+    expect($operation->status)->toBe('awaiting_verification')
+        ->and($operation->stage)->toBe('amazon_accepted');
+
+    // Assert Shopify set.json was called exactly ONCE
+    Http::assertSentCount(2); // 1 GET for Stage 2 authoritative read + 1 POST set.json
+    Http::assertSent(function ($request) {
+        if (str_contains($request->url(), 'inventory_levels/set.json')) {
+            $body = $request->data();
+            return $body['available'] === 25
+                && $body['location_id'] === 'loc_101'
+                && $body['inventory_item_id'] === 'item_single_shopify_call';
+        }
+        return true;
+    });
 });
 

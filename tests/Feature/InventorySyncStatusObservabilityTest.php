@@ -349,7 +349,7 @@ it('6. InventoryMappingController::updateShopifyInventory reports accurate user-
     // Test Success (Accepted) Flow
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-CTRL-TEST', 20)
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-CTRL-TEST', 20, false)
         ->andReturn([
             'status'       => 'ACCEPTED',
             'submissionId' => 'SUB-999',
@@ -387,7 +387,7 @@ it('6. InventoryMappingController::updateShopifyInventory reports accurate user-
     // Test Rejection Flow
     $mockAmazonRejected = Mockery::mock(AmazonService::class);
     $mockAmazonRejected->shouldReceive('updateInventory')
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-CTRL-TEST', 30)
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-CTRL-TEST', 30, false)
         ->andThrow(new \Exception('ERROR [90001]: Amazon rejected the inventory update submission.'));
     app()->instance(AmazonService::class, $mockAmazonRejected);
 

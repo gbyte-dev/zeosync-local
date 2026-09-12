@@ -338,7 +338,7 @@ test('4. intentional manual override: baseline 18, desired 20, live 18 succeeds'
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-OVERRIDE', 20)
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-OVERRIDE', 20, false)
         ->andReturn(['submissionId' => 'SUB-OVERRIDE']);
 
     $job = new ProcessInventoryUpdateJob($operation->id);
@@ -1006,7 +1006,7 @@ test('19. Stage 2 clean path: Stage 1 establishes 20, fresh Shopify remains 20 -
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-STAGE2-CLEAN', 20)
+        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-STAGE2-CLEAN', 20, false)
         ->andReturn(['submissionId' => 'SUB-STAGE2-CLEAN', 'status' => 'ACCEPTED']);
 
     $job = new ProcessInventoryUpdateJob($operation->id);
