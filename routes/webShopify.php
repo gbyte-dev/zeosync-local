@@ -111,11 +111,10 @@ Route::get('/clear-cache-temp', function () {
 });
 
 Route::post('/amazon/test-update/{sku}', function (Illuminate\Http\Request $request, $sku) {
-
-    $shop = \App\Models\Shop::where(
-        'shop',
-        $request->query('shop')
-    )->firstOrFail();
+    $shop = getActiveShopModel($request);
+    if (!$shop) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized or shop not found.'], 401);
+    }
 
     return app(\App\Services\AmazonService::class)
         ->updateInventory( $shop, $sku,  (int) $request->quantity );

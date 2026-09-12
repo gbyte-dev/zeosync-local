@@ -4,11 +4,41 @@ use App\Models\AdminSetting;
 use App\Models\Shop;
 use App\Services\ShopifySessionTokenValidator;
 
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
 beforeEach(function () {
     config([
         'services.shopify.api_key'    => 'test-client-id',
         'services.shopify.api_secret' => 'test-client-secret',
     ]);
+
+    if (!Schema::hasTable('admin_settings')) {
+        Schema::create('admin_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('option_key')->unique();
+            $table->text('option_value')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('shops')) {
+        Schema::create('shops', function (Blueprint $table) {
+            $table->id();
+            $table->string('shop')->unique();
+            $table->string('domain')->nullable();
+            $table->string('shop_name')->nullable();
+            $table->string('email')->nullable();
+            $table->text('access_token')->nullable();
+            $table->timestamp('access_token_expires_at')->nullable();
+            $table->text('refresh_token')->nullable();
+            $table->timestamp('refresh_token_expires_at')->nullable();
+            $table->tinyInteger('is_active')->default(1);
+            $table->softDeletes();
+            $table->timestamps();
+        });
+    }
+
     AdminSetting::forget('SHOPIFY_API_KEY');
     AdminSetting::forget('SHOPIFY_API_SECRET');
 });
@@ -83,5 +113,128 @@ it('rejects tokens with non-HS256 algorithm', function () {
     $validator = new ShopifySessionTokenValidator();
     $token = createMockToken('valid.myshopify.com', 'test-client-id', 'test-client-secret', 300, -60, null, null, null, null, 'none');
 
+    expect($validator->validate($token))->toBeNull();
+});
+
+it('validates authentic Shopify App Bridge JWT issued from admin.shopify.com unified admin', function () {
+    $shop = Shop::create([
+        'shop'         => 'unified-store.myshopify.com',
+        'domain'       => 'unified-store.myshopify.com',
+        'access_token' => 'shpat_unified_test',
+        'is_active'    => 1,
+    ]);
+
+    $token = createMockToken(
+        'unified-store.myshopify.com',
+        'test-client-id',
+        'test-client-secret',
+        300,
+        -60,
+        'test-client-id',
+        'https://unified-store.myshopify.com',
+        'https://admin.shopify.com/store/unified-store'
+    );
+
+    $validator = new ShopifySessionTokenValidator();
+    $result = $validator->validate($token);
+
+    expect($result)->not->toBeNull()
+        ->and($result['shop'])->toBe('unified-store.myshopify.com')
+        ->and($result['shop_model']->id)->toBe($shop->id);
+});
+
+it('validates authentic Shopify App Bridge JWT issued from legacy myshopify.com admin', function () {
+    $shop = Shop::create([
+        'shop'         => 'legacy-iss-store.myshopify.com',
+        'domain'       => 'legacy-iss-store.myshopify.com',
+        'access_token' => 'shpat_legacy_test',
+        'is_active'    => 1,
+    ]);
+
+    $token = createMockToken(
+        'legacy-iss-store.myshopify.com',
+        'test-client-id',
+        'test-client-secret',
+        300,
+        -60,
+        'test-client-id',
+        'https://legacy-iss-store.myshopify.com',
+        'https://legacy-iss-store.myshopify.com/admin'
+    );
+
+    $validator = new ShopifySessionTokenValidator();
+    $result = $validator->validate($token);
+
+    expect($result)->not->toBeNull()
+        ->and($result['shop'])->toBe('legacy-iss-store.myshopify.com')
+        ->and($result['shop_model']->id)->toBe($shop->id);
+});
+
+it('rejects admin.shopify.com token with missing /store/{slug} path', function () {
+    $shop = Shop::create([
+        'shop'         => 'no-slug.myshopify.com',
+        'domain'       => 'no-slug.myshopify.com',
+        'access_token' => 'shpat_no_slug',
+        'is_active'    => 1,
+    ]);
+
+    $token = createMockToken(
+        'no-slug.myshopify.com',
+        'test-client-id',
+        'test-client-secret',
+        300,
+        -60,
+        'test-client-id',
+        'https://no-slug.myshopify.com',
+        'https://admin.shopify.com'
+    );
+
+    $validator = new ShopifySessionTokenValidator();
+    expect($validator->validate($token))->toBeNull();
+});
+
+it('rejects admin.shopify.com token with mismatched store slug vs dest', function () {
+    $shop = Shop::create([
+        'shop'         => 'victim-store.myshopify.com',
+        'domain'       => 'victim-store.myshopify.com',
+        'access_token' => 'shpat_victim',
+        'is_active'    => 1,
+    ]);
+
+    $token = createMockToken(
+        'victim-store.myshopify.com',
+        'test-client-id',
+        'test-client-secret',
+        300,
+        -60,
+        'test-client-id',
+        'https://victim-store.myshopify.com',
+        'https://admin.shopify.com/store/attacker-store'
+    );
+
+    $validator = new ShopifySessionTokenValidator();
+    expect($validator->validate($token))->toBeNull();
+});
+
+it('rejects tokens with malformed issuer URL', function () {
+    $shop = Shop::create([
+        'shop'         => 'malformed-iss.myshopify.com',
+        'domain'       => 'malformed-iss.myshopify.com',
+        'access_token' => 'shpat_malformed',
+        'is_active'    => 1,
+    ]);
+
+    $token = createMockToken(
+        'malformed-iss.myshopify.com',
+        'test-client-id',
+        'test-client-secret',
+        300,
+        -60,
+        'test-client-id',
+        'https://malformed-iss.myshopify.com',
+        'not a valid url ///'
+    );
+
+    $validator = new ShopifySessionTokenValidator();
     expect($validator->validate($token))->toBeNull();
 });
