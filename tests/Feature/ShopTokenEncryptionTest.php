@@ -10,26 +10,31 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 
 beforeEach(function () {
-    Schema::create('shops', function (Blueprint $table) {
-        $table->id();
-        $table->string('shop')->unique();
-        $table->string('shop_name')->nullable();
-        $table->string('email')->nullable();
-        $table->text('access_token')->nullable();
-        $table->timestamp('access_token_expires_at')->nullable();
-        $table->text('refresh_token')->nullable();
-        $table->timestamp('refresh_token_expires_at')->nullable();
-        $table->text('amazon_refresh_token')->nullable();
-        $table->string('amazon_seller_id')->nullable();
-        $table->string('amazon_mws_region')->default('na');
-        $table->string('amazon_marketplace_id')->nullable();
-        $table->string('amazon_endpoint')->nullable();
-        $table->string('hmac')->nullable();
-        $table->string('amazon_oauth_state')->nullable();
-        $table->boolean('is_active')->default(1);
-        $table->softDeletes();
-        $table->timestamps();
-    });
+    // The shops table (including the Amazon/encryption columns) is already
+    // created by the real migrations via RefreshDatabase; only create it if
+    // it does not exist.
+    if (!Schema::hasTable('shops')) {
+        Schema::create('shops', function (Blueprint $table) {
+            $table->id();
+            $table->string('shop')->unique();
+            $table->string('shop_name')->nullable();
+            $table->string('email')->nullable();
+            $table->text('access_token')->nullable();
+            $table->timestamp('access_token_expires_at')->nullable();
+            $table->text('refresh_token')->nullable();
+            $table->timestamp('refresh_token_expires_at')->nullable();
+            $table->text('amazon_refresh_token')->nullable();
+            $table->string('amazon_seller_id')->nullable();
+            $table->string('amazon_mws_region')->default('na');
+            $table->string('amazon_marketplace_id')->nullable();
+            $table->string('amazon_endpoint')->nullable();
+            $table->string('hmac')->nullable();
+            $table->string('amazon_oauth_state')->nullable();
+            $table->boolean('is_active')->default(1);
+            $table->softDeletes();
+            $table->timestamps();
+        });
+    }
 });
 
 it('encrypts access_token at rest in the database and decrypts it on Eloquent access', function () {

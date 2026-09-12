@@ -1247,7 +1247,7 @@ class ShopifyController extends Controller
         $shopModel = $this->findShopByIdentifier($shopDomain);
 
         if (!$shopModel) {
-            return response('Shop not found', 404);
+            return response('Shop not found', 403);
         }
 
         $data = json_decode($payload, true);
@@ -1281,7 +1281,7 @@ class ShopifyController extends Controller
             Log::warning('Rejected Shopify order webhook because shop was not found.', [
                 'shop' => $shopDomain,
             ]);
-            return response('Shop not found', 404);
+            return response('Shop not found', 403);
         }
         $data = json_decode($payload, true);
         return response('OK', 200);
@@ -1304,7 +1304,7 @@ class ShopifyController extends Controller
             Log::warning('Rejected Shopify order webhook because shop was not found.', [
                 'shop' => $shopDomain,
             ]);
-            return response('Shop not found', 404);
+            return response('Shop not found', 403);
         }
         $data = json_decode($payload, true);
         return response('OK', 200);
@@ -1328,7 +1328,7 @@ class ShopifyController extends Controller
             Log::warning('Rejected Shopify order webhook because shop was not found.', [
                 'shop' => $shopDomain,
             ]);
-            return response('Shop not found', 404);
+            return response('Shop not found', 403);
         }
  
         $data = json_decode($payload, true);
@@ -3132,7 +3132,7 @@ class ShopifyController extends Controller
         try {
             $shop = \App\Models\Shop::where('shop', $shopDomain)->first();
             if (!$shop) {
-                return response('Shop not found', 404);
+                return response('Shop not found', 403);
             }
             $template = \App\Models\MailTemplate::active()
                 ->where('slug', 'app-uninstalled')
@@ -3166,7 +3166,7 @@ class ShopifyController extends Controller
         $shop = $request->query('shop');
         $shopModel = \App\Models\Shop::where('shop', $shop)->first();
         if (!$shopModel) {
-            return response()->json(['error' => 'Shop not found'], 404);
+            return response()->json(['error' => 'Shop not found'], 403);
         }
         $amazonService = new \App\Services\AmazonService();
         try {
@@ -3204,7 +3204,7 @@ class ShopifyController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Shop not found'
-                ], 404);
+                ], 403);
             }
             $amazonService = new \App\Services\AmazonService();
             $creds         = $amazonService->getDbCredentials($shopModel);
@@ -3224,7 +3224,7 @@ class ShopifyController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'No matching category found for keyword: ' . $keyword
-                ], 404);
+                ], 403);
             }
             // Collect all matched type names
             $matchedTypes = collect($productTypes)
@@ -3302,7 +3302,7 @@ class ShopifyController extends Controller
         $shop = $request->query('shop');
         $shopModel = \App\Models\Shop::where('shop', $shop)->first();
         if (!$shopModel) {
-            return response()->json(['error' => 'Shop not found'], 404);
+            return response()->json(['error' => 'Shop not found'], 403);
         }
         $amazonService = new \App\Services\AmazonService();
         $attributes = [

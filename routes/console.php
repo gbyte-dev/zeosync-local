@@ -30,3 +30,9 @@ Schedule::command('shopify:refresh-inventory-cache')
     ->everyFifteenMinutes()
     ->withoutOverlapping()
     ->runInBackground();
+
+Schedule::command('compliance:purge-expired-results')
+    ->dailyAt('03:30')
+    ->withoutOverlapping()
+    ->runInBackground();
+// Schedule::command('operations:recover')->everyMinute()->withoutOverlapping()->onFailure(fn()=>\Illuminate\Support\Facades\Log::error('Durable operations require review; run operations:recover and inspect the inbox.'));

@@ -418,6 +418,36 @@ class InventoryMappingController extends Controller
     public function updateShopifyInventory(Request $request)
     {
         $request->validate([
+            'shop' => 'nullable',
+            'inventory_item_id' => 'required',
+            'quantity' => 'required|integer|min:0',
+            'shopify_variant_id' => 'nullable',
+            'mapping_id' => 'nullable|integer',
+        ]);
+
+        $shop = $this->getActiveShopModel($request);
+        if (! $shop) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized or shop not found.'], 401);
+        }
+
+        return Cache::lock(\App\Services\InventoryOperationService::lockKey($shop->id), 300)->block(5, function () use ($request, $shop) {
+            $mapping = null;
+            if ($request->filled('mapping_id')) {
+                $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)->find($request->mapping_id);
+            } elseif ($request->filled('shopify_variant_id')) {
+                $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)->where('shopify_variant_id', (string) $request->shopify_variant_id)->first();
+            } elseif ($request->filled('inventory_item_id')) {
+                $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)->where('shopify_inventory_item_id', (string) $request->inventory_item_id)->first();
+            }
+            $operation = app(\App\Services\InventoryOperationService::class)->enqueue($shop, $mapping, 'manual_shopify', (int) $request->quantity, (string) $request->inventory_item_id);
+
+            return response()->json(['success' => true, 'operation_id' => $operation->id, 'status' => 'pending', 'message' => 'Inventory update queued. Remote verification is pending.'], 202);
+        });
+    }
+
+    public function legacyUpdateShopifyInventory(Request $request)
+    {
+        $request->validate([
             'shop'              => 'nullable',
             'inventory_item_id' => 'required',
             'quantity'          => 'required|integer|min:0',

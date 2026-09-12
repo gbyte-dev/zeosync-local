@@ -242,6 +242,79 @@ class ShopifyInventoryService
     {
         $cacheKey = "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}";
 
-        return !Cache::has($cacheKey);
+        return ! Cache::has($cacheKey);
+    }
+
+    public function getVariantAvailableQuantity(Shop $shop, string $variantId): int
+    {
+        foreach ($this->getInventory($shop) as $row) {
+            if ((string) ($row['vid'] ?? '') === (string) $variantId) {
+                if (! array_key_exists('available', $row) || $row['available'] === null) {
+                    throw new \RuntimeException('Shopify quantity is unknown; refusing to guess zero.');
+                }
+
+                return (int) $row['available'];
+            }
+        }
+
+        throw new \RuntimeException('Shopify variant is missing from the authoritative snapshot.');
+    }
+
+    public function getItemAvailableQuantity(Shop $shop, ?string $inventoryItemId): int
+    {
+        if ($inventoryItemId === null || $inventoryItemId === '') {
+            throw new \RuntimeException('Shopify inventory item is missing.');
+        }
+        foreach ($this->getInventory($shop) as $row) {
+            if ((string) ($row['inventory_item_id'] ?? '') === (string) $inventoryItemId) {
+                if (! array_key_exists('available', $row) || $row['available'] === null) {
+                    throw new \RuntimeException('Shopify quantity is unknown; refusing to guess zero.');
+                }
+
+                return (int) $row['available'];
+            }
+        }
+
+        throw new \RuntimeException('Shopify inventory item is missing from the authoritative snapshot.');
+    }
+
+    public function setItemQuantity(Shop $shop, ?string $inventoryItemId, int $quantity, ?string $idempotencyKey = null): void
+    {
+        if ($quantity < 0) {
+            throw new \InvalidArgumentException('Inventory quantity cannot be negative.');
+        }
+        $locationId = $this->resolveLocationId($shop);
+        if ($inventoryItemId === null || $inventoryItemId === '' || $locationId === null) {
+            throw new \RuntimeException('Shopify location or inventory item is not configured.');
+        }
+        $shopify = new ShopifyService($shop->shop, $shop->access_token);
+        $response = $shopify->shopifyRest($shop, 'post', 'inventory_levels/set.json', [
+            'location_id' => $locationId,
+            'inventory_item_id' => $inventoryItemId,
+            'available' => $quantity,
+        ]);
+        if (! empty($response['error'])) {
+            throw new \RuntimeException('Shopify did not accept inventory update: '.($response['message'] ?? 'unknown error'));
+        }
+        $this->invalidate($shop);
+    }
+
+    public function invalidate(Shop $shop): void
+    {
+        Cache::forget("shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}");
+        if (! empty($shop->selected_location_id)) {
+            Cache::forget('shopify_inventory_'.$shop->id.'_location_'.$shop->selected_location_id);
+        }
+    }
+
+    private function resolveLocationId(Shop $shop): ?string
+    {
+        if (! blank($shop->selected_location_id)) {
+            return (string) $shop->selected_location_id;
+        }
+        $locations = is_array($shop->shopify_locations) ? $shop->shopify_locations : [];
+        $index = $shop->selected_location_index;
+
+        return isset($locations[$index]['id']) ? (string) $locations[$index]['id'] : null;
     }
 }
