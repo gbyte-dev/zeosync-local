@@ -89,7 +89,7 @@
     }
 
     .sp-actions {
-        display: flex;
+        /* display: flex; */
         align-items: center;
         gap: 4px;
         flex-wrap: wrap;
@@ -428,7 +428,7 @@
                         <th>Status</th>
                         <th>Inventory</th>
                         <th>Category</th>
-                        <th style="width: 280px;">Actions</th>
+                        <th style="">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="productsTableBody">

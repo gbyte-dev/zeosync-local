@@ -12,9 +12,7 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\VerifyAdminRequest::cla
         Route::post('/notification-settings', [NotificationController::class, 'saveSettings'])
             ->name('admin.notification.settings.save');
 
-        Route::post(
-            '/trial-ending-notify',
-            [NotificationController::class, 'sendTrialEndingNotifications']
+        Route::post( '/trial-ending-notify', [NotificationController::class, 'sendTrialEndingNotifications']
         )->name('admin.trial.ending.notify');
 
         Route::post('/notification/{id}/read', [NotificationController::class, 'markAdminNotificationRead'])
@@ -24,9 +22,7 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\VerifyAdminRequest::cla
 Route::post('/user/notification/{id}/read', [NotificationController::class, 'markUserNotificationRead'])
     ->middleware('ip.rate:5,60')->name('user.notification.read');
 
-Route::post(
-    '/user/notifications/mark-viewed',
-    [NotificationController::class, 'markViewedUserNotificationsRead']
+Route::post('/user/notifications/mark-viewed', [NotificationController::class, 'markViewedUserNotificationsRead']
 )->middleware('ip.rate:5,60')->name('user.notifications.markViewed');
 
 /* Route::post('/user/notification/mark-all-read', [NotificationController::class, 'markAllUserNotificationsRead'])
