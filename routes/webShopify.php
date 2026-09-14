@@ -111,17 +111,20 @@ Route::get('/clear-cache-temp', function () {
 });
 
 Route::post('/amazon/test-update/{sku}', function (Illuminate\Http\Request $request, $sku) {
+    $shop = getActiveShopModel($request);
+    if (!$shop) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized or shop not found.'], 401);
+    }
 
-    $shop = \App\Models\Shop::where( 'shop', $request->query('shop') )->firstOrFail();
     return app(\App\Services\AmazonService::class)
         ->updateInventory( $shop, $sku,  (int) $request->quantity );
 });
-
 Route::get('/amazon/cache-clear', function () {
 
     $activeShop = session('active_shop');
 
-    $shop = is_numeric($activeShop) ? Shop::findOrFail($activeShop)
+    $shop = is_numeric($activeShop)
+        ? Shop::findOrFail($activeShop)
         : Shop::where('shop', $activeShop)->firstOrFail();
 
     $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
@@ -133,6 +136,7 @@ Route::get('/amazon/cache-clear', function () {
         'cache_key' => $cacheKey,
     ]);
 });
+
 
 // Stripe webhook for payment updates
 Route::post('webhooks/stripe', [StripeWebhookController::class, 'handle'])
@@ -231,7 +235,7 @@ Route::get('/amazon-schema-test', function () {
 
 Route::get('/amazon-check/{sku}', function (Request $request, $sku) {
 
-    $shop = Shop::where('shop', $request->query('shop'))->first();
+    $shop = getActiveShopModel($request);
 
     if (!$shop) {
         return response()->json([
@@ -246,6 +250,7 @@ Route::get('/amazon-check/{sku}', function (Request $request, $sku) {
         $service->checkAmazonListing($shop, $sku)
     );
 });
+
 
 Route::get(
     '/amazon/schema-fields/{slug}',
@@ -268,10 +273,12 @@ Route::post('/amazon/load-missing-fields', [AmazonSchemaController::class, 'load
 
 
 Route::get('/inventory/amazon/test-report', function (
+    Illuminate\Http\Request $request,
     \App\Services\AmazonInventoryReportService $service
 ) {
 
     $activeShop = session('active_shop');
+
     $shop = is_numeric($activeShop)
         ? \App\Models\Shop::findOrFail($activeShop)
         : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
@@ -285,7 +292,9 @@ Route::get('/inventory/amazon/test-report', function (
 });
 
 Route::get('/inventory/amazon/test-report/{reportId}', function (
-    $reportId,  \App\Services\AmazonInventoryReportService $service ) {
+    $reportId,
+    \App\Services\AmazonInventoryReportService $service
+) {
     $activeShop = session('active_shop');
 
     $shop = is_numeric($activeShop)
@@ -300,14 +309,34 @@ Route::get('/inventory/amazon/test-report/{reportId}', function (
     );
 });
 
+Route::get('/inventory/amazon/test-download', function (
+    Illuminate\Http\Request $request,
+    \App\Services\AmazonInventoryReportService $service
+) {
+    $documentId = $request->get('documentId');
 
+    $activeShop = session('active_shop');
+
+    $shop = is_numeric($activeShop)
+        ? \App\Models\Shop::findOrFail($activeShop)
+        : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
+
+    $download = $service->downloadReport($shop, $documentId);
+
+    return response()->json([
+        'compression' => $download['compression'],
+        'size' => strlen($download['content']),
+    ]);
+});
 
 Route::get('/inventory/amazon/test-extract', function (
     Illuminate\Http\Request $request,
     \App\Services\AmazonInventoryReportService $service
 ) {
     $documentId = $request->get('documentId');
+
     $activeShop = session('active_shop');
+
     $shop = is_numeric($activeShop)
         ? \App\Models\Shop::findOrFail($activeShop)
         : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
@@ -331,6 +360,7 @@ Route::get('/inventory/amazon/test-parser', function (
 ) {
 
     $activeShop = session('active_shop');
+
     $shop = is_numeric($activeShop)
         ? \App\Models\Shop::findOrFail($activeShop)
         : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
@@ -344,6 +374,7 @@ Route::get('/inventory/amazon/test-parser', function (
 
     return response()->json( $service->parseReport($content) );
 });
+
 
 Route::get( '/inventory/amazon/progress', [InventoryController::class, 'amazonProgress']
 )->name('inventory.amazon.progress');

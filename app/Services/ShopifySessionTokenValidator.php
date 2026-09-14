@@ -144,10 +144,28 @@ class ShopifySessionTokenValidator
         }
 
         $destShop = $this->normalizeShopDomain($destHost);
-        $issShop = $this->normalizeShopDomain($issHost);
+
+        $issHostLower = strtolower($issHost);
+        $issShop = null;
+
+        if ($issHostLower === 'admin.shopify.com') {
+            $issPath = parse_url($iss, PHP_URL_PATH) ?? '';
+            if (preg_match('#^/store/([a-z0-9-]+)(?:/.*)?$#i', $issPath, $matches)) {
+                $issShop = $this->normalizeShopDomain($matches[1] . '.myshopify.com');
+            } else {
+                Log::warning('ShopifySessionTokenValidator: admin.shopify.com issuer missing valid store path.', [
+                    'iss' => $iss,
+                ]);
+                return null;
+            }
+        } else {
+            $issShop = $this->normalizeShopDomain($issHost);
+        }
 
         if (!$destShop || !$issShop || $destShop !== $issShop) {
             Log::warning('ShopifySessionTokenValidator: Shop domain mismatch between dest and iss.', [
+                'dest'     => $dest,
+                'iss'      => $iss,
                 'destShop' => $destShop,
                 'issShop'  => $issShop,
             ]);

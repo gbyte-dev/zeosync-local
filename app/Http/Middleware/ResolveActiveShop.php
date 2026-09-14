@@ -76,12 +76,21 @@ class ResolveActiveShop
                     !$request->routeIs('setup.form') &&
                     !$request->routeIs('setup.store')
                 ) {
+                    if ($request->ajax() || $request->expectsJson()) {
+                        return response()->json([
+                            'success' => false,
+                            'code'    => 'SHOP_ACTIVATION_REQUIRED',
+                            'message' => 'Shop activation is required.',
+                        ], 403);
+                    }
+
                     return redirect()
                         ->route('setup.form', [
                             'shop' => $shop->shop,
                         ])
                         ->with('error', 'Please fill the activation form to activate the app.');
                 }
+
 
                 return $next($request);
             }
