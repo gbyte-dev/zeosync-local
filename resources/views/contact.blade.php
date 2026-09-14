@@ -63,16 +63,16 @@
             <div class="formrow">
                 <div>
                     <label for="name">Full name</label>
-                    <input type="text" id="name" name="name" placeholder="John Doe" maxlength="200" value="{{ old('name') }}" required>
+                    <input type="text" id="name" name="name" placeholder="John Doe" maxlength="100" value="{{ old('name') }}" required>
                 </div>
                 <div>
                     <label for="email">Email address</label>
-                    <input type="email" id="email" name="email" placeholder="john@example.com" maxlength="200" value="{{ old('email') }}" required>
+                    <input type="email" id="email" name="email" placeholder="john@example.com" maxlength="255" value="{{ old('email') }}" required>
                 </div>
             </div>
 
             <label for="subject">Subject</label>
-            <input type="text" id="subject" name="subject" placeholder="How can we help?" maxlength="200" value="{{ old('subject') }}" required>
+            <input type="text" id="subject" name="subject" placeholder="How can we help?" maxlength="255" value="{{ old('subject') }}" required>
 
             <label for="store">Shopify store URL <span>(optional)</span></label>
             <input type="text" id="store" name="store" placeholder="your-store.myshopify.com" maxlength="200" value="{{ old('store') }}">
@@ -104,7 +104,7 @@
             </select>
 
             <label for="message">What would you like to improve?</label>
-            <textarea id="message" name="message" rows="5" maxlength="2000" placeholder="For example: less time checking stock and importing Amazon orders." required>{{ old('message') }}</textarea>
+            <textarea id="message" name="message" rows="5" maxlength="5000" placeholder="For example: less time checking stock and importing Amazon orders." required>{{ old('message') }}</textarea>
 
             <button class="btn" type="submit">Send message <span aria-hidden="true">&#8599;</span></button>
             <p class="micro">Your message goes directly to the Zeosync team. No account connection, no payment required.</p>

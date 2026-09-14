@@ -47,15 +47,39 @@ class ContactController extends Controller
 
 
         $data = $request->validate([
-            'name'          => 'required|string|max:255',
-            'email'         => 'required|email|max:255',
-            'subject'       => 'required|string|max:255',
-            'message'       => 'required|string|max:2000',
+            'name'          => [
+                'required',
+                'string',
+                'max:100',
+                'regex:/^[\pL\s\'-]+$/u',
+            ],
+            'email'         => [
+                'required',
+                'string',
+                'email:rfc',
+                'max:255',
+            ],
+            'subject'       => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[\pL\pN\s.,!?_-]+$/u',
+            ],
+            'message'       => [
+                'required',
+                'string',
+                'max:5000',
+                'not_regex:/<[^>]*>|<script|javascript\s*:|vbscript\s*:|on\w+\s*=|on\w+\/|<\?php|<\?|<\%|\?>|\%>/i',
+            ],
             'enquiry_type'  => 'nullable|string|max:50',
             'store_url'     => 'nullable|url|max:255',
             'marketplace'   => 'nullable|string|max:100',
-            'plan'     => 'nullable|string|max:100',
+            'plan'          => 'nullable|string|max:100',
             'volume'        => 'nullable|string|max:100',
+        ], [
+            'name.regex'        => 'Please use only letters, spaces, hyphens, and apostrophes.',
+            'subject.regex'     => 'Please use only letters, numbers, spaces, and basic punctuation.',
+            'message.not_regex' => 'HTML, JavaScript, PHP code, and executable script content are not allowed.',
         ]);
 
         $data['enquiry_type'] = $request->input( 'enquiry_type', 'general_enquiry' );
