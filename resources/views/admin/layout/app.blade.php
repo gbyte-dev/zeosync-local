@@ -15,12 +15,9 @@
 
     $faviconUrl = $fallback;
 
-    if (
-    !empty($favicon) &&
-    \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon)
-    ) {
-    $faviconUrl = asset('storage/' . $favicon);
-    }
+    if ( !empty($favicon) && \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon)) {
+        $faviconUrl = asset('storage/' . $favicon);
+    }   
     @endphp
 
     <link rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
@@ -427,13 +424,13 @@
             </a>
             <a href="{{ route('admin.contact-requests') }}"
                 class="sidebar-link {{ request()->routeIs('admin.contact-requests*') ? 'active' : '' }}">
-                <i class="bi bi-chat-left-text"></i> Contact Requests <span class="badge bg-danger rounded-pill ms-auto">{{ getContactInquiryUnread()->count() }}</span>
+                <i class="bi bi-chat-left-text"></i> Contact Requests @if(getContactInquiryUnread()->count() > 0) <span class="badge bg-danger rounded-pill ms-auto">{{ getContactInquiryUnread()->count() }}</span> @endif
             </a>
             <a href="{{ route('admin.plans') }}" class="sidebar-link">
                 <i class="bi bi-credit-card"></i> Plans
             </a>
             <a href="{{ route('admin.notification') }}" class="sidebar-link">
-                <i class="bi bi-bell"></i> Notification <span class="badge bg-danger rounded-pill ms-auto">{{ getAdminNotificationUnread()->count() }}</span>
+                <i class="bi bi-bell"></i> Notification @if(getAdminNotificationUnread()->count() > 0) <span class="badge bg-danger rounded-pill ms-auto">{{ getAdminNotificationUnread()->count() }}</span> @endif
             </a>
             <a href="{{ route('admin.settings') }}" class="sidebar-link">
                 <i class="bi bi-gear"></i> Settings
