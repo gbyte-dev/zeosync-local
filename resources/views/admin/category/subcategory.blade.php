@@ -68,7 +68,7 @@
                     </div>
                 </form>
 
-                <form id="move-subcategories-form" method="post" action="{{ route('admin.subcategories.move') }}">
+                <!-- <form id="move-subcategories-form" method="post" action="{{ route('admin.subcategories.move') }}">
                     @csrf
                     <input type="hidden" name="status" id="move-form-status" value="{{ request()->get('status','all') }}">
                     <div class="d-flex gap-2 align-items-center mb-3">
@@ -81,7 +81,7 @@
                         </select>
                         <button type="submit" class="btn btn-sm btn-primary">Move Selected</button>
                     </div>
-                </form>
+                </form> -->
             </div>
             <div class="table-responsive">
                 <table id="subcategory-table" class="table table-hover align-middle mb-0 w-100">
@@ -271,6 +271,7 @@
                 }
                 var newUrl = url.pathname + (params.toString() ? ('?' + params.toString()) : '');
                 history.replaceState(null, '', newUrl);
+                window.location.replace(newUrl); 
             } catch (e) {
                 // older browsers fallback: do nothing
             }
