@@ -117,7 +117,7 @@
 
                             <div class="info-row">
                                 <div class="info-label">Subject</div>
-                                <div class="info-value text-start" style="white-space: pre-wrap;">@php echo $contact->subject; @endphp</div>
+                                <div class="info-value text-start" style="white-space: pre-wrap;">{{ $contact->subject }}</div>
                             </div>
 
                             <div class="info-row">

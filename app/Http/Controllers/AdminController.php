@@ -365,46 +365,131 @@ class AdminController extends Controller
         return back()->with('success', 'Shop details updated successfully.');
     }
 
-    public function cancel(Shop $shop)
+    public function deactivateShop(Request $request, Shop $shop)
     {
-        $subscription = ShopSubscription::where('shop_id', $shop->id)->first();
-
-        if (!$subscription) {
-            return back()->with('error', 'Subscription not found.');
+        if ((int) $shop->is_active !== 1) {
+            return back()->with('info', 'This shop is already inactive.');
         }
 
-        if ($subscription->status === 'cancelled') {
-            return back()->with('error', 'Subscription is already cancelled.');
-        }
-
-        $subscription->update([
-            'status' => 'cancelled',
-            'price' => 0,
-            'trial_ends_at' => null,
-            'current_period_end' => null,
-            'cancelled_at' => now(),
-            'ended_at' => now(),
+        $shop->update([
+            'is_active' => 0,
+            'shopify_connection_status' => 'inactive',
+            'store_status' => 'inactive',
+            'last_status_check_at' => now(),
         ]);
 
-        $template = MailTemplate::active()
-            ->where('slug', 'payment-cancelled')
+        $subscription = ShopSubscription::where('shop_id', $shop->id)
+            ->whereIn('status', ['active', 'accepted'])
+            ->whereNotNull('shopify_subscription_gid')
+            ->latest('id')
             ->first();
 
-        if ($template) {
-            app(EmailService::class)->sendDynamicEmail(
-                $template,
-                (object) [
-                    'name' => $shop->shop,
-                    'first_name' => explode('.', $shop->shop)[0],
-                    'email' => $shop->email,
-                ]
-            );
-        } else {
-            Log::warning('Payment cancel template not found', [
-                'shop_id' => $shop->id,
-            ]);
+        if ($subscription) {
+            try {
+                $billingService = app(ShopifyBillingService::class);
+                $result = $billingService->cancelSubscription(
+                    $shop,
+                    $subscription->shopify_subscription_gid
+                );
+
+                if ($result) {
+                    $subscription->update([
+                        'status' => 'cancelled',
+                        'price' => 0,
+                        'trial_ends_at' => null,
+                        'current_period_end' => null,
+                        'cancelled_at' => now(),
+                        'ended_at' => now(),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::error('Admin shop deactivation subscription cancellation failed', [
+                    'shop_id' => $shop->id,
+                    'subscription_id' => $subscription->id,
+                    'shopify_subscription_gid' => $subscription->shopify_subscription_gid,
+                    'message' => $e->getMessage(),
+                    'line' => $e->getLine(),
+                    'file' => $e->getFile(),
+                ]);
+            }
         }
 
-        return back()->with('success', 'Subscription cancelled successfully.');
+        return back()->with(
+            'success',
+            'Shop status changed to inactive and the active subscription was cancelled.'
+        );
+    }
+
+    public function cancel(Shop $shop)
+    {
+        $subscription = ShopSubscription::where('shop_id', $shop->id)
+            ->whereIn('status', ['active', 'accepted'])
+            ->whereNotNull('shopify_subscription_gid')
+            ->latest('id')
+            ->first();
+
+        if (!$subscription) {
+            return back()->with('error', 'No active Shopify subscription found.');
+        }
+
+        try {
+            $billingService = app(ShopifyBillingService::class);
+
+            $result = $billingService->cancelSubscription(
+                $shop,
+                $subscription->shopify_subscription_gid
+            );
+
+            if (!$result) {
+                return back()->with('error', 'Shopify subscription cancellation failed.');
+            }
+
+            $subscription->update([
+                'status' => 'cancelled',
+                'price' => 0,
+                'trial_ends_at' => null,
+                'current_period_end' => null,
+                'cancelled_at' => now(),
+                'ended_at' => now(),
+            ]);
+
+            $template = MailTemplate::active()
+                ->where('slug', 'payment-cancelled')
+                ->first();
+
+            if ($template) {
+                app(EmailService::class)->sendDynamicEmail(
+                    $template,
+                    (object) [
+                        'name' => $shop->shop,
+                        'first_name' => explode('.', $shop->shop)[0],
+                        'email' => $shop->email,
+                    ]
+                );
+            } else {
+                Log::warning('Payment cancel template not found', [
+                    'shop_id' => $shop->id,
+                ]);
+            }
+
+            Log::info('Admin Shopify Subscription Cancelled', [
+                'shop_id' => $shop->id,
+                'subscription_id' => $subscription->id,
+                'shopify_subscription_gid' => $subscription->shopify_subscription_gid,
+            ]);
+
+            return back()->with('success', 'Subscription cancelled successfully.');
+        } catch (\Throwable $e) {
+            Log::error('Admin Shopify Subscription Cancellation Failed', [
+                'shop_id' => $shop->id,
+                'subscription_id' => $subscription->id,
+                'shopify_subscription_gid' => $subscription->shopify_subscription_gid,
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]);
+
+            return back()->with('error', 'Unable to cancel Shopify subscription.');
+        }
     }
 }
