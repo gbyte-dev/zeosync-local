@@ -62,6 +62,7 @@ class PlanController extends Controller
             'trial_days' => 'nullable|integer',
             'sync_limit' => 'required|integer|min:0',
             'product_limit' => 'required|integer|min:0',
+            'image_limit' => 'required|integer|min:0',
 
             //  IMPORTANT FIX
             'prices' => 'nullable|array',
@@ -131,6 +132,7 @@ class PlanController extends Controller
             'trial_days' => 'nullable|integer',
             'sync_limit' => 'required|integer|min:0',
             'product_limit' => 'required|integer|min:0',
+            'image_limit' => 'required|integer|min:0',
             'prices' => 'nullable|array',
             'prices.*' => 'nullable|numeric',
             'stripe_price_ids' => 'nullable|array',

@@ -392,6 +392,10 @@
 
                             Sync:
                             {{ $customPlan->sync_limit == 0 ? 'Unlimited' : number_format($customPlan->sync_limit) }}
+                            <br>
+
+                            Images:
+                            {{ ($customPlan->image_limit ?? 0) == 0 ? 'Unlimited' : number_format($customPlan->image_limit) }}
                         </td>
                         <td>
                             @if(

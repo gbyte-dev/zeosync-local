@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Image;
+use App\Services\ImageLimitService;
 
 class ImageController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, ImageLimitService $imageLimitService)
     {
 	//  phpinfo();
         $shop = $request->attributes->get('active_shop_model');
@@ -18,8 +19,9 @@ class ImageController extends Controller
         }
 
         $images = Image::where('shop_id', $shop->id)->latest()->get();
+        $limitInfo = $imageLimitService->getImageLimitInfo($shop);
 
-        return view('image-upload', compact('images'));
+        return view('image-upload', compact('images', 'limitInfo'));
     }
 
     public function forSelection(Request $request)
@@ -51,7 +53,7 @@ class ImageController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, ImageLimitService $imageLimitService)
     {
         $shop = $request->attributes->get('active_shop_model');
 
@@ -83,6 +85,36 @@ class ImageController extends Controller
             'image.mimetypes'  => 'Only JPG, JPEG, PNG and WEBP images are allowed.',
             'image.max'        => 'Image size must not exceed 10 MB.',
         ]);
+
+        $incomingCount = 1;
+        $limitInfo = $imageLimitService->getImageLimitInfo($shop);
+
+        if (!$limitInfo['has_active_plan']) {
+            $errorMessage = 'No active subscription plan found. Please subscribe to a plan to upload images.';
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 422);
+            }
+
+            return back()->with('error', $errorMessage)->withInput();
+        }
+
+        if (!$limitInfo['unlimited'] && ($limitInfo['used'] + $incomingCount > $limitInfo['limit'])) {
+            $remaining = max(0, $limitInfo['limit'] - $limitInfo['used']);
+            $errorMessage = "Image upload limit exceeded. Your plan allows {$limitInfo['limit']} images. You already have {$limitInfo['used']} images and are trying to upload {$incomingCount} more. You can upload only {$remaining} more image(s).";
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 422);
+            }
+
+            return back()->with('error', $errorMessage)->withInput();
+        }
 
         $file = $request->file('image');
         $allowed = ['jpg', 'jpeg', 'png', 'webp'];

@@ -42,6 +42,7 @@ class CustomPlanService
 
             'product_limit' => (int) ($data['product_limit'] ?? 0),
             'sync_limit' => (int) ($data['sync_limit'] ?? 0),
+            'image_limit' => (int) ($data['image_limit'] ?? 0),
 
             'badge' => null,
             'description' => null,

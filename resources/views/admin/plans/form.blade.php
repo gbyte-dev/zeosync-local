@@ -353,7 +353,7 @@
             <div class="mb-4">
                 <div class="section-title">Plan Limits</div>
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label">Product Sync Limit</label>
 
                         <input type="number"
@@ -365,15 +365,24 @@
 
                         <small class="text-muted">Enter 0 for Unlimited.</small>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label">Product Limit</label>
                         <input type="number" name="product_limit" class="form-control"
-                            min="0" value="{{ old('product_limit', $plan->product_limit ?? 0) }}">
+                            min="0" value="{{ old('product_limit', $plan->product_limit ?? 0) }}"
+                            placeholder="e.g. 100">
+                        <small class="text-muted">Enter 0 for Unlimited.</small>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label class="form-label">Image Limit</label>
+                        <input type="number" name="image_limit" class="form-control"
+                            min="0" value="{{ old('image_limit', $plan->image_limit ?? 0) }}"
+                            placeholder="e.g. 100">
+                        <small class="text-muted">Enter 0 for Unlimited.</small>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label">Sort Order</label>
                         <input type="number" name="sort_order" class="form-control"
-                            value="{{ $plan->sort_order ?? 0 }}">
+                            value="{{ old('sort_order', $plan->sort_order ?? 0) }}">
                     </div>
                 </div>
             </div>
