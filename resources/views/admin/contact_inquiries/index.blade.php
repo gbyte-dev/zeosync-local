@@ -51,9 +51,9 @@
                         @forelse($contacts as $contact)
                         <tr>
                             <td class="fw-semibold text-muted">#{{ $i++ }}</td>
-                            <td>{{ $contact->name }}</td>
-                            <td>{{ $contact->email }}</td>
-                            <td>{{ $contact->subject }}</td>
+                            <td class="text-break" style="max-width: 180px;">{{ $contact->name }}</td>
+                            <td class="text-break" style="max-width: 200px;">{{ $contact->email }}</td>
+                            <td class="text-break" style="max-width: 280px;">{{ $contact->subject }}</td>
                             <td>{{ $contact->created_at->format('M d, Y H:i') }}</td>
                             <td>
                                 <span class="badge rounded-pill {{ $contact->is_read ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary border border-secondary-subtle' }}">

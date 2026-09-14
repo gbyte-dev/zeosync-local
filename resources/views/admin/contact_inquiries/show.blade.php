@@ -47,6 +47,7 @@
         font-weight: 500;
         color: #212529;
         word-break: break-word;
+        overflow-wrap: anywhere;
     }
 
     .message-box {
@@ -58,7 +59,9 @@
         line-height: 1.7;
         white-space: pre-wrap;
         word-break: break-word;
+        overflow-wrap: anywhere;
         margin: 0;
+        color: #212529;
     }
 
     .page-title {
@@ -95,111 +98,92 @@
         <div class="card-body">
             <div class="row g-3">
 
-        <div class="col-lg-6">
+                <div class="col-lg-6">
+                    <div class="card detail-card h-100">
+                        <div class="card-header">
+                            Contact Information
+                        </div>
 
-            <div class="card detail-card">
+                        <div class="card-body">
+                            <div class="info-row">
+                                <div class="info-label">Name</div>
+                                <div class="info-value">{{ $contact->name }}</div>
+                            </div>
 
-                <div class="card-header">
-                    Contact Information
+                            <div class="info-row">
+                                <div class="info-label">Email</div>
+                                <div class="info-value">{{ $contact->email }}</div>
+                            </div>
+
+                            <div class="info-row">
+                                <div class="info-label">Subject</div>
+                                <div class="info-value text-start" style="white-space: pre-wrap;">{{ $contact->subject }}</div>
+                            </div>
+
+                            <div class="info-row">
+                                <div class="info-label">Enquiry Type</div>
+                                <div class="info-value">
+                                    @if($contact->enquiry_type == 'enterprise_plan_enquiry')
+                                    <span class="badge bg-primary">
+                                        Enterprise Plan
+                                    </span>
+                                    @else
+                                    <span class="badge bg-secondary">
+                                        General Enquiry
+                                    </span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="info-row">
+                                <div class="info-label">Status</div>
+                                <div class="info-value">
+                                    @if($contact->is_read)
+                                    <span class="badge bg-success">
+                                        Read
+                                    </span>
+                                    @else
+                                    <span class="badge bg-warning text-dark">
+                                        Unread
+                                    </span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="info-row">
+                                <div class="info-label">Request ID</div>
+                                <div class="info-value">
+                                    #{{ $contact->id }}
+                                </div>
+                            </div>
+
+                            <div class="info-row">
+                                <div class="info-label">Submitted</div>
+                                <div class="info-value">
+                                    {{ $contact->created_at->format('d M Y') }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="card-body">
+                <div class="col-lg-6">
+                    <div class="card detail-card h-100">
+                        <div class="card-header">
+                            Message
+                        </div>
 
-                    <div class="info-row">
-                        <div class="info-label">Name</div>
-                        <div class="info-value">{{ $contact->name }}</div>
-                    </div>
-
-                    <div class="info-row">
-                        <div class="info-label">Email</div>
-                        <div class="info-value">{{ $contact->email }}</div>
-                    </div>
-
-                    <div class="info-row">
-                        <div class="info-label">Subject</div>
-                        <div class="info-value">{{ $contact->subject }}</div>
-                    </div>
-
-                    <div class="info-row">
-                        <div class="info-label">Enquiry Type</div>
-                        <div class="info-value">
-
-                            @if($contact->enquiry_type == 'enterprise_plan_enquiry')
-
-                            <span class="badge bg-primary">
-                                Enterprise Plan
-                            </span>
-
-                            @else
-
-                            <span class="badge bg-secondary">
-                                General Enquiry
-                            </span>
-
-                            @endif
-
+                        <div class="card-body">
+                            <div class="message-box">
+                                {!! nl2br(e($contact->message)) !!}
+                            </div>
                         </div>
                     </div>
-
-                    <div class="info-row">
-                        <div class="info-label">Status</div>
-                        <div class="info-value">
-
-                            @if($contact->is_read)
-
-                            <span class="badge bg-success">
-                                Read
-                            </span>
-
-                            @else
-
-                            <span class="badge bg-warning text-dark">
-                                Unread
-                            </span>
-
-                            @endif
-
-                        </div>
-                    </div>
-
-                    <div class="info-row">
-                        <div class="info-label">Request ID</div>
-                        <div class="info-value">
-                            #{{ $contact->id }}
-                        </div>
-                    </div>
-
-                    <div class="info-row">
-                        <div class="info-label">Submitted</div>
-                        <div class="info-value">
-                            {{ $contact->created_at->format('d M Y') }}
-                        </div>
-                    </div>
-
                 </div>
 
             </div>
-
         </div>
-
-        <div class="card detail-card col-lg-6">
-
-            <div class="card-header">
-                Message
-            </div>
-
-            <div class="card-body">
-
-                <p class="mb-0 text-start lh-lg">
-                    {{ $contact->message }}
-                </p>
-
-            </div>
-
-        </div>
-
     </div>
-
 </div>
 
 @endsection
