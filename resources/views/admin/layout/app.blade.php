@@ -15,12 +15,9 @@
 
     $faviconUrl = $fallback;
 
-    if (
-    !empty($favicon) &&
-    \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon)
-    ) {
-    $faviconUrl = asset('storage/' . $favicon);
-    }
+    if ( !empty($favicon) && \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon)) {
+        $faviconUrl = asset('storage/' . $favicon);
+    }   
     @endphp
 
     <link rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
