@@ -235,10 +235,10 @@
                 <div class="info-value d-flex justify-content-end align-items-center gap-2 flex-wrap">
                     @if($shop->is_active)
                     <span class="badge bg-success">Active</span>
-                    <form action="{{ route('admin.shops.deactivate', $shop->id) }}" method="POST" class="m-0" onsubmit="return confirm('Changing this shop status to inactive will disable access, stop syncs, and cancel the active subscription. Do you want to continue?');">
+                    <!-- <form action="{{ route('admin.shops.deactivate', $shop->id) }}" method="POST" class="m-0" onsubmit="return confirm('Changing this shop status to inactive will disable access, stop syncs, and cancel the active subscription. Do you want to continue?');">
                         @csrf
                         <button type="submit" class="btn btn-sm btn-outline-danger">Make Inactive</button>
-                    </form>
+                    </form> -->
                     @else
                     <span class="badge bg-danger">Inactive</span>
                     @endif
