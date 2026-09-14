@@ -118,7 +118,7 @@
             border: 0;
             border-radius: 18px;
             box-shadow: 0 18px 45px rgba(15, 23, 42, .15);
-            overflow: scroll;
+            overflow: auto;
         }
 
         .notification-item {
@@ -372,7 +372,7 @@
                             @endforelse
                             <li class="p-2 border-top">
                                 <a href="{{ route('admin.notification') }}"
-                                    class="btn btn-light w-100 fw-bold"
+                                    class="btn btn-light w-100"
                                     style="border-radius:12px;">
                                     View All ({{ $unreadCount }})
                                 </a>
