@@ -316,11 +316,10 @@
         $canUpload = $hasActivePlan && ($isUnlimited || !$isLimitReached);
     @endphp
 
-    {{-- Page Header --}}
    {{-- Page Header --}}
 <div class="saas-page-header">
 
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 w-100">
 
         {{-- Page Title --}}
         <div style="min-width: 180px;">
@@ -477,7 +476,7 @@
         </div>
 
         {{-- Upload Image Button - Last --}}
-        <div class="flex-shrink-0">
+        <div class="flex-shrink-0 ms-auto">
 
             @if($canUpload)
 
