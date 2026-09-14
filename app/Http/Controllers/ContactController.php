@@ -160,6 +160,7 @@ class ContactController extends Controller
         if ($request->filled('enquiry_type')) {
             $query->where('enquiry_type', $request->enquiry_type);
         }
+        ContactInquiry::query()->where('is_read', false)->update(['is_read' => true]);
 
         $contacts = $query->latest()->paginate(20);
 
