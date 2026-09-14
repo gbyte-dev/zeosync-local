@@ -165,6 +165,7 @@ Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::clas
         Route::post('/logout', [AdminAuthController::class, 'logout'])->name('admin.logout');
         Route::get('/shops', [AdminController::class, 'shops'])->name('admin.shops');
         Route::post('/shops/{shop}/update', [AdminController::class, 'updateShop'])->name('admin.shops.update');
+        Route::post('/shops/{shop}/deactivate', [AdminController::class, 'deactivateShop'])->name('admin.shops.deactivate');
         Route::get('/orders', [AdminController::class, 'order'])->name('admin.orders');
         Route::get('/products', [AdminController::class, 'product'])->name('admin.products');
         Route::get('/settings', [AdminController::class, 'settings'])->name('admin.settings');
