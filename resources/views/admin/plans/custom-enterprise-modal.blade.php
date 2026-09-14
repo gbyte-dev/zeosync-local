@@ -110,13 +110,17 @@
                                 <div class="card-body p-3">
                                     <div class="text-uppercase fw-bold small text-secondary mb-3">Plan Limits</div>
                                     <div class="row g-3">
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             <label class="form-label">Product Limit</label>
                                             <input type="number" name="product_limit" class="form-control" min="0" placeholder="e.g. 1000 (0 = unlimited)">
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-md-4">
                                             <label class="form-label">Product Sync Limit</label>
                                             <input type="number" name="sync_limit" class="form-control" min="0" placeholder="e.g. 50 (0 = unlimited)">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Image Limit</label>
+                                            <input type="number" name="image_limit" class="form-control" min="0" placeholder="e.g. 100 (0 = unlimited)">
                                         </div>
                                     </div>
                                 </div>
