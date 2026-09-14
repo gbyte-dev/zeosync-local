@@ -656,6 +656,8 @@ class InventoryMappingController extends Controller
                 'operation_id' => $operation->id,
                 'message'      => 'Inventory update queued successfully.',
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             Log::error('Shopify inventory update failed', [
                 'shop'              => $shop->shop ?? $request->shop ?? $request->query('shop'),
@@ -666,7 +668,20 @@ class InventoryMappingController extends Controller
                 'line'              => $e->getLine(),
             ]);
 
-            throw $e;
+            if (isset($operation) && $operation instanceof InventorySyncOperation) {
+                try {
+                    $operation->update([
+                        'status'     => 'failed',
+                        'last_error' => $e->getMessage(),
+                    ]);
+                } catch (\Throwable $ignored) {
+                }
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Shopify inventory update failed: ' . $e->getMessage(),
+            ], 422);
         }
     }
 
