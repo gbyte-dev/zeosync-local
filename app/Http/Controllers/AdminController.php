@@ -95,10 +95,16 @@ class AdminController extends Controller
         return view('admin.category.index', compact('categories', 'parentCategories'));
     }
 
-    public function categoryChildren($id)
+    public function categoryChildren(Request $req , $id)
     {
         $category = Category::with('parent')->findOrFail($id);
-        $children = Category::where('parent_id', $id)->get();
+
+        if($req->has('status') && ($req->status != '')){ {
+            $children = Category::where(['parent_id' => $id , 'status' => $req->status])->get();
+        }else {
+            $children = Category::where('parent_id', $id)->get();
+        }
+        
         $parentCategories = Category::whereNull('parent_id')->get();
         return view('admin.category.subcategory', compact('category', 'children', 'parentCategories'));
     }
