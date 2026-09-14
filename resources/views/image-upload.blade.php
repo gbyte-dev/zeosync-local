@@ -25,13 +25,8 @@
         background: #FFFFFF;
         border: 1px solid #E5E7EB;
         border-radius: 10px;
-        padding: 14px 16px;
+        padding: 16px;
         margin-bottom: 16px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 12px;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
     }
 
@@ -323,36 +318,36 @@
 
     {{-- Page Header --}}
     <div class="saas-page-header">
-        <div>
-            <h1 class="saas-page-title">Image Upload</h1>
-            <p class="saas-page-subtitle">Upload images and manage your gallery</p>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h1 class="saas-page-title">Image Upload</h1>
+                <p class="saas-page-subtitle">Upload images and manage your gallery</p>
+            </div>
+
+            @if($canUpload)
+                <button class="saas-btn saas-btn-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#imageUploadModal">
+                    <i class="bi bi-upload me-2"></i>
+                    Upload Image
+                </button>
+            @else
+                <button class="saas-btn saas-btn-primary disabled"
+                    style="opacity: 0.55; cursor: not-allowed;"
+                    disabled
+                    title="{{ !$hasActivePlan ? 'No active subscription plan found.' : 'Image upload limit reached.' }}">
+                    <i class="bi bi-upload me-2"></i>
+                    Upload Image
+                </button>
+            @endif
         </div>
 
-        @if($canUpload)
-            <button class="saas-btn saas-btn-primary"
-                data-bs-toggle="modal"
-                data-bs-target="#imageUploadModal">
-                <i class="bi bi-upload me-2"></i>
-                Upload Image
-            </button>
-        @else
-            <button class="saas-btn saas-btn-primary disabled"
-                style="opacity: 0.55; cursor: not-allowed;"
-                disabled
-                title="{{ !$hasActivePlan ? 'No active subscription plan found.' : 'Image upload limit reached.' }}">
-                <i class="bi bi-upload me-2"></i>
-                Upload Image
-            </button>
-        @endif
-    </div>
-
-    {{-- Usage Card / Limits Overview --}}
-    <div class="card border-0 shadow-sm mb-4" style="border-radius: 10px; background: #ffffff;">
-        <div class="card-body p-3">
-            @if(!$hasActivePlan)
+        {{-- Integrated Usage / Plan Status --}}
+        @if(!$hasActivePlan)
+            <div class="pt-3 mt-3 border-top">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="rounded-circle bg-danger bg-opacity-10 p-2 text-danger d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <div class="rounded-circle bg-danger bg-opacity-10 p-2 text-danger d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; flex-shrink: 0;">
                             <i class="bi bi-shield-exclamation fs-5"></i>
                         </div>
                         <div>
@@ -362,10 +357,12 @@
                     </div>
                     <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2 rounded-pill fw-semibold">Uploads Disabled</span>
                 </div>
-            @elseif($isUnlimited)
+            </div>
+        @elseif($isUnlimited)
+            <div class="pt-3 mt-3 border-top">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="rounded-circle bg-success bg-opacity-10 p-2 text-success d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-2 text-success d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; flex-shrink: 0;">
                             <i class="bi bi-infinity fs-5"></i>
                         </div>
                         <div>
@@ -380,23 +377,26 @@
                         <span class="text-success fw-bold small"><i class="bi bi-check-circle-fill me-1"></i>Unlimited Storage</span>
                     </div>
                 </div>
-            @else
-                @php
-                    $percentage = $limitCount > 0 ? min(100, round(($usedCount / $limitCount) * 100)) : 100;
-                @endphp
+            </div>
+        @else
+            @php
+                $percentage = $limitCount > 0 ? min(100, round(($usedCount / $limitCount) * 100)) : 100;
+                $displayRemaining = max(0, $remainingCount ?? ($limitCount - $usedCount));
+            @endphp
+            <div class="pt-3 mt-3 border-top">
                 <div class="row align-items-center g-3">
                     <div class="col-md-6 col-12">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="rounded-circle {{ $isLimitReached ? 'bg-danger text-danger' : 'bg-primary text-primary' }} bg-opacity-10 p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <div class="rounded-circle {{ $isLimitReached ? 'bg-danger text-danger' : 'bg-primary text-primary' }} bg-opacity-10 p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; flex-shrink: 0;">
                                 <i class="bi {{ $isLimitReached ? 'bi-exclamation-octagon' : 'bi-images' }} fs-5"></i>
                             </div>
                             <div>
                                 <div class="d-flex align-items-center gap-2">
                                     <span class="fw-bold text-dark" style="font-size: 13px;">Current Plan: {{ $limitInfo['plan_name'] ?? 'Active Plan' }}</span>
                                     @if($isLimitReached)
-                                        <span class="badge bg-danger text-white rounded-pill px-2 py-1 small">Limit Reached</span>
+                                        <span class="badge bg-danger text-white rounded-pill px-2 py-1 small fw-semibold">Limit Reached</span>
                                     @else
-                                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1 small fw-semibold">{{ $remainingCount }} Remaining</span>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1 small fw-semibold">{{ $displayRemaining }} Remaining</span>
                                     @endif
                                 </div>
                                 <div class="text-muted small mt-1">
@@ -404,7 +404,7 @@
                                     @if($isLimitReached)
                                         <span class="text-danger fw-semibold ms-1">(0 remaining)</span>
                                     @else
-                                        <span class="text-muted ms-1">({{ $remainingCount }} available)</span>
+                                        <span class="text-muted ms-1">({{ $displayRemaining }} available)</span>
                                     @endif
                                 </div>
                             </div>
@@ -415,7 +415,7 @@
                             <span class="small fw-semibold {{ $isLimitReached ? 'text-danger' : 'text-secondary' }}">
                                 {{ $isLimitReached ? '100% capacity used' : "{$percentage}% used" }}
                             </span>
-                            <span class="small text-muted">{{ $usedCount }} / {{ $limitCount }}</span>
+                            <span class="small text-muted">{{ number_format($usedCount) }} / {{ number_format($limitCount) }}</span>
                         </div>
                         <div class="progress" style="height: 7px; background-color: #E5E7EB; border-radius: 999px;" role="progressbar" aria-valuenow="{{ $percentage }}" aria-valuemin="0" aria-valuemax="100" aria-label="Image usage">
                             <div class="progress-bar {{ $isLimitReached ? 'bg-danger' : 'bg-primary' }}" style="width: {{ $percentage }}%; border-radius: 999px;"></div>
@@ -429,8 +429,8 @@
                         <div>Image upload limit reached. Delete existing images or upgrade your plan to upload more.</div>
                     </div>
                 @endif
-            @endif
-        </div>
+            </div>
+        @endif
     </div>
 
     {{-- Image Grid --}}
