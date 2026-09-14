@@ -4,6 +4,8 @@ use App\Models\ShopSubscription;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Models\AdminNotification;
+use App\Models\ContactInquiry;
 
 if (!function_exists('isSubscriptionActive')) {
 
@@ -83,13 +85,11 @@ if (!function_exists('isSubscriptionActive')) {
         return true;
     }
 
-     function getShopActiveData($shopId)
+    function getShopActiveData($shopId)
     {
         $shops = DB::table('shops')->where('shop_id', $shopId)->latest()->first();
 
-        if (!$shops) {
-            return false;
-        }
+        if (!$shops) {  return false;  }
 
         if( $shops->shop_name && $shops->email){
             return true;
@@ -97,5 +97,20 @@ if (!function_exists('isSubscriptionActive')) {
 
         return false;
 
+    }
+
+}
+
+if (!function_exists('getAdminNotificationUnread')) {
+    function getAdminNotificationUnread(){
+        $notifications = AdminNotification::where('is_read', 0)->orderBy('created_at', 'desc')->get();
+        return $notifications;
+    }
+}
+
+if (!function_exists('getContactInquiryUnread')) {
+    function getContactInquiryUnread(){
+        $contacts = ContactInquiry::where('is_read', 0)->orderBy('created_at', 'desc')->get();
+        return $contacts;
     }
 }

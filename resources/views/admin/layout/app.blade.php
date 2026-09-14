@@ -301,7 +301,7 @@
                 </a>
                 <a href="{{ route('admin.contact-requests') }}"
                     class="sidebar-link {{ request()->routeIs('admin.contact-requests*') ? 'active' : '' }}">
-                    <i class="bi bi-chat-left-text"></i> Contact Requests
+                    <i class="bi bi-chat-left-text"></i> Contact Requests <span class="badge bg-danger rounded-pill ms-auto">{{ getContactInquiryUnread()->count() }}</span>
                 </a>
                 <a href="{{ route('admin.plans') }}"
                     class="sidebar-link {{ request()->routeIs('admin.plans*') ? 'active' : '' }}">
@@ -309,7 +309,7 @@
                 </a>
                 <a href="{{ route('admin.notification') }}"
                     class="sidebar-link {{ request()->routeIs('admin.notification*') ? 'active' : '' }}">
-                    <i class="bi bi-bell"></i> Notification
+                    <i class="bi bi-bell"></i> Notification <span class="badge bg-danger rounded-pill ms-auto">{{ getAdminNotificationUnread()->count() }}</span>
                 </a>
                 <a href="{{ route('admin.settings') }}"
                     class="sidebar-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
