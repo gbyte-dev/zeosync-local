@@ -570,12 +570,13 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                     }
 
                     $operation->update([
-                        'status'       => 'awaiting_verification',
-                        'stage'        => 'amazon_accepted',
+                        'status'       => 'completed',
+                        'stage'        => 'completed',
+                        'completed_at' => now(),
                         'last_error'   => null,
                     ]);
 
-                    Log::info('ProcessInventoryUpdateJob: Inventory operation accepted by Amazon, awaiting verification.', [
+                    Log::info('ProcessInventoryUpdateJob: Inventory operation completed successfully upon Amazon acceptance.', [
                         'operation_id'     => $operation->id,
                         'shop_id'          => $shop->id,
                         'desired_quantity' => $operation->desired_quantity,
