@@ -420,141 +420,269 @@ class InventoryMappingController extends Controller
 
     public function updateShopifyInventory(Request $request)
     {
-        $request->validate([
-            'shop'               => 'nullable',
-            'inventory_item_id'  => 'required',
-            'quantity'           => 'required|integer|min:0',
-            'shopify_variant_id' => 'nullable',
-            'mapping_id'         => 'nullable|integer',
-            'baseline_quantity'  => 'nullable|integer',
+        Log::info('Shopify inventory update: 1. Request received', [
+            'shop'              => $request->shop ?? $request->query('shop'),
+            'inventory_item_id' => $request->inventory_item_id,
+            'quantity'          => $request->quantity,
         ]);
 
-        $shop = $this->getActiveShopModel($request);
-        if (!$shop) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized or shop not found.'
-            ], 401);
-        }
+        try {
+            $request->validate([
+                'shop'               => 'nullable',
+                'inventory_item_id'  => 'required',
+                'quantity'           => 'required|integer|min:0',
+                'shopify_variant_id' => 'nullable',
+                'mapping_id'         => 'nullable|integer',
+                'baseline_quantity'  => 'nullable|integer',
+            ]);
 
-        // Use currently selected Shopify Location
-        $locations = $shop->shopify_locations ?? [];
-        $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
-            ? (int) $shop->selected_location_index
-            : 0;
-        $selectedLocation = $locations[$selectedIndex] ?? null;
-        $locationId = $selectedLocation['id'] ?? null;
+            Log::info('Shopify inventory update: 2. Request validation passed', [
+                'inventory_item_id' => $request->inventory_item_id,
+                'quantity'          => $request->quantity,
+            ]);
 
-        // If locations are missing or selected location could not be resolved, self-heal by refreshing from Shopify
-        if (!$locationId) {
-            try {
-                $shopifyService = new ShopifyService($shop->shop, $shop->access_token);
-                $locResponse = $shopifyService->shopifyRest($shop, 'get', 'locations.json');
-                if (empty($locResponse['error']) && !empty($locResponse['locations'])) {
-                    $fetchedLocations = $locResponse['locations'];
-                    $effectiveIndex = (isset($shop->selected_location_index) && isset($fetchedLocations[$shop->selected_location_index]))
-                        ? (int) $shop->selected_location_index
-                        : 0;
-                    $shop->update([
-                        'shopify_locations'       => $fetchedLocations,
-                        'selected_location_index' => $effectiveIndex,
-                    ]);
-                    $shop->refresh();
-                    $locations = $shop->shopify_locations ?? [];
-                    $selectedIndex = $effectiveIndex;
-                    $selectedLocation = $locations[$selectedIndex] ?? null;
-                    $locationId = $selectedLocation['id'] ?? null;
-                }
-            } catch (\Throwable $e) {
-                Log::warning('SHOPIFY LOCATIONS SELF-HEAL FAILED', [
-                    'shop_id' => $shop->id,
-                    'error'   => $e->getMessage(),
+            $shop = $this->getActiveShopModel($request);
+            if (!$shop) {
+                Log::warning('Shopify inventory update: Active shop resolution returned null', [
+                    'shop_param' => $request->shop ?? $request->query('shop'),
                 ]);
-            }
-        }
 
-        if (!$locationId) {
-            Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
-                'shop_id'                 => $shop->id,
-                'selected_location_index' => $shop->selected_location_index,
-                'effective_index'         => $selectedIndex,
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized or shop not found.'
+                ], 401);
+            }
+
+            Log::info('Shopify inventory update: 3. Active shop resolved', [
+                'shop_id' => $shop->id,
+                'shop'    => $shop->shop,
+            ]);
+
+            // Use currently selected Shopify Location
+            $locations = $shop->shopify_locations ?? [];
+            $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+                ? (int) $shop->selected_location_index
+                : 0;
+            $selectedLocation = $locations[$selectedIndex] ?? null;
+            $locationId = $selectedLocation['id'] ?? null;
+
+            // If locations are missing or selected location could not be resolved, self-heal by refreshing from Shopify
+            if (!$locationId) {
+                try {
+                    $shopifyService = new ShopifyService($shop->shop, $shop->access_token);
+                    $locResponse = $shopifyService->shopifyRest($shop, 'get', 'locations.json');
+                    if (empty($locResponse['error']) && !empty($locResponse['locations'])) {
+                        $fetchedLocations = $locResponse['locations'];
+                        $effectiveIndex = (isset($shop->selected_location_index) && isset($fetchedLocations[$shop->selected_location_index]))
+                            ? (int) $shop->selected_location_index
+                            : 0;
+                        $shop->update([
+                            'shopify_locations'       => $fetchedLocations,
+                            'selected_location_index' => $effectiveIndex,
+                        ]);
+                        $shop->refresh();
+                        $locations = $shop->shopify_locations ?? [];
+                        $selectedIndex = $effectiveIndex;
+                        $selectedLocation = $locations[$selectedIndex] ?? null;
+                        $locationId = $selectedLocation['id'] ?? null;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('SHOPIFY LOCATIONS SELF-HEAL FAILED', [
+                        'shop_id' => $shop->id,
+                        'error'   => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            if (!$locationId) {
+                Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
+                    'shop_id'                 => $shop->id,
+                    'selected_location_index' => $shop->selected_location_index,
+                    'effective_index'         => $selectedIndex,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No Shopify location found for this store.'
+                ], 422);
+            }
+
+            Log::info('Shopify inventory update: 4. Shopify location resolved', [
+                'shop_id'     => $shop->id,
+                'location_id' => $locationId,
+                'index'       => $selectedIndex,
+            ]);
+
+            // Check existing mapping scoped strictly to active shop
+            $mapping = null;
+            if ($request->filled('mapping_id')) {
+                $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)->find($request->mapping_id);
+            } elseif ($request->filled('shopify_variant_id')) {
+                $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
+                    ->where('shopify_variant_id', (string) $request->shopify_variant_id)
+                    ->first();
+            } elseif ($request->filled('inventory_item_id')) {
+                $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
+                    ->where('shopify_inventory_item_id', (string) $request->inventory_item_id)
+                    ->first();
+            }
+
+            Log::info('Shopify inventory update: 5. Inventory mapping found', [
+                'shop_id'    => $shop->id,
+                'mapping_id' => $mapping?->id,
+                'amazon_sku' => $mapping?->amazon_sku,
+            ]);
+
+            $expectedVersion = (int) ($mapping?->inventory_version ?? 1);
+
+            $baselineQuantity = null;
+            if ($request->has('baseline_quantity') && $request->baseline_quantity !== null && $request->baseline_quantity !== '') {
+                $baselineQuantity = (int) $request->baseline_quantity;
+            } else {
+                // Fetch fresh authoritative Shopify baseline when not provided by the caller
+                try {
+                    $shopifyService = new ShopifyService($shop->shop, $shop->access_token);
+                    $levelsResponse = $shopifyService->shopifyRest(
+                        $shop,
+                        'get',
+                        'inventory_levels.json',
+                        [
+                            'inventory_item_ids' => (string) $request->inventory_item_id,
+                            'location_ids'       => (string) $locationId,
+                        ]
+                    );
+
+                    $levels = $levelsResponse['inventory_levels'] ?? [];
+                    $liveLevel = null;
+                    foreach ($levels as $lvl) {
+                        if ((string) ($lvl['location_id'] ?? '') === (string) $locationId) {
+                            $liveLevel = $lvl;
+                            break;
+                        }
+                    }
+                    if (!$liveLevel && !empty($levels)) {
+                        $liveLevel = $levels[0];
+                    }
+
+                    if (isset($liveLevel['available']) && $liveLevel['available'] !== null) {
+                        $baselineQuantity = (int) $liveLevel['available'];
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Shopify inventory update: Failed to fetch live baseline', [
+                        'shop_id' => $shop->id,
+                        'error'   => $e->getMessage(),
+                    ]);
+                }
+
+                if ($baselineQuantity === null && $mapping && $mapping->quantity !== null && $mapping->quantity !== '') {
+                    $baselineQuantity = (int) $mapping->quantity;
+                }
+            }
+
+            Log::info('Shopify inventory update: 6. InventorySyncOperation database record creation started', [
+                'shop_id'           => $shop->id,
+                'inventory_item_id' => $request->inventory_item_id,
+                'desired_quantity'  => (int) $request->quantity,
+            ]);
+
+            // -------------------------------------------------------------
+            // TRANSACTIONAL OUTBOX: Persist desired final quantity in DB
+            // -------------------------------------------------------------
+            $operation = DB::transaction(function () use ($shop, $mapping, $request, $locationId, $baselineQuantity, $expectedVersion) {
+                // Latest-wins: Supersede any older pending operations for the same item
+                InventorySyncOperation::where('shop_id', $shop->id)
+                    ->where('shopify_inventory_item_id', (string) $request->inventory_item_id)
+                    ->where('status', 'pending')
+                    ->update([
+                        'status'     => 'superseded',
+                        'last_error' => 'Superseded by newer manual update.',
+                    ]);
+
+                return InventorySyncOperation::create([
+                    'operation_uuid'             => (string) Str::uuid(),
+                    'source_key'                 => 'manual:' . Str::uuid(),
+                    'shop_id'                    => $shop->id,
+                    'mapping_id'                 => $mapping?->id,
+                    'shopify_inventory_item_id'  => (string) $request->inventory_item_id,
+                    'shopify_location_id'        => (string) $locationId,
+                    'amazon_sku'                 => $mapping?->amazon_sku,
+                    'desired_quantity'           => (int) $request->quantity,
+                    'baseline_quantity'          => $baselineQuantity,
+                    'expected_inventory_version' => $expectedVersion,
+                    'source'                     => 'manual_ui',
+                    'status'                     => 'pending',
+                    'stage'                      => 'pending',
+                    'attempts'                   => 0,
+                    'max_attempts'               => 4,
+                    'last_dispatched_at'         => now(),
+                ]);
+            });
+
+            Log::info('Shopify inventory update: 7. InventorySyncOperation database record created', [
+                'shop_id'        => $shop->id,
+                'operation_id'   => $operation->id,
+                'operation_uuid' => $operation->operation_uuid,
+            ]);
+
+            Log::info('Shopify inventory update: 8. ProcessInventoryUpdateJob dispatch started', [
+                'shop_id'      => $shop->id,
+                'operation_id' => $operation->id,
+            ]);
+
+            // Dispatch background processing job after DB transaction has committed
+            ProcessInventoryUpdateJob::dispatch($operation->id);
+
+            Log::info('Shopify inventory update: 9. ProcessInventoryUpdateJob dispatched', [
+                'shop_id'      => $shop->id,
+                'operation_id' => $operation->id,
+            ]);
+
+            // Invalidate cache
+            Cache::forget("shopify_inventory_{$shop->shop}_location_{$selectedIndex}");
+
+            Log::info('Shopify inventory update: 10. Cache invalidation completed', [
+                'shop'      => $shop->shop,
+                'cache_key' => "shopify_inventory_{$shop->shop}_location_{$selectedIndex}",
+            ]);
+
+            Log::info('Shopify inventory update: 11. Shopify inventory update flow completed', [
+                'shop_id'      => $shop->id,
+                'operation_id' => $operation->id,
             ]);
 
             return response()->json([
+                'success'      => true,
+                'status'       => 'pending',
+                'operation_id' => $operation->id,
+                'message'      => 'Inventory update queued successfully.',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Shopify inventory update failed', [
+                'shop'              => $shop->shop ?? $request->shop ?? $request->query('shop'),
+                'inventory_item_id' => $request->inventory_item_id ?? null,
+                'quantity'          => $request->quantity ?? null,
+                'error'             => $e->getMessage(),
+                'file'              => $e->getFile(),
+                'line'              => $e->getLine(),
+            ]);
+
+            if (isset($operation) && $operation instanceof InventorySyncOperation) {
+                try {
+                    $operation->update([
+                        'status'     => 'failed',
+                        'last_error' => $e->getMessage(),
+                    ]);
+                } catch (\Throwable $ignored) {
+                }
+            }
+
+            return response()->json([
                 'success' => false,
-                'message' => 'No Shopify location found for this store.'
+                'message' => 'Shopify inventory update failed: ' . $e->getMessage(),
             ], 422);
         }
-
-
-        // Check existing mapping scoped strictly to active shop
-        $mapping = null;
-        if ($request->filled('mapping_id')) {
-            $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)->find($request->mapping_id);
-        } elseif ($request->filled('shopify_variant_id')) {
-            $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
-                ->where('shopify_variant_id', (string) $request->shopify_variant_id)
-                ->first();
-        } elseif ($request->filled('inventory_item_id')) {
-            $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
-                ->where('shopify_inventory_item_id', (string) $request->inventory_item_id)
-                ->first();
-        }
-
-        $expectedVersion = (int) ($mapping?->inventory_version ?? 1);
-
-        $baselineQuantity = null;
-        if ($request->has('baseline_quantity') && $request->baseline_quantity !== null && $request->baseline_quantity !== '') {
-            $baselineQuantity = (int) $request->baseline_quantity;
-        } elseif ($mapping && $mapping->quantity !== null && $mapping->quantity !== '') {
-            $baselineQuantity = (int) $mapping->quantity;
-        }
-
-        // -------------------------------------------------------------
-        // TRANSACTIONAL OUTBOX: Persist desired final quantity in DB
-        // -------------------------------------------------------------
-        $operation = DB::transaction(function () use ($shop, $mapping, $request, $locationId, $baselineQuantity, $expectedVersion) {
-            // Latest-wins: Supersede any older pending operations for the same item
-            InventorySyncOperation::where('shop_id', $shop->id)
-                ->where('shopify_inventory_item_id', (string) $request->inventory_item_id)
-                ->where('status', 'pending')
-                ->update([
-                    'status'     => 'superseded',
-                    'last_error' => 'Superseded by newer manual update.',
-                ]);
-
-            return InventorySyncOperation::create([
-                'operation_uuid'             => (string) Str::uuid(),
-                'shop_id'                    => $shop->id,
-                'mapping_id'                 => $mapping?->id,
-                'shopify_inventory_item_id'  => (string) $request->inventory_item_id,
-                'shopify_location_id'        => (string) $locationId,
-                'amazon_sku'                 => $mapping?->amazon_sku,
-                'desired_quantity'           => (int) $request->quantity,
-                'baseline_quantity'          => $baselineQuantity,
-                'expected_inventory_version' => $expectedVersion,
-                'source'                     => 'manual_ui',
-                'status'                     => 'pending',
-                'stage'                      => 'pending',
-                'attempts'                   => 0,
-                'max_attempts'               => 4,
-                'created_by'                 => auth()->id(),
-                'last_dispatched_at'         => now(),
-            ]);
-        });
-
-        // Dispatch background processing job after DB transaction has committed
-        ProcessInventoryUpdateJob::dispatch($operation->id);
-
-        // Invalidate cache
-        Cache::forget("shopify_inventory_{$shop->shop}_location_{$selectedIndex}");
-
-        return response()->json([
-            'success'      => true,
-            'status'       => 'pending',
-            'operation_id' => $operation->id,
-            'message'      => 'Inventory update queued successfully.',
-        ]);
     }
 
 

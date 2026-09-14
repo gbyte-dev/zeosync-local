@@ -294,12 +294,12 @@ class AmazonService
         string $sku,
         int $quantity,
         bool $syncToShopify = true,
-        ?int $shopifyMappingQuantity = null
+        ?int $shopifyMappingQuantity = null,
+        bool $acquireLock = true
     ) {
         $lockKey = "inventory_sku_lock_{$shop->id}_{$sku}";
-        $lock = Cache::lock($lockKey, 15);
 
-        return $lock->block(10, function () use ($shop, $sku, $quantity, $syncToShopify, $shopifyMappingQuantity) {
+        $execute = function () use ($shop, $sku, $quantity, $syncToShopify, $shopifyMappingQuantity) {
             $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
                 ->where('amazon_sku', $sku)
                 ->first();
@@ -468,15 +468,42 @@ class AmazonService
                             );
                         }
 
-                        // Schedule delayed verification (delay ~25 seconds for Amazon propagation)
-                        VerifyAmazonInventoryQuantityJob::dispatch(
-                            $shop->id,
-                            $sku,
-                            $quantity,
-                            $submissionId,
-                            now()->toDateTimeString(),
-                            1
-                        )->delay(now()->addSeconds(25));
+                        Log::info('Amazon verification dispatch: BEFORE', [
+                            'shop_id'       => $shop->id ?? null,
+                            'sku'           => $sku ?? null,
+                            'quantity'      => $quantity ?? null,
+                            'submission_id' => $submissionId ?? null,
+                            'queue_default' => config('queue.default'),
+                            'db_driver'     => config('queue.connections.database.driver'),
+                            'db_table'      => config('queue.connections.database.table'),
+                            'db_name'       => \Illuminate\Support\Facades\DB::connection()->getDatabaseName(),
+                        ]);
+
+                        try {
+                            $job = VerifyAmazonInventoryQuantityJob::dispatch(
+                                $shop->id,
+                                $sku,
+                                $quantity,
+                                $submissionId,
+                                now()->toDateTimeString(),
+                                1
+                            )->onConnection('database')
+                             ->onQueue('default')
+                             ->delay(now()->addSeconds(25));
+
+                            Log::info('Amazon verification dispatch: AFTER', [
+                                'dispatch_result_type' => get_debug_type($job),
+                            ]);
+                        } catch (\Throwable $e) {
+                            Log::error('Amazon verification dispatch failed', [
+                                'message'   => $e->getMessage(),
+                                'exception' => get_class($e),
+                                'file'      => $e->getFile(),
+                                'line'      => $e->getLine(),
+                                'trace'     => $e->getTraceAsString(),
+                            ]);
+                            throw $e;
+                        }
                     }
 
                     return $responseBody;
@@ -510,7 +537,57 @@ class AmazonService
 
                 throw $e;
             }
-        });
+        };
+
+        if (!$acquireLock) {
+            Log::info('AmazonService: Lock skipped; caller already owns lock', [
+                'lock_key' => $lockKey,
+                'shop_id'  => $shop->id,
+                'sku'      => $sku,
+                'reason'   => 'caller_already_holds_lock',
+            ]);
+
+            return $execute();
+        }
+
+        $lock = Cache::lock($lockKey, 15);
+
+        Log::info('AmazonService: Lock acquire start', [
+            'lock_key'              => $lockKey,
+            'shop_id'               => $shop->id,
+            'sku'                   => $sku,
+            'lock_ttl_seconds'      => 15,
+            'block_timeout_seconds' => 10,
+        ]);
+
+        try {
+            return $lock->block(10, function () use ($execute, $lockKey, $shop, $sku) {
+                Log::info('AmazonService: Lock acquire success', [
+                    'lock_key' => $lockKey,
+                    'shop_id'  => $shop->id,
+                    'sku'      => $sku,
+                ]);
+
+                try {
+                    return $execute();
+                } finally {
+                    Log::info('AmazonService: Lock release', [
+                        'lock_key' => $lockKey,
+                        'shop_id'  => $shop->id,
+                        'sku'      => $sku,
+                    ]);
+                }
+            });
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
+            Log::error('AmazonService: Lock acquire failed (LockTimeoutException)', [
+                'lock_key'              => $lockKey,
+                'shop_id'               => $shop->id,
+                'sku'                   => $sku,
+                'block_timeout_seconds' => 10,
+                'error'                 => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     private function getFinalCategorySlug($product)

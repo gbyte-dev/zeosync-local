@@ -93,24 +93,42 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
         // STAGE 1: Update Shopify Inventory (Protected by SKU lock)
         // -----------------------------------------------------------------
         if ($operation->stage === 'pending') {
+            Log::info('ProcessInventoryUpdateJob Stage 1: Lock acquire start', [
+                'stage'                 => 'stage_1_shopify',
+                'lock_key'              => $lockKey,
+                'shop_id'               => $shop->id,
+                'operation_id'          => $operation->id,
+                'lock_ttl_seconds'      => 30,
+                'block_timeout_seconds' => 15,
+            ]);
+
             $lock = Cache::lock($lockKey, 30);
-            $lock->block(15, function () use ($operation, $shop, $mapping) {
-                $operation->refresh();
-                if ($mapping) {
-                    $mapping->refresh();
-                }
-
-                if (in_array($operation->status, ['awaiting_verification', 'completed', 'failed', 'superseded', 'stale_external_state'], true)) {
-                    return;
-                }
-
-                if ($this->isSupersededByNewerOperation($operation)) {
-                    $operation->update([
-                        'status'     => 'superseded',
-                        'last_error' => 'Superseded by newer inventory update.',
+            try {
+                $lock->block(15, function () use ($lockKey, $operation, $shop, $mapping) {
+                    Log::info('ProcessInventoryUpdateJob Stage 1: Lock acquire success', [
+                        'stage'        => 'stage_1_shopify',
+                        'lock_key'     => $lockKey,
+                        'shop_id'      => $shop->id,
+                        'operation_id' => $operation->id,
                     ]);
-                    return;
-                }
+
+                    try {
+                        $operation->refresh();
+                        if ($mapping) {
+                            $mapping->refresh();
+                        }
+
+                        if (in_array($operation->status, ['awaiting_verification', 'completed', 'failed', 'superseded', 'stale_external_state'], true)) {
+                            return;
+                        }
+
+                        if ($this->isSupersededByNewerOperation($operation)) {
+                            $operation->update([
+                                'status'     => 'superseded',
+                                'last_error' => 'Superseded by newer inventory update.',
+                            ]);
+                            return;
+                        }
 
                 // LAYER 1: Local Optimistic Concurrency Control (OCC)
                 if ($mapping && $operation->expected_inventory_version !== null) {
@@ -217,6 +235,16 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                             return;
                         }
 
+                        Log::warning('Inventory baseline comparison', [
+                            'operation_id'        => $operation->id ?? null,
+                            'shop_id'             => $operation->shop_id ?? null,
+                            'sku'                 => $operation->sku ?? null,
+                            'baseline_quantity'   => $operation->baseline_quantity ?? null,
+                            'baseline_type'       => get_debug_type($operation->baseline_quantity ?? null),
+                            'live_available'      => $liveAvailable ?? null,
+                            'live_available_type' => get_debug_type($liveAvailable ?? null),
+                        ]);
+
                         if ($liveAvailable !== (int) $operation->baseline_quantity) {
                             $operation->update([
                                 'status'     => 'stale_external_state',
@@ -310,8 +338,27 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                         'inventory_version' => ($mapping->inventory_version ?? 1) + 1,
                     ]);
                 }
-            });
-        }
+            } finally {
+                Log::info('ProcessInventoryUpdateJob Stage 1: Lock release', [
+                    'stage'        => 'stage_1_shopify',
+                    'lock_key'     => $lockKey,
+                    'shop_id'      => $shop->id,
+                    'operation_id' => $operation->id,
+                ]);
+            }
+        });
+    } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
+        Log::error('ProcessInventoryUpdateJob Stage 1: Lock acquire failed (LockTimeoutException)', [
+            'stage'                 => 'stage_1_shopify',
+            'lock_key'              => $lockKey,
+            'shop_id'               => $shop->id,
+            'operation_id'          => $operation->id,
+            'block_timeout_seconds' => 15,
+            'error'                 => $e->getMessage(),
+        ]);
+        throw $e;
+    }
+}
 
         $operation->refresh();
         if (in_array($operation->status, ['awaiting_verification', 'completed', 'failed', 'superseded', 'stale_external_state'], true)) {
@@ -322,12 +369,30 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
         // STAGE 2: Update Amazon Inventory (Handled via AmazonService)
         // -----------------------------------------------------------------
         if ($mapping && !empty($amazonSku)) {
+            Log::info('ProcessInventoryUpdateJob Stage 2: Lock acquire start', [
+                'stage'                 => 'stage_2_amazon',
+                'lock_key'              => $lockKey,
+                'shop_id'               => $shop->id,
+                'operation_id'          => $operation->id,
+                'lock_ttl_seconds'      => 30,
+                'block_timeout_seconds' => 15,
+            ]);
+
             $lock = Cache::lock($lockKey, 30);
-            $lock->block(15, function () use ($operation, $shop, $mapping, $amazonSku, $amazonService) {
-                $operation->refresh();
-                if ($mapping) {
-                    $mapping->refresh();
-                }
+            try {
+                $lock->block(15, function () use ($lockKey, $operation, $shop, $mapping, $amazonSku, $amazonService) {
+                    Log::info('ProcessInventoryUpdateJob Stage 2: Lock acquire success', [
+                        'stage'        => 'stage_2_amazon',
+                        'lock_key'     => $lockKey,
+                        'shop_id'      => $shop->id,
+                        'operation_id' => $operation->id,
+                    ]);
+
+                    try {
+                        $operation->refresh();
+                        if ($mapping) {
+                            $mapping->refresh();
+                        }
 
                 if (in_array($operation->status, ['awaiting_verification', 'completed', 'failed', 'superseded', 'stale_external_state'], true)) {
                     return;
@@ -477,14 +542,16 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                             $amazonSku,
                             0,
                             syncToShopify: false,
-                            shopifyMappingQuantity: $operation->desired_quantity
+                            shopifyMappingQuantity: $operation->desired_quantity,
+                            acquireLock: false
                         );
                     } else {
                         $amazonResult = $amazonService->updateInventory(
                             $shop,
                             $amazonSku,
                             $amazonTargetQty,
-                            syncToShopify: false
+                            syncToShopify: false,
+                            acquireLock: false
                         );
                     }
 
@@ -539,8 +606,27 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                     // Transient -> throw for queue retry
                     throw $e;
                 }
-            });
-        } else {
+            } finally {
+                Log::info('ProcessInventoryUpdateJob Stage 2: Lock release', [
+                    'stage'        => 'stage_2_amazon',
+                    'lock_key'     => $lockKey,
+                    'shop_id'      => $shop->id,
+                    'operation_id' => $operation->id,
+                ]);
+            }
+        });
+    } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
+        Log::error('ProcessInventoryUpdateJob Stage 2: Lock acquire failed (LockTimeoutException)', [
+            'stage'                 => 'stage_2_amazon',
+            'lock_key'              => $lockKey,
+            'shop_id'               => $shop->id,
+            'operation_id'          => $operation->id,
+            'block_timeout_seconds' => 15,
+            'error'                 => $e->getMessage(),
+        ]);
+        throw $e;
+    }
+} else {
             // Shopify-only item without Amazon mapping
             $operation->update([
                 'status'       => 'completed',

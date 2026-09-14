@@ -3067,7 +3067,7 @@ class ShopifyController extends Controller
 
     public function show($id)
     {
-        $shop = Shop::with('subscription.plan', 'settings')->findOrFail($id);
+	   $shop = Shop::with('subscription.plan')->findOrFail($id);
 
         $customPlan = Plan::where('shop_id', $shop->id)->first();
 

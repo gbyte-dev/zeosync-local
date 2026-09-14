@@ -22,7 +22,9 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
         public readonly ?string $submissionId = null,
         public readonly ?string $syncedAt = null,
         public readonly int $attempt = 1
-    ) {}
+    ) {
+        $this->onConnection('database')->onQueue('default');
+    }
 
     public function handle(AmazonService $amazonService): void
     {
@@ -220,7 +222,9 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
                 $this->submissionId,
                 $this->syncedAt,
                 $nextAttempt
-            )->delay(now()->addSeconds($delaySeconds));
+            )->onConnection('database')
+             ->onQueue('default')
+             ->delay(now()->addSeconds($delaySeconds));
 
             return;
         }
