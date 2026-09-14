@@ -86,6 +86,11 @@ class ImageController extends Controller
             'image.max'        => 'Image size must not exceed 10 MB.',
         ]);
 
+        /*
+        // ---------------------------------------------------------------------
+        // Temporarily disconnected: image upload limit flow.
+        // Keep this code for future reactivation.
+        // ---------------------------------------------------------------------
         $incomingCount = 1;
         $limitInfo = $imageLimitService->getImageLimitInfo($shop);
 
@@ -115,6 +120,8 @@ class ImageController extends Controller
 
             return back()->with('error', $errorMessage)->withInput();
         }
+        // ---------------------------------------------------------------------
+        */
 
         $file = $request->file('image');
         $allowed = ['jpg', 'jpeg', 'png', 'webp'];

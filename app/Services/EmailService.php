@@ -17,13 +17,15 @@ class EmailService
                 'customer' => $customer,
             ]);
 
+            $htmlData = $this->escapeHtmlVariables($data);
+
             //   STEP 2: Replace variables
-            $subject = $this->replaceVariables($template->subject ?? '', $data);
-            $body = $this->replaceVariables($template->body ?? '', $data);
+            $subject = str_replace(["\r", "\n"], '', $this->replaceVariables($template->subject ?? '', $data));
+            $body = $this->replaceVariables($template->body ?? '', $htmlData);
             //   FINAL BODY WITH HEADER + VARIABLES
             $finalBody = $this->replaceVariables(
                 $this->wrapWithLayout($body),
-                $data
+                $htmlData
             );
 
             //   STEP 3: Get email
@@ -65,14 +67,16 @@ class EmailService
             // Merge custom variables
             $data = array_merge($data, $variables);
 
-            // Replace variables
-            $subject = $this->replaceVariables($template->subject ?? '', $data);
+            $htmlData = $this->escapeHtmlVariables($data);
 
-            $body = $this->replaceVariables($template->body ?? '', $data);
+            // Replace variables
+            $subject = str_replace(["\r", "\n"], '', $this->replaceVariables($template->subject ?? '', $data));
+
+            $body = $this->replaceVariables($template->body ?? '', $htmlData);
 
             $finalBody = $this->replaceVariables(
                 $this->wrapWithLayout($body),
-                $data
+                $htmlData
             );
 
             Mail::send([], [], function ($message) use ($email, $subject, $finalBody) {
@@ -94,10 +98,30 @@ class EmailService
     private function replaceVariables(string $content, array $data): string
     {
         foreach ($data as $key => $value) {
-            $content = str_replace('{' . $key . '}', trim($value), $content);
+            if (is_scalar($value) || $value === null) {
+                $content = str_replace('{' . $key . '}', trim((string) $value), $content);
+            }
         }
 
         return $content;
+    }
+
+    private function escapeHtmlVariables(array $data): array
+    {
+        $escaped = [];
+        foreach ($data as $key => $value) {
+            if (is_string($value)) {
+                if ($key === 'message') {
+                    $escaped[$key] = nl2br(htmlspecialchars($value, ENT_QUOTES, 'UTF-8'));
+                } else {
+                    $escaped[$key] = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+                }
+            } else {
+                $escaped[$key] = $value;
+            }
+        }
+
+        return $escaped;
     }
 
 

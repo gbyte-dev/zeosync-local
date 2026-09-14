@@ -469,12 +469,23 @@ class AmazonService
                             );
                         }
 
-                        Log::info('Amazon inventory update accepted and verified.', [
+                        Log::info('Amazon inventory update accepted, scheduling verification.', [
                             'shop_id'       => $shop->id ?? null,
                             'sku'           => $sku ?? null,
                             'quantity'      => $quantity ?? null,
                             'submission_id' => $submissionId ?? null,
                         ]);
+
+                        VerifyAmazonInventoryQuantityJob::dispatch(
+                            $shop->id,
+                            $sku,
+                            $quantity,
+                            $submissionId,
+                            now()->toDateTimeString(),
+                            1
+                        )->onConnection('database')
+                         ->onQueue('default')
+                         ->delay(now()->addSeconds(25));
                     }
 
                     return $responseBody;

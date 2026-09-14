@@ -74,10 +74,17 @@
                                         <th class="text-muted fw-semibold ps-4">Sync Limit</th>
                                         <td><strong>{{ $customPlan->sync_limit == 0 ? 'Unlimited' : number_format($customPlan->sync_limit) }}</strong></td>
                                     </tr>
+                                    {{--
+                                    ---------------------------------------------------------------------
+                                    Temporarily disconnected: image upload limit flow.
+                                    Keep this code for future reactivation.
+                                    ---------------------------------------------------------------------
                                     <tr>
                                         <th class="text-muted fw-semibold ps-4">Image Limit</th>
                                         <td><strong>{{ ($customPlan->image_limit ?? 0) == 0 ? 'Unlimited' : number_format($customPlan->image_limit) }}</strong></td>
                                     </tr>
+                                    ---------------------------------------------------------------------
+                                    --}}
                                     <tr>
                                         <th class="text-muted fw-semibold ps-4">Trial</th>
                                         <td>
