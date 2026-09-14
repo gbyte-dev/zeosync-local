@@ -98,25 +98,19 @@ class AdminController extends Controller
     public function categoryChildren(Request $req, $id)
     {
         $category = Category::with('parent')->findOrFail($id);
-
         $query = Category::where('parent_id', $id);
-
         if ($req->filled('status')) {
             $query->where('status', $req->status);
         }
 
         $children = $query->get();
-
         $parentCategories = Category::whereNull('parent_id')->get();
-
         return view('admin.category.subcategory', compact('category', 'children', 'parentCategories') );
     }
 
     public function categoryserchedChildren(Request $req)
     {
-        $req->validate([
-            'category' => 'required',
-        ]);
+        $req->validate(['category' => 'required'  ]);
 
         $category = Category::with('parent')->where('name', 'like', '%' . $req->category . '%')->first();
         if (!$category) {

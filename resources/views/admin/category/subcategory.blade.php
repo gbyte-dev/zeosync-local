@@ -271,6 +271,7 @@
                 }
                 var newUrl = url.pathname + (params.toString() ? ('?' + params.toString()) : '');
                 history.replaceState(null, '', newUrl);
+                window.location.replace(newUrl); 
             } catch (e) {
                 // older browsers fallback: do nothing
             }
