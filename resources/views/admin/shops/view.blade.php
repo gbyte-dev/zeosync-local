@@ -2,300 +2,132 @@
 @section('title', 'Shop Dashboard')
 @section('content')
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
-
     .shop-dashboard {
-        --bg: #EEF0F2;
-        --surface: #FFFFFF;
-        --surface-2: #F7F8F9;
-        --ink: #1A1D24;
-        --ink-muted: #6B7280;
-        --border: #DEE2E6;
-        --accent: #2454C7;
-        --accent-ink: #FFFFFF;
-        --success: #197A56;
-        --success-bg: #E6F4EC;
-        --danger: #C33B3B;
-        --danger-bg: #FBEAEA;
-        --warning: #B4740E;
-        --warning-bg: #FBF0DF;
-
-        max-width: 1280px;
-        font-family: 'Inter', system-ui, sans-serif;
-        color: var(--ink);
+        max-width: 1400px;
     }
 
-    .shop-dashboard .mono {
-        font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    .hero-box {
+        background: linear-gradient(135deg, #111827, #2563eb);
+        color: #fff;
+        border-radius: 24px;
+        padding: 25px;
+        margin-bottom: 24px;
+        box-shadow: 0 18px 45px rgba(37, 99, 235, .18);
     }
 
-    /* ---------- Header ---------- */
-    .dash-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 20px;
-        padding: 22px 0 20px;
-        border-bottom: 1px solid var(--border);
-        margin-bottom: 22px;
+    .hero-box h2 {
+        font-weight: 800;
+        margin-bottom: 6px;
     }
 
-    .dash-header__name {
-        font-size: 22px;
-        font-weight: 600;
-        line-height: 1.2;
-        margin: 0 0 4px;
-    }
-
-    .dash-header__url {
+    .status-pill {
+        border-radius: 999px;
+        padding: 8px 14px;
         font-size: 13px;
-        color: var(--ink-muted);
+        font-weight: 700;
     }
 
-    .dash-header__meta {
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 18px;
+        margin-bottom: 24px;
+    }
+
+    .stat-card {
+        background: #fff;
+        border-radius: 20px;
+        padding: 22px;
+        border: 1px solid #c2c2c2;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-top: 10px;
+        gap: 16px;
     }
 
-    .chip {
-        display: inline-flex;
+    .stat-icon {
+        width: 54px;
+        height: 54px;
+        border-radius: 16px;
+        display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 12.5px;
-        font-weight: 500;
-        padding: 4px 10px 4px 8px;
-        border-radius: 6px;
-        border: 1px solid var(--border);
-        background: var(--surface);
-        color: var(--ink-muted);
-    }
-
-    .chip__dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
+        justify-content: center;
+        font-size: 24px;
         flex-shrink: 0;
     }
 
-    .chip--on {
-        color: var(--success);
-        border-color: #CBE6D6;
-        background: var(--success-bg);
+    .stat-label {
+        color: #6b7280;
+        font-size: 13px;
+        margin-bottom: 4px;
     }
 
-    .chip--on .chip__dot {
-        background: var(--success);
+    .stat-value {
+        font-size: 24px;
+        font-weight: 800;
+        color: #111827;
     }
 
-    .chip--off {
-        color: var(--ink-muted);
-    }
-
-    .chip--off .chip__dot {
-        background: #9CA3AF;
-    }
-
-    .btn-line {
-        border: 1px solid var(--border);
-        background: var(--surface);
-        color: var(--ink);
-        border-radius: 6px;
-        padding: 7px 14px;
-        font-size: 13.5px;
-        font-weight: 500;
-        transition: border-color .15s ease;
-    }
-
-    .btn-line:hover {
-        border-color: #B9C0C9;
-    }
-
-    .btn-solid {
-        border: 1px solid var(--accent);
-        background: var(--accent);
-        color: var(--accent-ink);
-        border-radius: 6px;
-        padding: 7px 14px;
-        font-size: 13.5px;
-        font-weight: 500;
-    }
-
-    .btn-solid:hover {
-        background: #1E45AB;
-        color: var(--accent-ink);
-    }
-
-    .btn-danger-line {
-        border: 1px solid #E7B8B8;
-        background: var(--surface);
-        color: var(--danger);
-        border-radius: 6px;
-        padding: 7px 14px;
-        font-size: 13.5px;
-        font-weight: 500;
-    }
-
-    .btn-danger-line:hover {
-        background: var(--danger-bg);
-        color: var(--danger);
-    }
-
-    /* ---------- Stat strip ---------- */
-    .stat-strip {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        margin-bottom: 24px;
-        overflow: hidden;
-    }
-
-    .stat {
-        padding: 18px 22px;
-        border-right: 1px solid var(--border);
-    }
-
-    .stat:last-child {
-        border-right: none;
-    }
-
-    .stat__label {
-        font-size: 12.5px;
-        color: var(--ink-muted);
-        margin-bottom: 8px;
-    }
-
-    .stat__value {
-        font-size: 26px;
-        font-weight: 600;
-        line-height: 1;
-        font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    }
-
-    .stat__value--text {
-        font-size: 15px;
-        font-weight: 600;
-        font-family: 'Inter', system-ui, sans-serif;
-    }
-
-    /* ---------- Panels ---------- */
     .content-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 20px;
+        gap: 24px;
     }
 
-    .panel {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 10px;
+    .pro-card {
+        background: #fff;
+        border-radius: 22px;
+        border: 1px solid #eef2f7;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
+        overflow: hidden;
     }
 
-    .panel__header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        padding: 16px 20px;
-        border-bottom: 1px solid var(--border);
+    .pro-card-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid #eef2f7;
+        background: #fff;
     }
 
-    .panel__title {
-        font-size: 14.5px;
-        font-weight: 600;
+    .pro-card-header h5 {
         margin: 0;
+        font-weight: 600;
     }
 
-    .row {
+    .info-row {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-        padding: 14px 20px;
-        border-bottom: 1px solid var(--surface-2);
+        gap: 18px;
+        padding: 16px 24px;
+        border-bottom: 1px solid #f1f5f9;
     }
 
-    .row:last-child {
-        border-bottom: none;
+    .info-row:last-child {
+        border-bottom: 0;
     }
 
-    .row__label {
+    .info-label {
+        color: #6b7280;
         font-size: 13px;
-        color: var(--ink-muted);
-        flex-shrink: 0;
+        font-weight: 600;
     }
 
-    .row__value {
-        font-size: 13.5px;
-        font-weight: 500;
+    .info-value {
+        color: #111827;
+        font-size: 14px;
+        font-weight: 700;
         text-align: right;
         word-break: break-word;
     }
 
-    .field-input {
-        width: 100%;
-        max-width: 240px;
-        border: none;
-        border-bottom: 1px solid var(--border);
-        background: transparent;
-        text-align: right;
-        font-size: 13.5px;
-        font-weight: 500;
-        color: var(--ink);
-        padding: 3px 0;
-    }
-
-    .field-input:focus {
-        outline: none;
-        border-bottom-color: var(--accent);
-    }
-
-    .badge-status {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12.5px;
-        font-weight: 500;
-        padding: 3px 9px;
-        border-radius: 6px;
-    }
-
-    .badge-status--active {
-        color: var(--success);
-        background: var(--success-bg);
-    }
-
-    .badge-status--inactive {
-        color: var(--danger);
-        background: var(--danger-bg);
-    }
-
-    .badge-status--plan {
-        color: var(--accent);
-        background: #E9EFFC;
-    }
-
     .empty-box {
-        padding: 34px 20px;
+        padding: 40px 24px;
         text-align: center;
-        color: var(--ink-muted);
-        font-size: 13.5px;
+        color: #6b7280;
     }
 
     @media(max-width: 992px) {
-        .stat-strip {
+        .stats-grid {
             grid-template-columns: repeat(2, 1fr);
-        }
-
-        .stat:nth-child(2) {
-            border-right: none;
-        }
-
-        .stat:nth-child(1), .stat:nth-child(2) {
-            border-bottom: 1px solid var(--border);
         }
 
         .content-grid {
@@ -304,208 +136,406 @@
     }
 
     @media(max-width: 576px) {
-        .dash-header {
-            flex-direction: column;
+        .shop-dashboard {
+            padding: 14px;
         }
 
-        .stat-strip {
+        .stats-grid {
             grid-template-columns: 1fr;
         }
 
-        .stat {
-            border-right: none;
-            border-bottom: 1px solid var(--border);
+        .hero-box {
+            padding: 22px;
         }
 
-        .row {
+        .info-row {
             flex-direction: column;
-            align-items: flex-start;
             gap: 4px;
         }
 
-        .row__value, .field-input {
+        .info-value {
             text-align: left;
         }
     }
 </style>
-
 <div class="shop-dashboard">
-
-    {{-- Identity + status --}}
-    <div class="dash-header">
-        <div>
-            <div class="dash-header__name">{{ $shop->shop_name }}</div>
-            <div class="dash-header__url mono">{{ $shop->shop }}</div>
-            <div class="dash-header__meta">
-                @if($shop->is_active)
-                <span class="chip chip--on"><span class="chip__dot"></span>Active</span>
-                @else
-                <span class="chip chip--off"><span class="chip__dot"></span>Inactive</span>
-                @endif
-
-                @if($shop->amazon_seller_id)
-                <span class="chip chip--on"><span class="chip__dot"></span>Amazon connected</span>
-                @else
-                <span class="chip chip--off"><span class="chip__dot"></span>Amazon not connected</span>
-                @endif
-            </div>
-        </div>
-        <button type="button" class="btn-solid" onclick="document.getElementById('saveChangesBtn').click()">
-            Save changes
-        </button>
-    </div>
-
     {{-- Stats --}}
-    <div class="stat-strip">
-        <div class="stat">
-            <div class="stat__label">Total products</div>
-            <div class="stat__value">{{ $productCount }}</div>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon bg-primary bg-opacity-10 text-primary">📦</div>
+            <div>
+                <div class="stat-label">Total Products</div>
+                <div class="stat-value">{{ $productCount }}</div>
+            </div>
         </div>
-        <div class="stat">
-            <div class="stat__label">Total orders</div>
-            <div class="stat__value">{{ $orderCount }}</div>
+        <div class="stat-card">
+            <div class="stat-icon bg-success bg-opacity-10 text-success">🛒</div>
+            <div>
+                <div class="stat-label">Total Orders</div>
+                <div class="stat-value">{{ $orderCount }}</div>
+            </div>
         </div>
-        <div class="stat">
-            <div class="stat__label">Sync logs</div>
-            <div class="stat__value">{{ $logCount }}</div>
+        <div class="stat-card">
+            <div class="stat-icon bg-warning bg-opacity-10 text-warning">🔄</div>
+            <div>
+                <div class="stat-label">Sync Logs</div>
+                <div class="stat-value">{{ $logCount }}</div>
+            </div>
         </div>
-        <div class="stat">
-            <div class="stat__label">Amazon status</div>
-            <div class="stat__value stat__value--text">
-                {{ $shop->amazon_seller_id ? 'Connected' : 'Not connected' }}
+        <div class="stat-card">
+            <div class="stat-icon bg-info bg-opacity-10 text-info">🔌</div>
+            <div>
+                <div class="stat-label">Amazon Status</div>
+                <div class="stat-value" style="font-size:16px;">
+                    {{ $shop->amazon_seller_id ? 'Connected' : 'Not Connected' }}
+                </div>
             </div>
         </div>
     </div>
-
+    {{-- Details --}}
     <div class="content-grid">
-
-        {{-- Shop info --}}
-        <div class="panel">
-            <div class="panel__header">
-                <h5 class="panel__title">Shop information</h5>
+        {{-- Shop Info --}}
+        <div class="pro-card">
+            <div class="pro-card-header row">
+                <h5 class="col-md-8"> Shop Information</h5>
+                <button type="submit" class="btn btn-primary btn-sm col-md-4" onclick="document.getElementById('saveChangesBtn').click()">Save Changes</button>
             </div>
-            <form action="{{ route('admin.shops.update', $shop->id) }}" method="POST">
-                @csrf
-                <div class="row">
-                    <div class="row__label">Shop URL</div>
-                    <div class="row__value mono">{{ $shop->shop }}</div>
-                </div>
-                <div class="row">
-                    <label for="shop_name" class="row__label">Shop name</label>
-                    <input type="text" class="field-input" id="shop_name" name="shop_name"
-                        value="{{ old('shop_name', $shop->shop_name) }}" required>
-                </div>
-                <div class="row">
-                    <label for="email" class="row__label">Email address</label>
-                    <input type="email" class="field-input" id="email" name="email"
-                        value="{{ old('email', $shop->email) }}" required>
-                </div>
-                <button type="submit" class="d-none" id="saveChangesBtn">Save changes</button>
-            </form>
-            <div class="row">
-                <div class="row__label">Status</div>
-                <div class="row__value">
+            <div class="info-row">
+                <div class="info-label">Shop URL</div>
+                <div class="info-value">{{ $shop->shop }}</div>
+            </div>
+            <div class="">
+                <form action="{{ route('admin.shops.update', $shop->id) }}" method="POST">
+                    @csrf
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="info-row">
+                                <div class="info-label"><label for="shop_name" class="form-label">Shop Name</label></div>
+                                <div class="info-value">
+                                    <input type="text" class="form-control" id="shop_name" name="shop_name" value="{{ old('shop_name', $shop->shop_name) }}" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="info-row">
+                                <div class="info-label"><label for="email" class="form-label">Email Address</label></div>
+                                <div class="info-value">
+                                    <input type="email" class="form-control" id="email" name="email" value="{{ old('email', $shop->email) }}" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 d-none">
+                        <button type="submit" class="btn btn-primary btn-sm" id="saveChangesBtn">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Status</div>
+                <div class="info-value">
                     @if($shop->is_active)
-                    <span class="badge-status badge-status--active">Active</span>
+                    <span class="badge bg-success">Active</span>
                     @else
-                    <span class="badge-status badge-status--inactive">Inactive</span>
+                    <span class="badge bg-danger">Inactive</span>
                     @endif
                 </div>
             </div>
-            <div class="row">
-                <div class="row__label">Amazon seller ID</div>
-                <div class="row__value mono">{{ $shop->amazon_seller_id ?? '—' }}</div>
+            <div class="info-row">
+                <div class="info-label">Amazon Seller ID</div>
+                <div class="info-value">{{ $shop->amazon_seller_id ?? '—' }}</div>
             </div>
         </div>
-
         {{-- Subscription --}}
-        <div class="panel">
-            <div class="panel__header">
-                <h5 class="panel__title">Subscription details</h5>
+        <div class="pro-card">
+            <div class="pro-card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"> Subscription Details</h5>
+                <div class="d-flex align-items-center gap-2 flex-nowrap">
 
-                @if($shop->subscription && $shop->subscription->status !== 'cancelled')
-                <form action="{{ route('admin.shops.cancel', $shop->id) }}" method="POST" class="m-0"
-                    onsubmit="return confirm('Are you sure you want to cancel this subscription?')">
-                    @csrf
-                    <button type="submit" class="btn-danger-line">Cancel subscription</button>
-                </form>
-                @else
-                <button type="button" class="btn-line" data-bs-toggle="modal" data-bs-target="#addPlanToShopModal">
-                    Add plan
-                </button>
-                @endif
+                    <!-- @if(!$customPlan)
+                    <button
+                        type="button"
+                        class="btn btn-primary btn-sm text-nowrap"
+                        data-bs-toggle="modal"
+                        data-bs-target="#customEnterpriseModal">
+                        Add Custom Plan
+                    </button>
+                    @endif -->
+
+                    @if($shop->subscription && $shop->subscription->status !== 'cancelled')
+                    <form
+                        action="{{ route('admin.shops.cancel', $shop->id) }}"
+                        method="POST"
+                        class="m-0 flex-shrink-0"
+                        onsubmit="return confirm('Are you sure you want to cancel this subscription?')">
+                        @csrf
+
+                        <button
+                            type="submit"
+                            class="btn btn-danger btn-sm text-nowrap">
+                            Cancel Subscription
+                        </button>
+                    </form>
+                    @else
+                    <button
+                        type="button"
+                        class="btn btn-primary btn-sm text-nowrap"
+                        data-bs-toggle="modal"
+                        data-bs-target="#addPlanToShopModal">
+                        Add Plan
+                    </button>
+                    @endif
+
+                </div>
             </div>
-
             @if($shop->subscription)
-            <div class="row">
-                <div class="row__label">Plan</div>
-                <div class="row__value">
-                    {{ $shop->subscription->plan_id ? getPlanName($shop->subscription->plan_id) : 'N/A' }}
+            <div class="info-row">
+                <div class="info-label">Plan ID</div>
+                <div class="info-value">{{ $shop->subscription->plan_id?getPlanName($shop->subscription->plan_id) : 'N/A' }}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Status</div>
+                <div class="info-value">
+                    <span class="badge bg-primary">
+                        {{ ucfirst($shop->subscription->status) }}
+                    </span>
                 </div>
             </div>
-            <div class="row">
-                <div class="row__label">Status</div>
-                <div class="row__value">
-                    <span class="badge-status badge-status--plan">{{ ucfirst($shop->subscription->status) }}</span>
+            <div class="info-row">
+                <div class="info-label">Price</div>
+                <div class="info-value">
+                    ${{ number_format($shop->subscription->price, 2) }}
                 </div>
             </div>
-            <div class="row">
-                <div class="row__label">Price</div>
-                <div class="row__value mono">${{ number_format($shop->subscription->price, 2) }}</div>
+            <div class="info-row">
+                <div class="info-label">Billing Cycle</div>
+                <div class="info-value">
+                    {{ $shop->subscription->billing_cycle_months }} months
+                </div>
             </div>
-            <div class="row">
-                <div class="row__label">Billing cycle</div>
-                <div class="row__value">{{ $shop->subscription->billing_cycle_months }} months</div>
+            <div class="info-row">
+                <div class="info-label">Started At</div>
+                <div class="info-value">
+                    {{ optional($shop->subscription->started_at)->format('M d, Y') }}
+                </div>
             </div>
-            <div class="row">
-                <div class="row__label">Started at</div>
-                <div class="row__value mono">{{ optional($shop->subscription->started_at)->format('M d, Y') }}</div>
-            </div>
-            <div class="row">
-                <div class="row__label">Ends at</div>
-                <div class="row__value mono">{{ optional($shop->subscription->ended_at)->format('M d, Y') }}</div>
+            <div class="info-row">
+                <div class="info-label">Ends At</div>
+                <div class="info-value">
+                    {{ optional($shop->subscription->ended_at)->format('M d, Y') }}
+                </div>
             </div>
             @else
-            <div class="empty-box">No active subscription found for this shop.</div>
+            <div class="empty-box">
+                No active subscription found for this shop.
+            </div>
             @endif
         </div>
     </div>
-</div>
+    {{-- System Info --}}
+    <!-- <div class="pro-card mt-4">
+        <div class="pro-card-header">
+            <h5>🔐 System Information</h5>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Shop ID</div>
+            <div class="info-value">#{{ $shop->id }}</div>
+        </div>
+    </div> -->
+    <!-- @if($customPlan)
 
-{{-- Add Plan to Shop Modal --}}
+    <h5 class="mt-3" style="padding-left: 8px; padding-right: 8px;">
+        Custom Plan Overview
+    </h5>
+
+    <div class="card mt-4">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Plan Name</th>
+                        <th>Billing</th>
+                        <th>Price</th>
+                        <th>Limits</th>
+                        <th>Status</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr>
+                        <td>{{ $customPlan->name }}</td>
+
+                        <td>
+                            @if(isset($customPlan->prices['ANNUAL']))
+                            Yearly
+                            @elseif(isset($customPlan->prices['EVERY_30_DAYS']))
+                            Monthly
+                            @else
+                            N/A
+                            @endif
+                        </td>
+
+                        <td>
+                            @if(isset($customPlan->prices['ANNUAL']))
+                            ${{ number_format($customPlan->prices['ANNUAL'], 2) }}
+                            @elseif(isset($customPlan->prices['EVERY_30_DAYS']))
+                            ${{ number_format($customPlan->prices['EVERY_30_DAYS'], 2) }}
+                            @else
+                            N/A
+                            @endif
+                        </td>
+
+                        <td>
+                            Products:
+                            {{ $customPlan->product_limit == 0 ? 'Unlimited' : number_format($customPlan->product_limit) }}
+                            <br>
+
+                            Sync:
+                            {{ $customPlan->sync_limit == 0 ? 'Unlimited' : number_format($customPlan->sync_limit) }}
+                        </td>
+                        <td>
+                            @if(
+                            $shop->subscription &&
+                            $shop->subscription->plan_id == $customPlan->id &&
+                            $shop->subscription->status === 'active'
+                            )
+                            <span class="badge bg-success">Active</span>
+                            @else
+                            <span class="badge bg-secondary">Inactive</span>
+                            @endif
+                        </td>
+
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center align-items-center gap-1">
+
+                                {{-- Activate --}}
+                                @if(
+                                !$shop->subscription ||
+                                $shop->subscription->plan_id != $customPlan->id ||
+                                $shop->subscription->status !== 'active'
+                                )
+                                <form
+                                    action="{{ route('custom-plans.activate', $customPlan->id) }}"
+                                    method="POST"
+                                    class="d-inline"
+                                    onsubmit="return confirm('Are you sure you want to activate this custom plan?')">
+                                    @csrf
+
+                                    <button
+                                        type="submit"
+                                        class="btn btn-sm btn-outline-success"
+                                        title="Activate Custom Plan"
+                                        data-bs-toggle="tooltip">
+                                        <i class="bi bi-play-fill"></i>
+                                    </button>
+                                </form>
+                                @else
+
+                                {{-- Cancel --}}
+                                <form
+                                    action="{{ route('custom-plans.cancel', $customPlan->id) }}"
+                                    method="POST"
+                                    class="d-inline"
+                                    onsubmit="return confirm('Are you sure you want to cancel this custom plan?')">
+                                    @csrf
+
+                                    <button
+                                        type="submit"
+                                        class="btn btn-sm btn-outline-danger"
+                                        title="Cancel Custom Plan"
+                                        data-bs-toggle="tooltip">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+
+                                @endif
+
+                                {{-- Details --}}
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-primary"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#customPlanDetailsModal"
+                                    title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+
+                                {{-- Delete --}}
+                                <form
+                                    action="{{ route('admin.plans.delete', $customPlan->id) }}"
+                                    method="POST"
+                                    class="d-inline"
+                                    onsubmit="return confirm('Are you sure you want to delete this custom plan?')">
+                                    @csrf
+                                    @method('DELETE')
+
+                                    <button
+                                        type="submit"
+                                        class="btn btn-sm btn-outline-danger"
+                                        title="Delete Custom Plan">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @else
+
+    <h5 class="mt-3 " style="padding-left: 8px; padding-right: 8px;">
+        Custom Plan Overview
+    </h5>
+
+    <div class="card mt-4">
+        <div class="card-body text-center text-muted py-4">
+            No custom plan assigned to this shop.
+        </div>
+    </div>
+
+    @endif -->
+</div>
+<!-- Add Plan to Shop Modal -->
 <div class="modal fade" id="addPlanToShopModal" tabindex="-1" aria-labelledby="addPlanToShopModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="addPlanToShopModalLabel">Assign plan to shop</h5>
+                <h5 class="modal-title" id="addPlanToShopModalLabel">Assign Plan to Shop</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="assignPlanForm">
                 <div class="modal-body">
-                    <input type="hidden" name="shop_id" value="{{ $shop->id }}">
+                    <input type="hidden" name="shop_id" value="{{$shop->id}}">
+                    <!-- Select Created Plan -->
                     <div class="mb-3">
-                        <label for="planSelect" class="form-label">Select a plan</label>
+                        <label for="planSelect" class="form-label font-weight-bold">Select Created Plan</label>
                         <select class="form-select" id="planSelect" required>
                             <option value="" selected disabled>Choose a plan...</option>
                             @foreach(getAllPlan() as $plandata)
-                            <option value="{{ $plandata->id }}">{{ $plandata->name }} (${{ $plandata->price }} / mo)</option>
+                            <option value="{{$plandata->id}}">{{$plandata->name}} (${{$plandata->price}} / mo)</option>
                             @endforeach
                         </select>
                     </div>
+                    <!-- Test Mode Checkbox (Optional) -->
                     <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="testMode" checked>
-                        <label class="form-check-label" for="testMode">Enable test charge (sandbox)</label>
+                        <input class="form-check-input" type="checkbox" id="testMode" checked />
+                        <label class="form-check-label" for="testMode">
+                            Enable Test Charge (Sandbox)
+                        </label>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" id="assignBtn">Assign plan</button>
+                    <button type="submit" class="btn btn-primary" id="assignBtn">Assign Plan</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
 @include('admin.plans.custom-enterprise-modal')
 
 @if($customPlan)
