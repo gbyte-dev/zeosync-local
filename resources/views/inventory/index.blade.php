@@ -1617,12 +1617,19 @@
         };
 
         function sendInventoryUpdate(retryCount = 0) {
+            console.log('[Shopify Inventory] Update started', {
+                shop: shop,
+                inventory_item_id: inventoryItemId,
+                quantity: quantity
+            });
+
             $.ajax({
                 url: `{{ route('inventory.shopify.update') }}?shop=${encodeURIComponent(shop)}`,
                 type: 'POST',
                 data: requestData,
 
                 success: function(response) {
+                    console.log('[Shopify Inventory] Request success', response);
 
                     // Show success toast immediately
                     showToast(response.message, 'success');
@@ -1665,6 +1672,11 @@
                 },
 
                 error: async function(xhr) {
+                    console.error('[Shopify Inventory] Request failed', {
+                        status: xhr.status,
+                        response: xhr.responseText
+                    });
+
                     const isRetryHeader = xhr.getResponseHeader('X-Shopify-Retry-Invalid-Session-Request') === '1'
                         || xhr.getResponseHeader('x-shopify-retry-invalid-session-request') === '1';
 
