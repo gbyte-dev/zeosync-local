@@ -9,11 +9,9 @@ use App\Models\Shop;
 use App\Models\Category;
 use App\Models\AdminSetting;
 use App\Models\AdminNotification;
-use App\Services\ShopifyBillingService;
 use App\Models\NotificationSetting;
 use App\Models\MailTemplate;
 use App\Services\EmailService;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use App\Models\ShopSubscription;
 use App\Models\ProductMarketplaceMapping;
@@ -95,22 +93,19 @@ class AdminController extends Controller
         return view('admin.category.index', compact('categories', 'parentCategories'));
     }
 
-    public function categoryChildren(Request $req, $id)
+    public function categoryChildren($id)
     {
         $category = Category::with('parent')->findOrFail($id);
-        $query = Category::where('parent_id', $id);
-        if ($req->filled('status')) {
-            $query->where('status', $req->status);
-        }
-
-        $children = $query->get();
+        $children = Category::where('parent_id', $id)->get();
         $parentCategories = Category::whereNull('parent_id')->get();
-        return view('admin.category.subcategory', compact('category', 'children', 'parentCategories') );
+        return view('admin.category.subcategory', compact('category', 'children', 'parentCategories'));
     }
 
     public function categoryserchedChildren(Request $req)
     {
-        $req->validate(['category' => 'required'  ]);
+        $req->validate([
+            'category' => 'required',
+        ]);
 
         $category = Category::with('parent')->where('name', 'like', '%' . $req->category . '%')->first();
         if (!$category) {
@@ -119,30 +114,6 @@ class AdminController extends Controller
         $children =  Category::with('parent')->where('name', 'like', '%' . $req->category . '%')->get();
         $parentCategories = Category::whereNull('parent_id')->get();
         return view('admin.category.subcategory', compact('category', 'children', 'parentCategories'));
-    }
-
-    public function moveSubcategories(Request $request)
-    {
-        // Normalize empty selection for top-level
-        $request->merge(['target_parent_id' => $request->input('target_parent_id') ?: null]);
-
-        $data = $request->validate([
-            'subcategory_ids' => 'required|array',
-            'subcategory_ids.*' => 'integer|exists:categories,id',
-            'target_parent_id' => 'nullable|exists:categories,id',
-        ]);
-
-        $ids = $data['subcategory_ids'];
-        $target = $data['target_parent_id'] ?? null;
-
-        if ($target && in_array($target, $ids)) {
-            return redirect()->back()->with('error', 'Cannot move a category under itself. Please choose a different parent.');
-        }
-
-        // Update parent_id for selected subcategories
-        Category::whereIn('id', $ids)->update(['parent_id' => $target]);
-
-        return redirect()->back()->with('success', 'Selected subcategories moved successfully.');
     }
 
 
@@ -211,52 +182,18 @@ class AdminController extends Controller
 
     public function settings()
     {
-        $settings = AdminSetting::all()->pluck('option_value', 'option_key')->toArray();
+        $settings = AdminSetting::pluck('option_value', 'option_key')->toArray();
         $notifications = NotificationSetting::all();
         return view('admin.settings.index', compact('settings', 'notifications'));
     }
 
-    public function appSettings()
-    {
-        return $this->settings();
-    }
-
-    public function appSettingsUpdate(Request $request)
-    {
-        return $this->settingsupdate($request);
-    }
-
     public function settingsupdate(Request $request)
     {
-        $request->validate([
-            'app_logo' => [
-                'nullable',
-                'file',
-                'image',
-                'mimes:png,jpg,jpeg,webp',
-                'mimetypes:image/png,image/jpeg,image/webp',
-                'max:5120',
-            ],
-            'app_favicon' => [
-                'nullable',
-                'file',
-                'mimes:png,ico',
-                'mimetypes:image/png,image/x-icon,image/vnd.microsoft.icon',
-                'max:1024',
-            ],
-        ], [
-            'app_logo.image'          => 'The app logo must be a valid image.',
-            'app_logo.mimes'          => 'The app logo must be a file of type: png, jpg, jpeg, webp.',
-            'app_logo.mimetypes'      => 'The app logo must be a valid PNG, JPG, or WEBP image.',
-            'app_logo.max'            => 'The app logo may not be greater than 5 MB.',
-            'app_favicon.mimes'       => 'The app favicon must be a file of type: png, ico.',
-            'app_favicon.mimetypes'   => 'The app favicon must be a valid PNG or ICO image.',
-            'app_favicon.max'         => 'The app favicon may not be greater than 1 MB.',
-        ]);
+        $oldProductionClientId = trim((string) AdminSetting::where('option_key', 'production_client_id')
+            ->value('option_value'));
 
-        $oldProductionClientId = trim((string) AdminSetting::get('production_client_id', ''));
-
-        $oldProductionClientSecret = trim((string) AdminSetting::get('production_client_secret', ''));
+        $oldProductionClientSecret = trim((string) AdminSetting::where('option_key', 'production_client_secret')
+            ->value('option_value'));
 
         $keys = [
             'app_name',
@@ -299,17 +236,24 @@ class AdminController extends Controller
             'openai_model',
             'openai_temperature',
             'openai_endpoint',
-            'openai_max_tokens',
         ];
 
         foreach ($keys as $key) {
+
             if ($key === 'app_logo' || $key === 'app_favicon') {
+
                 if ($request->hasFile($key)) {
+
                     $file = $request->file($key);
-                    $allowed = $key === 'app_favicon' ? ['ico', 'png'] : ['png', 'jpg', 'jpeg', 'webp'];
-                    $guessed = strtolower((string) $file->guessExtension());
-                    $extension = in_array($guessed, $allowed, true) ? $guessed : ($key === 'app_favicon' ? 'ico' : 'png');
-                    $filename = $key . '_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . $extension;
+
+                    $filename = time() . '_' . $file->getClientOriginalName();
+
+                    // Delete old file if exists
+                    $old = AdminSetting::where('option_key', $key)->value('option_value');
+
+                    if ($old && Storage::disk('public')->exists($old)) {
+                        Storage::disk('public')->delete($old);
+                    }
 
                     // Store file in storage/app/public/logo
                     $path = $file->storeAs(
@@ -318,19 +262,11 @@ class AdminController extends Controller
                         'public'
                     );
 
-                    // Get old file path
-                    $old = AdminSetting::where('option_key', $key)->value('option_value');
-
                     // Save relative path in database
                     AdminSetting::updateOrCreate(
                         ['option_key' => $key],
                         ['option_value' => $path]
                     );
-
-                    // Delete old file only after new file is stored and DB is updated
-                    if ($old && $old !== $path && Storage::disk('public')->exists($old)) {
-                        Storage::disk('public')->delete($old);
-                    }
                 }
 
                 continue;
@@ -345,8 +281,6 @@ class AdminController extends Controller
                 ]
             );
         }
-
-        Cache::forget('ai_configuration');
 
         $credentialsChanged =
             $oldProductionClientId !== trim((string) $request->production_client_id) ||
@@ -433,89 +367,44 @@ class AdminController extends Controller
 
     public function cancel(Shop $shop)
     {
-        $subscription = ShopSubscription::where('shop_id', $shop->id)
-            ->whereIn('status', ['active', 'accepted'])
-            ->whereNotNull('shopify_subscription_gid')
-            ->latest('id')
-            ->first();
+        $subscription = ShopSubscription::where('shop_id', $shop->id)->first();
 
         if (!$subscription) {
-            return back()->with(
-                'error',
-                'No active Shopify subscription found.'
-            );
+            return back()->with('error', 'Subscription not found.');
         }
 
-        try {
-            $billingService = app(ShopifyBillingService::class);
-
-            $result = $billingService->cancelSubscription(
-                $shop,
-                $subscription->shopify_subscription_gid
-            );
-
-            if (!$result) {
-                return back()->with(
-                    'error',
-                    'Shopify subscription cancellation failed.'
-                );
-            }
-
-            $subscription->update([
-                'status' => 'cancelled',
-                'price' => 0,
-                'trial_ends_at' => null,
-                'current_period_end' => null,
-                'cancelled_at' => now(),
-                'ended_at' => now(),
-            ]);
-
-            $template = MailTemplate::active()
-                ->where('slug', 'payment-cancelled')
-                ->first();
-
-            if ($template) {
-                app(EmailService::class)->sendDynamicEmail(
-                    $template,
-                    (object) [
-                        'name' => $shop->shop,
-                        'first_name' => explode('.', $shop->shop)[0],
-                        'email' => $shop->email,
-                    ]
-                );
-            } else {
-                Log::warning('Payment cancel template not found', [
-                    'shop_id' => $shop->id,
-                ]);
-            }
-
-            Log::info('Admin Shopify Subscription Cancelled', [
-                'shop_id' => $shop->id,
-                'subscription_id' => $subscription->id,
-                'shopify_subscription_gid' =>
-                $subscription->shopify_subscription_gid,
-            ]);
-
-            return back()->with(
-                'success',
-                'Subscription cancelled successfully.'
-            );
-        } catch (\Throwable $e) {
-
-            Log::error('Admin Shopify Subscription Cancellation Failed', [
-                'shop_id' => $shop->id,
-                'subscription_id' => $subscription->id,
-                'shopify_subscription_gid' =>
-                $subscription->shopify_subscription_gid,
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
-
-            return back()->with(
-                'error',
-                'Unable to cancel Shopify subscription.'
-            );
+        if ($subscription->status === 'cancelled') {
+            return back()->with('error', 'Subscription is already cancelled.');
         }
+
+        $subscription->update([
+            'status' => 'cancelled',
+            'price' => 0,
+            'trial_ends_at' => null,
+            'current_period_end' => null,
+            'cancelled_at' => now(),
+            'ended_at' => now(),
+        ]);
+
+        $template = MailTemplate::active()
+            ->where('slug', 'payment-cancelled')
+            ->first();
+
+        if ($template) {
+            app(EmailService::class)->sendDynamicEmail(
+                $template,
+                (object) [
+                    'name' => $shop->shop,
+                    'first_name' => explode('.', $shop->shop)[0],
+                    'email' => $shop->email,
+                ]
+            );
+        } else {
+            Log::warning('Payment cancel template not found', [
+                'shop_id' => $shop->id,
+            ]);
+        }
+
+        return back()->with('success', 'Subscription cancelled successfully.');
     }
 }

@@ -117,7 +117,7 @@
 
                     <div class="info-row">
                         <div class="info-label">Subject</div>
-                        <div class="info-value">{{ $contact->subject }}</div>
+                        <div class="info-value">@php echo $contact->subject; @endphp</div>
                     </div>
 
                     <div class="info-row">
@@ -191,7 +191,7 @@
             <div class="card-body">
 
                 <p class="mb-0 text-start lh-lg">
-                    {{ $contact->message }}
+                    @php echo $contact->message; @endphp
                 </p>
 
             </div>
