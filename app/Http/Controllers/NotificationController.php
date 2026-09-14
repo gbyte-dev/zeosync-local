@@ -16,7 +16,7 @@ class NotificationController extends Controller
 {
     public function index()
     {
-        NotificationSetting::where('is_read', 0)->update(['is_read' => 1]);
+        AdminNotification::where('is_read', 0)->update(['is_read' => 1]);
         $notifications = NotificationSetting::all();
         $totalNotifications = AdminNotification::count();
         $emailEnabled = $notifications->where('email_enabled', 1)->count();
