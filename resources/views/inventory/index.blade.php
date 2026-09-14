@@ -1618,7 +1618,7 @@
 
         function sendInventoryUpdate(retryCount = 0) {
             $.ajax({
-                url: "{{ route('inventory.shopify.update') }}",
+                url: `{{ route('inventory.shopify.update') }}?shop=${encodeURIComponent(shop)}`,
                 type: 'POST',
                 data: requestData,
 
