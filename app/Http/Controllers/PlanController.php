@@ -62,7 +62,8 @@ class PlanController extends Controller
             'trial_days' => 'nullable|integer',
             'sync_limit' => 'required|integer|min:0',
             'product_limit' => 'required|integer|min:0',
-            'image_limit' => 'required|integer|min:0',
+            // Image limit field temporarily disconnected from UI - kept nullable for future reactivation
+            'image_limit' => 'nullable|integer|min:0',
 
             //  IMPORTANT FIX
             'prices' => 'nullable|array',
@@ -76,6 +77,7 @@ class PlanController extends Controller
             'contact_button_text' => 'nullable|string|max:255',
         ]);
 
+        $data['image_limit'] = (int) ($data['image_limit'] ?? 0);
         $data['ai_autofill'] = $request->boolean('ai_autofill');
         $data['ai_single_field'] = $request->boolean('ai_single_field');
         $data['is_enterprise'] = $request->boolean('is_enterprise');
@@ -132,7 +134,8 @@ class PlanController extends Controller
             'trial_days' => 'nullable|integer',
             'sync_limit' => 'required|integer|min:0',
             'product_limit' => 'required|integer|min:0',
-            'image_limit' => 'required|integer|min:0',
+            // Image limit field temporarily disconnected from UI - kept nullable for future reactivation
+            'image_limit' => 'nullable|integer|min:0',
             'prices' => 'nullable|array',
             'prices.*' => 'nullable|numeric',
             'stripe_price_ids' => 'nullable|array',
@@ -143,6 +146,7 @@ class PlanController extends Controller
             'contact_button_text' => 'nullable|string|max:255',
         ]);
 
+        $data['image_limit'] = isset($data['image_limit']) ? (int) $data['image_limit'] : (int) ($plan->image_limit ?? 0);
         $data['ai_autofill'] = $request->boolean('ai_autofill');
         $data['ai_single_field'] = $request->boolean('ai_single_field');
         $data['is_enterprise'] = $request->boolean('is_enterprise');
