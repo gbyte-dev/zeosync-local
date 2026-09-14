@@ -53,7 +53,7 @@
                             <td class="fw-semibold text-muted">#{{ $i++ }}</td>
                             <td>{{ $contact->name }}</td>
                             <td>{{ $contact->email }}</td>
-                            <td>@php  echo $contact->subject; @endphp</td>
+                            <td>{{ $contact->subject }}</td>
                             <td>{{ $contact->created_at->format('M d, Y H:i') }}</td>
                             <td>
                                 <span class="badge rounded-pill {{ $contact->is_read ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary border border-secondary-subtle' }}">
