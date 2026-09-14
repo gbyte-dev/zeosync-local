@@ -476,7 +476,9 @@ class AmazonService
                             $submissionId,
                             now()->toDateTimeString(),
                             1
-                        )->delay(now()->addSeconds(25));
+                        )->onConnection('database')
+                         ->onQueue('default')
+                         ->delay(now()->addSeconds(25));
                     }
 
                     return $responseBody;
