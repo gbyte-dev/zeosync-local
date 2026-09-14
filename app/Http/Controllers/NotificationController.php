@@ -16,12 +16,11 @@ class NotificationController extends Controller
 {
     public function index()
     {
+        NotificationSetting::where('is_read', 0)->update(['is_read' => 1]);
         $notifications = NotificationSetting::all();
         $totalNotifications = AdminNotification::count();
         $emailEnabled = $notifications->where('email_enabled', 1)->count();
-        $adminNotifications = AdminNotification::latest()
-            ->take(3)
-            ->get();
+        $adminNotifications = AdminNotification::latest()->take(3)->get();
 
         $inAppEnabled = $notifications->where('in_app_enabled', 1)->count();
         $latestNotifications = AdminNotification::latest()->paginate(10);
