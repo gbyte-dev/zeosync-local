@@ -67,7 +67,7 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 8px 14px;
+            padding: 8px 8px;
             color: #cbd5e1;
             text-decoration: none;
             border-radius: 12px;
