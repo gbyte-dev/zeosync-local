@@ -47,9 +47,10 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @php $i = 1;  @endphp
                         @forelse($contacts as $contact)
                         <tr>
-                            <td class="fw-semibold text-muted">#{{ $contact->id }}</td>
+                            <td class="fw-semibold text-muted">#{{ $i++ }}</td>
                             <td>{{ $contact->name }}</td>
                             <td>{{ $contact->email }}</td>
                             <td>{{ $contact->subject }}</td>
