@@ -1227,7 +1227,7 @@
                             if (type === 'sort' || type === 'filter') return (row.available !== null && row.available !== undefined) ? row.available : -999999;
                             const availableVal = (row.available !== null && row.available !== undefined) ? row.available : '';
                             const availablePlaceholder = (row.available === null || row.available === undefined) ? 'Unknown' : '';
-                            return `<input type="number" value="${availableVal}" placeholder="${availablePlaceholder}" class="form-control form-control-sm qty-input" min="0">`;
+                            return `<input type="number" value="${availableVal}" data-original="${availableVal}" placeholder="${availablePlaceholder}" class="form-control form-control-sm qty-input" min="0">`;
                         }
                     },
                     {
@@ -1242,13 +1242,14 @@
                         orderable: false,
                         className: 'text-end',
                         render: function(data, type, row) {
+                            const availableVal = (row.available !== null && row.available !== undefined) ? row.available : '';
                             let mapBtn = row.is_mapped ?
                                 `<button class="btn btn-danger btn-sm unmap-product" data-mapping-id="${row.mapping_id}" title="Unmap Product" data-bs-toggle="tooltip" data-bs-placement="top"><i class="bi bi-link"></i></button>` :
                                 `<button class="btn btn-primary btn-sm map-amazon-product btn-icon-only" data-product="${row.pid}" data-variant="${row.vid}" data-inventory-item="${row.inventory_item_id}" title="Map Product" data-bs-toggle="tooltip" data-bs-placement="top"><i class="bi bi-link-45deg"></i></button>`;
 
                             return `
                             <div class="d-flex align-items-center justify-content-end gap-1">
-                                <button class="btn btn-success btn-sm update-shopify-inventory" data-product="${row.pid}" data-variant="${row.vid}" data-inventory-item="${row.inventory_item_id}" title="Update Stock" data-bs-toggle="tooltip" data-bs-placement="top">Update</button>
+                                <button class="btn btn-success btn-sm update-shopify-inventory" data-baseline="${availableVal}" data-product="${row.pid}" data-variant="${row.vid}" data-inventory-item="${row.inventory_item_id}" title="Update Stock" data-bs-toggle="tooltip" data-bs-placement="top">Update</button>
                                 ${mapBtn}
                             </div>`;
                         }
@@ -1609,10 +1610,13 @@
         button.prop('disabled', true).text('Updating...');
         qtyInput.prop('disabled', true);
 
+        const baseline = button.attr('data-baseline') || qtyInput.attr('data-original') || '';
+
         const requestData = {
             shop: shop,
             inventory_item_id: inventoryItemId,
             quantity: quantity,
+            baseline_quantity: baseline !== '' ? baseline : null,
             _token: $('meta[name="csrf-token"]').attr('content')
         };
 

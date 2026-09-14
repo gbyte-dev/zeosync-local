@@ -538,8 +538,45 @@ class InventoryMappingController extends Controller
             $baselineQuantity = null;
             if ($request->has('baseline_quantity') && $request->baseline_quantity !== null && $request->baseline_quantity !== '') {
                 $baselineQuantity = (int) $request->baseline_quantity;
-            } elseif ($mapping && $mapping->quantity !== null && $mapping->quantity !== '') {
-                $baselineQuantity = (int) $mapping->quantity;
+            } else {
+                // Fetch fresh authoritative Shopify baseline when not provided by the caller
+                try {
+                    $shopifyService = new ShopifyService($shop->shop, $shop->access_token);
+                    $levelsResponse = $shopifyService->shopifyRest(
+                        $shop,
+                        'get',
+                        'inventory_levels.json',
+                        [
+                            'inventory_item_ids' => (string) $request->inventory_item_id,
+                            'location_ids'       => (string) $locationId,
+                        ]
+                    );
+
+                    $levels = $levelsResponse['inventory_levels'] ?? [];
+                    $liveLevel = null;
+                    foreach ($levels as $lvl) {
+                        if ((string) ($lvl['location_id'] ?? '') === (string) $locationId) {
+                            $liveLevel = $lvl;
+                            break;
+                        }
+                    }
+                    if (!$liveLevel && !empty($levels)) {
+                        $liveLevel = $levels[0];
+                    }
+
+                    if (isset($liveLevel['available']) && $liveLevel['available'] !== null) {
+                        $baselineQuantity = (int) $liveLevel['available'];
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Shopify inventory update: Failed to fetch live baseline', [
+                        'shop_id' => $shop->id,
+                        'error'   => $e->getMessage(),
+                    ]);
+                }
+
+                if ($baselineQuantity === null && $mapping && $mapping->quantity !== null && $mapping->quantity !== '') {
+                    $baselineQuantity = (int) $mapping->quantity;
+                }
             }
 
             Log::info('Shopify inventory update: 6. InventorySyncOperation database record creation started', [
@@ -563,6 +600,7 @@ class InventoryMappingController extends Controller
 
                 return InventorySyncOperation::create([
                     'operation_uuid'             => (string) Str::uuid(),
+                    'source_key'                 => 'manual:' . Str::uuid(),
                     'shop_id'                    => $shop->id,
                     'mapping_id'                 => $mapping?->id,
                     'shopify_inventory_item_id'  => (string) $request->inventory_item_id,
@@ -576,7 +614,6 @@ class InventoryMappingController extends Controller
                     'stage'                      => 'pending',
                     'attempts'                   => 0,
                     'max_attempts'               => 4,
-                    'created_by'                 => auth()->id(),
                     'last_dispatched_at'         => now(),
                 ]);
             });

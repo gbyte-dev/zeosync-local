@@ -468,17 +468,42 @@ class AmazonService
                             );
                         }
 
-                        // Schedule delayed verification (delay ~25 seconds for Amazon propagation)
-                        VerifyAmazonInventoryQuantityJob::dispatch(
-                            $shop->id,
-                            $sku,
-                            $quantity,
-                            $submissionId,
-                            now()->toDateTimeString(),
-                            1
-                        )->onConnection('database')
-                         ->onQueue('default')
-                         ->delay(now()->addSeconds(25));
+                        Log::info('Amazon verification dispatch: BEFORE', [
+                            'shop_id'       => $shop->id ?? null,
+                            'sku'           => $sku ?? null,
+                            'quantity'      => $quantity ?? null,
+                            'submission_id' => $submissionId ?? null,
+                            'queue_default' => config('queue.default'),
+                            'db_driver'     => config('queue.connections.database.driver'),
+                            'db_table'      => config('queue.connections.database.table'),
+                            'db_name'       => \Illuminate\Support\Facades\DB::connection()->getDatabaseName(),
+                        ]);
+
+                        try {
+                            $job = VerifyAmazonInventoryQuantityJob::dispatch(
+                                $shop->id,
+                                $sku,
+                                $quantity,
+                                $submissionId,
+                                now()->toDateTimeString(),
+                                1
+                            )->onConnection('database')
+                             ->onQueue('default')
+                             ->delay(now()->addSeconds(25));
+
+                            Log::info('Amazon verification dispatch: AFTER', [
+                                'dispatch_result_type' => get_debug_type($job),
+                            ]);
+                        } catch (\Throwable $e) {
+                            Log::error('Amazon verification dispatch failed', [
+                                'message'   => $e->getMessage(),
+                                'exception' => get_class($e),
+                                'file'      => $e->getFile(),
+                                'line'      => $e->getLine(),
+                                'trace'     => $e->getTraceAsString(),
+                            ]);
+                            throw $e;
+                        }
                     }
 
                     return $responseBody;

@@ -235,6 +235,16 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                             return;
                         }
 
+                        Log::warning('Inventory baseline comparison', [
+                            'operation_id'        => $operation->id ?? null,
+                            'shop_id'             => $operation->shop_id ?? null,
+                            'sku'                 => $operation->sku ?? null,
+                            'baseline_quantity'   => $operation->baseline_quantity ?? null,
+                            'baseline_type'       => get_debug_type($operation->baseline_quantity ?? null),
+                            'live_available'      => $liveAvailable ?? null,
+                            'live_available_type' => get_debug_type($liveAvailable ?? null),
+                        ]);
+
                         if ($liveAvailable !== (int) $operation->baseline_quantity) {
                             $operation->update([
                                 'status'     => 'stale_external_state',
