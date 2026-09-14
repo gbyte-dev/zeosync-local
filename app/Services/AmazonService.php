@@ -294,12 +294,12 @@ class AmazonService
         string $sku,
         int $quantity,
         bool $syncToShopify = true,
-        ?int $shopifyMappingQuantity = null
+        ?int $shopifyMappingQuantity = null,
+        bool $acquireLock = true
     ) {
         $lockKey = "inventory_sku_lock_{$shop->id}_{$sku}";
-        $lock = Cache::lock($lockKey, 15);
 
-        return $lock->block(10, function () use ($shop, $sku, $quantity, $syncToShopify, $shopifyMappingQuantity) {
+        $execute = function () use ($shop, $sku, $quantity, $syncToShopify, $shopifyMappingQuantity) {
             $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
                 ->where('amazon_sku', $sku)
                 ->first();
@@ -510,7 +510,57 @@ class AmazonService
 
                 throw $e;
             }
-        });
+        };
+
+        if (!$acquireLock) {
+            Log::info('AmazonService: Lock skipped; caller already owns lock', [
+                'lock_key' => $lockKey,
+                'shop_id'  => $shop->id,
+                'sku'      => $sku,
+                'reason'   => 'caller_already_holds_lock',
+            ]);
+
+            return $execute();
+        }
+
+        $lock = Cache::lock($lockKey, 15);
+
+        Log::info('AmazonService: Lock acquire start', [
+            'lock_key'              => $lockKey,
+            'shop_id'               => $shop->id,
+            'sku'                   => $sku,
+            'lock_ttl_seconds'      => 15,
+            'block_timeout_seconds' => 10,
+        ]);
+
+        try {
+            return $lock->block(10, function () use ($execute, $lockKey, $shop, $sku) {
+                Log::info('AmazonService: Lock acquire success', [
+                    'lock_key' => $lockKey,
+                    'shop_id'  => $shop->id,
+                    'sku'      => $sku,
+                ]);
+
+                try {
+                    return $execute();
+                } finally {
+                    Log::info('AmazonService: Lock release', [
+                        'lock_key' => $lockKey,
+                        'shop_id'  => $shop->id,
+                        'sku'      => $sku,
+                    ]);
+                }
+            });
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
+            Log::error('AmazonService: Lock acquire failed (LockTimeoutException)', [
+                'lock_key'              => $lockKey,
+                'shop_id'               => $shop->id,
+                'sku'                   => $sku,
+                'block_timeout_seconds' => 10,
+                'error'                 => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     private function getFinalCategorySlug($product)
