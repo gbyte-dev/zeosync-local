@@ -29,7 +29,7 @@
 
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(6, 1fr);
         gap: 18px;
         margin-bottom: 24px;
     }
@@ -125,6 +125,12 @@
         color: #6b7280;
     }
 
+    @media(max-width: 1200px) {
+        .stats-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
     @media(max-width: 992px) {
         .stats-grid {
             grid-template-columns: repeat(2, 1fr);
@@ -191,35 +197,50 @@
                 </div>
             </div>
         </div>
+        <div class="stat-card">
+            <div class="stat-icon bg-success bg-opacity-10 text-success">💰</div>
+            <div>
+                <div class="stat-label">Total Revenue</div>
+                <div class="stat-value">${{ number_format($totalRevenue ?? 0, 2) }}</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon bg-secondary bg-opacity-10 text-secondary">📊</div>
+            <div>
+                <div class="stat-label">Avg Order Value</div>
+                <div class="stat-value">${{ number_format($averageOrderValue ?? 0, 2) }}</div>
+            </div>
+        </div>
     </div>
     {{-- Details --}}
-    <div class="content-grid">
+    <div class="row g-4">
+        <div class="col-xl-4 col-lg-6">
         {{-- Shop Info --}}
-        <div class="pro-card">
-            <div class="pro-card-header row">
+        <div class="card mb-4 shadow-sm border-0 rounded-4">
+            <div class="card-header border-0 bg-white px-4 py-3">
                 <h5 class="col-md-8"> Shop Information</h5>
                 <button type="submit" class="btn btn-primary btn-sm col-md-4" onclick="document.getElementById('saveChangesBtn').click()">Save Changes</button>
             </div>
-            <div class="info-row">
+            <div class="row g-2 py-3 align-items-center border-bottom border-light">
                 <div class="info-label">Shop URL</div>
-                <div class="info-value">{{ $shop->shop }}</div>
+                <div class="col-md-7 col-sm-6 text-end">{{ $shop->shop }}</div>
             </div>
-            <div class="">
+            <div>
                 <form action="{{ route('admin.shops.update', $shop->id) }}" method="POST">
                     @csrf
                     <div class="row">
                         <div class="col-md-12">
-                            <div class="info-row">
+                            <div class="row g-2 py-3 align-items-center border-bottom border-light">
                                 <div class="info-label"><label for="shop_name" class="form-label">Shop Name</label></div>
-                                <div class="info-value">
+                                <div class="col-md-7 col-sm-6 text-end">
                                     <input type="text" class="form-control" id="shop_name" name="shop_name" value="{{ old('shop_name', $shop->shop_name) }}" required>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-12">
-                            <div class="info-row">
+                            <div class="row g-2 py-3 align-items-center border-bottom border-light">
                                 <div class="info-label"><label for="email" class="form-label">Email Address</label></div>
-                                <div class="info-value">
+                                <div class="col-md-7 col-sm-6 text-end">
                                     <input type="email" class="form-control" id="email" name="email" value="{{ old('email', $shop->email) }}" required>
                                 </div>
                             </div>
@@ -230,9 +251,19 @@
                     </div>
                 </form>
             </div>
-            <div class="info-row">
-                <div class="info-label">Status</div>
-                <div class="info-value">
+            <div class="row g-2 py-3 align-items-center border-bottom border-light">
+                <div class="info-label">Store Status</div>
+                <div class="col-md-7 col-sm-6 text-end">
+                    @if($shop->store_status)
+                    <span class="badge bg-warning text-dark">{{ ucfirst($shop->store_status) }}</span>
+                    @else
+                    <span class="text-muted">Not checked</span>
+                    @endif
+                </div>
+            </div>
+            <div class="row g-2 py-3 align-items-center border-bottom border-light">
+                <div class="info-label">Shop Status</div>
+                <div class="col-md-7 col-sm-6 text-end">
                     @if($shop->is_active)
                     <span class="badge bg-success">Active</span>
                     @else
@@ -240,15 +271,37 @@
                     @endif
                 </div>
             </div>
-            <div class="info-row">
-                <div class="info-label">Amazon Seller ID</div>
-                <div class="info-value">{{ $shop->amazon_seller_id ?? '—' }}</div>
+            <div class="row g-2 py-3 align-items-center border-bottom border-light">
+                <div class="info-label">Installed At</div>
+                <div class="col-md-7 col-sm-6 text-end">
+                    {{ optional($shop->installed_at)->format('M d, Y g:i A') ?? '—' }}
+                </div>
+            </div>
+            <div class="row g-2 py-3 align-items-center border-bottom border-light">
+                <div class="info-label">Last Status Check</div>
+                <div class="col-md-7 col-sm-6 text-end">
+                    @if($shop->last_status_check_at)
+                        {{ $shop->last_status_check_at->format('M d, Y g:i A') }}
+                        @if($shop->needsStatusCheck())
+                            <span class="badge bg-warning ms-2" title="Status check needed">⚠ Needs Check</span>
+                        @endif
+                    @else
+                        <span class="text-muted">Never</span>
+                    @endif
+                </div>
+            </div>
+            <div class="row g-2 py-3 align-items-center border-bottom border-light">
+                <div class="info-label">Domain</div>
+                <div class="col-md-7 col-sm-6 text-end">{{ $shop->domain ?? '—' }}</div>
             </div>
         </div>
+        </div>
+        </div>
         {{-- Subscription --}}
-        <div class="pro-card">
-            <div class="pro-card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"> Subscription Details</h5>
+        <div class="col-xl-4 col-lg-6">
+        <div class="card mb-4 shadow-sm border-0 rounded-4">
+            <div class="card-header border-0 bg-white px-4 py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Subscription Details</h5>
                 <div class="d-flex align-items-center gap-2 flex-nowrap">
 
                     <!-- @if(!$customPlan)
@@ -288,44 +341,44 @@
                 </div>
             </div>
             @if($shop->subscription)
-            <div class="info-row">
+            <div class="row g-2 py-3 align-items-center border-bottom border-light">
                 <div class="info-label">Plan ID</div>
-                <div class="info-value">{{ $shop->subscription->plan_id?getPlanName($shop->subscription->plan_id) : 'N/A' }}</div>
+                <div class="col-md-7 col-sm-6 text-end">{{ $shop->subscription->plan_id?getPlanName($shop->subscription->plan_id) : 'N/A' }}</div>
             </div>
-            <div class="info-row">
+            <div class="row g-2 py-3 align-items-center border-bottom border-light">
                 <div class="info-label">Status</div>
-                <div class="info-value">
+                <div class="col-md-7 col-sm-6 text-end">
                     <span class="badge bg-primary">
                         {{ ucfirst($shop->subscription->status) }}
                     </span>
                 </div>
             </div>
-            <div class="info-row">
+            <div class="row g-2 py-3 align-items-center border-bottom border-light">
                 <div class="info-label">Price</div>
-                <div class="info-value">
+                <div class="col-md-7 col-sm-6 text-end">
                     ${{ number_format($shop->subscription->price, 2) }}
                 </div>
             </div>
-            <div class="info-row">
+            <div class="row g-2 py-3 align-items-center border-bottom border-light">
                 <div class="info-label">Billing Cycle</div>
-                <div class="info-value">
+                <div class="col-md-7 col-sm-6 text-end">
                     {{ $shop->subscription->billing_cycle_months }} months
                 </div>
             </div>
-            <div class="info-row">
+            <div class="row g-2 py-3 align-items-center border-bottom border-light">
                 <div class="info-label">Started At</div>
-                <div class="info-value">
+                <div class="col-md-7 col-sm-6 text-end">
                     {{ optional($shop->subscription->started_at)->format('M d, Y') }}
                 </div>
             </div>
-            <div class="info-row">
+            <div class="row g-2 py-3 align-items-center border-bottom border-light">
                 <div class="info-label">Ends At</div>
-                <div class="info-value">
+                <div class="col-md-7 col-sm-6 text-end">
                     {{ optional($shop->subscription->ended_at)->format('M d, Y') }}
                 </div>
             </div>
             @else
-            <div class="empty-box">
+            <div class="text-center py-4 text-muted">
                 No active subscription found for this shop.
             </div>
             @endif
@@ -333,12 +386,12 @@
     </div>
     {{-- System Info --}}
     <!-- <div class="pro-card mt-4">
-        <div class="pro-card-header">
+        <div class="card-header border-0 bg-white px-4 py-3">
             <h5>🔐 System Information</h5>
         </div>
-        <div class="info-row">
+        <div class="row g-2 py-3 align-items-center border-bottom border-light">
             <div class="info-label">Shop ID</div>
-            <div class="info-value">#{{ $shop->id }}</div>
+            <div class="col-md-7 col-sm-6 text-end">#{{ $shop->id }}</div>
         </div>
     </div> -->
     <!-- @if($customPlan)
