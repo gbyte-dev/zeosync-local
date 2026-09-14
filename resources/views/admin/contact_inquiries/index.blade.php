@@ -8,7 +8,7 @@
         <div class="card-header bg-white border-0 py-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h4 class="mb-1 fw-bold">Contact Requests</h4>
+                    <h5 class="mb-1 fw-bold">Contact Requests</h5>
                     <p class="mb-0 text-muted small">Manage all customer enquiries and support requests</p>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -43,13 +43,14 @@
                             <th>Subject</th>
                             <th>Submitted</th>
                             <th>Status</th>
-                            <th class="text-end">Actions</th>
+                            <th class="text-end" style="width:230px">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
+                        @php $i = 1;  @endphp
                         @forelse($contacts as $contact)
                         <tr>
-                            <td class="fw-semibold text-muted">#{{ $contact->id }}</td>
+                            <td class="fw-semibold text-muted">#{{ $i++ }}</td>
                             <td>{{ $contact->name }}</td>
                             <td>{{ $contact->email }}</td>
                             <td>{{ $contact->subject }}</td>

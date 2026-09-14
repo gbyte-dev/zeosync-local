@@ -51,6 +51,8 @@ Thumbs.db
 .github/workflows/redis-lock-test.yml
 app/Console/Commands/RedisLockWorker.php
 tests/Feature/RedisLockMultiprocessTest.php
+/resources/views/admin/shops/view.blade.php.bak
+/resources/views/admin/shops/view.blade.php.bak2
 
 
 

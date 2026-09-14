@@ -3067,19 +3067,59 @@ class ShopifyController extends Controller
 
     public function show($id)
     {
-	$shop = Shop::with('subscription.plan')->findOrFail($id);
+	   $shop = Shop::with('subscription.plan')->findOrFail($id);
+
         $customPlan = Plan::where('shop_id', $shop->id)->first();
 
         $productCount = $shop->products()->count();
         $logCount = ProductSyncLog::where('shop_id', $shop->id)->count();
         $orderCount = $shop->orders()->count();
 
+        // Revenue stats
+        $totalRevenue = $shop->orders()->where('financial_status', '!=', 'refunded')
+            ->sum('total_price');
+        $averageOrderValue = $orderCount > 0
+            ? $totalRevenue / $orderCount
+            : 0;
+
+        // Orders by status
+        $ordersByStatus = ShopifyOrder::where('shop_id', $shop->id)
+            ->selectRaw('financial_status, COUNT(*) as count')
+            ->groupBy('financial_status')
+            ->pluck('count', 'financial_status')
+            ->toArray();
+
+        // Recent orders
+        $recentOrders = ShopifyOrder::where('shop_id', $shop->id)
+            ->orderBy('order_created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        // Sync operation status breakdown
+        $syncStatusCounts = \App\Models\InventorySyncOperation::where('shop_id', $shop->id)
+            ->selectRaw('status, COUNT(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        // Recent sync logs
+        $recentSyncLogs = ProductSyncLog::where('shop_id', $shop->id)
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
         return view('admin.shops.view', compact(
             'shop',
             'customPlan',
             'productCount',
             'logCount',
-            'orderCount'
+            'orderCount',
+            'totalRevenue',
+            'averageOrderValue',
+            'ordersByStatus',
+            'recentOrders',
+            'syncStatusCounts',
+            'recentSyncLogs'
         ));
     }
     public function getSellerIdFull()

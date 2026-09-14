@@ -155,6 +155,8 @@ class ContactController extends Controller
 
     public function adminIndex(Request $request)
     {
+         ContactInquiry::query()->where('is_read', false)->update(['is_read' => true]);
+
         $query = ContactInquiry::query();
 
         if ($request->filled('enquiry_type')) {
