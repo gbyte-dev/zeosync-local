@@ -361,12 +361,7 @@
     }
 </style>
 
-@if(!checkAmazonConnected())
-<div class="alert alert-warning">
-    Please connect your Amazon account first.
-    <a href="{{ route('amazon.connect') }}">Connect Amazon</a>
-</div>
-@else
+
 <div class="sp-page">
 
     <!-- Header Section -->
@@ -392,195 +387,201 @@
             </div>
         </div>
     </div>
-
-    <!-- Stat Pills (Reference Image Style) -->
-    <div class="sp-stat-grid">
-        <div class="sp-stat-pill">
-            <span class="sp-stat-label">Total Products</span>
-            <span class="sp-stat-value val-default">{{ $products->count() }}</span>
+    @if(!checkAmazonConnected())
+        <div class="alert alert-warning">
+            Please connect your Amazon account first.
+            <a href="{{ route('amazon.connect') }}">Connect Amazon</a>
         </div>
-        <div class="sp-stat-pill">
-            <span class="sp-stat-label">Active</span>
-            <span class="sp-stat-value val-success">{{ collect($products)->where('status', 'active')->count() }}</span>
+    @else
+        <!-- Stat Pills (Reference Image Style) -->
+        <div class="sp-stat-grid">
+            <div class="sp-stat-pill">
+                <span class="sp-stat-label">Total Products</span>
+                <span class="sp-stat-value val-default">{{ $products->count() }}</span>
+            </div>
+            <div class="sp-stat-pill">
+                <span class="sp-stat-label">Active</span>
+                <span class="sp-stat-value val-success">{{ collect($products)->where('status', 'active')->count() }}</span>
+            </div>
+            <div class="sp-stat-pill">
+                <span class="sp-stat-label">Draft</span>
+                <span class="sp-stat-value val-warning">{{ collect($products)->where('status', 'draft')->count() }}</span>
+            </div>
+            <div class="sp-stat-pill" style="display: flex; align-items: center;">
+                @if(!$parent_productid)
+                <span class="sp-stat-label">Out of Stock</span>
+                <span class="sp-stat-value val-danger"></span>
+                @else
+                <a href="{{route('user.product.showProducts')}}" class="sp-btn sp-btn-sm sp-btn-secondary" style="margin-left: auto; width: 100%;">Back</a>
+                @endif
+            </div>
         </div>
-        <div class="sp-stat-pill">
-            <span class="sp-stat-label">Draft</span>
-            <span class="sp-stat-value val-warning">{{ collect($products)->where('status', 'draft')->count() }}</span>
-        </div>
-        <div class="sp-stat-pill" style="display: flex; align-items: center;">
-            @if(!$parent_productid)
-            <span class="sp-stat-label">Out of Stock</span>
-            <span class="sp-stat-value val-danger"></span>
-            @else
-            <a href="{{route('user.product.showProducts')}}" class="sp-btn sp-btn-sm sp-btn-secondary" style="margin-left: auto; width: 100%;">Back</a>
-            @endif
-        </div>
-    </div>
 
-    <!-- Table Section -->
-    <div class="sp-table-wrapper">
-        <div class="table-responsive">
-            <table class="sp-table table" id="productsTable" style="width: 100%;">
-                <thead>
-                    <tr>
-                        <th style="width: 40px;">Image</th>
-                        <th>Title</th>
-                        <th>Status</th>
-                        <th>Inventory</th>
-                        <th>Category</th>
-                        <th style="">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="productsTableBody">
-                    <!-- CHANGED: Swapped forelse to foreach to prevent colspan error in DataTables -->
-                    @foreach($products as $product)
-                    @php
-                    if(isset($product->filled_json)){
-                    $proddata = json_decode($product->filled_json, true);
-                    $item_name = $proddata['item_name'] ?? '';
-                    $main_product_image = $proddata['main_product_image_locator'] ?? '';
-                    $schema_id = $product->schema_id ?? '';
-                    $quantity = $proddata['number_of_items'] ?? 0;
-                    $category = $product->schema->product_type ?? 'Uncategorized';
-                    $status = $product['status'] ?? 'draft';
-                    $manufacturer = $proddata['manufacturer'] ?? '';
-                    $price = $proddata['price'] ?? 0;
-                    $parentage_level = $proddata['parentage_level']??'';
-                    }
-                    elseif(isset($product->attributes)){
-                    $item_name = optional($product->attributes->firstWhere('attribute_name', 'item_name'))->attribute_value;
-                    $main_product_image = optional($product->attributes->firstWhere('attribute_name', 'main_product_image_locator'))->attribute_value;
-                    $schema_id = $product->schema_id ?? '';
-                    $quantity = optional($product->attributes->firstWhere('attribute_name', 'number_of_items'))->attribute_value ?? 0;
-                    $category = $product->schema->product_type ?? 'Uncategorized';
-                    $status = $product['status'] ?? 'draft';
-                    $manufacturer = optional($product->attributes->firstWhere('attribute_name', 'manufacturer'))->attribute_value ?? '';
-                    $price = optional($product->attributes->firstWhere('attribute_name', 'price'))->attribute_value ?? 0;
-                    $parentage_level = optional($product->attributes->firstWhere('attribute_name', 'parentage_level'))->attribute_value ?? '';
+        <!-- Table Section -->
+        <div class="sp-table-wrapper">
+            <div class="table-responsive">
+                <table class="sp-table table" id="productsTable" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">Image</th>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Inventory</th>
+                            <th>Category</th>
+                            <th style="">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                        <!-- CHANGED: Swapped forelse to foreach to prevent colspan error in DataTables -->
+                        @foreach($products as $product)
+                        @php
+                        if(isset($product->filled_json)){
+                        $proddata = json_decode($product->filled_json, true);
+                        $item_name = $proddata['item_name'] ?? '';
+                        $main_product_image = $proddata['main_product_image_locator'] ?? '';
+                        $schema_id = $product->schema_id ?? '';
+                        $quantity = $proddata['number_of_items'] ?? 0;
+                        $category = $product->schema->product_type ?? 'Uncategorized';
+                        $status = $product['status'] ?? 'draft';
+                        $manufacturer = $proddata['manufacturer'] ?? '';
+                        $price = $proddata['price'] ?? 0;
+                        $parentage_level = $proddata['parentage_level']??'';
+                        }
+                        elseif(isset($product->attributes)){
+                        $item_name = optional($product->attributes->firstWhere('attribute_name', 'item_name'))->attribute_value;
+                        $main_product_image = optional($product->attributes->firstWhere('attribute_name', 'main_product_image_locator'))->attribute_value;
+                        $schema_id = $product->schema_id ?? '';
+                        $quantity = optional($product->attributes->firstWhere('attribute_name', 'number_of_items'))->attribute_value ?? 0;
+                        $category = $product->schema->product_type ?? 'Uncategorized';
+                        $status = $product['status'] ?? 'draft';
+                        $manufacturer = optional($product->attributes->firstWhere('attribute_name', 'manufacturer'))->attribute_value ?? '';
+                        $price = optional($product->attributes->firstWhere('attribute_name', 'price'))->attribute_value ?? 0;
+                        $parentage_level = optional($product->attributes->firstWhere('attribute_name', 'parentage_level'))->attribute_value ?? '';
 
-                    }
+                        }
 
-                    $rawCategory = $category ?? 'Uncategorized';
-                    $displayCategory = mb_strlen($rawCategory) > 15 ? mb_substr($rawCategory, 0, 15) . '...' : $rawCategory;
+                        $rawCategory = $category ?? 'Uncategorized';
+                        $displayCategory = mb_strlen($rawCategory) > 15 ? mb_substr($rawCategory, 0, 15) . '...' : $rawCategory;
 
-                    $rawItemName = $item_name ?? 'N/A';
-                    $displayItemName = mb_strlen($rawItemName) > 25 ? mb_substr($rawItemName, 0, 25) . '...' : $rawItemName;
-                    @endphp
-                    <tr data-product-id="{{ $product['id'] }}">
-                        <td>
-                            <img
-                                src="{{ $main_product_image ?: asset('b6.png') }}"
-                                alt="{{ $item_name ?? '' }}"
-                                class="sp-product-img"
-                                onerror="this.onerror=null; this.src='{{ asset('b6.png') }}';">
-                        </td>
-                        <td>
-                            <span class="sp-fw-600" title="{{ $rawItemName }}">{{ $displayItemName }}</span>
-                            <span class="sp-text-muted sp-text-truncate" title="{{ $product->sku??'N/A' }}">SKU: {{ $product->sku??'N/A' }}</span>
-                        </td>
-                        <td>
-                            <div class="d-flex align-items-center gap-1">
-                                <span class="sp-badge sp-badge-{{ $status === 'active' ? 'success' : 'secondary' }}">
-                                    {{ ucfirst($status) }}
-                                </span>
-                                @if(!in_array(strtolower($status), ['draft', 'active']))
-                                <span class="sp-badge sp-badge-secondary" title="Please check this product on Amazon Seller Dashboard, may be some issue on this product" style="cursor:help; padding:0 4px;">
-                                    <i class="bi bi-info-circle" style="font-size:10px;"></i>
-                                </span>
-                                @endif
-                            </div>
-                        </td>
-                        <td>
-                            <div class="sp-fw-600 {{ $quantity > 0 ? 'text-success' : 'text-danger' }}">{{ $quantity }}</div>
-                            <div class="sp-text-muted">units</div>
-                        </td>
-                        <td style="color: #4B5563;">
-                            <span title="{{ $rawCategory }}">{{ $displayCategory }}</span>
-                        </td>
-                        <td>
-                            <div class="sp-actions" style="gap: 4px;">
-                                @if( strtolower($status) != 'draft')
-                                @if($product->parent_id == null)
+                        $rawItemName = $item_name ?? 'N/A';
+                        $displayItemName = mb_strlen($rawItemName) > 25 ? mb_substr($rawItemName, 0, 25) . '...' : $rawItemName;
+                        @endphp
+                        <tr data-product-id="{{ $product['id'] }}">
+                            <td>
+                                <img
+                                    src="{{ $main_product_image ?: asset('b6.png') }}"
+                                    alt="{{ $item_name ?? '' }}"
+                                    class="sp-product-img"
+                                    onerror="this.onerror=null; this.src='{{ asset('b6.png') }}';">
+                            </td>
+                            <td>
+                                <span class="sp-fw-600" title="{{ $rawItemName }}">{{ $displayItemName }}</span>
+                                <span class="sp-text-muted sp-text-truncate" title="{{ $product->sku??'N/A' }}">SKU: {{ $product->sku??'N/A' }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="sp-badge sp-badge-{{ $status === 'active' ? 'success' : 'secondary' }}">
+                                        {{ ucfirst($status) }}
+                                    </span>
+                                    @if(!in_array(strtolower($status), ['draft', 'active']))
+                                    <span class="sp-badge sp-badge-secondary" title="Please check this product on Amazon Seller Dashboard, may be some issue on this product" style="cursor:help; padding:0 4px;">
+                                        <i class="bi bi-info-circle" style="font-size:10px;"></i>
+                                    </span>
+                                    @endif
+                                </div>
+                            </td>
+                            <td>
+                                <div class="sp-fw-600 {{ $quantity > 0 ? 'text-success' : 'text-danger' }}">{{ $quantity }}</div>
+                                <div class="sp-text-muted">units</div>
+                            </td>
+                            <td style="color: #4B5563;">
+                                <span title="{{ $rawCategory }}">{{ $displayCategory }}</span>
+                            </td>
+                            <td>
+                                <div class="sp-actions" style="gap: 4px;">
+                                    @if( strtolower($status) != 'draft')
+                                    @if($product->parent_id == null)
 
-                                @if(!checkIsProductSynced($product->sku,'amazon'))
-                                @if($parentage_level)
-                                <a href="{{ route('admin.product.product.child', ['product' => $product->id, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Add Variation">
-                                    <i class="bi bi-plus-lg"></i>
-                                    <span class="d-none d-md-inline">Add Variation</span>
-                                </a>
-                                @endif
-                                @endif
+                                    @if(!checkIsProductSynced($product->sku,'amazon'))
+                                    @if($parentage_level)
+                                    <a href="{{ route('admin.product.product.child', ['product' => $product->id, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Add Variation">
+                                        <i class="bi bi-plus-lg"></i>
+                                        <span class="d-none d-md-inline">Add Variation</span>
+                                    </a>
+                                    @endif
+                                    @endif
 
-                                <!-- <a href="{{ route('user.product.showProducts.child', ['parent_id' => $product->id, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Show Variation">
-                                    <i class="bi bi-eye"></i>
-                                    <span class="d-none d-md-inline">Show Variation</span>
-                                </a> -->
+                                    <!-- <a href="{{ route('user.product.showProducts.child', ['parent_id' => $product->id, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Show Variation">
+                                        <i class="bi bi-eye"></i>
+                                        <span class="d-none d-md-inline">Show Variation</span>
+                                    </a> -->
 
 
-                                <a href="{{ route('user.product.amazonView', ['sku' => $product->sku, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Show Variation">
-                                    <i class="bi bi-eye"></i>
-                                    <span class="d-none d-md-inline">View</span>
-                                </a>
+                                    <a href="{{ route('user.product.amazonView', ['sku' => $product->sku, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Show Variation">
+                                        <i class="bi bi-eye"></i>
+                                        <span class="d-none d-md-inline">View</span>
+                                    </a>
 
 
 
-                                @if(!checkIsProductSynced($product->sku,'amazon'))
-                                <a href="{{ route('user.product.syncAmazonToShopify', ['sku' => $product->sku, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Add to Shopify">
-                                    <i class="bi bi-cloud-arrow-up"></i>
-                                    <span class="d-none d-md-inline">Add to Shopify</span>
-                                </a>
-                                @else
-                                @php $pid = checkIsProductSynced($product->sku,'amazon'); @endphp
-                                <a href="https://admin.shopify.com/store/{{str_replace('.myshopify.com','',session('active_shop'))}}/products/{{$pid}}" class="sp-btn sp-btn-sm sp-btn-secondary" target="_blank" title="Product mapped">
-                                    <i class="bi bi-link-45deg"></i>
-                                    <span class="d-none d-md-inline">Product mapped</span>
-                                </a>
-                                @endif 
-                                @php
-                                    $hasSubmission = !empty($product->submission_status) || !empty($product->submissionId ?? null);
-                                @endphp
-                                @if(strtolower($status) === 'accepted' || $hasSubmission)
-                                <!-- <button type="button" class="sp-btn sp-btn-sm sp-btn-secondary btn-refresh" data-sku="{{ $product->sku }}" data-url="{{ route('amazon.check.sku') }}" title="Refresh status">
-                                    <i class="bi bi-arrow-repeat"></i>
-                                    <span class="d-none d-md-inline">Refresh</span>
-                                </button> -->
-                                @endif
-                                @else
-                                <button type="button" class="sp-btn sp-btn-sm sp-btn-secondary btn-edit" title="View"
-                                    data-id="{{ $product->id }}"
-                                    data-route="{{ route('admin.product.productEdit', ['product' => $product->id, 'shop' => request('shop')]) }}">
-                                    <i class="bi bi-pencil"></i>
-                                    <span class="d-none d-md-inline">View</span>
-                                </button>
-                                @endif
-                                @else
-                                <button type="button" class="sp-btn sp-btn-sm sp-btn-secondary btn-edit" title="View"
-                                    data-id="{{ $product->id }}"
-                                    data-route="{{ route('admin.product.productEdit', ['product' => $product->id, 'shop' => request('shop')]) }}">
-                                    <i class="bi bi-pencil"></i>
-                                    <span class="d-none d-md-inline">View</span>
-                                </button>
-                                <form method="POST" action="{{ route('user.product.removeDraft', ['product' => $product->id,'shop' => request('shop')]) }}" class="d-inline m-0" style="display: inline-flex; margin: 0;">
-                                    @csrf
-                                    <button type="submit" class="sp-btn sp-btn-sm sp-btn-danger" title="Remove Draft"
+                                    @if(!checkIsProductSynced($product->sku,'amazon'))
+                                    <a href="{{ route('user.product.syncAmazonToShopify', ['sku' => $product->sku, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Add to Shopify">
+                                        <i class="bi bi-cloud-arrow-up"></i>
+                                        <span class="d-none d-md-inline">Add to Shopify</span>
+                                    </a>
+                                    @else
+                                    @php $pid = checkIsProductSynced($product->sku,'amazon'); @endphp
+                                    <a href="https://admin.shopify.com/store/{{str_replace('.myshopify.com','',session('active_shop'))}}/products/{{$pid}}" class="sp-btn sp-btn-sm sp-btn-secondary" target="_blank" title="Product mapped">
+                                        <i class="bi bi-link-45deg"></i>
+                                        <span class="d-none d-md-inline">Product mapped</span>
+                                    </a>
+                                    @endif 
+                                    @php
+                                        $hasSubmission = !empty($product->submission_status) || !empty($product->submissionId ?? null);
+                                    @endphp
+                                    @if(strtolower($status) === 'accepted' || $hasSubmission)
+                                    <!-- <button type="button" class="sp-btn sp-btn-sm sp-btn-secondary btn-refresh" data-sku="{{ $product->sku }}" data-url="{{ route('amazon.check.sku') }}" title="Refresh status">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                        <span class="d-none d-md-inline">Refresh</span>
+                                    </button> -->
+                                    @endif
+                                    @else
+                                    <button type="button" class="sp-btn sp-btn-sm sp-btn-secondary btn-edit" title="View"
                                         data-id="{{ $product->id }}"
-                                        data-route="{{ route('user.product.removeDraft', ['product' => $product->id,'shop' => request('shop')]) }}">
-                                        <i class="bi bi-trash"></i>
-                                        <span class="d-none d-md-inline">Remove Draft</span>
+                                        data-route="{{ route('admin.product.productEdit', ['product' => $product->id, 'shop' => request('shop')]) }}">
+                                        <i class="bi bi-pencil"></i>
+                                        <span class="d-none d-md-inline">View</span>
                                     </button>
-                                </form>
-                                @endif
-                            </div>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-        <!-- CHANGED: Completely removed custom blade manual pagination div, DataTables handles it -->
+                                    @endif
+                                    @else
+                                    <button type="button" class="sp-btn sp-btn-sm sp-btn-secondary btn-edit" title="View"
+                                        data-id="{{ $product->id }}"
+                                        data-route="{{ route('admin.product.productEdit', ['product' => $product->id, 'shop' => request('shop')]) }}">
+                                        <i class="bi bi-pencil"></i>
+                                        <span class="d-none d-md-inline">View</span>
+                                    </button>
+                                    <form method="POST" action="{{ route('user.product.removeDraft', ['product' => $product->id,'shop' => request('shop')]) }}" class="d-inline m-0" style="display: inline-flex; margin: 0;">
+                                        @csrf
+                                        <button type="submit" class="sp-btn sp-btn-sm sp-btn-danger" title="Remove Draft"
+                                            data-id="{{ $product->id }}"
+                                            data-route="{{ route('user.product.removeDraft', ['product' => $product->id,'shop' => request('shop')]) }}">
+                                            <i class="bi bi-trash"></i>
+                                            <span class="d-none d-md-inline">Remove Draft</span>
+                                        </button>
+                                    </form>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <!-- CHANGED: Completely removed custom blade manual pagination div, DataTables handles it -->
     </div>
+    @endif
 </div>
-@endif
+
 @endsection
 
 @push('styles')
