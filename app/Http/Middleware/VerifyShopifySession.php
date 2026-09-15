@@ -27,7 +27,7 @@ class VerifyShopifySession
                 'headers' => $request->headers->all(),
             ];
 
-            $result = $shopify->verifyAppHomeReq($req);
+            $result = $shopify->verifyAppHomeReq($req , '/logs_next');
             dd($result);
         }catch(\Exception $e){
              dd($e->getMessage());  
