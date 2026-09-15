@@ -26,11 +26,14 @@ class VerifyShopifySession
                 'url'     => $request->fullUrl(),
                 'headers' => $request->headers->all(),
             ];
-
             $result = $shopify->verifyAppHomeReq($req , '/api/shopify/patch-id-token');
-            dd($result);
         }catch(\Exception $e){
-             dd($e->getMessage());  
+            if($request->expectsJson() || $request->ajax()){
+                return response()->json(['error' => 'Invalid Shopify session: ' . $e->getMessage()], 401);
+            }
+             return redirect()->route('setup.form', [ 'shop' => $shop->shop ])
+                        ->with('error', 'Please fill the activation form to activate the app.');
+          
         }
 
 
@@ -38,7 +41,8 @@ class VerifyShopifySession
             // Returns clean JSON, not a redirect — this is the fix for your loop
             return $result->response;
         }
-
+        idToken = $result->idToken;
+        $request->attributes->set('shopify_id_token', $idToken);
         $request->attributes->set('shopify_shop', $result->shop);
         $request->attributes->set('shopify_result', $result);
 
