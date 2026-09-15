@@ -27,7 +27,7 @@ class VerifyShopifySession
                 'headers' => $request->headers->all(),
             ];
 
-            $result = $shopify->verifyAppHomeReq($req , '/logs_next');
+            $result = $shopify->verifyAppHomeReq($req , '/api/shopify/patch-id-token');
             dd($result);
         }catch(\Exception $e){
              dd($e->getMessage());  

@@ -36,6 +36,24 @@ function getMailSettings(){
     }
 }
 }
+
+if (!function_exists('setShopifySettings')) {
+function setShopifySettings(){
+    try {
+        $apikey = AdminSetting::where('option_key', 'SHOPIFY_API_KEY')->first()->option_value;
+        $apisecret = AdminSetting::where('option_key', 'SHOPIFY_API_SECRET')->first()->option_value;
+        config([
+            'shopify.api_key' => $apikey??env('SHOPIFY_API_KEY', ''),
+            'shopify.api_secret' => $apisecret??env('SHOPIFY_API_SECRET', ''),
+        ]);
+
+    } catch (\Throwable $e) {
+        // Database unavailable during boot/testing
+    }
+}
+}
+
+
 /**
  * Get Stripe Service instance
  */
