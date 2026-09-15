@@ -189,26 +189,6 @@ class SettingsController extends ShopifyController
     {
         $requestId = (string) \Illuminate\Support\Str::uuid();
 
-        Log::withContext([
-            'request_id' => $requestId,
-            'controller' => self::class,
-            'method' => __FUNCTION__,
-        ]);
-
-        Log::info('SHOPIFY_DEBUG: activation_form_submitted', [
-            'event' => 'activation_form_submitted',
-            'request_method' => $request->method(),
-            'request_url' => $request->fullUrl(),
-            'request_shop' => $request->query('shop'),
-            'input_shop_url' => $request->input('shop_url'),
-            'input_shop_name' => $request->input('shop_name'),
-            'input_email' => $request->input('email'),
-            'session_active_shop' => session('active_shop'),
-            'session_verified_shop' => session('_shopify_verified_shop'),
-            'ip' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-        ]);
-
         try {
             if (
                 $request->filled('shop') &&
@@ -216,14 +196,8 @@ class SettingsController extends ShopifyController
                 strtolower(trim((string) $request->query('shop'))) !==
                     strtolower(trim((string) $request->input('shop_url')))
             ) {
-                Log::warning('SHOPIFY_DEBUG: activation_shop_mismatch', [
-                    'request_shop' => $request->query('shop'),
-                    'input_shop_url' => $request->input('shop_url'),
-                    'session_active_shop' => session('active_shop'),
-                ]);
+                // Shop mismatch hone par bhi existing flow continue rahega
             }
-
-            Log::info('SHOPIFY_DEBUG: validation_started');
 
             $validated = $request->validate([
                 'shop_url' => 'required',
@@ -231,154 +205,58 @@ class SettingsController extends ShopifyController
                 'email' => 'required|email',
             ]);
 
-            Log::info('SHOPIFY_DEBUG: validation_passed', [
-                'validated_shop_url' => $validated['shop_url'],
-                'validated_shop_name' => $validated['shop_name'],
-                'validated_email' => $validated['email'],
-            ]);
-
-            $shopUrl = strtolower(trim((string) $request->input('shop_url')));
-
-            Log::info('SHOPIFY_DEBUG: shop_lookup_started', [
-                'search_shop_url' => $shopUrl,
-            ]);
+            $shopUrl = strtolower(trim((string) $validated['shop_url']));
 
             $shop = Shop::whereRaw('LOWER(shop) = ?', [
                 $shopUrl
             ])->first();
 
-            Log::info('SHOPIFY_DEBUG: shop_lookup_completed', [
-                'shop_found' => $shop !== null,
-                'matched_shop_id' => $shop?->id,
-                'matched_shop' => $shop?->shop,
-                'matched_is_active' => $shop?->is_active,
-            ]);
-
             if (!$shop) {
-                Log::error('SHOPIFY_DEBUG: shop_not_found', [
-                    'searched_shop_url' => $shopUrl,
-                    'request_shop' => $request->query('shop'),
-                    'input_shop_url' => $request->input('shop_url'),
-                ]);
-
-                return back()->with('error', 'Shop not found');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Shop not found.',
+                ], 404);
             }
 
-            Log::info('SHOPIFY_DEBUG: database_update_started', [
-                'shop_id' => $shop->id,
-                'shop_domain' => $shop->shop,
-                'old_shop_name' => $shop->shop_name,
-                'old_email' => $shop->email,
-                'old_is_active' => $shop->is_active,
-                'new_shop_name' => $request->input('shop_name'),
-                'new_email' => $request->input('email'),
-                'new_is_active' => 1,
-            ]);
-
-            $updated = $shop->update([
-                'shop_name' => $request->input('shop_name'),
-                'email' => $request->input('email'),
+            $shop->update([
+                'shop_name' => $validated['shop_name'],
+                'email' => $validated['email'],
                 'is_active' => 1,
             ]);
 
-            $freshShop = $shop->fresh();
-
-            Log::info('SHOPIFY_DEBUG: database_update_completed', [
-                'update_success' => $updated,
-                'shop_id' => $freshShop?->id,
-                'shop_domain' => $freshShop?->shop,
-                'shop_name' => $freshShop?->shop_name,
-                'email' => $freshShop?->email,
-                'is_active' => $freshShop?->is_active,
-            ]);
+            $shop->fresh();
 
             session([
                 'active_shop' => $shop->shop,
             ]);
 
-            Log::info('SHOPIFY_DEBUG: session_updated', [
-                'active_shop' => session('active_shop'),
-                'verified_shop' => session('_shopify_verified_shop'),
-                'database_shop' => $shop->shop,
-            ]);
-
             try {
-                Log::info('SHOPIFY_DEBUG: email_process_started', [
-                    'shop_id' => $shop->id,
-                    'shop' => $shop->shop,
-                    'email' => $request->input('email'),
-                ]);
-
                 $template = MailTemplate::active()
                     ->where('slug', 'welcome-email')
                     ->first();
-
-                Log::info('SHOPIFY_DEBUG: email_template_lookup_completed', [
-                    'template_found' => $template !== null,
-                    'template_id' => $template?->id,
-                    'template_slug' => $template?->slug,
-                ]);
 
                 if ($template) {
                     app(\App\Services\EmailService::class)
                         ->sendDynamicEmail($template, (object) [
                             'name' => $shop->shop,
-                            'email' => $request->input('email'),
+                            'email' => $validated['email'],
                         ]);
-
-                    Log::info('SHOPIFY_DEBUG: email_sent_successfully', [
-                        'email' => $request->input('email'),
-                    ]);
-                } else {
-                    Log::warning('SHOPIFY_DEBUG: email_template_not_found', [
-                        'slug' => 'welcome-email',
-                    ]);
                 }
             } catch (\Throwable $e) {
-                Log::error('SHOPIFY_DEBUG: email_failed', [
-                    'error' => $e->getMessage(),
-                    'exception' => get_class($e),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
+                // Email fail hone par activation fail nahi hogi
             }
 
-            Log::info('SHOPIFY_DEBUG: redirect_to_dashboard', [
-                'route' => 'dashboard',
-                'shop' => $shop->shop,
+            return response()->json([
+                'success' => true,
+                'message' => 'App activated successfully!',
             ]);
-
-            return redirect()
-                ->route('dashboard', [
-                    'shop' => $shop->shop,
-                ])
-                ->with('success', 'App activated successfully!');
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::warning('SHOPIFY_DEBUG: validation_failed', [
-                'errors' => $e->errors(),
-            ]);
-
             throw $e;
         } catch (\Throwable $e) {
-            Log::critical('SHOPIFY_DEBUG: activation_store_failed', [
-                'error' => $e->getMessage(),
-                'exception' => get_class($e),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-                'request_id' => $requestId,
-                'request_shop' => $request->query('shop'),
-                'shop_url' => $request->input('shop_url'),
-                'shop_name' => $request->input('shop_name'),
-                'email' => $request->input('email'),
-                'active_shop' => session('active_shop'),
-            ]);
-
-            return back()->with(
-                'error',
-                'Something went wrong. Request ID: ' . $requestId
-            );
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong. Request ID: ' . $requestId,
+            ], 500);
         }
     }
 
