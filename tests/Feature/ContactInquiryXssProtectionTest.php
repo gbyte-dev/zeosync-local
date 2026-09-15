@@ -88,4 +88,210 @@ class ContactInquiryXssProtectionTest extends TestCase
         $viewEmail->assertDontSee('<img src=x onerror=', false);
         $viewEmail->assertSee('<br />', false);
     }
+
+    public function test_name_symbol_validation()
+    {
+        $validNames = [
+            'John Smith',
+            "O'Connor",
+            'Rahul-Kumar',
+            'René François',
+        ];
+
+        foreach ($validNames as $name) {
+            $validator = \Illuminate\Support\Facades\Validator::make(
+                ['name' => $name],
+                ['name' => ['required', 'string', 'max:100', 'regex:/^[\pL\s\'-]+$/u']]
+            );
+            $this->assertTrue($validator->passes(), "Expected valid name '{$name}' to pass validation.");
+        }
+
+        $invalidNames = [
+            '<script>alert(1)</script>',
+            'John@Doe',
+            'Name#123',
+            'User$Admin',
+            'Test_Name',
+            'Name with numbers 123',
+        ];
+
+        foreach ($invalidNames as $name) {
+            $validator = \Illuminate\Support\Facades\Validator::make(
+                ['name' => $name],
+                ['name' => ['required', 'string', 'max:100', 'regex:/^[\pL\s\'-]+$/u']]
+            );
+            $this->assertTrue($validator->fails(), "Expected invalid name '{$name}' to fail validation.");
+        }
+    }
+
+    public function test_email_symbol_validation()
+    {
+        $validEmails = [
+            'john@example.com',
+            'john.doe@example.com',
+            'john+test@example.co.in',
+            'john+support@example.co.in',
+            'john.doe+test@example.co.in',
+            'user_name@sub.domain.org',
+        ];
+
+        foreach ($validEmails as $email) {
+            $validator = \Illuminate\Support\Facades\Validator::make(
+                ['email' => $email],
+                ['email' => ['required', 'string', 'email:rfc', 'max:255']]
+            );
+            $this->assertTrue($validator->passes(), "Expected valid email '{$email}' to pass validation.");
+        }
+
+        $invalidEmails = [
+            'johnexample.com',
+            'john@',
+            '@example.com',
+            'plainaddress',
+            '#@%^%#$@#$@#.com',
+        ];
+
+        foreach ($invalidEmails as $email) {
+            $validator = \Illuminate\Support\Facades\Validator::make(
+                ['email' => $email],
+                ['email' => ['required', 'string', 'email:rfc', 'max:255']]
+            );
+            $this->assertTrue($validator->fails(), "Expected invalid email '{$email}' to fail validation.");
+        }
+    }
+
+    public function test_subject_symbol_validation()
+    {
+        $validSubjects = [
+            'General Enquiry',
+            'Question about pricing - plan_1, ok?',
+            'Urgent Help Needed! Please check.',
+            'Order 12345 update - question.',
+            'Inquiry - Is this available? Yes!',
+            'Need help with website!',
+        ];
+
+        // Valid subject rules: letters, numbers, spaces, . , ? ! _ -
+        foreach ($validSubjects as $subject) {
+            $validator = \Illuminate\Support\Facades\Validator::make(
+                ['subject' => $subject],
+                ['subject' => ['required', 'string', 'max:255', 'regex:/^[\pL\pN\s.,!?_-]+$/u']]
+            );
+            $this->assertTrue($validator->passes(), "Expected valid subject '{$subject}' to pass validation.");
+        }
+
+        $invalidSubjects = [
+            '<script>alert("XSS")</script>',
+            'Subject with <HTML> tags',
+            'Subject with "quotes"',
+            'Subject with {brackets}',
+            'Subject with @ symbol',
+            'Subject with $ dollar',
+            'Subject with # hash',
+            'Subject with / slash',
+            'Subject with = equals',
+        ];
+
+        foreach ($invalidSubjects as $subject) {
+            $validator = \Illuminate\Support\Facades\Validator::make(
+                ['subject' => $subject],
+                ['subject' => ['required', 'string', 'max:255', 'regex:/^[\pL\pN\s.,!?_-]+$/u']]
+            );
+            $this->assertTrue($validator->fails(), "Expected invalid subject '{$subject}' to fail validation.");
+        }
+    }
+
+    public function test_message_anti_xss_validation()
+    {
+        $validMessages = [
+            'I am facing an issue with C++ and PHP.',
+            'Hello team, we need help connecting our Shopify store to Amazon.',
+            "Line 1\nLine 2\nCheck: https://example.com/api?param=1&other=2",
+            'Special readable punctuation: (test), [sample], #123, $500, 20% discount!',
+        ];
+
+        $rule = [
+            'message' => [
+                'required',
+                'string',
+                'max:5000',
+                'not_regex:/<[^>]*>|<script|javascript\s*:|vbscript\s*:|on\w+\s*=|on\w+\/|<\?php|<\?|<\%|\?>|\%>/i',
+            ],
+        ];
+
+        foreach ($validMessages as $msg) {
+            $validator = \Illuminate\Support\Facades\Validator::make(['message' => $msg], $rule);
+            $this->assertTrue($validator->passes(), "Expected message '{$msg}' to pass validation.");
+        }
+
+        $dangerousMessages = [
+            '<SCRIPT>alert(1)</SCRIPT>',
+            '<ScRiPt>alert(1)</ScRiPt>',
+            '<img src=x onerror=alert(1)>',
+            '<svg/onload=alert(1)>',
+            '<a href="javascript:alert(1)">',
+            '<div onclick="alert(1)">',
+            '<?php echo "test"; ?>',
+            '<?= "test" ?>',
+            '<% malicious code %>',
+            'javascript:alert(1)',
+            'javascript : alert(1)',
+            '<svg onload=alert("XSS")>',
+            '"><script>alert("XSS")</script>',
+            '<script src="https://evil.com/xss.js"></script>',
+            'onerror = alert(1)',
+            'onclick=alert(1)',
+            '<? echo "test"; ?>',
+            '<% unclosed tag',
+        ];
+
+        foreach ($dangerousMessages as $msg) {
+            $validator = \Illuminate\Support\Facades\Validator::make(['message' => $msg], $rule);
+            $this->assertTrue($validator->fails(), "Expected dangerous message '{$msg}' to fail validation.");
+        }
+    }
+
+    public function test_server_side_contact_controller_rejects_malicious_http_payloads()
+    {
+        $dangerousPayloads = [
+            [
+                'name' => '<script>alert(1)</script>',
+                'email' => 'test@example.com',
+                'subject' => 'Help',
+                'message' => 'Valid message text',
+            ],
+            [
+                'name' => 'John Doe',
+                'email' => 'test@example.com',
+                'subject' => '<img src=x onerror=alert(1)>',
+                'message' => 'Valid message text',
+            ],
+            [
+                'name' => 'John Doe',
+                'email' => 'test@example.com',
+                'subject' => 'Need Assistance',
+                'message' => '<svg/onload=alert(1)>',
+            ],
+            [
+                'name' => 'John Doe',
+                'email' => 'test@example.com',
+                'subject' => 'Need Assistance',
+                'message' => '<?= "test" ?>',
+            ],
+            [
+                'name' => 'John Doe',
+                'email' => 'test@example.com',
+                'subject' => 'Need Assistance',
+                'message' => '<% malicious code %>',
+            ],
+        ];
+
+        foreach ($dangerousPayloads as $payload) {
+            $response = $this->withHeaders([
+                'Origin' => 'https://zeosync.app',
+            ])->post(route('contact.store'), $payload);
+
+            $response->assertSessionHasErrors();
+        }
+    }
 }

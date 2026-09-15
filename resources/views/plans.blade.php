@@ -1190,6 +1190,7 @@ $subscriptionStatus = 'Trialing';
                             <label class="form-label"> Full Name </label>
 
                             <input type="text" name="name" class="form-control"
+                                maxlength="100"
                                 value="{{ old('name', $shop->shop_name ?? '') }}"
                                 required>
                         </div>
@@ -1198,6 +1199,7 @@ $subscriptionStatus = 'Trialing';
                             <label class="form-label"> Email Address </label>
 
                             <input type="email" name="email" class="form-control"
+                                maxlength="255"
                                 value="{{ old('email', $shop->email ?? '') }}"
                                 required>
                         </div>
@@ -1205,6 +1207,7 @@ $subscriptionStatus = 'Trialing';
                         <div class="col-12 mb-3">
                             <label class="form-label"> Subject </label>
                             <input type="text" name="subject" class="form-control"
+                                maxlength="255"
                                 value="{{ old('subject') }}"
                                 placeholder="Example: Need higher product and sync limits"
                                 required>
@@ -1213,6 +1216,7 @@ $subscriptionStatus = 'Trialing';
                         <div class="col-12">
                             <label class="form-label"> Describe Your Requirements </label>
                             <textarea name="message" rows="5" class="form-control"
+                                maxlength="5000"
                                 placeholder="Describe your enterprise requirements, such as higher product limits, sync limits, mapping limits, dedicated support, custom integrations, or any other business requirements."
                                 required>{{ old('message') }}</textarea>
                         </div>

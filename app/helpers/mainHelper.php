@@ -245,6 +245,12 @@ if (!function_exists('getActiveShopModel')) {
         if ($request?->attributes->has('active_shop_model')) {
             $shop = $request->attributes->get('active_shop_model');
             if ($shop instanceof \App\Models\Shop && (int) $shop->is_active === 1 && !empty($shop->access_token)) {
+                \Illuminate\Support\Facades\Log::info('SHOPIFY_DEBUG: get_active_shop_model_helper', [
+                    'source'              => 'attributes_active_shop_model',
+                    'resolved_shop_id'    => $shop->id,
+                    'resolved_shop_domain'=> $shop->shop,
+                    'session_active_shop' => session('active_shop'),
+                ]);
                 return $shop;
             }
         }
@@ -253,6 +259,12 @@ if (!function_exists('getActiveShopModel')) {
             $sessionShop = session('_shopify_verified_shop');
             $shop = \App\Models\Shop::where('shop', $sessionShop)->where('is_active', 1)->first();
             if ($shop && !empty($shop->access_token)) {
+                \Illuminate\Support\Facades\Log::info('SHOPIFY_DEBUG: get_active_shop_model_helper', [
+                    'source'              => 'session_verified_shop',
+                    'session_verified'    => $sessionShop,
+                    'resolved_shop_id'    => $shop->id,
+                    'resolved_shop_domain'=> $shop->shop,
+                ]);
                 return $shop;
             }
         }
@@ -263,9 +275,22 @@ if (!function_exists('getActiveShopModel')) {
                 ? \App\Models\Shop::find($sessionShop)
                 : \App\Models\Shop::where('shop', $sessionShop)->where('is_active', 1)->first();
             if ($shop && (int) $shop->is_active === 1 && !empty($shop->access_token)) {
+                \Illuminate\Support\Facades\Log::warning('SHOPIFY_DEBUG: get_active_shop_model_helper_session_fallback', [
+                    'source'              => 'session_active_shop_fallback',
+                    'session_active_shop' => $sessionShop,
+                    'resolved_shop_id'    => $shop->id,
+                    'resolved_shop_domain'=> $shop->shop,
+                    'query_shop'          => $request?->query('shop'),
+                ]);
                 return $shop;
             }
         }
+
+        \Illuminate\Support\Facades\Log::info('SHOPIFY_DEBUG: get_active_shop_model_helper_null', [
+            'query_shop'            => $request?->query('shop'),
+            'session_active_shop'   => session('active_shop'),
+            'session_verified_shop' => session('_shopify_verified_shop'),
+        ]);
 
         return null;
     }

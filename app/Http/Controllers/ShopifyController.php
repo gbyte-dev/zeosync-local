@@ -51,6 +51,28 @@ class ShopifyController extends Controller
     }
     public function entry(Request $request)
     {
+        Log::info('SHOPIFY_DEBUG: entry_request', [
+            'route_name'            => $request->route()?->getName(),
+            'method'                => $request->method(),
+            'full_url'              => $request->fullUrl(),
+            'query_shop'            => $request->query('shop'),
+            'query_host'            => $request->query('host'),
+            'hmac_present'          => $request->has('hmac'),
+            'code_present'          => $request->has('code'),
+            'id_token_present'      => $request->has('id_token'),
+            'embedded'              => $request->query('embedded'),
+            'session_active_shop'   => session('active_shop'),
+            'session_verified_shop' => session('_shopify_verified_shop'),
+        ]);
+
+        if ($request->filled('shop') && session()->has('active_shop') && strtolower(trim((string) $request->query('shop'))) !== strtolower(trim((string) session('active_shop')))) {
+            Log::warning('SHOPIFY_DEBUG: entry_shop_session_mismatch', [
+                'query_shop'            => $request->query('shop'),
+                'session_active_shop'   => session('active_shop'),
+                'session_verified_shop' => session('_shopify_verified_shop'),
+            ]);
+        }
+
         // 1. Authenticated Shopify Launch:
         // Only proceed to dashboard if the CURRENT request has been cryptographically verified
         // by VerifyShopifyAuthentication middleware (via launch HMAC, query session token, or header token).
@@ -335,6 +357,22 @@ class ShopifyController extends Controller
 
     public function install(Request $request)
     {
+        Log::info('SHOPIFY_DEBUG: install_route_start', [
+            'route'                 => 'install',
+            'requested_shop'        => $request->query('shop'),
+            'host'                  => $request->query('host'),
+            'hmac_present'          => $request->has('hmac'),
+            'session_active_shop'   => session('active_shop'),
+            'session_verified_shop' => session('_shopify_verified_shop'),
+        ]);
+
+        if ($request->filled('shop') && session()->has('active_shop') && strtolower(trim((string) $request->query('shop'))) !== strtolower(trim((string) session('active_shop')))) {
+            Log::warning('SHOPIFY_DEBUG: install_shop_session_mismatch', [
+                'requested_shop'      => $request->query('shop'),
+                'session_active_shop' => session('active_shop'),
+            ]);
+        }
+
         Log::info('INSTALL HIT', [
             'shop' => $request->query('shop'),
         ]);
@@ -388,6 +426,13 @@ class ShopifyController extends Controller
         //   IMPORTANT (iframe fix)
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
 
+        Log::info('SHOPIFY_DEBUG: install_route_completed', [
+            'route'                => 'install',
+            'normalized_shop'      => $shop,
+            'session_active_shop'  => session('active_shop'),
+            'result'               => 'auth_popup_rendered',
+        ]);
+
         return response()->view('shopify.auth-popup', [
             'redirectUrl' => $redirectUrl,
             'shop' => $shop,
@@ -395,6 +440,23 @@ class ShopifyController extends Controller
     }
     public function callback(Request $request)
     {
+        Log::info('SHOPIFY_DEBUG: callback_route_start', [
+            'route'                 => 'callback',
+            'callback_shop'         => $request->query('shop'),
+            'state_present'         => $request->has('state'),
+            'code_present'          => $request->has('code'),
+            'hmac_present'          => $request->has('hmac'),
+            'session_active_shop'   => session('active_shop'),
+            'session_verified_shop' => session('_shopify_verified_shop'),
+        ]);
+
+        if ($request->filled('shop') && session()->has('active_shop') && strtolower(trim((string) $request->query('shop'))) !== strtolower(trim((string) session('active_shop')))) {
+            Log::warning('SHOPIFY_DEBUG: callback_shop_session_mismatch', [
+                'callback_shop'       => $request->query('shop'),
+                'session_active_shop' => session('active_shop'),
+            ]);
+        }
+
         Log::info('Shopify OAuth callback received');
         // =========================
         // STEP 1: HMAC VALIDATION (FIRST)
@@ -469,6 +531,24 @@ class ShopifyController extends Controller
         $expiresIn         = $data['expires_in'] ?? 3600;                 // access token, ~60 min
         $refreshExpiresIn  = $data['refresh_token_expires_in'] ?? (90 * 86400); // refresh token, ~90 days
 
+        Log::info('SHOPIFY_DEBUG: callback_token_exchange_result', [
+            'shop'                   => $shop ?? null,
+            'token_exchange_success' => true,
+            'access_token_present'   => !empty($accessToken),
+            'refresh_token_present'  => !empty($refreshToken),
+            'expires_in_present'     => isset($expiresIn),
+        ]);
+
+        $existingShop = \App\Models\Shop::where('shop', $shop)->first();
+        Log::info('SHOPIFY_DEBUG: shop_upsert_before', [
+            'operation'              => 'shop_upsert',
+            'lookup_shop'            => $shop,
+            'existing_shop_id'       => $existingShop?->id,
+            'existing_shop_domain'   => $existingShop?->shop,
+            'existing_shop_found'    => isset($existingShop),
+            'session_active_shop'    => session('active_shop'),
+        ]);
+
         $shopModel = \App\Models\Shop::updateOrCreate(
             ['shop' => $shop],
             [
@@ -481,6 +561,13 @@ class ShopifyController extends Controller
                 'is_active' => 1
             ]
         );
+
+        Log::info('SHOPIFY_DEBUG: shop_upsert_after', [
+            'operation'          => 'shop_upsert',
+            'save_result_id'     => $shopModel->id,
+            'save_result_domain' => $shopModel->shop,
+            'save_result_active' => $shopModel->is_active,
+        ]);
 
         // Fetch and store all Shopify locations
         try {
@@ -2654,7 +2741,15 @@ class ShopifyController extends Controller
         foreach ([$request?->query('shop'), $request?->input('shop')] as $candidate) {
             $candidate = trim((string) $candidate);
             if ($candidate !== '') {
-                return strtolower($candidate);
+                $resolved = strtolower($candidate);
+                Log::info('SHOPIFY_DEBUG: extract_shop_identifier', [
+                    'resolution_source'   => 'query_or_input_shop',
+                    'query_shop'          => $request?->query('shop'),
+                    'query_host'          => $request?->query('host'),
+                    'session_active_shop' => session('active_shop'),
+                    'resolved_identifier' => $resolved,
+                ]);
+                return $resolved;
             }
         }
 
@@ -2664,36 +2759,76 @@ class ShopifyController extends Controller
 
         if (!empty($hostValue)) {
             if (preg_match('#/store/([^/?]+)#i', $hostValue, $matches)) {
-                return strtolower($matches[1]);
+                $resolved = strtolower($matches[1]);
+                Log::info('SHOPIFY_DEBUG: extract_shop_identifier', [
+                    'resolution_source'   => 'host_store_slug',
+                    'query_shop'          => $request?->query('shop'),
+                    'query_host'          => $request?->query('host'),
+                    'session_active_shop' => session('active_shop'),
+                    'resolved_identifier' => $resolved,
+                ]);
+                return $resolved;
             }
 
             if (preg_match('#^([a-z0-9-]+)\.myshopify\.com$#i', $hostValue, $matches)) {
-                return strtolower($matches[1] . '.myshopify.com');
+                $resolved = strtolower($matches[1] . '.myshopify.com');
+                Log::info('SHOPIFY_DEBUG: extract_shop_identifier', [
+                    'resolution_source'   => 'host_myshopify_domain',
+                    'query_shop'          => $request?->query('shop'),
+                    'query_host'          => $request?->query('host'),
+                    'session_active_shop' => session('active_shop'),
+                    'resolved_identifier' => $resolved,
+                ]);
+                return $resolved;
             }
         }
 
         $referer = $request?->headers->get('referer');
 
         if (!empty($referer) && preg_match('#/store/([^/?]+)#i', $referer, $matches)) {
-            return strtolower($matches[1]);
+            $resolved = strtolower($matches[1]);
+            Log::info('SHOPIFY_DEBUG: extract_shop_identifier', [
+                'resolution_source'   => 'referer_store_slug',
+                'query_shop'          => $request?->query('shop'),
+                'query_host'          => $request?->query('host'),
+                'session_active_shop' => session('active_shop'),
+                'resolved_identifier' => $resolved,
+            ]);
+            return $resolved;
         }
 
         // Session fallback
-        // Session fallback
         foreach (
             [
-                session('active_shop'),
-                session('amazon_shop'), // optional backward compatibility
-                session('shop'),        // optional backward compatibility
-            ] as $candidate
+                'active_shop' => session('active_shop'),
+                'amazon_shop' => session('amazon_shop'), // optional backward compatibility
+                'shop'        => session('shop'),        // optional backward compatibility
+            ] as $sessKey => $candidate
         ) {
 
             $candidate = trim((string) $candidate);
 
             if ($candidate !== '') {
-                return strtolower($candidate);
+                $resolved = strtolower($candidate);
+                Log::warning('SHOPIFY_DEBUG: extract_shop_identifier_session_fallback', [
+                    'resolution_source'     => 'session_' . $sessKey,
+                    'query_shop'            => $request?->query('shop'),
+                    'query_host'            => $request?->query('host'),
+                    'session_active_shop'   => session('active_shop'),
+                    'session_shop'          => session('shop'),
+                    'session_verified_shop' => session('_shopify_verified_shop'),
+                    'resolved_identifier'   => $resolved,
+                ]);
+                return $resolved;
             }
         }
+
+        Log::info('SHOPIFY_DEBUG: extract_shop_identifier_none', [
+            'query_shop'            => $request?->query('shop'),
+            'query_host'            => $request?->query('host'),
+            'session_active_shop'   => session('active_shop'),
+            'session_verified_shop' => session('_shopify_verified_shop'),
+        ]);
 
         return null;
     }
@@ -2756,6 +2891,13 @@ class ShopifyController extends Controller
         if ($request?->attributes->has('active_shop_model')) {
             $model = $request->attributes->get('active_shop_model');
             if ($model instanceof Shop && (int) $model->is_active === 1 && !empty($model->access_token)) {
+                Log::info('SHOPIFY_DEBUG: get_active_shop_from_attributes', [
+                    'source'                        => 'request_attribute_active_shop_model',
+                    'query_shop'                    => $request?->query('shop'),
+                    'session_active_shop'           => session('active_shop'),
+                    'resolved_database_shop_id'     => $model->id,
+                    'resolved_database_shop_domain' => $model->shop,
+                ]);
                 return $model;
             }
         }
@@ -2777,6 +2919,12 @@ class ShopifyController extends Controller
                 'query_host' => $request?->query('host'),
                 'path' => $request?->path(),
             ]);
+            Log::warning('SHOPIFY_DEBUG: get_active_shop_not_in_db', [
+                'query_shop'          => $request?->query('shop'),
+                'query_host'          => $request?->query('host'),
+                'session_active_shop' => session('active_shop'),
+                'resolved_identifier' => $shopIdentifier,
+            ]);
             return null;
         }
         Log::info('ACTIVE SHOP CHECK', [
@@ -2784,6 +2932,28 @@ class ShopifyController extends Controller
             'is_active' => $shop->is_active,
             'access_token_empty' => empty($shop->access_token),
         ]);
+
+        Log::info('SHOPIFY_DEBUG: get_active_shop_result', [
+            'query_shop'                    => $request?->query('shop'),
+            'query_host'                    => $request?->query('host'),
+            'session_active_shop'           => session('active_shop'),
+            'session_verified_shop'         => session('_shopify_verified_shop'),
+            'resolved_identifier'           => $shopIdentifier,
+            'resolved_database_shop_id'     => $shop->id,
+            'resolved_database_shop_domain' => $shop->shop,
+            'is_active'                     => $shop->is_active,
+            'access_token_present'          => !empty($shop->access_token),
+        ]);
+
+        if ($request?->filled('shop') && strtolower(trim((string) $request->query('shop'))) !== strtolower(trim((string) $shop->shop))) {
+            Log::warning('SHOPIFY_DEBUG: get_active_shop_mismatch_with_query', [
+                'query_shop'             => $request->query('shop'),
+                'resolved_database_shop' => $shop->shop,
+                'resolved_database_id'   => $shop->id,
+                'session_active_shop'    => session('active_shop'),
+            ]);
+        }
+
         if (
             (int) $shop->is_active !== 1 ||
             empty($shop->access_token)

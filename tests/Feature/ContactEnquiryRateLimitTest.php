@@ -151,7 +151,7 @@ it('Test 2: Second enquiry from same IP A within 12h is rejected', function () {
 
     $response2 = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
         ->post('/contact', [
-            'name'         => 'Alice 2',
+            'name'         => 'Alice Two',
             'email'        => 'alice2@example.com',
             'subject'      => 'Inquiry 2',
             'message'      => 'Spam or second attempt',
@@ -249,7 +249,7 @@ it('Test 5: Same IP A can submit again after 12h (43,200 seconds)', function () 
     // Request after 12h from same IP A
     $response = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
         ->post('/contact', [
-            'name'         => 'Alice 12h Later',
+            'name'         => 'Alice Later',
             'email'        => 'alice.later@example.com',
             'subject'      => 'Follow-up Custom Plan Request',
             'message'      => 'Follow-up text after 12 hours',
