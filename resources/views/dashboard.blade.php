@@ -986,8 +986,14 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
         });
     </script>
     <script>
-        if (window.opener) {
-            window.close();
-        }
+       @if (request()->boolean('activation_completed'))
+    <script>
+        setTimeout(() => {
+            if (window.opener && !window.opener.closed) {
+                window.close();
+            }
+        }, 500);
+    </script>
+@endif
     </script>
     @endsection
