@@ -68,6 +68,8 @@ Route::middleware([ ResolveActiveShop::class,  \App\Http\Middleware\CheckSubscri
     Route::get('logs', [SettingsController::class, 'logs'])->name('shopify.logs');
     Route::post('logs/remove-all', [SettingsController::class, 'removeAllLogs'])->name('shopify.logs.remove.all');
     Route::delete('logs/{id}', [SettingsController::class, 'removeLog'])->name('shopify.logs.remove');
+   
+    Route::get('/logs_next', [ShopifyController::class, 'logs'])->name('dashboard.logs')->middleware('shopify.session');
 });
 
 
