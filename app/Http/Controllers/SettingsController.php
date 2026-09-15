@@ -165,6 +165,25 @@ class SettingsController extends ShopifyController
     {
         $shopModel = $this->getActiveShop($request);
         $activeShop = $shopModel?->shop;
+
+        Log::info('SHOPIFY_DEBUG: activation_form_rendered', [
+            'event'                 => 'activation_form_rendered',
+            'request_shop'          => $request->query('shop') ?? $request->input('shop'),
+            'resolved_shop_id'      => $shopModel?->id,
+            'resolved_shop_domain'  => $shopModel?->shop,
+            'session_active_shop'   => session('active_shop'),
+            'session_verified_shop' => session('_shopify_verified_shop'),
+        ]);
+
+        if ($request->filled('shop') && $shopModel && strtolower(trim((string) $request->query('shop'))) !== strtolower(trim((string) $shopModel->shop))) {
+            Log::warning('SHOPIFY_DEBUG: activation_form_shop_mismatch', [
+                'request_shop'         => $request->query('shop'),
+                'resolved_shop_domain' => $shopModel->shop,
+                'resolved_shop_id'     => $shopModel->id,
+                'session_active_shop'  => session('active_shop'),
+            ]);
+        }
+
         return view('setup.activate', compact('shopModel'));
     }
 
@@ -196,6 +215,21 @@ class SettingsController extends ShopifyController
 
     public function store(Request $request)
     {
+        Log::info('SHOPIFY_DEBUG: activation_form_submitted', [
+            'event'                 => 'activation_form_submitted',
+            'request_shop'          => $request->query('shop'),
+            'input_shop_url'        => $request->input('shop_url'),
+            'session_active_shop'   => session('active_shop'),
+            'session_verified_shop' => session('_shopify_verified_shop'),
+        ]);
+
+        if ($request->filled('shop') && $request->filled('shop_url') && strtolower(trim((string) $request->query('shop'))) !== strtolower(trim((string) $request->input('shop_url')))) {
+            Log::warning('SHOPIFY_DEBUG: activation_form_submitted_mismatch', [
+                'request_shop'        => $request->query('shop'),
+                'input_shop_url'      => $request->input('shop_url'),
+                'session_active_shop' => session('active_shop'),
+            ]);
+        }
 
         $request->validate([
             'shop_url' => 'required',
@@ -209,8 +243,18 @@ class SettingsController extends ShopifyController
 
         if (!$shop) {
             \Log::error('SHOP NOT FOUND');
+            Log::warning('SHOPIFY_DEBUG: activation_shop_not_found_in_db', [
+                'input_shop_url' => $request->shop_url,
+            ]);
             return back()->with('error', 'Shop not found');
         }
+
+        Log::info('SHOPIFY_DEBUG: activation_database_update', [
+            'event'               => 'activation_database_update',
+            'input_shop_url'      => $request->input('shop_url'),
+            'matched_shop_id'     => $shop?->id,
+            'matched_shop_domain' => $shop?->shop,
+        ]);
 
         // =========================
         // STEP 4: UPDATE
@@ -220,6 +264,13 @@ class SettingsController extends ShopifyController
                 'shop_name' => $request->shop_name,
                 'email' => $request->email,
                 'is_active' => 1
+            ]);
+
+            Log::info('SHOPIFY_DEBUG: activation_database_update_completed', [
+                'event'               => 'activation_database_update_completed',
+                'updated_shop_id'     => $shop?->id,
+                'updated_shop_domain' => $shop?->shop,
+                'update_success'      => $updated,
             ]);
 
             \Log::info('UPDATE RESULT', [

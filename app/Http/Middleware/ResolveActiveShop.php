@@ -51,6 +51,14 @@ class ResolveActiveShop
                 }
             }
 
+            Log::info('SHOPIFY_DEBUG: resolve_active_shop_from_verified_attr', [
+                'verified_shop_domain' => $verifiedShopDomain,
+                'shop_model_found'     => (bool) $shop,
+                'shop_id'              => $shop?->id,
+                'access_token_present' => !empty($shop?->access_token),
+                'session_active_shop'  => session('active_shop'),
+            ]);
+
             if ($shop && !empty($shop->access_token)) {
                 $request->attributes->set('active_shop', $shop->shop);
                 $request->attributes->set('active_shop_model', $shop);
@@ -129,6 +137,15 @@ class ResolveActiveShop
                 $request->attributes->set('active_shop_model', $shop);
             }
 
+            Log::info('SHOPIFY_DEBUG: resolve_active_shop_public_route', [
+                'route'                 => $request->route()?->getName(),
+                'resolved_active_shop'  => $activeShop,
+                'db_shop_exists'        => (bool) $shop,
+                'db_shop_id'            => $shop?->id,
+                'session_active_shop'   => session('active_shop'),
+                'session_verified_shop' => session('_shopify_verified_shop'),
+            ]);
+
             if (
                 $shop && filled($shop->shop_name) && filled($shop->email) &&
                 $request->routeIs('setup.store')
@@ -161,6 +178,15 @@ class ResolveActiveShop
             Log::info('EMBEDDED REAUTH BOUNCE TRIGGERED', [
                 'path' => $request->path(),
                 'shop' => $resolvedShop,
+            ]);
+
+            Log::info('SHOPIFY_DEBUG: resolve_active_shop_embedded_reauth_bounce', [
+                'path'                  => $request->path(),
+                'target_url'            => $targetUrl,
+                'resolved_shop'         => $resolvedShop,
+                'host'                  => $host,
+                'session_active_shop'   => session('active_shop'),
+                'session_verified_shop' => session('_shopify_verified_shop'),
             ]);
 
             return response()->view('shopify.reauth', [

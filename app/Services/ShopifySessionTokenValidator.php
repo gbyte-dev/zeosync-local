@@ -169,6 +169,10 @@ class ShopifySessionTokenValidator
                 'destShop' => $destShop,
                 'issShop'  => $issShop,
             ]);
+            Log::warning('SHOPIFY_DEBUG: session_token_dest_iss_mismatch', [
+                'dest_shop' => $destShop,
+                'iss_shop'  => $issShop,
+            ]);
             return null;
         }
 
@@ -185,9 +189,32 @@ class ShopifySessionTokenValidator
             return null;
         }
 
-        if (!$shopModel || empty($shopModel->access_token)) {
+        Log::info('SHOPIFY_DEBUG: session_token_validator_claims', [
+            'dest_shop'            => $destShop,
+            'iss_shop'             => $issShop,
+            'database_shop_exists' => (bool) $shopModel,
+            'database_shop_active' => $shopModel ? (int) $shopModel->is_active : null,
+            'access_token_present' => !empty($shopModel?->access_token),
+            'database_shop_id'     => $shopModel?->id,
+        ]);
+
+        if (!$shopModel) {
             Log::warning('ShopifySessionTokenValidator: Shop not found or not active in database.', [
                 'shop' => $destShop,
+            ]);
+            Log::warning('SHOPIFY_DEBUG: session_token_validator_shop_missing_in_db', [
+                'dest_shop' => $destShop,
+            ]);
+            return null;
+        }
+
+        if (empty($shopModel->access_token)) {
+            Log::warning('ShopifySessionTokenValidator: Shop access token empty in database.', [
+                'shop' => $destShop,
+            ]);
+            Log::warning('SHOPIFY_DEBUG: session_token_validator_access_token_empty', [
+                'dest_shop' => $destShop,
+                'shop_id'   => $shopModel->id,
             ]);
             return null;
         }
