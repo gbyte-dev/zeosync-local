@@ -48,7 +48,11 @@
             Enter your store details to activate the app
         </div>
 
-        <form method="POST" action="{{ route('setup.store') }}" id="activateForm">
+        <form
+    method="POST"
+    action="{{ route('setup.store', ['shop' => $shopModel?->shop]) }}"
+    id="activateForm"
+>
             @csrf
 
             <!-- Shopify URL -->
