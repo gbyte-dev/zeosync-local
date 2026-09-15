@@ -21,13 +21,10 @@ class VerifyShopifySession
         $apisecret = Crypt::decryptString($apisecret);
         dd($apikey, $apisecret, $queries); // Dump the API key, secret, and queries for debugging
 
-        $shopify = new ShopifyApp(
-            config('shopify.api_key'),
-            config('shopify.api_secret')
-        );
+        $shopify = new ShopifyApp($apikey, $apisecret );
 
         $result = $shopify->verifyAppHomeReq($request);
-
+dd($result);
         if (!$result->ok) {
             // Returns clean JSON, not a redirect — this is the fix for your loop
             return $result->response;
