@@ -228,12 +228,60 @@ it('5. Opening / with an existing session cookie remains on public landing page'
     $response->assertViewIs('welcomemain');
 });
 
-it('6. Store Name + Connect form submission starts the Shopify connection flow', function () {
+it('6. Store Name + Connect form submission starts the Shopify connection flow with 302 redirect for standalone browser', function () {
     $response = $this->get('/install?shop=demo-store');
+
+    $response->assertStatus(302);
+    $location = $response->headers->get('Location');
+    expect($location)->toContain('https://demo-store.myshopify.com/admin/oauth/authorize');
+    expect($location)->toContain('client_id=');
+    expect($location)->toContain('redirect_uri=');
+});
+
+it('6b. Embedded install request returns shopify.auth-popup view', function () {
+    $response = $this->get('/install?shop=demo-store&embedded=1');
 
     $response->assertStatus(200);
     $response->assertViewIs('shopify.auth-popup');
     $response->assertViewHas('shop', 'demo-store.myshopify.com');
+});
+
+it('6c. Matching active session on /install safely redirects to dashboard', function () {
+    $shop = Shop::create([
+        'shop'                    => 'active-demo.myshopify.com',
+        'shop_name'               => 'Active Demo',
+        'email'                   => 'merchant@demo.app',
+        'access_token'            => 'shp_token_active',
+        'access_token_expires_at' => now()->addHour(),
+        'is_active'               => 1,
+    ]);
+
+    Http::fake([
+        '*graphql.json*' => Http::response(['data' => ['shop' => ['id' => '1', 'name' => 'Active Demo']]], 200),
+    ]);
+
+    $response = $this->withSession([
+        '_shopify_verified_shop' => 'active-demo.myshopify.com',
+        'active_shop'            => 'active-demo.myshopify.com',
+        'active_shop_id'         => $shop->id,
+    ])->get('/install?shop=active-demo.myshopify.com');
+
+    $response->assertRedirect(route('dashboard', ['shop' => 'active-demo.myshopify.com']));
+});
+
+it('6d. Mismatched session shop is cleared on /install and redirects to requested shop OAuth', function () {
+    $response = $this->withSession([
+        '_shopify_verified_shop' => 'shop-a.myshopify.com',
+        'active_shop'            => 'shop-a.myshopify.com',
+        'unrelated_user_key'     => 'keep_this_intact',
+    ])->get('/install?shop=shop-b.myshopify.com');
+
+    $response->assertStatus(302);
+    $location = $response->headers->get('Location');
+    expect($location)->toContain('https://shop-b.myshopify.com/admin/oauth/authorize');
+    expect(session('_shopify_verified_shop'))->toBeNull();
+    expect(session('active_shop'))->toBeNull();
+    expect(session('unrelated_user_key'))->toBe('keep_this_intact');
 });
 
 it('7. Valid encrypted/signed Zeosync token in query param (id_token) authenticates and establishes session', function () {
@@ -544,4 +592,110 @@ it('19. Dashboard HTML contains decrypted plaintext shopify-api-key meta tag and
     // Secret keys must NOT be in the HTML
     expect($content)->not->toContain($plainApiSecret);
     expect($content)->not->toContain(config('app.key'));
+});
+
+it('20. Embedded Shopify launch with expired/revoked session redirects to /install preserving host and embedded context', function () {
+    $shop = Shop::create([
+        'shop'                    => 'reauth-embedded.myshopify.com',
+        'shop_name'               => 'Reauth Embedded',
+        'email'                   => 'merchant@reauth.app',
+        'access_token'            => 'shp_token_revoked',
+        'access_token_expires_at' => now()->addHour(),
+        'is_active'               => 1,
+    ]);
+
+    Http::swap(new \Illuminate\Http\Client\Factory());
+    Http::fake([
+        '*graphql.json*' => Http::response(['errors' => 'Unauthorized'], 401),
+        '*'              => Http::response(['data' => []], 200),
+    ]);
+
+    $host = base64_encode('admin.shopify.com/store/reauth-embedded');
+    $launchParams = [
+        'shop'     => 'reauth-embedded.myshopify.com',
+        'host'     => $host,
+        'embedded' => '1',
+    ];
+    $queryString = generateLaunchHmacQuery($launchParams, 'test-client-secret');
+
+    // Launch hits entry() -> detects invalid token -> redirects to shopify.install with shop parameter
+    $response = $this->get('/?' . $queryString);
+    $response->assertRedirect(route('shopify.install', ['shop' => 'reauth-embedded.myshopify.com']));
+
+    // Follow redirect to /install with host & embedded context
+    $installResponse = $this->get('/install?shop=reauth-embedded.myshopify.com&host=' . urlencode($host) . '&embedded=1');
+    $installResponse->assertStatus(200);
+    $installResponse->assertViewIs('shopify.auth-popup');
+    $installResponse->assertViewHas('shop', 'reauth-embedded.myshopify.com');
+
+    // Assert OAuth URL has correct parameters
+    $redirectUrl = $installResponse->viewData('redirectUrl');
+    expect($redirectUrl)->toContain('https://reauth-embedded.myshopify.com/admin/oauth/authorize');
+    expect($redirectUrl)->toContain('client_id=test-client-id');
+    expect($redirectUrl)->toContain('scope=read_products%2Cwrite_products');
+    expect($redirectUrl)->toContain('redirect_uri=');
+    expect($redirectUrl)->toContain('state=');
+});
+
+it('21. Temporary Shopify API 500 failure during isShopActive does not deactivate shop and preserves session', function () {
+    $shop = Shop::create([
+        'shop'                    => 'temp-error.myshopify.com',
+        'shop_name'               => 'Temp Error',
+        'email'                   => 'merchant@temp.app',
+        'access_token'            => 'shp_token_temp',
+        'access_token_expires_at' => now()->addHour(),
+        'is_active'               => 1,
+    ]);
+
+    Http::swap(new \Illuminate\Http\Client\Factory());
+    Http::fake([
+        '*graphql.json*' => Http::response(['errors' => 'Internal Server Error'], 500),
+        '*'              => Http::response(['data' => []], 200),
+    ]);
+
+    $response = $this->withSession([
+        '_shopify_verified_shop' => 'temp-error.myshopify.com',
+        'active_shop'            => 'temp-error.myshopify.com',
+        'active_shop_id'         => $shop->id,
+    ])->get('/install?shop=temp-error.myshopify.com');
+
+    // Must still redirect to dashboard because 500 is treated as temporary network failure, NOT deactivation
+    $response->assertRedirect(route('dashboard', ['shop' => 'temp-error.myshopify.com']));
+
+    $reloadedShop = Shop::find($shop->id);
+    expect($reloadedShop->is_active)->toBe(1);
+});
+
+it('22. Token revocation 401 during isShopActive deactivates shop and initiates OAuth', function () {
+    $shop = Shop::create([
+        'shop'                    => 'revoked-store.myshopify.com',
+        'shop_name'               => 'Revoked Store',
+        'email'                   => 'merchant@revoked.app',
+        'access_token'            => 'shp_token_bad',
+        'access_token_expires_at' => now()->addHour(),
+        'is_active'               => 1,
+    ]);
+
+    Http::swap(new \Illuminate\Http\Client\Factory());
+    Http::fake([
+        '*graphql.json*' => Http::response(['errors' => 'Unauthorized'], 401),
+        '*'              => Http::response(['data' => []], 200),
+    ]);
+
+    $response = $this->withSession([
+        '_shopify_verified_shop' => 'revoked-store.myshopify.com',
+        'active_shop'            => 'revoked-store.myshopify.com',
+        'active_shop_id'         => $shop->id,
+    ])->get('/install?shop=revoked-store.myshopify.com');
+
+    // Deactivates shop in DB
+    $reloadedShop = Shop::find($shop->id);
+    expect($reloadedShop->is_active)->toBe(0);
+
+    // Clears session and initiates OAuth via HTTP 302
+    $response->assertStatus(302);
+    $location = $response->headers->get('Location');
+    expect($location)->toContain('https://revoked-store.myshopify.com/admin/oauth/authorize');
+    expect(session('_shopify_verified_shop'))->toBeNull();
+    expect(session('active_shop'))->toBeNull();
 });

@@ -366,45 +366,103 @@ class ShopifyController extends Controller
             'session_verified_shop' => session('_shopify_verified_shop'),
         ]);
 
-        if ($request->filled('shop') && session()->has('active_shop') && strtolower(trim((string) $request->query('shop'))) !== strtolower(trim((string) session('active_shop')))) {
-            Log::warning('SHOPIFY_DEBUG: install_shop_session_mismatch', [
-                'requested_shop'      => $request->query('shop'),
-                'session_active_shop' => session('active_shop'),
-            ]);
-        }
-
-        Log::info('INSTALL HIT', [
-            'shop' => $request->query('shop'),
-        ]);
-        $shop = $request->query('shop');
-        //   fallback from host (IMPORTANT)
-        if (!$shop && $request->has('host')) {
-            $decoded = base64_decode($request->get('host'));
-            if (preg_match('/store\/([a-z0-9\-]+)/', $decoded, $matches)) {
-                $shop = $matches[1] . '.myshopify.com';
+        // 1. Normalize & Validate Shop Domain
+        $rawShop = $request->query('shop');
+        if (!$rawShop && $request->filled('host')) {
+            $host = trim((string) $request->get('host'));
+            $padding = strlen($host) % 4;
+            if ($padding > 0) {
+                $host .= str_repeat('=', 4 - $padding);
+            }
+            $decoded = base64_decode(strtr($host, '-_', '+/'), true);
+            if ($decoded && preg_match('/store\/([a-z0-9\-]+)/i', $decoded, $matches)) {
+                $rawShop = $matches[1] . '.myshopify.com';
             }
         }
 
-        if (!$shop) {
+        if (!$rawShop) {
             Log::error('SHOP MISSING');
             return response('Missing shop parameter', 400);
         }
 
-        if (!str_contains($shop, '.myshopify.com')) {
-            $shop .= '.myshopify.com';
-        }
+        $validator = app(\App\Services\ShopifySessionTokenValidator::class);
+        $shop = $validator->normalizeShopDomain((string) $rawShop);
 
-        // ✅ strict validation
-        if (!preg_match('/^[a-zA-Z0-9\-]+\.myshopify\.com$/', $shop)) {
+        if (!$shop) {
             return response('Invalid shop domain', 400);
         }
+
+        // 2. Wrong-Shop Session Isolation
+        $sessionShop = session('_shopify_verified_shop') ?? session('active_shop');
+        if ($sessionShop) {
+            $normalizedSessionShop = $validator->normalizeShopDomain((string) $sessionShop);
+            if ($normalizedSessionShop && strcasecmp($normalizedSessionShop, $shop) !== 0) {
+                Log::warning('SHOPIFY_DEBUG: install_shop_session_mismatch_clearing_session', [
+                    'requested_shop'      => $shop,
+                    'session_shop'        => $sessionShop,
+                ]);
+
+                session()->forget([
+                    '_shopify_verified_shop',
+                    '_shopify_verified_at',
+                    'active_shop',
+                    'active_shop_id',
+                    'amazon_shop',
+                    'shop',
+                    'shopify_verified_model',
+                    'shopify_auth_source',
+                ]);
+                $sessionShop = null;
+            }
+        }
+
+        // 3. Safe Matching-Shop Fast Path (Session matches requested shop domain)
+        if ($sessionShop && strcasecmp((string) $sessionShop, $shop) === 0) {
+            $shopModel = Shop::where('shop', $shop)->where('is_active', 1)->first();
+
+            if ($shopModel && !empty($shopModel->access_token)) {
+                if ($this->isShopActive($shopModel)) {
+                    session([
+                        'active_shop'            => $shop,
+                        'active_shop_id'         => $shopModel->id,
+                        '_shopify_verified_shop' => $shop,
+                        '_shopify_verified_at'   => session('_shopify_verified_at', time()),
+                    ]);
+
+                    $redirectParams = $request->query();
+                    unset(
+                        $redirectParams['id_token'],
+                        $redirectParams['token'],
+                        $redirectParams['session_token'],
+                        $redirectParams['session'],
+                        $redirectParams['shopify_token']
+                    );
+                    $redirectParams['shop'] = $shop;
+
+                    return redirect()->route('dashboard', $redirectParams);
+                }
+
+                // Stale or revoked token in database -> deactivate and clear session
+                $shopModel->update(['is_active' => 0]);
+                session()->forget([
+                    '_shopify_verified_shop',
+                    '_shopify_verified_at',
+                    'active_shop',
+                    'active_shop_id',
+                    'amazon_shop',
+                    'shop',
+                    'shopify_verified_model',
+                    'shopify_auth_source',
+                ]);
+            }
+        }
+
+        // 4. Build OAuth Authorization URL
         $state = base64_encode(json_encode([
             'shop' => $shop,
-            'time' => time()
+            'time' => time(),
         ]));
 
-   
-        // ⚡ build query safely
         $shopifyApiKey = AdminSetting::get(
             'SHOPIFY_API_KEY',
             config('services.shopify.api_key')
@@ -423,20 +481,22 @@ class ShopifyController extends Controller
         ]);
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
 
-        //   IMPORTANT (iframe fix)
-        $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
-
         Log::info('SHOPIFY_DEBUG: install_route_completed', [
             'route'                => 'install',
             'normalized_shop'      => $shop,
             'session_active_shop'  => session('active_shop'),
-            'result'               => 'auth_popup_rendered',
         ]);
 
-        return response()->view('shopify.auth-popup', [
-            'redirectUrl' => $redirectUrl,
-            'shop' => $shop,
-        ]);
+        // 5. Embedded vs Standalone Browser Handling
+        $isEmbedded = $request->query('embedded') === '1' || $request->filled('host');
+        if ($isEmbedded) {
+            return response()->view('shopify.auth-popup', [
+                'redirectUrl' => $redirectUrl,
+                'shop'        => $shop,
+            ]);
+        }
+
+        return redirect()->away($redirectUrl);
     }
     public function callback(Request $request)
     {
