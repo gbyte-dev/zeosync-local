@@ -421,3 +421,47 @@ it('14. zeosync.blade.php honors explicit logout without triggering auto-reauth 
     $response->assertSee('logged_out', false);
     $response->assertSee('zeosync_explicit_logout', false);
 });
+
+it('15. Shop A session with Shop B request without credentials clears session and redirects to shopify.install for Shop B', function () {
+    $shopA = Shop::create([
+        'shop'         => 'shop-a.myshopify.com',
+        'shop_name'    => 'Shop A',
+        'email'        => 'a@test.com',
+        'access_token' => 'valid_token_a',
+        'is_active'    => 1,
+    ]);
+
+    $response = $this->withSession([
+        '_shopify_verified_shop' => 'shop-a.myshopify.com',
+        '_shopify_verified_at'   => time(),
+        'active_shop'            => 'shop-a.myshopify.com',
+        'active_shop_id'         => $shopA->id,
+        'amazon_shop'            => 'shop-a.myshopify.com',
+        'shop'                   => 'shop-a.myshopify.com',
+    ])->get('/dashboard?shop=shop-b.myshopify.com');
+
+    $response->assertStatus(302);
+    $response->assertRedirect(route('shopify.install', ['shop' => 'shop-b.myshopify.com']));
+
+    // Stale Shop A session variables must be cleared
+    expect(session('_shopify_verified_shop'))->toBeNull();
+    expect(session('active_shop'))->toBeNull();
+    expect(session('active_shop_id'))->toBeNull();
+    expect(session('_shopify_verified_at'))->toBeNull();
+    expect(session('amazon_shop'))->toBeNull();
+    expect(session('shop'))->toBeNull();
+});
+
+it('16. Corrupt session shop domain with Shop B request without credentials clears session and redirects to shopify.install for Shop B', function () {
+    $response = $this->withSession([
+        '_shopify_verified_shop' => 'invalid_domain!!!',
+        'active_shop'            => 'invalid_domain!!!',
+    ])->get('/dashboard?shop=shop-b.myshopify.com');
+
+    $response->assertStatus(302);
+    $response->assertRedirect(route('shopify.install', ['shop' => 'shop-b.myshopify.com']));
+
+    expect(session('_shopify_verified_shop'))->toBeNull();
+    expect(session('active_shop'))->toBeNull();
+});
+
