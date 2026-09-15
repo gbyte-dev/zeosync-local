@@ -112,7 +112,6 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
    
     Route::get('/api/shopify/patch-id-token', function (Request $request) {
        setShopifySettings();
-       dd( config('shopify.api_key'), config('shopify.api_secret') );
         $shopify = new ShopifyApp( config('shopify.api_key'), config('shopify.api_secret') );
         $req = [ 'url'     => $request->fullUrl(),  'headers' => $request->headers->all()];
         $result = $shopify->appHomePatchIdToken($req);
