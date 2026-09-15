@@ -19,12 +19,16 @@ class VerifyShopifySession
 
         $apikey = Crypt::decryptString($apikey);
         $apisecret = Crypt::decryptString($apisecret);
-        dd($apikey, $apisecret, $queries); // Dump the API key, secret, and queries for debugging
 
-        $shopify = new ShopifyApp($apikey, $apisecret );
+        try{
+            $shopify = new ShopifyApp($apikey, $apisecret );
+            $result = $shopify->verifyAppHomeReq($request);
+            dd($result);
+        }catch(\Exception $e){
+            return response()->json(['error' => 'Invalid Shopify session: ' . $e->getMessage()], 401);
+        }
 
-        $result = $shopify->verifyAppHomeReq($request);
-dd($result);
+
         if (!$result->ok) {
             // Returns clean JSON, not a redirect — this is the fix for your loop
             return $result->response;
