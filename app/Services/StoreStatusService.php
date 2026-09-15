@@ -13,22 +13,22 @@ class StoreStatusService
     {
         Log::info('STORE STATUS CHECK STARTED', [
             'shop_id' => $shop->id,
-            'shop'    => $shop->shop,
+            'shop' => $shop->shop,
         ]);
 
         $shopifyService = app(ShopifyService::class, [
-            'shop'  => $shop->shop,
+            'shop' => $shop->shop,
             'token' => $shop->access_token
         ]);
 
         $query = <<<GRAPHQL
-        {
-            shop {
-                id
-                name
+            {
+                shop {
+                    id
+                    name
+                }
             }
-        }
-        GRAPHQL;
+            GRAPHQL;
 
         $response = $shopifyService->graphql($query);
 
@@ -38,28 +38,28 @@ class StoreStatusService
 
             switch ($status) {
                 case 401:
-                    $this->ensureFreshAccessToken($shop,'uninstalled');
-                   // $this->updateStatus($shop, 'uninstalled');
+                    $this->ensureFreshAccessToken($shop, 'uninstalled');
+                    // $this->updateStatus($shop, 'uninstalled');
                     break;
 
                 case 403:
-                    $this->ensureFreshAccessToken($shop,'banned');
+                    $this->ensureFreshAccessToken($shop, 'banned');
                     break;
 
-                case 402: // Payment Required (Shopify standard for frozen stores)
-                case 423: // Locked
-                case 404: // Store not found/deleted
+                case 402:  // Payment Required (Shopify standard for frozen stores)
+                case 423:  // Locked
+                case 404:  // Store not found/deleted
                     $this->updateStatus($shop, 'inactive');
                     break;
 
-                case 429: // Rate limit
-                case 0:   // Network Exception
+                case 429:  // Rate limit
+                case 0:  // Network Exception
                 default:  // 5xx and other unexpected errors
                     Log::warning('STORE STATUS CHECK TEMPORARY ISSUE', [
-                        'shop_id'     => $shop->id,
-                        'shop'        => $shop->shop,
+                        'shop_id' => $shop->id,
+                        'shop' => $shop->shop,
                         'status_code' => $status,
-                        'message'     => $response['message'] ?? 'Unknown error',
+                        'message' => $response['message'] ?? 'Unknown error',
                     ]);
                     $this->updateTimestampOnly($shop);
                     break;
@@ -74,8 +74,8 @@ class StoreStatusService
         } else {
             // HTTP 200 but empty/unexpected structural response
             Log::warning('STORE STATUS CHECK UNEXPECTED RESPONSE', [
-                'shop_id'  => $shop->id,
-                'shop'     => $shop->shop,
+                'shop_id' => $shop->id,
+                'shop' => $shop->shop,
                 'response' => $response,
             ]);
             $this->updateTimestampOnly($shop);
@@ -83,29 +83,28 @@ class StoreStatusService
 
         Log::info('STORE STATUS CHECK COMPLETED', [
             'shop_id' => $shop->id,
-            'shop'    => $shop->shop,
+            'shop' => $shop->shop,
         ]);
     }
 
     public function updateStatus(Shop $shop, string $status): void
     {
         $shop->update([
-            'store_status'         => $status,
-            'is_active'            => $status === 'active' ? 1 : 0,
+            'store_status' => $status,
+            'is_active' => $status === 'active' ? 1 : 0,
             'last_status_check_at' => now(),
         ]);
 
         // Store inactive / banned / uninstalled
         if (in_array($status, ['inactive', 'banned', 'uninstalled'])) {
-
             app(SubscriptionCancellationService::class)
                 ->cancelAtPeriodEnd($shop);
         }
 
         Log::info('STORE STATUS UPDATED', [
-            'shop_id'   => $shop->id,
-            'shop'      => $shop->shop,
-            'status'    => $status,
+            'shop_id' => $shop->id,
+            'shop' => $shop->shop,
+            'status' => $status,
             'is_active' => $status === 'active' ? 1 : 0,
         ]);
     }
@@ -118,15 +117,15 @@ class StoreStatusService
 
         Log::info('STORE STATUS TIMESTAMP UPDATED (NO STATUS CHANGE)', [
             'shop_id' => $shop->id,
-            'shop'    => $shop->shop,
+            'shop' => $shop->shop,
         ]);
     }
 
-     /**
+    /**
      * Ensures the shop has a valid access token, refreshing if needed.
      * Returns an array: ['success' => bool, 'access_token' => ?string, 'message' => string]
      */
-    public function ensureFreshAccessToken(Shop $shopModel , string $status = 'inactive'): array
+    public function ensureFreshAccessToken(Shop $shopModel, string $status = 'inactive'): array
     {
         try {
             // still valid — nothing to do
@@ -142,7 +141,7 @@ class StoreStatusService
             if (!$shopModel->refresh_token_expires_at || $shopModel->refresh_token_expires_at->isPast()) {
                 Log::warning('REFRESH TOKEN EXPIRED', ['shop' => $shopModel->shop]);
 
-               // $shopModel->update(['is_active' => 0]);
+                // $shopModel->update(['is_active' => 0]);
                 $this->updateStatus($shopModel, $status);
                 return [
                     'success' => false,
@@ -152,9 +151,9 @@ class StoreStatusService
             }
 
             $response = Http::asJson()->post("https://{$shopModel->shop}/admin/oauth/access_token", [
-                'client_id'     => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
+                'client_id' => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
                 'client_secret' => AdminSetting::get('SHOPIFY_API_SECRET', config('services.shopify.api_secret')),
-                'grant_type'    => 'refresh_token',
+                'grant_type' => 'refresh_token',
                 'refresh_token' => $shopModel->refresh_token,
             ]);
 
@@ -162,7 +161,6 @@ class StoreStatusService
                 Log::error('TOKEN REFRESH FAILED', [
                     'shop' => $shopModel->shop,
                     'status' => $response->status(),
-                    'body' => $response->body(),
                 ]);
 
                 // Shopify signals a dead refresh token with 401 invalid_request
@@ -206,7 +204,6 @@ class StoreStatusService
                 'access_token' => $data['access_token'],
                 'message' => 'Token refreshed successfully.',
             ];
-
         } catch (\Throwable $e) {
             Log::error('TOKEN REFRESH EXCEPTION', [
                 'shop' => $shopModel->shop ?? null,
@@ -220,5 +217,4 @@ class StoreStatusService
             ];
         }
     }
-
 }
