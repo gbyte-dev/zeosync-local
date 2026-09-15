@@ -36,14 +36,7 @@
     padding: 12px;
 }
 
-.btn-activate {
-    width: 100%;
-    background: black;
-    color: white;
-    padding: 14px;
-    border-radius: 12px;
-    font-weight: 500;
-}
+
 </style>
 
 <div class="container setup-container">
@@ -85,7 +78,7 @@
             <input type="hidden" name="access_token" value="{{$shopModel?->access_token}}">
 
             <!-- Button -->
-            <button type="submit" class="btn-activate">
+            <button type="submit" class="btn-activate btn btn-primary float-end">
                 Activate App
             </button>
 
