@@ -19,7 +19,6 @@ class VerifyShopifySession
 
         $apikey = Crypt::decryptString($apikey);
         $apisecret = Crypt::decryptString($apisecret);
-        dd($apikey, $apisecret, $queries); // Dump the API key, secret, and queries for debugging
 
         $shopify = new ShopifyApp($apikey, $apisecret );
 
