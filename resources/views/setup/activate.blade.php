@@ -93,6 +93,43 @@
 </div>
 
 @endsection
-
 @push('scripts')
+<script>
+document.getElementById('activateForm').addEventListener('submit', async function (event) {
+    event.preventDefault();
+
+    const form = this;
+    const button = form.querySelector('button[type="submit"]');
+
+    button.disabled = true;
+    button.innerText = 'Activating...';
+
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': form.querySelector('input[name="_token"]').value,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: new FormData(form)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Activation failed.');
+        }
+
+        // Activation successful hone ke baad window close
+        window.close();
+
+    } catch (error) {
+        alert(error.message);
+
+        button.disabled = false;
+        button.innerText = 'Activate App';
+    }
+});
+</script>
 @endpush
