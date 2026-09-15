@@ -3,11 +3,11 @@
 namespace App\Http\Middleware;
 
 use App\Models\Shop;
-use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
 use Symfony\Component\HttpFoundation\Response;
-use Illuminate\Support\Facades\Log;
+use Closure;
 
 class ResolveActiveShop
 {
@@ -20,13 +20,13 @@ class ResolveActiveShop
 
         // 2. Bypass webhook routes
         if (
-            $request->routeIs('shopify.webhooks.orders.create')
-            || $request->routeIs('shopify.webhooks.app.uninstalled')
-            || $request->routeIs('shopify.webhooks.customers.data_request')
-            || $request->routeIs('shopify.webhooks.customers.redact')
-            || $request->routeIs('shopify.webhooks.shop.redact')
-            || $request->is('webhooks/*')
-            || $request->is('shopify/webhooks/*')
+            $request->routeIs('shopify.webhooks.orders.create') ||
+            $request->routeIs('shopify.webhooks.app.uninstalled') ||
+            $request->routeIs('shopify.webhooks.customers.data_request') ||
+            $request->routeIs('shopify.webhooks.customers.redact') ||
+            $request->routeIs('shopify.webhooks.shop.redact') ||
+            $request->is('webhooks/*') ||
+            $request->is('shopify/webhooks/*')
         ) {
             Log::info('BYPASS RESOLVE ACTIVE SHOP FOR WEBHOOK', [
                 'route' => $request->route()?->getName(),
@@ -53,10 +53,10 @@ class ResolveActiveShop
 
             Log::info('SHOPIFY_DEBUG: resolve_active_shop_from_verified_attr', [
                 'verified_shop_domain' => $verifiedShopDomain,
-                'shop_model_found'     => (bool) $shop,
-                'shop_id'              => $shop?->id,
+                'shop_model_found' => (bool) $shop,
+                'shop_id' => $shop?->id,
                 'access_token_present' => !empty($shop?->access_token),
-                'session_active_shop'  => session('active_shop'),
+                'session_active_shop' => session('active_shop'),
             ]);
 
             if ($shop && !empty($shop->access_token)) {
@@ -64,7 +64,7 @@ class ResolveActiveShop
                 $request->attributes->set('active_shop_model', $shop);
 
                 session([
-                    'active_shop'    => $shop->shop,
+                    'active_shop' => $shop->shop,
                     'active_shop_id' => $shop->id,
                 ]);
 
@@ -73,8 +73,8 @@ class ResolveActiveShop
 
                 Log::info('RESOLVED VERIFIED ACTIVE SHOP', [
                     'shop_id' => $shop->id,
-                    'shop'    => $shop->shop,
-                    'source'  => $request->attributes->get('shopify_auth_source'),
+                    'shop' => $shop->shop,
+                    'source' => $request->attributes->get('shopify_auth_source'),
                 ]);
 
                 // Activation check for setup flow
@@ -87,7 +87,7 @@ class ResolveActiveShop
                     if ($request->ajax() || $request->expectsJson()) {
                         return response()->json([
                             'success' => false,
-                            'code'    => 'SHOP_ACTIVATION_REQUIRED',
+                            'code' => 'SHOP_ACTIVATION_REQUIRED',
                             'message' => 'Shop activation is required.',
                         ], 403);
                     }
@@ -98,7 +98,6 @@ class ResolveActiveShop
                         ])
                         ->with('error', 'Please fill the activation form to activate the app.');
                 }
-
 
                 return $next($request);
             }
@@ -138,16 +137,18 @@ class ResolveActiveShop
             }
 
             Log::info('SHOPIFY_DEBUG: resolve_active_shop_public_route', [
-                'route'                 => $request->route()?->getName(),
-                'resolved_active_shop'  => $activeShop,
-                'db_shop_exists'        => (bool) $shop,
-                'db_shop_id'            => $shop?->id,
-                'session_active_shop'   => session('active_shop'),
+                'route' => $request->route()?->getName(),
+                'resolved_active_shop' => $activeShop,
+                'db_shop_exists' => (bool) $shop,
+                'db_shop_id' => $shop?->id,
+                'session_active_shop' => session('active_shop'),
                 'session_verified_shop' => session('_shopify_verified_shop'),
             ]);
 
             if (
-                $shop && filled($shop->shop_name) && filled($shop->email) &&
+                $shop &&
+                filled($shop->shop_name) &&
+                filled($shop->email) &&
                 $request->routeIs('setup.store')
             ) {
                 return redirect()->route('dashboard', [
@@ -162,7 +163,7 @@ class ResolveActiveShop
         // 4. Protected tenant route without verified identity
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json([
-                'error'   => 'Unauthorized',
+                'error' => 'Unauthorized',
                 'message' => 'Shopify authentication required.',
             ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');
         }
@@ -175,24 +176,38 @@ class ResolveActiveShop
             $resolvedShop = $this->resolveShopDomain($request);
             $host = $request->query('host');
 
-            Log::info('EMBEDDED REAUTH BOUNCE TRIGGERED', [
-                'path' => $request->path(),
-                'shop' => $resolvedShop,
-            ]);
+            $existingShop = null;
 
-            Log::info('SHOPIFY_DEBUG: resolve_active_shop_embedded_reauth_bounce', [
-                'path'                  => $request->path(),
-                'target_url'            => $targetUrl,
-                'resolved_shop'         => $resolvedShop,
-                'host'                  => $host,
-                'session_active_shop'   => session('active_shop'),
-                'session_verified_shop' => session('_shopify_verified_shop'),
-            ]);
+            if ($resolvedShop) {
+                $existingShop = Shop::where('shop', $resolvedShop)->first();
+            }
 
+            /*
+             * |--------------------------------------------------------------------------
+             * | New / inactive / tokenless shop
+             * |--------------------------------------------------------------------------
+             */
+            if (
+                !$existingShop ||
+                !$existingShop->is_active ||
+                empty($existingShop->access_token)
+            ) {
+                return redirect()->route('shopify.install', array_filter([
+                    'shop' => $resolvedShop,
+                    'host' => $host,
+                    'embedded' => $request->query('embedded', '1'),
+                ]));
+            }
+
+            /*
+             * |--------------------------------------------------------------------------
+             * | Existing shop with expired browser session
+             * |--------------------------------------------------------------------------
+             */
             return response()->view('shopify.reauth', [
                 'targetUrl' => $targetUrl,
-                'shop'      => $resolvedShop,
-                'host'      => $host,
+                'shop' => $resolvedShop,
+                'host' => $host,
             ]);
         }
 
@@ -276,4 +291,3 @@ class ResolveActiveShop
         return $decoded !== false ? $decoded : $host;
     }
 }
-
