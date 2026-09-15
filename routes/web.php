@@ -68,8 +68,6 @@ Route::middleware([ ResolveActiveShop::class,  \App\Http\Middleware\CheckSubscri
     Route::get('logs', [SettingsController::class, 'logs'])->name('shopify.logs');
     Route::post('logs/remove-all', [SettingsController::class, 'removeAllLogs'])->name('shopify.logs.remove.all');
     Route::delete('logs/{id}', [SettingsController::class, 'removeLog'])->name('shopify.logs.remove');
-   
-    Route::get('/logs_next', [ShopifyController::class, 'logs'])->name('dashboard.logs')->middleware('shopify.session');
 });
 
 
@@ -110,7 +108,7 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
 
     // AJAX: check SKU status on Amazon and update local product status
     Route::post('/amazon/check-sku', [ProductSchemaController::class, 'checkSkuStatus'])->name('amazon.check.sku');
-
+    Route::get('/logs_next', [ShopifyController::class, 'logs'])->name('dashboard.logs')->middleware('shopify.session');
 });
 
 Route::get('/get-seller-id', [ShopifyController::class, 'getSellerIdFull']);
