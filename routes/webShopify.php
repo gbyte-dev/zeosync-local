@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use App\Jobs\SyncAmazonInventoryJob;
+use App\Http\Middleware\ResolveActiveShop;
 
 Route::get('verify', [DashboardController::class, 'install'])->name('i.dashboard');
 Route::get('verify', function () {
@@ -67,40 +68,6 @@ Route::post('activate', [SettingsController::class, 'store'])->name('setup.store
 // Route::get('returns/shopify/{id}', [ReturnController::class, 'viewShopify'])->name('shopify.returns.view.shopify');
 //inventory
 // Route::get('/inventory', [InventoryController::class, 'index'])->name('shopify.inventory.index');
-Route::get('inventory/shopify', [InventoryController::class, 'shopify'])->name('shopify.inventory.shopify');
-Route::get('inventory/amazon', [InventoryController::class, 'amazon'])
-    ->name('shopify.inventory.amazon');
-Route::get('inventory/refresh', [InventoryController::class, 'refresh'])->name('shopify.inventory.refresh');
-Route::get('inventory/product/{id}', [InventoryController::class, 'productDetails'])->name('shopify.inventory.details');
-Route::get('product/category', [InventoryController::class, 'getProductCategory'])->name('shopify.product.category');
-
-
-Route::get( 'inventory/amazon/{parentSku}/variants', [InventoryController::class, 'variants']
-)->name('shopify.inventory.amazon.variants');
-
-Route::post('inventory/amazon/{childSku}/update-quantity', [InventoryController::class, 'updateAmazonQuantity']
-)->name('shopify.inventory.amazon.update');
-
-Route::get('/inventory/shopify-products', [InventoryMappingController::class, 'shopifyProducts'])
-    ->name('inventory.shopify.products');
-
-Route::get('/inventory/shopify-product-variants/{product}', [InventoryMappingController::class, 'variants']
-)->name('inventory.shopify.variants');
-
-Route::post('/inventory/save-product-mapping',[InventoryMappingController::class, 'saveProductMapping']
-)->name('inventory.save.mapping');
-
-Route::post( '/inventory/save-amazon-mapping', [InventoryMappingController::class, 'saveAmazonMapping']
-)->name('inventory.save.amazon.mapping');
-
-Route::delete('/inventory/unmap/{mapping}', [InventoryMappingController::class, 'unmap'])
-    ->name('inventory.unmap');
-
-Route::post( '/inventory/shopify/update', [InventoryMappingController::class, 'updateShopifyInventory']
-)->name('inventory.shopify.update');
-
-Route::get( '/inventory/mappings', [InventoryMappingController::class, 'mappings']
-)->name('inventory.mappings');
 
 Route::get('/clear-cache-temp', function () {
     Artisan::call('optimize:clear');
@@ -205,21 +172,59 @@ Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::clas
     });
 });
 
-Route::match(['get', 'post'], '/selectCategory', [ProductSchemaController::class, 'addProductCategory'])->name('user.addProductCategory');
-Route::get('/addproduct/{schemaId}', [ProductSchemaController::class, 'productcreate'])->name('admin.product.store');
-Route::post('/addproduct', [ProductSchemaController::class, 'productstore'])->name('admin.product.store.post');
-Route::get('/generatePayload/{product}', [ProductSchemaController::class, 'buildListingRequest'])->name('admin.product.generatePayload');
-Route::get('/productEdit/{product}', [ProductSchemaController::class, 'productEdit'])->name('admin.product.productEdit');
-Route::get('/child/product/{product}', [ProductSchemaController::class, 'productEdit'])->name('admin.product.product.child');
-Route::post('/addproduct/{product_id}', [ProductSchemaController::class, 'productstore'])->name('admin.product.edit.post');
-Route::get('/generatePayload/{product}/{sku}', [ProductSchemaController::class, 'addChildListing'])->name('admin.product.generatePayload.child');
-Route::get('/showProducts', [ProductSchemaController::class, 'showProducts'])->name('user.product.showProducts');
-Route::get('/remove_drafts/{product}', [ProductSchemaController::class, 'removeDrafts'])->name('user.product.removeDrafts');
+Route::middleware([ ResolveActiveShop::class,  \App\Http\Middleware\CheckSubscription::class
+])->group(function () {
+    Route::match(['get', 'post'], '/selectCategory', [ProductSchemaController::class, 'addProductCategory'])->name('user.addProductCategory');
+    Route::get('/addproduct/{schemaId}', [ProductSchemaController::class, 'productcreate'])->name('admin.product.store');
+    Route::post('/addproduct', [ProductSchemaController::class, 'productstore'])->name('admin.product.store.post');
+    Route::get('/generatePayload/{product}', [ProductSchemaController::class, 'buildListingRequest'])->name('admin.product.generatePayload');
+    Route::get('/productEdit/{product}', [ProductSchemaController::class, 'productEdit'])->name('admin.product.productEdit');
+    Route::get('/child/product/{product}', [ProductSchemaController::class, 'productEdit'])->name('admin.product.product.child');
+    Route::post('/addproduct/{product_id}', [ProductSchemaController::class, 'productstore'])->name('admin.product.edit.post');
+    Route::get('/generatePayload/{product}/{sku}', [ProductSchemaController::class, 'addChildListing'])->name('admin.product.generatePayload.child');
+    Route::get('/showProducts', [ProductSchemaController::class, 'showProducts'])->name('user.product.showProducts');
+    Route::get('/remove_drafts/{product}', [ProductSchemaController::class, 'removeDrafts'])->name('user.product.removeDrafts');
+});
+Route::middleware([ ResolveActiveShop::class])->group(function () {
+    Route::get('inventory/shopify', [InventoryController::class, 'shopify'])->name('shopify.inventory.shopify');
+    Route::get('inventory/amazon', [InventoryController::class, 'amazon'])
+        ->name('shopify.inventory.amazon');
+    Route::get('inventory/refresh', [InventoryController::class, 'refresh'])->name('shopify.inventory.refresh');
+    Route::get('inventory/product/{id}', [InventoryController::class, 'productDetails'])->name('shopify.inventory.details');
+    Route::get('product/category', [InventoryController::class, 'getProductCategory'])->name('shopify.product.category');
 
-Route::get( '/amazon-schema',[AmazonSchemaController::class, 'index']);
+    Route::get( 'inventory/amazon/{parentSku}/variants', [InventoryController::class, 'variants']
+    )->name('shopify.inventory.amazon.variants');
+
+    Route::post('inventory/amazon/{childSku}/update-quantity', [InventoryController::class, 'updateAmazonQuantity']
+    )->name('shopify.inventory.amazon.update');
+
+    Route::get('/inventory/shopify-products', [InventoryMappingController::class, 'shopifyProducts'])
+        ->name('inventory.shopify.products');
+
+    Route::get('/inventory/shopify-product-variants/{product}', [InventoryMappingController::class, 'variants']
+    )->name('inventory.shopify.variants');
+
+    Route::post('/inventory/save-product-mapping',[InventoryMappingController::class, 'saveProductMapping']
+    )->name('inventory.save.mapping');
+
+    Route::post( '/inventory/save-amazon-mapping', [InventoryMappingController::class, 'saveAmazonMapping']
+    )->name('inventory.save.amazon.mapping');
+
+    Route::delete('/inventory/unmap/{mapping}', [InventoryMappingController::class, 'unmap'])
+        ->name('inventory.unmap');
+
+    Route::post( '/inventory/shopify/update', [InventoryMappingController::class, 'updateShopifyInventory']
+    )->name('inventory.shopify.update');
+
+    Route::get( '/inventory/mappings', [InventoryMappingController::class, 'mappings']
+    )->name('inventory.mappings');
+});
+
+
+Route::get('/amazon-schema',[AmazonSchemaController::class, 'index']);
 Route::get('/amazon/subcategories/{id}', [AmazonSchemaController::class, 'getSubcategories']);
-Route::post(
-    '/amazon/validate-rules',   [AmazonSchemaController::class, 'validateRules']);
+Route::post( '/amazon/validate-rules',   [AmazonSchemaController::class, 'validateRules']);
 // // amazon smart from 
 // Route::get('/amazon-smart-form', [AmazonSmartFormController::class, 'index']);
 // Route::post('/amazon-smart-form/fetch', [AmazonSmartFormController::class, 'fetch'])
@@ -471,5 +476,4 @@ Route::get('/debug/shopify-subscription/{chargeId}', function (
     ]);
 });
 
-Route::get('/amazon/low-inventory', [DashboardController::class, 'lowInventory'])
-    ->name('view-all-amazon-low-inventory');
+
