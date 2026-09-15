@@ -153,7 +153,6 @@ class ResolveActiveShop
             ) {
                 return redirect()->route('dashboard', [
                     'shop' => $shop->shop,
-                    'activation_completed' => 1,
                 ]);
             }
 
