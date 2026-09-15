@@ -182,18 +182,17 @@ class AdminController extends Controller
 
     public function settings()
     {
-        $settings = AdminSetting::pluck('option_value', 'option_key')->toArray();
+        $settings = AdminSetting::all()
+            ->pluck('option_value', 'option_key')
+            ->toArray();
         $notifications = NotificationSetting::all();
         return view('admin.settings.index', compact('settings', 'notifications'));
     }
 
     public function settingsupdate(Request $request)
     {
-        $oldProductionClientId = trim((string) AdminSetting::where('option_key', 'production_client_id')
-            ->value('option_value'));
-
-        $oldProductionClientSecret = trim((string) AdminSetting::where('option_key', 'production_client_secret')
-            ->value('option_value'));
+        $oldProductionClientId = trim((string) AdminSetting::get('production_client_id', ''));
+        $oldProductionClientSecret = trim((string) AdminSetting::get('production_client_secret', ''));
 
         $keys = [
             'app_name',
@@ -272,19 +271,35 @@ class AdminController extends Controller
                 continue;
             }
 
-            AdminSetting::updateOrCreate(
-                ['option_key' => $key],
-                [
-                    'option_value' => in_array($key, ['is_testmode', 'app_maintenance', 'install_info'])
-                        ? ($request->has($key) ? '1' : '0')
-                        : ($request->input($key) ?? '')
-                ]
-            );
+            if (AdminSetting::isSensitiveKey($key)) {
+                $submittedValue = $request->input($key);
+                if ($submittedValue === null || trim((string) $submittedValue) === '') {
+                    // Preserve existing stored credential when blank is submitted
+                    continue;
+                }
+
+                AdminSetting::updateOrCreate(
+                    ['option_key' => $key],
+                    ['option_value' => (string) $submittedValue]
+                );
+            } else {
+                AdminSetting::updateOrCreate(
+                    ['option_key' => $key],
+                    [
+                        'option_value' => in_array($key, ['is_testmode', 'app_maintenance', 'install_info'])
+                            ? ($request->has($key) ? '1' : '0')
+                            : ($request->input($key) ?? '')
+                    ]
+                );
+            }
         }
 
+        $newProdClientId = $request->input('production_client_id');
+        $newProdClientSecret = $request->input('production_client_secret');
+
         $credentialsChanged =
-            $oldProductionClientId !== trim((string) $request->production_client_id) ||
-            $oldProductionClientSecret !== trim((string) $request->production_client_secret);
+            ($newProdClientId !== null && trim((string) $newProdClientId) !== '' && $oldProductionClientId !== trim((string) $newProdClientId)) ||
+            ($newProdClientSecret !== null && trim((string) $newProdClientSecret) !== '' && $oldProductionClientSecret !== trim((string) $newProdClientSecret));
 
         if ($credentialsChanged) {
 

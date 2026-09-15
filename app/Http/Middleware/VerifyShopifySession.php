@@ -5,20 +5,14 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Shopify\App\ShopifyApp;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Crypt;
+use App\Models\AdminSetting;
 
 class VerifyShopifySession
 {
     public function handle(Request $request, Closure $next)
     {
-        DB::enableQueryLog(); // Enable query logging for debugging
-        $apikey = DB::table('admin_settings')->where('option_key', 'SHOPIFY_API_KEY')->first()->option_value; // Example query to log
-        $apisecret = DB::table('admin_settings')->where('option_key', 'SHOPIFY_API_SECRET')->first()->option_value; // Example query to log
-        $queries = DB::getQueryLog(); // Get the logged queries
-
-        $apikey = Crypt::decryptString($apikey);
-        $apisecret = Crypt::decryptString($apisecret);
+        $apikey = AdminSetting::get('SHOPIFY_API_KEY', '');
+        $apisecret = AdminSetting::get('SHOPIFY_API_SECRET', '');
 
         try{
             $shopify = new ShopifyApp($apikey, $apisecret );
