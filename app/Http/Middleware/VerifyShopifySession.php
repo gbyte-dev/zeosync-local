@@ -25,7 +25,7 @@ class VerifyShopifySession
             $result = $shopify->verifyAppHomeReq($request);
             dd($result);
         }catch(\Exception $e){
-            return response()->json(['error' => 'Invalid Shopify session: ' . $e->getMessage()], 401);
+             dd($e->getMessage());  
         }
 
 
