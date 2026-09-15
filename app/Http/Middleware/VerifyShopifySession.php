@@ -57,7 +57,7 @@ class VerifyShopifySession
         // }
 
         echo "<pre>";
-         print_r($result);
+         print_r( $result->idToken);
          
          die;
         $request->attributes->set('shopify_id_token', $idToken);
