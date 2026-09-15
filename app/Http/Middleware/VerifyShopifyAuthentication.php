@@ -164,38 +164,84 @@ class VerifyShopifyAuthentication
 
         // 4. Priority 3: Established Cryptographically Verified Session
         if (session()->has('_shopify_verified_shop')) {
-            $sessionShopDomain = session('_shopify_verified_shop');
-            try {
-                $sessionShop = Shop::where('shop', $sessionShopDomain)
-                    ->where('is_active', 1)
-                    ->first();
-            } catch (\Throwable $e) {
-                $sessionShop = null;
-            }
+            $rawSessionShop = (string) session('_shopify_verified_shop');
+            $sessionShopDomain = $this->validator->normalizeShopDomain($rawSessionShop);
+            $requestedShop = $this->extractRequestedShop($request);
 
-            Log::info('SHOPIFY_DEBUG: verify_auth_priority4_session_fallback', [
-                'requested_shop'        => $request->query('shop'),
-                'session_verified_shop' => $sessionShopDomain,
-                'auth_strategy'         => 'session_fallback',
-                'database_shop_exists'  => (bool) $sessionShop,
-                'database_shop_active'  => $sessionShop ? (int) $sessionShop->is_active : null,
-                'result'                => ($sessionShop && !empty($sessionShop->access_token)) ? 'fallback_authenticated' : 'fallback_failed',
-            ]);
+            if (!$sessionShopDomain) {
+                Log::warning('SHOPIFY_DEBUG: verify_auth_session_fallback_invalid_domain', [
+                    'raw_session_shop' => $rawSessionShop,
+                    'requested_shop'   => $requestedShop,
+                ]);
 
-            if ($request->filled('shop') && strtolower(trim((string) $request->query('shop'))) !== strtolower(trim((string) $sessionShopDomain))) {
+                session()->forget([
+                    '_shopify_verified_shop',
+                    '_shopify_verified_at',
+                    'active_shop',
+                    'active_shop_id',
+                    'amazon_shop',
+                    'shop',
+                    'shopify_verified_model',
+                    'shopify_auth_source',
+                ]);
+
+                if ($requestedShop) {
+                    return redirect()->route('shopify.install', [
+                        'shop' => $requestedShop,
+                    ]);
+                }
+            } elseif ($requestedShop && strcasecmp($requestedShop, $sessionShopDomain) !== 0) {
                 Log::warning('SHOPIFY_DEBUG: verify_auth_session_fallback_shop_mismatch', [
-                    'requested_shop'        => $request->query('shop'),
+                    'requested_shop'        => $requestedShop,
                     'session_verified_shop' => $sessionShopDomain,
                     'session_active_shop'   => session('active_shop'),
+                    'auth_strategy'         => 'session_fallback_rejected',
+                    'result'                => 'redirect_to_install',
                 ]);
-            }
 
-            if ($sessionShop && !empty($sessionShop->access_token)) {
-                $request->attributes->set('shopify_verified_shop', $sessionShop->shop);
-                $request->attributes->set('shopify_verified_model', $sessionShop);
-                $request->attributes->set('shopify_auth_source', 'verified_session');
+                // Clear stale session context.
+                session()->forget([
+                    '_shopify_verified_shop',
+                    '_shopify_verified_at',
+                    'active_shop',
+                    'active_shop_id',
+                    'amazon_shop',
+                    'shop',
+                    'shopify_verified_model',
+                    'shopify_auth_source',
+                ]);
 
-                return $next($request);
+                // Never set verified attributes for the old shop.
+                // Never call $next($request).
+
+                return redirect()->route('shopify.install', [
+                    'shop' => $requestedShop,
+                ]);
+            } else {
+                try {
+                    $sessionShop = Shop::where('shop', $sessionShopDomain)
+                        ->where('is_active', 1)
+                        ->first();
+                } catch (\Throwable $e) {
+                    $sessionShop = null;
+                }
+
+                Log::info('SHOPIFY_DEBUG: verify_auth_priority4_session_fallback', [
+                    'requested_shop'        => $requestedShop ?? $request->query('shop'),
+                    'session_verified_shop' => $sessionShopDomain,
+                    'auth_strategy'         => 'session_fallback',
+                    'database_shop_exists'  => (bool) $sessionShop,
+                    'database_shop_active'  => $sessionShop ? (int) $sessionShop->is_active : null,
+                    'result'                => ($sessionShop && !empty($sessionShop->access_token)) ? 'fallback_authenticated' : 'fallback_failed',
+                ]);
+
+                if ($sessionShop && !empty($sessionShop->access_token)) {
+                    $request->attributes->set('shopify_verified_shop', $sessionShop->shop);
+                    $request->attributes->set('shopify_verified_model', $sessionShop);
+                    $request->attributes->set('shopify_auth_source', 'verified_session');
+
+                    return $next($request);
+                }
             }
         }
 
@@ -476,5 +522,50 @@ class VerifyShopifyAuthentication
         }
 
         return $query;
+    }
+
+    /**
+     * Extract normalized shop domain from request parameters (shop, host) if available.
+     */
+    public function extractRequestedShop(Request $request): ?string
+    {
+        $shop = $request->query('shop') ?? $request->input('shop');
+        if ($shop) {
+            $normalized = $this->validator->normalizeShopDomain((string) $shop);
+            if ($normalized) {
+                return $normalized;
+            }
+        }
+
+        $host = $request->query('host') ?? $request->input('host');
+        if ($host) {
+            $decoded = $this->decodeShopifyHost((string) $host);
+            if ($decoded) {
+                if (preg_match('#/store/([a-z0-9-]+)#i', $decoded, $matches)) {
+                    return $this->validator->normalizeShopDomain($matches[1] . '.myshopify.com');
+                }
+                if (preg_match('#^([a-z0-9-]+)\.myshopify\.com#i', $decoded, $matches)) {
+                    return $this->validator->normalizeShopDomain($matches[1] . '.myshopify.com');
+                }
+            }
+        }
+
+        return null;
+    }
+
+    protected function decodeShopifyHost(?string $host): ?string
+    {
+        $host = trim((string) $host);
+        if ($host === '') {
+            return null;
+        }
+
+        $padding = strlen($host) % 4;
+        if ($padding > 0) {
+            $host .= str_repeat('=', 4 - $padding);
+        }
+
+        $decoded = base64_decode(strtr($host, '-_', '+/'), true);
+        return $decoded !== false ? $decoded : $host;
     }
 }
