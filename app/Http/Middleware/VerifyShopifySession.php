@@ -41,7 +41,7 @@ class VerifyShopifySession
             return $result->response;
         }
          $idToken = $result->idToken; 
-         dd($idToken,$request->headers->all());
+         dd($idToken,$request->headers->all(),$result);
         $request->attributes->set('shopify_id_token', $idToken);
         $request->attributes->set('shopify_shop', $result->shop);
         $request->attributes->set('shopify_result', $result);
