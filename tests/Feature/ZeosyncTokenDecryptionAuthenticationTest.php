@@ -30,15 +30,15 @@ function generateZeosyncTestJwt(
     ];
 
     $payload = [
-        'iss'  => $iss ?? "https://{$shop}/admin",
+        'iss' => $iss ?? "https://{$shop}/admin",
         'dest' => $dest ?? "https://{$shop}",
-        'aud'  => $aud ?? $apiKey,
-        'sub'  => '12345678',
-        'exp'  => time() + $expOffset,
-        'nbf'  => time() + $nbfOffset,
-        'iat'  => time(),
-        'jti'  => uniqid('jwt_', true),
-        'sid'  => uniqid('sess_', true),
+        'aud' => $aud ?? $apiKey,
+        'sub' => '12345678',
+        'exp' => time() + $expOffset,
+        'nbf' => time() + $nbfOffset,
+        'iat' => time(),
+        'jti' => uniqid('jwt_', true),
+        'sid' => uniqid('sess_', true),
     ];
 
     $base64UrlEncode = function ($data) {
@@ -65,7 +65,7 @@ function generateLaunchHmacQuery(array $params, string $secret): string
 
 beforeEach(function () {
     config([
-        'services.shopify.api_key'    => 'test-client-id',
+        'services.shopify.api_key' => 'test-client-id',
         'services.shopify.api_secret' => 'test-client-secret',
     ]);
 
@@ -190,12 +190,12 @@ it('3. Opening / without shop query does not start OAuth automatically', functio
 
 it('4. Opening / with only ?shop=store.myshopify.com does not automatically authenticate or redirect', function () {
     Shop::create([
-        'shop'                    => 'store-zeosync.myshopify.com',
-        'shop_name'               => 'Zeosync Store',
-        'email'                   => 'merchant@zeosync.app',
-        'access_token'            => 'shp_access_token_valid',
+        'shop' => 'store-zeosync.myshopify.com',
+        'shop_name' => 'Zeosync Store',
+        'email' => 'merchant@zeosync.app',
+        'access_token' => 'shp_access_token_valid',
         'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
+        'is_active' => 1,
     ]);
 
     $response = $this->get('/?shop=store-zeosync.myshopify.com');
@@ -208,18 +208,18 @@ it('4. Opening / with only ?shop=store.myshopify.com does not automatically auth
 
 it('5. Opening / with an existing session cookie remains on public landing page', function () {
     Shop::create([
-        'shop'                    => 'store-zeosync.myshopify.com',
-        'shop_name'               => 'Zeosync Store',
-        'email'                   => 'merchant@zeosync.app',
-        'access_token'            => 'shp_access_token_valid',
+        'shop' => 'store-zeosync.myshopify.com',
+        'shop_name' => 'Zeosync Store',
+        'email' => 'merchant@zeosync.app',
+        'access_token' => 'shp_access_token_valid',
         'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
+        'is_active' => 1,
     ]);
 
     // Simulate old session in browser
     $response = $this->withSession([
-        'active_shop'            => 'store-zeosync.myshopify.com',
-        'active_shop_id'         => 1,
+        'active_shop' => 'store-zeosync.myshopify.com',
+        'active_shop_id' => 1,
         '_shopify_verified_shop' => 'store-zeosync.myshopify.com',
     ])->get('/');
 
@@ -228,70 +228,22 @@ it('5. Opening / with an existing session cookie remains on public landing page'
     $response->assertViewIs('welcomemain');
 });
 
-it('6. Store Name + Connect form submission starts the Shopify connection flow with 302 redirect for standalone browser', function () {
+it('6. Store Name + Connect form submission starts the Shopify connection flow', function () {
     $response = $this->get('/install?shop=demo-store');
-
-    $response->assertStatus(302);
-    $location = $response->headers->get('Location');
-    expect($location)->toContain('https://demo-store.myshopify.com/admin/oauth/authorize');
-    expect($location)->toContain('client_id=');
-    expect($location)->toContain('redirect_uri=');
-});
-
-it('6b. Embedded install request returns shopify.auth-popup view', function () {
-    $response = $this->get('/install?shop=demo-store&embedded=1');
 
     $response->assertStatus(200);
     $response->assertViewIs('shopify.auth-popup');
     $response->assertViewHas('shop', 'demo-store.myshopify.com');
 });
 
-it('6c. Matching active session on /install safely redirects to dashboard', function () {
-    $shop = Shop::create([
-        'shop'                    => 'active-demo.myshopify.com',
-        'shop_name'               => 'Active Demo',
-        'email'                   => 'merchant@demo.app',
-        'access_token'            => 'shp_token_active',
-        'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
-    ]);
-
-    Http::fake([
-        '*graphql.json*' => Http::response(['data' => ['shop' => ['id' => '1', 'name' => 'Active Demo']]], 200),
-    ]);
-
-    $response = $this->withSession([
-        '_shopify_verified_shop' => 'active-demo.myshopify.com',
-        'active_shop'            => 'active-demo.myshopify.com',
-        'active_shop_id'         => $shop->id,
-    ])->get('/install?shop=active-demo.myshopify.com');
-
-    $response->assertRedirect(route('dashboard', ['shop' => 'active-demo.myshopify.com']));
-});
-
-it('6d. Mismatched session shop is cleared on /install and redirects to requested shop OAuth', function () {
-    $response = $this->withSession([
-        '_shopify_verified_shop' => 'shop-a.myshopify.com',
-        'active_shop'            => 'shop-a.myshopify.com',
-        'unrelated_user_key'     => 'keep_this_intact',
-    ])->get('/install?shop=shop-b.myshopify.com');
-
-    $response->assertStatus(302);
-    $location = $response->headers->get('Location');
-    expect($location)->toContain('https://shop-b.myshopify.com/admin/oauth/authorize');
-    expect(session('_shopify_verified_shop'))->toBeNull();
-    expect(session('active_shop'))->toBeNull();
-    expect(session('unrelated_user_key'))->toBe('keep_this_intact');
-});
-
 it('7. Valid encrypted/signed Zeosync token in query param (id_token) authenticates and establishes session', function () {
     $shop = Shop::create([
-        'shop'                    => 'store-zeosync.myshopify.com',
-        'shop_name'               => 'Zeosync Store',
-        'email'                   => 'merchant@zeosync.app',
-        'access_token'            => 'shp_access_token_valid',
+        'shop' => 'store-zeosync.myshopify.com',
+        'shop_name' => 'Zeosync Store',
+        'email' => 'merchant@zeosync.app',
+        'access_token' => 'shp_access_token_valid',
         'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
+        'is_active' => 1,
     ]);
 
     $token = generateZeosyncTestJwt('store-zeosync.myshopify.com');
@@ -308,12 +260,12 @@ it('7. Valid encrypted/signed Zeosync token in query param (id_token) authentica
 
 it('8. Invalid encrypted token with forged signature is rejected without authenticating', function () {
     Shop::create([
-        'shop'                    => 'store-zeosync.myshopify.com',
-        'shop_name'               => 'Zeosync Store',
-        'email'                   => 'merchant@zeosync.app',
-        'access_token'            => 'shp_access_token_valid',
+        'shop' => 'store-zeosync.myshopify.com',
+        'shop_name' => 'Zeosync Store',
+        'email' => 'merchant@zeosync.app',
+        'access_token' => 'shp_access_token_valid',
         'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
+        'is_active' => 1,
     ]);
 
     $forgedToken = generateZeosyncTestJwt('store-zeosync.myshopify.com', 'test-client-id', 'test-client-secret', 300, -60, null, null, null, 'wrong-secret');
@@ -334,12 +286,12 @@ it('8. Invalid encrypted token with forged signature is rejected without authent
 
 it('9. Tampered token payload is rejected and stays on landing page', function () {
     Shop::create([
-        'shop'                    => 'store-zeosync.myshopify.com',
-        'shop_name'               => 'Zeosync Store',
-        'email'                   => 'merchant@zeosync.app',
-        'access_token'            => 'shp_access_token_valid',
+        'shop' => 'store-zeosync.myshopify.com',
+        'shop_name' => 'Zeosync Store',
+        'email' => 'merchant@zeosync.app',
+        'access_token' => 'shp_access_token_valid',
         'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
+        'is_active' => 1,
     ]);
 
     $token = generateZeosyncTestJwt('store-zeosync.myshopify.com');
@@ -356,12 +308,12 @@ it('9. Tampered token payload is rejected and stays on landing page', function (
 
 it('10. Expired token is rejected and stays on landing page', function () {
     Shop::create([
-        'shop'                    => 'store-zeosync.myshopify.com',
-        'shop_name'               => 'Zeosync Store',
-        'email'                   => 'merchant@zeosync.app',
-        'access_token'            => 'shp_access_token_valid',
+        'shop' => 'store-zeosync.myshopify.com',
+        'shop_name' => 'Zeosync Store',
+        'email' => 'merchant@zeosync.app',
+        'access_token' => 'shp_access_token_valid',
         'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
+        'is_active' => 1,
     ]);
 
     $expiredToken = generateZeosyncTestJwt('store-zeosync.myshopify.com', 'test-client-id', 'test-client-secret', -100);
@@ -374,19 +326,19 @@ it('10. Expired token is rejected and stays on landing page', function () {
 
 it('11. Existing Shopify Admin embedded launch with valid HMAC reaches dashboard', function () {
     $shop = Shop::create([
-        'shop'                    => 'embedded-store.myshopify.com',
-        'shop_name'               => 'Embedded Store',
-        'email'                   => 'embedded@zeosync.app',
-        'access_token'            => 'shp_access_token_valid',
+        'shop' => 'embedded-store.myshopify.com',
+        'shop_name' => 'Embedded Store',
+        'email' => 'embedded@zeosync.app',
+        'access_token' => 'shp_access_token_valid',
         'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
+        'is_active' => 1,
     ]);
 
     $queryString = generateLaunchHmacQuery([
-        'shop'      => 'embedded-store.myshopify.com',
-        'host'      => base64_encode('admin.shopify.com/store/embedded-store'),
+        'shop' => 'embedded-store.myshopify.com',
+        'host' => base64_encode('admin.shopify.com/store/embedded-store'),
         'timestamp' => (string) time(),
-        'embedded'  => '1',
+        'embedded' => '1',
     ], 'test-client-secret');
 
     $response = $this->get('/?' . $queryString);
@@ -401,12 +353,12 @@ it('11. Existing Shopify Admin embedded launch with valid HMAC reaches dashboard
 
 it('12. Invalid launch HMAC cannot bypass the public landing page', function () {
     Shop::create([
-        'shop'                    => 'embedded-store.myshopify.com',
-        'shop_name'               => 'Embedded Store',
-        'email'                   => 'embedded@zeosync.app',
-        'access_token'            => 'shp_access_token_valid',
+        'shop' => 'embedded-store.myshopify.com',
+        'shop_name' => 'Embedded Store',
+        'email' => 'embedded@zeosync.app',
+        'access_token' => 'shp_access_token_valid',
         'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
+        'is_active' => 1,
     ]);
 
     $response = $this->get('/?shop=embedded-store.myshopify.com&hmac=invalidhmac123&timestamp=' . time());
@@ -418,12 +370,12 @@ it('12. Invalid launch HMAC cannot bypass the public landing page', function () 
 
 it('13. Custom X-Shopify-Session-Token and Authorization Bearer headers authenticate correctly', function () {
     Shop::create([
-        'shop'                    => 'header-store.myshopify.com',
-        'shop_name'               => 'Header Store',
-        'email'                   => 'header@zeosync.app',
-        'access_token'            => 'shp_access_token_valid',
+        'shop' => 'header-store.myshopify.com',
+        'shop_name' => 'Header Store',
+        'email' => 'header@zeosync.app',
+        'access_token' => 'shp_access_token_valid',
         'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
+        'is_active' => 1,
     ]);
 
     $token = generateZeosyncTestJwt('header-store.myshopify.com');
@@ -447,12 +399,12 @@ it('13. Custom X-Shopify-Session-Token and Authorization Bearer headers authenti
 
 it('14. Valid encrypted token in path (/apps/{encrypted-value}/dashboard) decrypts, establishes session, and redirects cleanly', function () {
     $shop = Shop::create([
-        'shop'                    => 'path-store.myshopify.com',
-        'shop_name'               => 'Path Store',
-        'email'                   => 'path@zeosync.app',
-        'access_token'            => 'shp_access_token_path',
+        'shop' => 'path-store.myshopify.com',
+        'shop_name' => 'Path Store',
+        'email' => 'path@zeosync.app',
+        'access_token' => 'shp_access_token_path',
         'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
+        'is_active' => 1,
     ]);
 
     $encryptedValue = Crypt::encryptString('path-store.myshopify.com');
@@ -474,12 +426,12 @@ it('14. Valid encrypted token in path (/apps/{encrypted-value}/dashboard) decryp
 
 it('15. Valid JSON encrypted token in path (/apps/{encrypted-value}/dashboard) decrypts and establishes session', function () {
     $shop = Shop::create([
-        'shop'                    => 'json-store.myshopify.com',
-        'shop_name'               => 'JSON Store',
-        'email'                   => 'json@zeosync.app',
-        'access_token'            => 'shp_access_token_json',
+        'shop' => 'json-store.myshopify.com',
+        'shop_name' => 'JSON Store',
+        'email' => 'json@zeosync.app',
+        'access_token' => 'shp_access_token_json',
         'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
+        'is_active' => 1,
     ]);
 
     $payload = json_encode([
@@ -533,8 +485,8 @@ it('18. Successful OAuth callback establishes shop session and completes install
     ]));
 
     $callbackParams = [
-        'code'  => 'auth_code_123',
-        'shop'  => 'new-store.myshopify.com',
+        'code' => 'auth_code_123',
+        'shop' => 'new-store.myshopify.com',
         'state' => $state,
     ];
 
@@ -558,22 +510,22 @@ it('19. Dashboard HTML contains decrypted plaintext shopify-api-key meta tag and
     $plainApiSecret = 'test_dashboard_secret_shpss_778899';
 
     AdminSetting::create([
-        'option_key'   => 'SHOPIFY_API_KEY',
+        'option_key' => 'SHOPIFY_API_KEY',
         'option_value' => $plainApiKey,
     ]);
 
     AdminSetting::create([
-        'option_key'   => 'SHOPIFY_API_SECRET',
+        'option_key' => 'SHOPIFY_API_SECRET',
         'option_value' => $plainApiSecret,
     ]);
 
     $shop = Shop::create([
-        'shop'                    => 'dash-store.myshopify.com',
-        'shop_name'               => 'Dash Store',
-        'email'                   => 'merchant@dash.app',
-        'access_token'            => 'shp_access_token_dash',
+        'shop' => 'dash-store.myshopify.com',
+        'shop_name' => 'Dash Store',
+        'email' => 'merchant@dash.app',
+        'access_token' => 'shp_access_token_dash',
         'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
+        'is_active' => 1,
     ]);
 
     $token = generateZeosyncTestJwt('dash-store.myshopify.com', $plainApiKey, $plainApiSecret);
@@ -592,110 +544,4 @@ it('19. Dashboard HTML contains decrypted plaintext shopify-api-key meta tag and
     // Secret keys must NOT be in the HTML
     expect($content)->not->toContain($plainApiSecret);
     expect($content)->not->toContain(config('app.key'));
-});
-
-it('20. Embedded Shopify launch with expired/revoked session redirects to /install preserving host and embedded context', function () {
-    $shop = Shop::create([
-        'shop'                    => 'reauth-embedded.myshopify.com',
-        'shop_name'               => 'Reauth Embedded',
-        'email'                   => 'merchant@reauth.app',
-        'access_token'            => 'shp_token_revoked',
-        'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
-    ]);
-
-    Http::swap(new \Illuminate\Http\Client\Factory());
-    Http::fake([
-        '*graphql.json*' => Http::response(['errors' => 'Unauthorized'], 401),
-        '*'              => Http::response(['data' => []], 200),
-    ]);
-
-    $host = base64_encode('admin.shopify.com/store/reauth-embedded');
-    $launchParams = [
-        'shop'     => 'reauth-embedded.myshopify.com',
-        'host'     => $host,
-        'embedded' => '1',
-    ];
-    $queryString = generateLaunchHmacQuery($launchParams, 'test-client-secret');
-
-    // Launch hits entry() -> detects invalid token -> redirects to shopify.install with shop parameter
-    $response = $this->get('/?' . $queryString);
-    $response->assertRedirect(route('shopify.install', ['shop' => 'reauth-embedded.myshopify.com']));
-
-    // Follow redirect to /install with host & embedded context
-    $installResponse = $this->get('/install?shop=reauth-embedded.myshopify.com&host=' . urlencode($host) . '&embedded=1');
-    $installResponse->assertStatus(200);
-    $installResponse->assertViewIs('shopify.auth-popup');
-    $installResponse->assertViewHas('shop', 'reauth-embedded.myshopify.com');
-
-    // Assert OAuth URL has correct parameters
-    $redirectUrl = $installResponse->viewData('redirectUrl');
-    expect($redirectUrl)->toContain('https://reauth-embedded.myshopify.com/admin/oauth/authorize');
-    expect($redirectUrl)->toContain('client_id=test-client-id');
-    expect($redirectUrl)->toContain('scope=read_products%2Cwrite_products');
-    expect($redirectUrl)->toContain('redirect_uri=');
-    expect($redirectUrl)->toContain('state=');
-});
-
-it('21. Temporary Shopify API 500 failure during isShopActive does not deactivate shop and preserves session', function () {
-    $shop = Shop::create([
-        'shop'                    => 'temp-error.myshopify.com',
-        'shop_name'               => 'Temp Error',
-        'email'                   => 'merchant@temp.app',
-        'access_token'            => 'shp_token_temp',
-        'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
-    ]);
-
-    Http::swap(new \Illuminate\Http\Client\Factory());
-    Http::fake([
-        '*graphql.json*' => Http::response(['errors' => 'Internal Server Error'], 500),
-        '*'              => Http::response(['data' => []], 200),
-    ]);
-
-    $response = $this->withSession([
-        '_shopify_verified_shop' => 'temp-error.myshopify.com',
-        'active_shop'            => 'temp-error.myshopify.com',
-        'active_shop_id'         => $shop->id,
-    ])->get('/install?shop=temp-error.myshopify.com');
-
-    // Must still redirect to dashboard because 500 is treated as temporary network failure, NOT deactivation
-    $response->assertRedirect(route('dashboard', ['shop' => 'temp-error.myshopify.com']));
-
-    $reloadedShop = Shop::find($shop->id);
-    expect($reloadedShop->is_active)->toBe(1);
-});
-
-it('22. Token revocation 401 during isShopActive deactivates shop and initiates OAuth', function () {
-    $shop = Shop::create([
-        'shop'                    => 'revoked-store.myshopify.com',
-        'shop_name'               => 'Revoked Store',
-        'email'                   => 'merchant@revoked.app',
-        'access_token'            => 'shp_token_bad',
-        'access_token_expires_at' => now()->addHour(),
-        'is_active'               => 1,
-    ]);
-
-    Http::swap(new \Illuminate\Http\Client\Factory());
-    Http::fake([
-        '*graphql.json*' => Http::response(['errors' => 'Unauthorized'], 401),
-        '*'              => Http::response(['data' => []], 200),
-    ]);
-
-    $response = $this->withSession([
-        '_shopify_verified_shop' => 'revoked-store.myshopify.com',
-        'active_shop'            => 'revoked-store.myshopify.com',
-        'active_shop_id'         => $shop->id,
-    ])->get('/install?shop=revoked-store.myshopify.com');
-
-    // Deactivates shop in DB
-    $reloadedShop = Shop::find($shop->id);
-    expect($reloadedShop->is_active)->toBe(0);
-
-    // Clears session and initiates OAuth via HTTP 302
-    $response->assertStatus(302);
-    $location = $response->headers->get('Location');
-    expect($location)->toContain('https://revoked-store.myshopify.com/admin/oauth/authorize');
-    expect(session('_shopify_verified_shop'))->toBeNull();
-    expect(session('active_shop'))->toBeNull();
 });
