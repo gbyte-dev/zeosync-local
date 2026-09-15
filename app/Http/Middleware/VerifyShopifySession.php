@@ -22,7 +22,12 @@ class VerifyShopifySession
 
         try{
             $shopify = new ShopifyApp($apikey, $apisecret );
-            $result = $shopify->verifyAppHomeReq($request);
+            $req = [
+                'url'     => $request->fullUrl(),
+                'headers' => $request->headers->all(),
+            ];
+
+            $result = $shopify->verifyAppHomeReq($req , '/api/shopify/patch-id-token');
             dd($result);
         }catch(\Exception $e){
              dd($e->getMessage());  
