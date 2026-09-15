@@ -263,6 +263,36 @@ it('Test 9: Valid Shopify launch HMAC on entry creates verified session', functi
     expect(session('active_shop'))->toBe('store-a.myshopify.com');
 });
 
+it('Test 9b: Shopify launch HMAC accepts canonical RFC3986 encoding with spaces in state values', function () {
+    Shop::create([
+        'shop'                    => 'store-a.myshopify.com',
+        'shop_name'               => 'Store A',
+        'email'                   => 'store@example.com',
+        'access_token'            => 'token-a',
+        'access_token_expires_at' => now()->addDays(1),
+        'is_active'               => 1,
+    ]);
+
+    $params = [
+        'shop'      => 'store-a.myshopify.com',
+        'state'     => 'shop=my store',
+        'timestamp' => (string) time(),
+    ];
+    ksort($params);
+    $signed = $params;
+    $params['hmac'] = hash_hmac(
+        'sha256',
+        http_build_query($signed, '', '&', PHP_QUERY_RFC3986),
+        'test-api-secret'
+    );
+
+    $response = $this->get('/?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986));
+
+    $response->assertRedirect();
+    expect(session('_shopify_verified_shop'))->toBe('store-a.myshopify.com');
+    expect(session('active_shop'))->toBe('store-a.myshopify.com');
+});
+
 it('Test 10: Valid Store A launch + /dashboard?shop=Store-B maintains Store A', function () {
     Shop::create([
         'shop'                    => 'store-a.myshopify.com',

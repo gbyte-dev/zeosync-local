@@ -311,7 +311,7 @@ class VerifyShopifyAuthentication
     /**
      * Validate Shopify launch HMAC query parameters for embedded page loads.
      */
-    protected function verifyLaunchHmac(Request $request): ?Shop
+    public function verifyLaunchHmac(Request $request): ?Shop
     {
         $query = $request->query();
         $hmac = $query['hmac'] ?? null;
@@ -326,12 +326,7 @@ class VerifyShopifyAuthentication
             return null;
         }
 
-        unset($query['hmac'], $query['signature']);
-        ksort($query);
-
-        $computedHmac = hash_hmac('sha256', urldecode(http_build_query($query)), $apiSecret);
-
-        if (!hash_equals($hmac, $computedHmac)) {
+        if (!$this->isValidShopifyHmac($query, $apiSecret)) {
             Log::warning('VerifyShopifyAuthentication: Launch HMAC signature mismatch.');
             return null;
         }
@@ -360,5 +355,45 @@ class VerifyShopifyAuthentication
         }
 
         return ($shop && !empty($shop->access_token)) ? $shop : null;
+    }
+
+    protected function isValidShopifyHmac(array $query, string $apiSecret): bool
+    {
+        $providedHmac = $query['hmac'] ?? null;
+        if (!is_string($providedHmac) || $providedHmac === '') {
+            return false;
+        }
+
+        $canonicalQuery = $query;
+        unset($canonicalQuery['hmac'], $canonicalQuery['signature']);
+
+        $canonicalized = $this->normalizeShopifyQueryParams($canonicalQuery);
+        $candidates = [
+            http_build_query($canonicalized, '', '&', PHP_QUERY_RFC3986),
+            urldecode(http_build_query($canonicalized, '', '&', PHP_QUERY_RFC3986)),
+            urldecode(http_build_query($canonicalized)),
+        ];
+
+        foreach (array_unique(array_filter($candidates, static fn ($candidate) => $candidate !== '')) as $candidate) {
+            if (hash_equals($providedHmac, hash_hmac('sha256', $candidate, $apiSecret))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function normalizeShopifyQueryParams(array $query): array
+    {
+        ksort($query);
+
+        foreach ($query as $key => $value) {
+            if (is_array($value)) {
+                ksort($value);
+                $query[$key] = $this->normalizeShopifyQueryParams($value);
+            }
+        }
+
+        return $query;
     }
 }

@@ -56,6 +56,23 @@ class ShopifyController extends Controller
         // by VerifyShopifyAuthentication middleware (via launch HMAC, query session token, or header token).
         $verifiedShop = $request->attributes->get('shopify_verified_shop');
 
+        if (!$verifiedShop && $request->filled('shop') && $request->filled('hmac')) {
+            $verifiedShopModel = app(\App\Http\Middleware\VerifyShopifyAuthentication::class)->verifyLaunchHmac($request);
+            if ($verifiedShopModel) {
+                $verifiedShop = $verifiedShopModel->shop;
+                $request->attributes->set('shopify_verified_shop', $verifiedShop);
+                $request->attributes->set('shopify_verified_model', $verifiedShopModel);
+                $request->attributes->set('shopify_auth_source', 'shopify_hmac');
+
+                session([
+                    '_shopify_verified_shop' => $verifiedShop,
+                    '_shopify_verified_at' => time(),
+                    'active_shop' => $verifiedShop,
+                    'active_shop_id' => $verifiedShopModel->id,
+                ]);
+            }
+        }
+
         if ($verifiedShop) {
             $shop = $verifiedShop;
             $shopModel = $request->attributes->get('shopify_verified_model')
@@ -276,6 +293,46 @@ class ShopifyController extends Controller
             return true;
         }
     }
+    protected function isValidShopifyHmac(array $query, string $apiSecret): bool
+    {
+        $providedHmac = $query['hmac'] ?? null;
+        if (!is_string($providedHmac) || $providedHmac === '') {
+            return false;
+        }
+
+        $canonicalQuery = $query;
+        unset($canonicalQuery['hmac'], $canonicalQuery['signature']);
+        $canonicalized = $this->normalizeShopifyQueryParams($canonicalQuery);
+
+        $candidates = [
+            http_build_query($canonicalized, '', '&', PHP_QUERY_RFC3986),
+            urldecode(http_build_query($canonicalized, '', '&', PHP_QUERY_RFC3986)),
+            urldecode(http_build_query($canonicalized)),
+        ];
+
+        foreach (array_unique(array_filter($candidates, static fn ($candidate) => $candidate !== '')) as $candidate) {
+            if (hash_equals($providedHmac, hash_hmac('sha256', $candidate, $apiSecret))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function normalizeShopifyQueryParams(array $query): array
+    {
+        ksort($query);
+
+        foreach ($query as $key => $value) {
+            if (is_array($value)) {
+                ksort($value);
+                $query[$key] = $this->normalizeShopifyQueryParams($value);
+            }
+        }
+
+        return $query;
+    }
+
     public function install(Request $request)
     {
         Log::info('INSTALL HIT', [
@@ -343,19 +400,18 @@ class ShopifyController extends Controller
         // STEP 1: HMAC VALIDATION (FIRST)
         // =========================
         $query = $request->query();
-        $hmac = $query['hmac'] ?? null;
-        unset($query['hmac'], $query['signature']);
-        ksort($query);
-        $computedHmac = hash_hmac(
-            'sha256',
-            urldecode(http_build_query($query)),
-            \App\Models\AdminSetting::get(
-                'SHOPIFY_API_SECRET',
-                config('services.shopify.api_secret')
-            )
+        $apiSecret = \App\Models\AdminSetting::get(
+            'SHOPIFY_API_SECRET',
+            config('services.shopify.api_secret')
         );
-        if (!$hmac || !hash_equals($hmac, $computedHmac)) {
-            Log::error('HMAC FAILED');
+
+        if (!is_string($apiSecret) || $apiSecret === '') {
+            Log::error('HMAC FAILED: missing Shopify API secret.');
+            abort(403, 'Invalid HMAC');
+        }
+
+        if (!$this->isValidShopifyHmac($query, $apiSecret)) {
+            Log::error('HMAC FAILED', ['shop' => $query['shop'] ?? null]);
             abort(403, 'Invalid HMAC');
         }
         // =========================
