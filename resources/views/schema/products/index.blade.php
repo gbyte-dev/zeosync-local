@@ -370,6 +370,7 @@
             <div class="col-md-7 col-sm-12">
                 <h1 class="sp-title">Amazon Products Under Progress</h1>
             </div>
+            @if(!checkAmazonConnected())
             <div class="sp-actions col-md-5 col-sm-12">
                 <button id="refreshBtn" style="float: right;" class="sp-btn sp-btn-secondary" data-url="{{ route('shopify.products', ['shop' => $activeShop]) }}">
                     <i class="bi bi-arrow-clockwise"></i> Refresh
@@ -385,6 +386,7 @@
                 </a>
                 @endif
             </div>
+            @endif
         </div>
     </div>
     @if(!checkAmazonConnected())
