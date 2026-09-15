@@ -52,8 +52,7 @@ Route::middleware([ ResolveActiveShop::class,  \App\Http\Middleware\CheckSubscri
     // Route::get('/products', [ShopifyController::class, 'products'])
     //     ->name('shopify.products');
     Route::get('/product/{id}', [ShopifyController::class, 'viewProduct'])->name('shopify.product.view');
-    Route::get('/createProduct', [ShopifyController::class, 'create'])
-        ->name('shopify.product.create');
+    Route::get('/createProduct', [ShopifyController::class, 'create'])->name('shopify.product.create');
     Route::get('/editProduct/{id}', [ShopifyController::class, 'editProduct'])->name('shopify.product.edit');
     Route::get('/orders', [ShopifyController::class, 'orders'])->name('orders.index');
     Route::get('/orders/{order}', [ShopifyController::class, 'showOrder'])->name('orders.show');
@@ -68,6 +67,7 @@ Route::middleware([ ResolveActiveShop::class,  \App\Http\Middleware\CheckSubscri
     Route::get('logs', [SettingsController::class, 'logs'])->name('shopify.logs');
     Route::post('logs/remove-all', [SettingsController::class, 'removeAllLogs'])->name('shopify.logs.remove.all');
     Route::delete('logs/{id}', [SettingsController::class, 'removeLog'])->name('shopify.logs.remove');
+    Route::get('/amazon/low-inventory', [DashboardController::class, 'lowInventory'])->name('view-all-amazon-low-inventory');
 });
 
 
