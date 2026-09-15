@@ -20,7 +20,7 @@ use App\Http\Controllers\TestController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ShopifyComplianceWebhookController;
-
+use Shopify\App\ShopifyApp;
 
 
 require base_path('routes/webShopify.php');
