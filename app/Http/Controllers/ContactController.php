@@ -4,24 +4,24 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Mail\ContactThankYouMail;
-use App\Models\ContactInquiry;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\RateLimiter;
 use App\Models\Admin;
+use App\Models\ContactInquiry;
 use App\Models\MailTemplate;
+use App\Models\Shop;
 use App\Services\EmailService;
 use App\Services\NotificationService;
 use App\Services\UserNotificationService;
-use App\Models\Shop;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 
 class ContactController extends Controller
 {
     public function store(Request $request)
     {
-            // Log request information for security/debugging
+        // Log request information for security/debugging
         // Log::info('Contact enquiry request received', [
         //     'ip'        => $request->ip(),
         //     'method'    => $request->method(),
@@ -35,59 +35,54 @@ class ContactController extends Controller
         // Allow requests only from your website
         $origin = $request->header('Origin');
 
-        if ( ($origin !== 'https://zeosync.app') ) {
-            Log::warning('Contact enquiry blocked: invalid origin', [
-                'ip'     => $request->ip(),
-                'origin' => $origin,
-                'referer'=> $request->header('Referer'),
-            ]);
-
+        if (($origin !== 'https://zeosync.app')) {
             abort(403, 'Unauthorized request.');
         }
 
-
         $data = $request->validate([
-            'name'          => [
+            'name' => [
                 'required',
                 'string',
                 'max:100',
                 'regex:/^[\pL\s\'-]+$/u',
             ],
-            'email'         => [
+            'email' => [
                 'required',
                 'string',
                 'email:rfc',
                 'max:255',
             ],
-            'subject'       => [
+            'subject' => [
                 'required',
                 'string',
                 'max:255',
                 'regex:/^[\pL\pN\s.,!?_-]+$/u',
             ],
-            'message'       => [
+            'message' => [
                 'required',
                 'string',
                 'max:5000',
                 'not_regex:/<[^>]*>|<script|javascript\s*:|vbscript\s*:|on\w+\s*=|on\w+\/|<\?php|<\?|<\%|\?>|\%>/i',
             ],
-            'enquiry_type'  => 'nullable|string|max:50',
-            'store_url'     => 'nullable|url|max:255',
-            'marketplace'   => 'nullable|string|max:100',
-            'plan'          => 'nullable|string|max:100',
-            'volume'        => 'nullable|string|max:100',
+            'enquiry_type' => 'nullable|string|max:50',
+            'store_url' => 'nullable|url|max:255',
+            'marketplace' => 'nullable|string|max:100',
+            'plan' => 'nullable|string|max:100',
+            'volume' => 'nullable|string|max:100',
         ], [
-            'name.regex'        => 'Please use only letters, spaces, hyphens, and apostrophes.',
-            'subject.regex'     => 'Please use only letters, numbers, spaces, and basic punctuation.',
+            'name.regex' => 'Please use only letters, spaces, hyphens, and apostrophes.',
+            'subject.regex' => 'Please use only letters, numbers, spaces, and basic punctuation.',
             'message.not_regex' => 'HTML, JavaScript, PHP code, and executable script content are not allowed.',
         ]);
 
-        $data['enquiry_type'] = $request->input( 'enquiry_type', 'general_enquiry' );
+        $data['enquiry_type'] = $request->input('enquiry_type', 'general_enquiry');
 
         $ip = $request->ip();
 
         if (empty($ip)) {
-            return redirect()->back()->withInput()
+            return redirect()
+                ->back()
+                ->withInput()
                 ->withErrors([
                     'email' => 'Your network address could not be verified. Please try again later.',
                 ]);
@@ -100,15 +95,19 @@ class ContactController extends Controller
         $lock = Cache::lock($lockKey, 10);
 
         try {
-            if (! $lock->get()) {
-                return redirect()->back()->withInput()
+            if (!$lock->get()) {
+                return redirect()
+                    ->back()
+                    ->withInput()
                     ->withErrors([
                         'email' => 'You have already submitted an enquiry recently. Please try again later.',
                     ]);
             }
 
             if (RateLimiter::tooManyAttempts($rateLimitKey, 1)) {
-                return redirect()->back()->withInput()
+                return redirect()
+                    ->back()
+                    ->withInput()
                     ->withErrors([
                         'email' => 'You have already submitted an enquiry recently. Please try again later.',
                     ]);
@@ -117,60 +116,57 @@ class ContactController extends Controller
             RateLimiter::hit($rateLimitKey, 43200);
 
             $contact = ContactInquiry::create($data);
-        try {
-
-            $admin = Admin::where('role', 'admin')->first();
-            if ($admin) {
-                $template = MailTemplate::where('slug', 'admin-contact-enquiry')->first();
-                if ($template) {
-                    app(EmailService::class)->sendDynamicEmailTo(
-                        $template,
-                        [
-                            'name'          => $contact->name,
-                            'email'         => $contact->email,
-                            'subject'       => $contact->subject,
-                            'message'       => $contact->message,
-                            'enquiry_type'  => ucwords(str_replace('_', ' ', $contact->enquiry_type)),
-                        ],
-                        $admin->email
-                    );
+            try {
+                $admin = Admin::where('role', 'admin')->first();
+                if ($admin) {
+                    $template = MailTemplate::where('slug', 'admin-contact-enquiry')->first();
+                    if ($template) {
+                        app(EmailService::class)->sendDynamicEmailTo(
+                            $template,
+                            [
+                                'name' => $contact->name,
+                                'email' => $contact->email,
+                                'subject' => $contact->subject,
+                                'message' => $contact->message,
+                                'enquiry_type' => ucwords(str_replace('_', ' ', $contact->enquiry_type)),
+                            ],
+                            $admin->email
+                        );
+                    }
                 }
+            } catch (\Exception $e) {
+                logger()->error('Admin contact enquiry email failed', [
+                    'error' => $e->getMessage(),
+                ]);
             }
-        } catch (\Exception $e) {
 
-            logger()->error('Admin contact enquiry email failed', [
-                'error' => $e->getMessage(),
-            ]);
-        }
+            try {
+                Mail::to($contact->email)->send(new ContactThankYouMail($contact));
+            } catch (\Exception $e) {
+                // Keep the submission even if email fails
+                logger()->error('Contact thank-you email failed: ' . $e->getMessage());
+            }
 
-        try {
-            Mail::to($contact->email)->send(new ContactThankYouMail($contact));
-        } catch (\Exception $e) {
-            // Keep the submission even if email fails
-            logger()->error('Contact thank-you email failed: ' . $e->getMessage());
-        }
-
-        NotificationService::send(
-            'contact_enquiry',
-            $contact->enquiry_type == 'enterprise_plan_enquiry'
-                ? 'New Enterprise Plan Enquiry'
-                : 'New Contact Enquiry',
-            "{$contact->name} submitted a new enquiry."
-        );
-
-        $shop = Shop::where('email', $contact->email)->first();
-
-        if ($shop) {
-
-            UserNotificationService::send(
-                $shop->id,
+            NotificationService::send(
                 'contact_enquiry',
-                $contact->enquiry_type === 'enterprise_plan_enquiry'
-                    ? 'Enterprise Plan Enquiry Submitted'
-                    : 'Contact Enquiry Submitted',
-                'Your enquiry has been submitted successfully. Our team will contact you shortly.'
+                $contact->enquiry_type == 'enterprise_plan_enquiry'
+                    ? 'New Enterprise Plan Enquiry'
+                    : 'New Contact Enquiry',
+                "{$contact->name} submitted a new enquiry."
             );
-        }
+
+            $shop = Shop::where('email', $contact->email)->first();
+
+            if ($shop) {
+                UserNotificationService::send(
+                    $shop->id,
+                    'contact_enquiry',
+                    $contact->enquiry_type === 'enterprise_plan_enquiry'
+                        ? 'Enterprise Plan Enquiry Submitted'
+                        : 'Contact Enquiry Submitted',
+                    'Your enquiry has been submitted successfully. Our team will contact you shortly.'
+                );
+            }
             return redirect()->back()->with('success', 'Thank you for your message. Our team will connect with you shortly.');
         } finally {
             $lock->release();
@@ -179,7 +175,7 @@ class ContactController extends Controller
 
     public function adminIndex(Request $request)
     {
-         ContactInquiry::query()->where('is_read', false)->update(['is_read' => true]);
+        ContactInquiry::query()->where('is_read', false)->update(['is_read' => true]);
 
         $query = ContactInquiry::query();
 
