@@ -98,18 +98,16 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const form = document.getElementById('activateForm');
-
         if (!form) return;
 
         form.addEventListener('submit', function () {
-            const button = form.querySelector('button[type="submit"]');
-
-            if (button) {
-                button.disabled = true;
-                button.textContent = 'Activating...';
-            }
-
-            console.log('Activation form submitted');
+            setTimeout(function () {
+                try {
+                    window.close();
+                } catch (e) {
+                    // ignore
+                }
+            }, 300);
         });
     });
 </script>
