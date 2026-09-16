@@ -101,9 +101,16 @@
         border-color: #111827;
     }
 
-    .sp-btn-primary:hover {
+    .sp-btn-primary:hover:not(:disabled) {
         background-color: #374151;
         color: #FFFFFF;
+    }
+
+    .sp-btn:disabled,
+    .sp-btn[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed !important;
+        pointer-events: none;
     }
 
     .sp-btn-secondary {
@@ -397,14 +404,20 @@
                 <a href="{{ route('shopify.product.create', ['shop' => request('shop')]) }}" class="sp-btn sp-btn-secondary">
                     <i class="bi bi-plus-lg"></i> Add to Shopify
                 </a>
-                @if(!$productLimitReached)
+                @if(!checkAmazonConnected())
+                <span title="Please connect Amazon first." style="display: inline-block;">
+                    <button type="button" class="sp-btn sp-btn-primary" disabled aria-disabled="true">
+                        <i class="bi bi-send"></i> Add To Amazon
+                    </button>
+                </span>
+                @elseif(!$productLimitReached)
                 <a href="{{ route('user.addProductCategory', ['shop' => request('shop')]) }}" class="sp-btn sp-btn-primary">
-                <i class="bi bi-send"></i> Add To Amazon
-            </a>
+                    <i class="bi bi-send"></i> Add To Amazon
+                </a>
                 @else
                 <a href="javascript:void(0)" onclick="showProductLimitAlert()" class="sp-btn sp-btn-primary">
-                <i class="bi bi-send"></i> Add To Amazon
-            </a>
+                    <i class="bi bi-send"></i> Add To Amazon
+                </a>
                 @endif
             </div>
         </div>
@@ -497,6 +510,17 @@
 
                                 @elseif((int)$product->needs_resync === 1)
 
+                                @if(!checkAmazonConnected())
+                                <span title="Please connect Amazon first." style="display: inline-block;">
+                                    <button type="button"
+                                        class="sp-btn sp-btn-sm sp-btn-secondary"
+                                        disabled
+                                        aria-disabled="true">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                        <span class="d-none d-md-inline">Resync</span>
+                                    </button>
+                                </span>
+                                @else
                                 <button type="button"
                                     class="sp-btn sp-btn-sm sp-btn-secondary btn-sync"
                                     data-url="{{ route('shopify.sync.amazon', ['id' => $product->id, 'shop' => request('shop')]) }}"
@@ -504,6 +528,7 @@
                                     <i class="bi bi-arrow-clockwise"></i>
                                     <span class="d-none d-md-inline">Resync</span>
                                 </button>
+                                @endif
 
                                 @else
 
@@ -523,12 +548,24 @@
                                 }
                                 @endphp
 
+                                @if(!checkAmazonConnected())
+                                <span title="Please connect Amazon first." style="display: inline-block;">
+                                    <button type="button"
+                                        class="sp-btn sp-btn-sm sp-btn-secondary"
+                                        disabled
+                                        aria-disabled="true">
+                                        <i class="bi bi-cloud-arrow-up"></i>
+                                        <span class="d-none d-md-inline">Sync</span>
+                                    </button>
+                                </span>
+                                @else
                                 <a href="{{ $routeurl }}"
                                     class="sp-btn sp-btn-sm sp-btn-secondary btn-initial-sync"
                                     title="Sync">
                                     <i class="bi bi-cloud-arrow-up"></i>
                                     <span class="d-none d-md-inline">Sync</span>
                                 </a>
+                                @endif
 
                                 @else
 

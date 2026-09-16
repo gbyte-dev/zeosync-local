@@ -133,9 +133,16 @@
         border-color: #111827;
     }
 
-    .sp-btn-primary:hover {
+    .sp-btn-primary:hover:not(:disabled) {
         background-color: #374151;
         color: #FFFFFF;
+    }
+
+    .sp-btn:disabled,
+    .sp-btn[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed !important;
+        pointer-events: none;
     }
 
     .sp-btn-secondary {
@@ -370,13 +377,16 @@
             <div class="col-md-7 col-sm-12">
                 <h1 class="sp-title">Amazon Products Under Progress</h1>
             </div>
-            @if(!checkAmazonConnected())
             <div class="sp-actions col-md-5 col-sm-12">
                 <button id="refreshBtn" style="float: right;" class="sp-btn sp-btn-secondary" data-url="{{ route('shopify.products', ['shop' => $activeShop]) }}">
                     <i class="bi bi-arrow-clockwise"></i> Refresh
                 </button>
 
-                @if(!$productLimitReached)
+                @if(!checkAmazonConnected())
+                <button type="button" style="float: right;" class="sp-btn sp-btn-primary" disabled title="Please connect your Amazon account first.">
+                    <i class="bi bi-send"></i> Add To Amazon
+                </button>
+                @elseif(!$productLimitReached)
                 <a style="float: right;" href="{{ route('user.addProductCategory', ['shop' => session('active_shop')]) }}" class="sp-btn sp-btn-primary">
                     <i class="bi bi-send"></i> Add To Amazon
                 </a>
@@ -386,7 +396,6 @@
                 </a>
                 @endif
             </div>
-            @endif
         </div>
     </div>
     @if(!checkAmazonConnected())
@@ -394,8 +403,9 @@
             Please connect your Amazon account first.
             <a href="{{ route('amazon.connect') }}">Connect Amazon</a>
         </div>
-    @else
-        <!-- Stat Pills (Reference Image Style) -->
+    @endif
+
+    <!-- Stat Pills (Reference Image Style) -->
         <div class="sp-stat-grid">
             <div class="sp-stat-pill">
                 <span class="sp-stat-label">Total Products</span>
@@ -581,7 +591,6 @@
             </div>
             <!-- CHANGED: Completely removed custom blade manual pagination div, DataTables handles it -->
     </div>
-    @endif
 </div>
 
 @endsection
