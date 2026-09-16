@@ -19,7 +19,7 @@
 
                     <span class="input-group-text d-none d-flex">.myshopify.com</span>
 
-                    <button class="btn btn-primary px-4">
+                    <button class="btn btn-primary px-4" id="connect_to_store">
                         Connect Store
                     </button>
                 </div>

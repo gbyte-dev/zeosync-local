@@ -349,7 +349,6 @@ class AmazonConnect extends ShopifyController
         ]);
 
         $this->reassignProductsOwner($shop);
-
         Cache::forget('amazon_orders_' . $shop->shop);
         Cache::forget("amazon_connect_progress_{$shop->id}");
 
