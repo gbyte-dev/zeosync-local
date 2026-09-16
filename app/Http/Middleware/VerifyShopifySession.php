@@ -30,12 +30,12 @@ class VerifyShopifySession
             $result = $shopify->verifyAppHomeReq($req , '/api/shopify/patch-id-token');
         }catch(\Exception $e){
             if($request->expectsJson() || $request->ajax()){
-                return response()->json(['error' => 'Invalid Shopify session: ' . $e->getMessage()], 401);
+                 return $next($request);
+                // return response()->json(['error' => 'Invalid Shopify session: ' . $e->getMessage()], 401);
             }
-            
+
             return $next($request);
         }
-
 
         if (!$result->ok) {
             // Returns clean JSON, not a redirect — this is the fix for your loop
@@ -43,27 +43,21 @@ class VerifyShopifySession
         }
         $idToken = $result->idToken; 
         $verifiedShopDomain = $result->shop.'myshopify.com';
-
         $shop = Shop::where('shop', $verifiedShopDomain)->first();
-        // if (!$shop) {
-        //     $shop = new Shop();
-        //     $shop->shop = $verifiedShopDomain;
-        //     $shop->installed_at = now();
-        //     $shop->access_token = $result->accessToken;
-        //     $shop->save();
-        // }elseif(empty($shop->store_status !='active') && $shop->access_token != $result->accessToken) {
-        //     $shop->access_token = $result->accessToken;
-        //     $shop->save();
-        // }
 
-        echo "<pre>";
-         print_r( $result->idToken);
-         
-         die;
+        if (!$shop) {
+            $shop = new Shop();
+            $shop->shop = $verifiedShopDomain;
+            $shop->installed_at = now();
+            $shop->save();
+        }
+
         $request->attributes->set('shopify_id_token', $idToken);
         $request->attributes->set('shopify_shop', $result->shop);
         $request->attributes->set('shopify_result', $result);
 
-        return $next($request);
+        return redirect()->route('dashboard', ['shop' => $shop->shop ])->with('success', 'Welcome '. $shop->shop . '! Please complete the setup process.');
+
+        // return $next($request);
     }
 }

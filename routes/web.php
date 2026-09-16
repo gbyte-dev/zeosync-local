@@ -36,17 +36,17 @@ Route::get('/apps/{token}', [ShopifyController::class, 'appLaunch'])->name('shop
 Route::get('/store/{shop_handle}/apps/{token}/dashboard', [ShopifyController::class, 'appLaunchStore'])->name('shopify.app.launch.store.dashboard');
 Route::get('/store/{shop_handle}/apps/{token}', [ShopifyController::class, 'appLaunchStore'])->name('shopify.app.launch.store');
 Route::get('/install', [ShopifyController::class, 'install'])->name('shopify.install');
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/callback', [ShopifyController::class, 'callback'])->name('shopify.callback');
 Route::get('/api/shop-status', [ShopifyController::class, 'checkShopStatus'])->name('api.shop.status');
 
 // Public simple pages
-Route::view('/about', 'about')->name('about');
-Route::get('/pricing', [PlanController::class, 'pricing'])->name('pricing');
-Route::view('/contact', 'contact')->name('contact');
+Route::view('/about', 'about')->name('about')->middleware('shopify.session');
+Route::get('/pricing', [PlanController::class, 'pricing'])->name('pricing')->middleware('shopify.session');
+Route::view('/contact', 'contact')->name('contact')->middleware('shopify.session');
 Route::post('/contact', [ContactController::class, 'store'])->middleware('ip.rate:5,60')->name('contact.store'); 
-Route::view('/terms', 'terms')->name('terms');
-Route::view('/privacy', 'privacy')->name('privacy');
+Route::view('/terms', 'terms')->name('terms')->middleware('shopify.session');
+Route::view('/privacy', 'privacy')->name('privacy')->middleware('shopify.session');
+
 Route::middleware([ ResolveActiveShop::class,  \App\Http\Middleware\CheckSubscription::class
 ])->group(function () {
     // Route::get('/products', [ShopifyController::class, 'products'])
@@ -72,6 +72,7 @@ Route::middleware([ ResolveActiveShop::class,  \App\Http\Middleware\CheckSubscri
 
 
 Route::middleware([ResolveActiveShop::class])->group(function () {
+   Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     //  product page route 
     Route::get('/products', [ShopifyController::class, 'products'])->name('shopify.products');
     Route::post('/createProduct', [ShopifyController::class, 'createProduct'])->name('shopify.product.create.post');
@@ -108,10 +109,11 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
 
     // AJAX: check SKU status on Amazon and update local product status
     Route::post('/amazon/check-sku', [ProductSchemaController::class, 'checkSkuStatus'])->name('amazon.check.sku');
-    Route::get('/logs_next', [ShopifyController::class, 'logs'])->name('dashboard.logs')->middleware('shopify.session');
    
 });
+    
 
+Route::get('/logs_next', [SettingsController::class, 'logs'])->name('dashboard.logs')->middleware('shopify.session');
 Route::get('/api/shopify/patch-id-token', function (Request $request) {
     setShopifySettings();
     $shopify = new ShopifyApp( config('shopify.api_key'), config('shopify.api_secret') );
