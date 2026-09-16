@@ -76,6 +76,7 @@
             if (!isInIframe()) {
                 return;
             }else{
+                console.log(window.top.location.href);
                 window.location.href = "{{ route('dashboard') }}";
             }
 
