@@ -30,7 +30,7 @@ require base_path('routes/webnotification.php');
 
 // Route::get('/verify', [DashboardController::class, 'install'])->name('dashboard');
 
-Route::get('/', [ShopifyController::class, 'entry'])->name('crm.entry');
+Route::get('/', [ShopifyController::class, 'entry'])->name('crm.entry')->middleware('shopify.session');
 Route::get('/apps/{token}/dashboard', [ShopifyController::class, 'appLaunch'])->name('shopify.app.launch.dashboard');
 Route::get('/apps/{token}', [ShopifyController::class, 'appLaunch'])->name('shopify.app.launch');
 Route::get('/store/{shop_handle}/apps/{token}/dashboard', [ShopifyController::class, 'appLaunchStore'])->name('shopify.app.launch.store.dashboard');
@@ -40,12 +40,13 @@ Route::get('/callback', [ShopifyController::class, 'callback'])->name('shopify.c
 Route::get('/api/shop-status', [ShopifyController::class, 'checkShopStatus'])->name('api.shop.status');
 
 // Public simple pages
-Route::view('/about', 'about')->name('about');
-Route::get('/pricing', [PlanController::class, 'pricing'])->name('pricing');
-Route::view('/contact', 'contact')->name('contact');
+Route::view('/about', 'about')->name('about')->middleware('shopify.session');
+Route::get('/pricing', [PlanController::class, 'pricing'])->name('pricing')->middleware('shopify.session');
+Route::view('/contact', 'contact')->name('contact')->middleware('shopify.session');
 Route::post('/contact', [ContactController::class, 'store'])->middleware('ip.rate:5,60')->name('contact.store'); 
-Route::view('/terms', 'terms')->name('terms');
-Route::view('/privacy', 'privacy')->name('privacy');
+Route::view('/terms', 'terms')->name('terms')->middleware('shopify.session');
+Route::view('/privacy', 'privacy')->name('privacy')->middleware('shopify.session');
+
 Route::middleware([ ResolveActiveShop::class,  \App\Http\Middleware\CheckSubscription::class
 ])->group(function () {
     // Route::get('/products', [ShopifyController::class, 'products'])
