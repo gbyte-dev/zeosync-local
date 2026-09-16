@@ -371,16 +371,111 @@
     .file-preview {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 8px;
         margin-top: 6px;
     }
 
-    .file-preview img {
-        width: 48px;
-        height: 48px;
+    .library-image-card {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 2px solid #E5E7EB;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        background: #F9FAFB;
+        height: 100px;
+    }
+
+    .library-image-card:hover {
+        border-color: #9CA3AF;
+    }
+
+    .library-image-card.is-selected {
+        border-color: #2563EB;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+    }
+
+    .library-image-card img {
+        width: 100%;
+        height: 100%;
         object-fit: cover;
-        border-radius: 4px;
+    }
+
+    .library-image-card .select-badge {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.45);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        transition: all 0.15s ease;
+    }
+
+    .library-image-card.is-selected .select-badge {
+        background: #2563EB;
+        color: #fff;
+    }
+
+    .preview-image-item {
+        position: relative;
+        display: inline-block;
+        width: 52px;
+        height: 52px;
+        margin-right: 2px;
+        margin-bottom: 2px;
+    }
+
+    .preview-image-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 6px;
         border: 1px solid #E5E7EB;
+    }
+
+    .preview-image-item .remove-preview-btn {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 18px;
+        height: 18px;
+        background: #DC2626;
+        color: #fff;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .preview-image-item .remove-preview-btn:hover {
+        background: #B91C1C;
+    }
+
+    .preview-image-item .library-badge {
+        position: absolute;
+        bottom: 2px;
+        left: 2px;
+        background: rgba(37, 99, 235, 0.85);
+        color: #fff;
+        font-size: 8px;
+        padding: 1px 3px;
+        border-radius: 3px;
+        line-height: 1;
+        font-weight: 600;
+        text-transform: uppercase;
+        pointer-events: none;
     }
 
     .alert-danger {
@@ -549,9 +644,15 @@
                 <input type="hidden" name="amazon_title" id="amazonTitle" value="{{ old('amazon_title') }}">
 
                 <div class="mb-2">
-                    <label class="form-label">Product Images (Multiple)</label>
+                    <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
+                        <label class="form-label mb-0">Product Images (Multiple)</label>
+                        <button type="button" class="btn btn-outline-dark btn-sm" id="openImageLibraryBtn" style="height: 28px; font-size: 12px; padding: 0 10px;">
+                            <i class="bi bi-images me-1"></i> Select from Image Upload
+                        </button>
+                    </div>
                     <input type="file" name="images[]" class="form-control" style="padding-top:4px;" multiple accept="image/*" id="imageUpload">
-                    <div class="file-preview" id="imagePreview"></div>
+                    <div class="file-preview mt-2" id="imagePreview"></div>
+                    <div id="libraryHiddenInputs"></div>
                 </div>
             </div>
 
@@ -686,6 +787,48 @@
 </div><!-- /card-shell -->
 </form>
 </div><!-- /pg-wrap -->
+
+<!-- Image Library Selection Modal -->
+<div class="modal fade" id="imageLibraryModal" tabindex="-1" aria-labelledby="imageLibraryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="border-radius: 12px; border: 1px solid #E5E7EB;">
+            <div class="modal-header py-3 px-4" style="border-bottom: 1px solid #F3F4F6;">
+                <div>
+                    <h5 class="modal-title fw-semibold text-dark mb-0" id="imageLibraryModalLabel" style="font-size: 15px;">
+                        Select Images from Upload Library
+                    </h5>
+                    <p class="text-muted small mb-0" style="font-size: 12px;">Choose existing images previously uploaded to your library</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" id="libraryImageSearch" class="form-control border-start-0" placeholder="Search images by name...">
+                    </div>
+                </div>
+                <div id="libraryImagesLoading" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <span class="ms-2 small text-muted">Loading your images...</span>
+                </div>
+                <div id="libraryImagesGrid" class="row g-2" style="max-height: 360px; overflow-y: auto;">
+                    <!-- Dynamically populated -->
+                </div>
+                <div id="libraryEmptyState" class="text-center py-4 text-muted small d-none">
+                    No images found in your library.
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between py-2 px-4" style="border-top: 1px solid #F3F4F6; background: #FAFAFA; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                <span class="small fw-500 text-muted" id="selectedLibraryCount">Selected: 0 images</span>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-dark btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success btn-sm" id="confirmLibrarySelectionBtn">Select Images</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -705,18 +848,229 @@
         productTitleInput.addEventListener('input', syncAmazonTitle);
     }
 
-    document.getElementById('imageUpload').addEventListener('change', function(e) {
-        const preview = document.getElementById('imagePreview');
-        preview.innerHTML = '';
-        Array.from(e.target.files).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = ev => {
+    // --- Image Library & Device Upload Management ---
+    const imageUpload = document.getElementById('imageUpload');
+    const imagePreview = document.getElementById('imagePreview');
+    const libraryHiddenInputs = document.getElementById('libraryHiddenInputs');
+    const openImageLibraryBtn = document.getElementById('openImageLibraryBtn');
+    const libraryModalEl = document.getElementById('imageLibraryModal');
+    const libraryModal = new bootstrap.Modal(libraryModalEl);
+    const libraryImagesGrid = document.getElementById('libraryImagesGrid');
+    const libraryImagesLoading = document.getElementById('libraryImagesLoading');
+    const libraryEmptyState = document.getElementById('libraryEmptyState');
+    const libraryImageSearch = document.getElementById('libraryImageSearch');
+    const selectedLibraryCount = document.getElementById('selectedLibraryCount');
+    const confirmLibrarySelectionBtn = document.getElementById('confirmLibrarySelectionBtn');
+
+    let allLibraryImages = [];
+    let selectedLibraryImages = []; // Array of { id, url, name, path }
+    let modalSelectedMap = new Map(); // Map of url => image object currently toggled in modal
+
+    // Render unified previews (device files + library images)
+    function renderAllImagePreviews() {
+        imagePreview.innerHTML = '';
+
+        // 1. Render Device Uploaded Images
+        if (imageUpload.files && imageUpload.files.length > 0) {
+            Array.from(imageUpload.files).forEach((file, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'preview-image-item';
+
                 const img = document.createElement('img');
-                img.src = ev.target.result;
-                preview.appendChild(img);
-            };
-            reader.readAsDataURL(file);
+                img.alt = file.name;
+                const reader = new FileReader();
+                reader.onload = ev => { img.src = ev.target.result; };
+                reader.readAsDataURL(file);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'remove-preview-btn';
+                removeBtn.innerHTML = '×';
+                removeBtn.title = 'Remove image';
+                removeBtn.addEventListener('click', () => {
+                    removeDeviceFile(index);
+                });
+
+                itemDiv.appendChild(img);
+                itemDiv.appendChild(removeBtn);
+                imagePreview.appendChild(itemDiv);
+            });
+        }
+
+        // 2. Render Selected Library Images
+        selectedLibraryImages.forEach((libImg, index) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'preview-image-item';
+
+            const img = document.createElement('img');
+            img.src = libImg.url;
+            img.alt = libImg.name;
+
+            const badge = document.createElement('span');
+            badge.className = 'library-badge';
+            badge.textContent = 'Lib';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-preview-btn';
+            removeBtn.innerHTML = '×';
+            removeBtn.title = 'Remove library image';
+            removeBtn.addEventListener('click', () => {
+                removeLibraryImage(index);
+            });
+
+            itemDiv.appendChild(img);
+            itemDiv.appendChild(badge);
+            itemDiv.appendChild(removeBtn);
+            imagePreview.appendChild(itemDiv);
         });
+
+        // Sync hidden inputs for library images
+        syncLibraryHiddenInputs();
+    }
+
+    // Remove a device file from imageUpload input using DataTransfer
+    function removeDeviceFile(indexToRemove) {
+        if (!imageUpload.files) return;
+        const dt = new DataTransfer();
+        Array.from(imageUpload.files).forEach((file, idx) => {
+            if (idx !== indexToRemove) {
+                dt.items.add(file);
+            }
+        });
+        imageUpload.files = dt.files;
+        renderAllImagePreviews();
+    }
+
+    // Remove a library image from selection
+    function removeLibraryImage(indexToRemove) {
+        selectedLibraryImages.splice(indexToRemove, 1);
+        renderAllImagePreviews();
+    }
+
+    // Sync hidden existing_images[] inputs for backend store()
+    function syncLibraryHiddenInputs() {
+        libraryHiddenInputs.innerHTML = '';
+        selectedLibraryImages.forEach(libImg => {
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'existing_images[]';
+            hidden.value = libImg.url;
+            libraryHiddenInputs.appendChild(hidden);
+        });
+    }
+
+    // Handle device file input change
+    imageUpload.addEventListener('change', function() {
+        renderAllImagePreviews();
+    });
+
+    // Open Library Modal
+    openImageLibraryBtn.addEventListener('click', function() {
+        modalSelectedMap.clear();
+        selectedLibraryImages.forEach(img => {
+            modalSelectedMap.set(img.url, img);
+        });
+        updateModalCounter();
+
+        libraryModal.show();
+
+        if (allLibraryImages.length === 0) {
+            fetchLibraryImages();
+        } else {
+            renderLibraryGrid(libraryImageSearch.value.trim());
+        }
+    });
+
+    // Fetch images from API endpoint
+    function fetchLibraryImages() {
+        libraryImagesLoading.classList.remove('d-none');
+        libraryImagesGrid.innerHTML = '';
+        libraryEmptyState.classList.add('d-none');
+
+        fetch("{{ route('shopify.image-picker-images') }}", {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            libraryImagesLoading.classList.add('d-none');
+            if (data.success && Array.isArray(data.images) && data.images.length > 0) {
+                allLibraryImages = data.images;
+                renderLibraryGrid(libraryImageSearch.value.trim());
+            } else {
+                libraryEmptyState.classList.remove('d-none');
+            }
+        })
+        .catch(err => {
+            console.error('Failed to load library images:', err);
+            libraryImagesLoading.classList.add('d-none');
+            libraryEmptyState.textContent = 'Unable to load images. Please try again.';
+            libraryEmptyState.classList.remove('d-none');
+        });
+    }
+
+    // Render Modal Images Grid
+    function renderLibraryGrid(searchQuery) {
+        libraryImagesGrid.innerHTML = '';
+        const q = (searchQuery || '').toLowerCase();
+        const filtered = allLibraryImages.filter(img => (img.name || '').toLowerCase().includes(q));
+
+        if (filtered.length === 0) {
+            libraryEmptyState.classList.remove('d-none');
+            return;
+        }
+
+        libraryEmptyState.classList.add('d-none');
+
+        filtered.forEach(img => {
+            const col = document.createElement('div');
+            col.className = 'col-6 col-sm-4 col-md-3';
+
+            const card = document.createElement('div');
+            const isSelected = modalSelectedMap.has(img.url);
+            card.className = 'library-image-card' + (isSelected ? ' is-selected' : '');
+
+            card.innerHTML = `
+                <img src="${img.url}" alt="${img.name}">
+                <span class="select-badge">${isSelected ? '✓' : '+'}</span>
+            `;
+
+            card.addEventListener('click', function() {
+                if (modalSelectedMap.has(img.url)) {
+                    modalSelectedMap.delete(img.url);
+                    card.classList.remove('is-selected');
+                    card.querySelector('.select-badge').textContent = '+';
+                } else {
+                    modalSelectedMap.set(img.url, img);
+                    card.classList.add('is-selected');
+                    card.querySelector('.select-badge').textContent = '✓';
+                }
+                updateModalCounter();
+            });
+
+            col.appendChild(card);
+            libraryImagesGrid.appendChild(col);
+        });
+    }
+
+    function updateModalCounter() {
+        const count = modalSelectedMap.size;
+        selectedLibraryCount.textContent = `Selected: ${count} image${count === 1 ? '' : 's'}`;
+    }
+
+    // Search input filtering
+    libraryImageSearch.addEventListener('input', function() {
+        renderLibraryGrid(this.value.trim());
+    });
+
+    // Confirm selection from modal
+    confirmLibrarySelectionBtn.addEventListener('click', function() {
+        selectedLibraryImages = Array.from(modalSelectedMap.values());
+        renderAllImagePreviews();
+        libraryModal.hide();
     });
 
     const subCategorySearch = document.getElementById('sub_category_search');

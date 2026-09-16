@@ -2049,7 +2049,9 @@ class ShopifyController extends Controller
             'product_type' => 'nullable|string|max:255',
             'vendor' => 'nullable|string|max:255',
             'tags' => 'nullable|string',
-            'images.*' => 'nullable|image|max:5120'
+            'images.*' => 'nullable|image|max:5120',
+            'existing_images' => 'nullable|array',
+            'existing_images.*' => 'nullable|string'
         ]);
 
         $shopModel = $this->getActiveShop($request);
@@ -3637,6 +3639,14 @@ class ShopifyController extends Controller
     private function UploadImageProvideUrl($request)
     {
         $paths = [];
+        $existing = $request->input('existing_images', []);
+        if (is_array($existing)) {
+            foreach ($existing as $imgUrl) {
+                if (is_string($imgUrl) && trim($imgUrl) !== '') {
+                    $paths[] = trim($imgUrl);
+                }
+            }
+        }
         if ($request->hasFile('images')) {
             $images = $request->file('images');
             foreach ($images as $image) {
