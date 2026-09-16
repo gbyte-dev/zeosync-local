@@ -33,9 +33,10 @@ class VerifyShopifySession
                  return $next($request);
                 // return response()->json(['error' => 'Invalid Shopify session: ' . $e->getMessage()], 401);
             }
-                       
+            
             return $next($request);
         }
+
         if (!$result->ok) {
             // Returns clean JSON, not a redirect — this is the fix for your loop
             return $next($request);

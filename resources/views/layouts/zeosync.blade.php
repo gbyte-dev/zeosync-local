@@ -76,7 +76,7 @@
             if (!isInIframe()) {
                 return;
             }else{
-                window.top.location.reload();
+                window.location.href = "{{ route('dashboard') }}";
             }
 
     //         // 2. Loop prevention & explicit logout checks
