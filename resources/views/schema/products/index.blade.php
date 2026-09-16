@@ -375,18 +375,15 @@
     <div class="sp-header-section">
         <div class="saas-page-header">
             <div class="col-md-7 col-sm-12">
-                <h1 class="sp-title">Amazon Products Under Progress</h1>
+                <h4 class="sp-title">Amazon Products Under Progress</h4>
             </div>
+            @if(checkAmazonConnected())
             <div class="sp-actions col-md-5 col-sm-12">
-                <button id="refreshBtn" style="float: right;" class="sp-btn sp-btn-secondary" data-url="{{ route('shopify.products', ['shop' => $activeShop]) }}">
+                <button id="refreshBtn" style="float: right;" class="sp-btn sp-btn-secondary" data-url="{{ route('shopify.products', ['shop' => session('active_shop')]) }}">
                     <i class="bi bi-arrow-clockwise"></i> Refresh
                 </button>
 
-                @if(!checkAmazonConnected())
-                <button type="button" style="float: right;" class="sp-btn sp-btn-primary" disabled title="Please connect your Amazon account first.">
-                    <i class="bi bi-send"></i> Add To Amazon
-                </button>
-                @elseif(!$productLimitReached)
+                @if(!$productLimitReached)
                 <a style="float: right;" href="{{ route('user.addProductCategory', ['shop' => session('active_shop')]) }}" class="sp-btn sp-btn-primary">
                     <i class="bi bi-send"></i> Add To Amazon
                 </a>
@@ -396,16 +393,18 @@
                 </a>
                 @endif
             </div>
+            @endif
         </div>
     </div>
-    @if(!checkAmazonConnected())
-        <div class="alert alert-warning">
-            Please connect your Amazon account first.
-            <a href="{{ route('amazon.connect') }}">Connect Amazon</a>
-        </div>
-    @endif
 
-    <!-- Stat Pills (Reference Image Style) -->
+    @if(!checkAmazonConnected())
+        <div class="alert alert-warning mb-0 border-0" style="border-radius: 8px; font-size: 13px;">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            Please connect your Amazon account first.
+            <a href="{{ route('amazon.connect') }}" class="fw-bold ms-1 text-dark text-decoration-underline">Connect Amazon</a>
+        </div>
+    @else
+        <!-- Stat Pills (Reference Image Style) -->
         <div class="sp-stat-grid">
             <div class="sp-stat-pill">
                 <span class="sp-stat-label">Total Products</span>
@@ -591,6 +590,7 @@
             </div>
             <!-- CHANGED: Completely removed custom blade manual pagination div, DataTables handles it -->
     </div>
+    @endif
 </div>
 
 @endsection
@@ -608,8 +608,8 @@
 
 <script>
     $(document).ready(function() {
-        // Initialize DataTables safely once
-        if (!$.fn.DataTable.isDataTable('#productsTable')) {
+        // Initialize DataTables safely once if table exists
+        if ($('#productsTable').length && !$.fn.DataTable.isDataTable('#productsTable')) {
             $('#productsTable').DataTable({
                 responsive: true,
                 autoWidth: false,
@@ -699,35 +699,38 @@
         });
     }
 
-    document.getElementById('refreshBtn').addEventListener('click', function() {
-        const btn = this;
-        const icon = btn.querySelector('i');
-        btn.disabled = true;
+    const refreshBtnEl = document.getElementById('refreshBtn');
+    if (refreshBtnEl) {
+        refreshBtnEl.addEventListener('click', function() {
+            const btn = this;
+            const icon = btn.querySelector('i');
+            btn.disabled = true;
 
-        let url = btn.dataset.url;
-        if (url.includes('?')) {
-            url += '&refresh=1';
-        } else {
-            url += '?refresh=1';
-        }
-        fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                location.reload();
-            })
-            .catch(err => {
-                console.error(err);
-                alert('Refresh failed');
-            })
-            .finally(() => {
-                btn.disabled = false;
-            });
-    });
+            let url = btn.dataset.url;
+            if (url.includes('?')) {
+                url += '&refresh=1';
+            } else {
+                url += '?refresh=1';
+            }
+            fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    location.reload();
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Refresh failed');
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                });
+        });
+    }
 
     document.addEventListener('click', function(e) {
         const syncBtn =

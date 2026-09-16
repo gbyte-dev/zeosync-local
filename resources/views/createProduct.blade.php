@@ -371,16 +371,162 @@
     .file-preview {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 8px;
         margin-top: 6px;
     }
 
-    .file-preview img {
-        width: 48px;
-        height: 48px;
+    .library-image-card {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 2px solid #E5E7EB;
+        cursor: pointer;
+        transition: all 0.15s ease-in-out;
+        background: #F9FAFB;
+        width: 104px;
+        height: 104px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        user-select: none;
+    }
+
+    .library-image-card:hover {
+        border-color: #9CA3AF;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .library-image-card.is-selected {
+        border-color: #2563EB !important;
+        background: #EFF6FF !important;
+        box-shadow: 0 0 0 1px #2563EB;
+    }
+
+    .image-library-preview-wrapper {
+        width: 100px;
+        height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+    }
+
+    .image-library-preview {
+        width: 100px;
+        height: 100px;
+        object-fit: contain;
+        display: block;
+    }
+
+    .library-image-card .select-badge {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.5);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: bold;
+        transition: all 0.15s ease;
+        z-index: 2;
+    }
+
+    .library-image-card.is-selected .select-badge {
+        background: #2563EB;
+        color: #fff;
+    }
+
+    .preview-image-item {
+        position: relative;
+        display: inline-block;
+        width: 52px;
+        height: 52px;
+        margin-right: 2px;
+        margin-bottom: 2px;
+    }
+
+    .preview-image-item img {
+        width: 100%;
+        height: 100%;
         object-fit: cover;
-        border-radius: 4px;
+        border-radius: 6px;
         border: 1px solid #E5E7EB;
+    }
+
+    .preview-image-item .remove-preview-btn {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 18px;
+        height: 18px;
+        background: #DC2626;
+        color: #fff;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        cursor: pointer;
+        line-height: 1;
+        padding: 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .variant-image-preview {
+        width: 36px;
+        height: 36px;
+        object-fit: contain;
+        display: block;
+    }
+
+    .variant-img-cell {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .form-control.is-invalid,
+    .form-select.is-invalid {
+        border-color: #DC2626 !important;
+        box-shadow: 0 0 0 1px #DC2626 !important;
+        background-color: #FEF2F2 !important;
+    }
+
+    #saveProductBtn:disabled,
+    #saveProductBtn[disabled] {
+        background: #9CA3AF !important;
+        border-color: #9CA3AF !important;
+        cursor: not-allowed !important;
+        opacity: 0.65 !important;
+        box-shadow: none !important;
+        pointer-events: none !important;
+    }
+
+    .preview-image-item .remove-preview-btn:hover {
+        background: #B91C1C;
+    }
+
+    .preview-image-item .library-badge {
+        position: absolute;
+        bottom: 2px;
+        left: 2px;
+        background: rgba(37, 99, 235, 0.85);
+        color: #fff;
+        font-size: 8px;
+        padding: 1px 3px;
+        border-radius: 3px;
+        line-height: 1;
+        font-weight: 600;
+        text-transform: uppercase;
+        pointer-events: none;
     }
 
     .alert-danger {
@@ -549,9 +695,15 @@
                 <input type="hidden" name="amazon_title" id="amazonTitle" value="{{ old('amazon_title') }}">
 
                 <div class="mb-2">
-                    <label class="form-label">Product Images (Multiple)</label>
+                    <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
+                        <label class="form-label mb-0">Product Images (Multiple)</label>
+                        <button type="button" class="btn btn-outline-dark btn-sm" id="openImageLibraryBtn" style="height: 28px; font-size: 12px; padding: 0 10px;">
+                            <i class="bi bi-images me-1"></i> Select from Image Upload
+                        </button>
+                    </div>
                     <input type="file" name="images[]" class="form-control" style="padding-top:4px;" multiple accept="image/*" id="imageUpload">
-                    <div class="file-preview" id="imagePreview"></div>
+                    <div class="file-preview mt-2" id="imagePreview"></div>
+                    <div id="libraryHiddenInputs"></div>
                 </div>
             </div>
 
@@ -635,7 +787,7 @@
                 @endphp
                 @for($i = 0; $i < $variantCount; $i++)
                     <div class="variant-type-box">
-                    <span class="remove-btn" onclick="this.parentElement.remove()">✕</span>
+                    <span class="remove-btn" onclick="removeVariantType(this)">✕</span>
                     <div class="row">
                         <div class="col-md-4 mb-2">
                             <label class="form-label">Type Name</label>
@@ -678,7 +830,7 @@
     <a href="{{ route('shopify.products', ['shop' => $activeShop]) }}" class="btn btn-outline-dark">
         Cancel
     </a>
-    <button type="submit" class="btn btn-success">
+    <button type="submit" class="btn btn-success" id="saveProductBtn" disabled>
         Save Product
     </button>
 </div>
@@ -686,6 +838,78 @@
 </div><!-- /card-shell -->
 </form>
 </div><!-- /pg-wrap -->
+
+<!-- Image Library Selection Modal -->
+<div class="modal fade" id="imageLibraryModal" tabindex="-1" aria-labelledby="imageLibraryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="border-radius: 12px; border: 1px solid #E5E7EB;">
+            <div class="modal-header py-3 px-4" style="border-bottom: 1px solid #F3F4F6;">
+                <div>
+                    <h5 class="modal-title fw-semibold text-dark mb-0" id="imageLibraryModalLabel" style="font-size: 15px;">
+                        Select Images from Upload Library
+                    </h5>
+                    <p class="text-muted small mb-0" id="imageLibraryModalSubtitle" style="font-size: 12px;">Choose existing images previously uploaded to your library</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Modal Alert Message -->
+                <div id="modalAlertMessage" class="alert d-none py-2 px-3 small mb-3" role="alert"></div>
+
+                <!-- Tab Navigation & Upload from Device Toolbar -->
+                <div class="d-flex justify-content-between align-items-center border-bottom mb-3 pb-1">
+                    <ul class="nav nav-tabs border-bottom-0 mb-0" id="imageLibraryTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-medium px-3 py-2 border-0 bg-transparent text-dark border-bottom border-2 border-primary" id="tab-add-product" type="button" role="tab" style="font-size: 13px;">
+                                <i class="bi bi-grid-fill me-1 text-primary"></i> Add Product
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="d-flex align-items-center">
+                        <input type="file" id="modalDeviceUploadInput" accept="image/*" class="d-none">
+                        <button type="button" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" id="modalDeviceUploadBtn" style="font-size: 12px;">
+                            <i class="bi bi-cloud-arrow-up" id="modalUploadIcon"></i>
+                            <span id="modalUploadBtnSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            <span id="modalUploadBtnText">Upload from Device</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div id="libraryImagesLoading" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <span class="ms-2 small text-muted">Loading your images...</span>
+                </div>
+
+                <!-- Images Grid (Max 10 per tab/page, fixed 100x100 contain previews) -->
+                <div id="libraryImagesGrid" class="d-flex flex-wrap gap-2 justify-content-start" style="min-height: 230px;">
+                    <!-- Dynamically populated -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="libraryEmptyState" class="text-center py-4 text-muted small d-none">
+                    No images found in your library.
+                </div>
+
+                <!-- Pagination & Page Controls (10 images max per tab/page) -->
+                <div id="libraryPagination" class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top d-none">
+                    <span class="small text-muted" id="libraryPaginationInfo">Showing 0 - 0 of 0 images</span>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-dark btn-sm" id="libraryPrevPageBtn" disabled>‹ Previous</button>
+                        <button type="button" class="btn btn-outline-dark btn-sm" id="libraryNextPageBtn" disabled>Next ›</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between py-2 px-4" style="border-top: 1px solid #F3F4F6; background: #FAFAFA; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                <span class="small fw-500 text-muted" id="selectedLibraryCount">Selected: 0 images</span>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-dark btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success btn-sm" id="confirmLibrarySelectionBtn">Add Selected Images</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -705,18 +929,480 @@
         productTitleInput.addEventListener('input', syncAmazonTitle);
     }
 
-    document.getElementById('imageUpload').addEventListener('change', function(e) {
-        const preview = document.getElementById('imagePreview');
-        preview.innerHTML = '';
-        Array.from(e.target.files).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = ev => {
-                const img = document.createElement('img');
-                img.src = ev.target.result;
-                preview.appendChild(img);
-            };
-            reader.readAsDataURL(file);
+    // --- Image Library & Device Upload Management ---
+    const imageUpload = document.getElementById('imageUpload');
+    const imagePreview = document.getElementById('imagePreview');
+    const libraryHiddenInputs = document.getElementById('libraryHiddenInputs');
+    const openImageLibraryBtn = document.getElementById('openImageLibraryBtn');
+    const libraryModalEl = document.getElementById('imageLibraryModal');
+    const libraryModal = new bootstrap.Modal(libraryModalEl);
+    const libraryImagesGrid = document.getElementById('libraryImagesGrid');
+    const libraryImagesLoading = document.getElementById('libraryImagesLoading');
+    const libraryEmptyState = document.getElementById('libraryEmptyState');
+    const selectedLibraryCount = document.getElementById('selectedLibraryCount');
+    const confirmLibrarySelectionBtn = document.getElementById('confirmLibrarySelectionBtn');
+    const libraryPagination = document.getElementById('libraryPagination');
+    const libraryPaginationInfo = document.getElementById('libraryPaginationInfo');
+    const libraryPrevPageBtn = document.getElementById('libraryPrevPageBtn');
+    const libraryNextPageBtn = document.getElementById('libraryNextPageBtn');
+
+    // Modal Upload from Device Controls
+    const modalDeviceUploadBtn = document.getElementById('modalDeviceUploadBtn');
+    const modalDeviceUploadInput = document.getElementById('modalDeviceUploadInput');
+    const modalUploadBtnText = document.getElementById('modalUploadBtnText');
+    const modalUploadIcon = document.getElementById('modalUploadIcon');
+    const modalUploadBtnSpinner = document.getElementById('modalUploadBtnSpinner');
+    const modalAlertMessage = document.getElementById('modalAlertMessage');
+
+    const IMAGES_PER_TAB_PAGE = 10;
+    let allLibraryImages = [];
+    let currentLibraryPage = 1;
+    let selectedLibraryImages = []; // Array of { id, url, name, path }
+    let modalSelectedMap = new Map(); // Map of url => image object currently toggled in modal
+
+    // Target Management: 'gallery' OR { type: 'variant', index: idx }
+    let currentModalTarget = 'gallery';
+    const variantImageMap = {}; // idx => { url, name, key }
+    const savedComboImageMap = {}; // comboKey => { url, name }
+
+    // Upload from Device inside modal
+    if (modalDeviceUploadBtn && modalDeviceUploadInput) {
+        modalDeviceUploadBtn.addEventListener('click', function() {
+            modalDeviceUploadInput.value = '';
+            modalAlertMessage.className = 'alert d-none py-2 px-3 small mb-3';
+            modalDeviceUploadInput.click();
         });
+
+        modalDeviceUploadInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showModalAlert('Please select a valid image file (JPG, PNG, or WEBP).', 'danger');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                showModalAlert('Image size must not exceed 10 MB.', 'danger');
+                return;
+            }
+
+            modalDeviceUploadBtn.disabled = true;
+            modalUploadIcon.classList.add('d-none');
+            modalUploadBtnSpinner.classList.remove('d-none');
+            modalUploadBtnText.textContent = 'Uploading...';
+            modalAlertMessage.className = 'alert d-none py-2 px-3 small mb-3';
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('_token', '{{ csrf_token() }}');
+
+            fetch("{{ route('shopify.imgupload.store') }}", {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: formData
+            })
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Failed to upload image.');
+                }
+                return data;
+            })
+            .then(data => {
+                const newImg = data.image;
+                allLibraryImages.unshift(newImg);
+                currentLibraryPage = 1;
+
+                if (currentModalTarget === 'gallery') {
+                    modalSelectedMap.set(newImg.url, newImg);
+                } else if (currentModalTarget && currentModalTarget.type === 'variant') {
+                    modalSelectedMap.clear();
+                    modalSelectedMap.set(newImg.url, newImg);
+                    setVariantImage(currentModalTarget.index, newImg.url, newImg.name);
+                }
+
+                renderLibraryTabPage();
+                updateModalCounter();
+                showModalAlert('Image uploaded successfully and selected.', 'success');
+            })
+            .catch(err => {
+                console.error('Modal upload failed:', err);
+                showModalAlert(err.message || 'Failed to upload image. Please try again.', 'danger');
+            })
+            .finally(() => {
+                modalDeviceUploadBtn.disabled = false;
+                modalUploadIcon.classList.remove('d-none');
+                modalUploadBtnSpinner.classList.add('d-none');
+                modalUploadBtnText.textContent = 'Upload from Device';
+                modalDeviceUploadInput.value = '';
+            });
+        });
+    }
+
+    function showModalAlert(message, type = 'danger') {
+        if (!modalAlertMessage) return;
+        modalAlertMessage.textContent = message;
+        modalAlertMessage.className = `alert alert-${type} py-2 px-3 small mb-3`;
+    }
+
+    function getVariantComboKey(idx) {
+        const hiddenCombo = document.querySelector(`input[name="variant_combo[${idx}]"]`);
+        if (hiddenCombo && hiddenCombo.value) {
+            try {
+                const parsed = JSON.parse(hiddenCombo.value);
+                return parsed.map(c => `${c.type}:${c.value}`).join('|');
+            } catch (e) {}
+        }
+        return `variant_${idx}`;
+    }
+
+    function renderVariantImage(idx) {
+        const td = document.getElementById(`variant_img_td_${idx}`);
+        if (!td) return;
+        const current = variantImageMap[idx];
+        if (current && current.url) {
+            td.innerHTML = `
+                <div class="variant-img-cell d-flex align-items-center gap-2" id="variant_img_cell_${idx}">
+                    <div style="position: relative; width: 36px; height: 36px; border: 1px solid #D1D5DB; border-radius: 6px; overflow: hidden; background: #F9FAFB; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                        <img src="${current.url}" alt="${current.name || ''}" class="variant-image-preview">
+                    </div>
+                    <div class="d-flex flex-column" style="line-height: 1.2;">
+                        <button type="button" class="btn btn-link p-0 text-primary text-decoration-none" style="font-size: 11px; text-align: left;" onclick="openVariantImageModal(${idx})">Change</button>
+                        <button type="button" class="btn btn-link p-0 text-danger text-decoration-none" style="font-size: 11px; text-align: left;" onclick="removeVariantImage(${idx})">Remove</button>
+                    </div>
+                    <input type="hidden" name="variants[${idx}][image]" id="variant_image_input_${idx}" value="${current.url}">
+                </div>
+            `;
+        } else {
+            td.innerHTML = `
+                <div class="variant-img-cell" id="variant_img_cell_${idx}">
+                    <button type="button" class="btn btn-outline-dark btn-sm select-variant-img-btn" onclick="openVariantImageModal(${idx})" style="font-size: 11px; padding: 4px 8px; white-space: nowrap;">
+                        <i class="bi bi-image me-1"></i> Select Image
+                    </button>
+                    <input type="hidden" name="variants[${idx}][image]" id="variant_image_input_${idx}" value="">
+                </div>
+            `;
+        }
+    }
+
+    function setVariantImage(idx, url, name) {
+        const comboKey = getVariantComboKey(idx);
+        variantImageMap[idx] = { url, name: name || '', key: comboKey };
+        if (comboKey) {
+            savedComboImageMap[comboKey] = { url, name: name || '' };
+        }
+        renderVariantImage(idx);
+    }
+
+    function removeVariantImage(idx) {
+        const comboKey = getVariantComboKey(idx);
+        delete variantImageMap[idx];
+        if (comboKey && savedComboImageMap[comboKey]) {
+            delete savedComboImageMap[comboKey];
+        }
+        renderVariantImage(idx);
+    }
+
+    function openVariantImageModal(idx) {
+        currentModalTarget = { type: 'variant', index: idx };
+        document.getElementById('imageLibraryModalLabel').textContent = 'Select Image for Variant';
+        document.getElementById('imageLibraryModalSubtitle').textContent = 'Choose an image from your library or upload from device';
+        confirmLibrarySelectionBtn.textContent = 'Select Image';
+        modalAlertMessage.className = 'alert d-none py-2 px-3 small mb-3';
+
+        modalSelectedMap.clear();
+        if (variantImageMap[idx]) {
+            const curr = variantImageMap[idx];
+            modalSelectedMap.set(curr.url, { url: curr.url, name: curr.name });
+        }
+        updateModalCounter();
+        libraryModal.show();
+
+        if (allLibraryImages.length === 0) {
+            fetchLibraryImages();
+        } else {
+            renderLibraryTabPage();
+        }
+    }
+
+    // Render unified previews (device files + library images)
+    function renderAllImagePreviews() {
+        imagePreview.innerHTML = '';
+
+        // 1. Render Device Uploaded Images
+        if (imageUpload.files && imageUpload.files.length > 0) {
+            Array.from(imageUpload.files).forEach((file, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'preview-image-item';
+
+                const img = document.createElement('img');
+                img.alt = file.name;
+                const reader = new FileReader();
+                reader.onload = ev => { img.src = ev.target.result; };
+                reader.readAsDataURL(file);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'remove-preview-btn';
+                removeBtn.innerHTML = '×';
+                removeBtn.title = 'Remove image';
+                removeBtn.addEventListener('click', () => {
+                    removeDeviceFile(index);
+                });
+
+                itemDiv.appendChild(img);
+                itemDiv.appendChild(removeBtn);
+                imagePreview.appendChild(itemDiv);
+            });
+        }
+
+        // 2. Render Selected Library Images
+        selectedLibraryImages.forEach((libImg, index) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'preview-image-item';
+
+            const img = document.createElement('img');
+            img.src = libImg.url;
+            img.alt = libImg.name;
+
+            const badge = document.createElement('span');
+            badge.className = 'library-badge';
+            badge.textContent = 'Lib';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-preview-btn';
+            removeBtn.innerHTML = '×';
+            removeBtn.title = 'Remove library image';
+            removeBtn.addEventListener('click', () => {
+                removeLibraryImage(index);
+            });
+
+            itemDiv.appendChild(img);
+            itemDiv.appendChild(badge);
+            itemDiv.appendChild(removeBtn);
+            imagePreview.appendChild(itemDiv);
+        });
+
+        // Sync hidden inputs for library images
+        syncLibraryHiddenInputs();
+    }
+
+    // Remove a device file from imageUpload input using DataTransfer
+    function removeDeviceFile(indexToRemove) {
+        if (!imageUpload.files) return;
+        const dt = new DataTransfer();
+        Array.from(imageUpload.files).forEach((file, idx) => {
+            if (idx !== indexToRemove) {
+                dt.items.add(file);
+            }
+        });
+        imageUpload.files = dt.files;
+        renderAllImagePreviews();
+    }
+
+    // Remove a library image from selection
+    function removeLibraryImage(indexToRemove) {
+        selectedLibraryImages.splice(indexToRemove, 1);
+        renderAllImagePreviews();
+    }
+
+    // Sync hidden existing_images[] inputs for backend store()
+    function syncLibraryHiddenInputs() {
+        libraryHiddenInputs.innerHTML = '';
+        selectedLibraryImages.forEach(libImg => {
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'existing_images[]';
+            hidden.value = libImg.url;
+            libraryHiddenInputs.appendChild(hidden);
+        });
+    }
+
+    // Handle device file input change
+    imageUpload.addEventListener('change', function() {
+        renderAllImagePreviews();
+    });
+
+    // Open Library Modal
+    openImageLibraryBtn.addEventListener('click', function() {
+        currentModalTarget = 'gallery';
+        document.getElementById('imageLibraryModalLabel').textContent = 'Select Images from Upload Library';
+        document.getElementById('imageLibraryModalSubtitle').textContent = 'Choose existing images previously uploaded to your library';
+        confirmLibrarySelectionBtn.textContent = 'Add Selected Images';
+        modalAlertMessage.className = 'alert d-none py-2 px-3 small mb-3';
+
+        modalSelectedMap.clear();
+        selectedLibraryImages.forEach(img => {
+            modalSelectedMap.set(img.url, img);
+        });
+        updateModalCounter();
+
+        libraryModal.show();
+
+        if (allLibraryImages.length === 0) {
+            fetchLibraryImages();
+        } else {
+            renderLibraryTabPage();
+        }
+    });
+
+    // Fetch images from API endpoint
+    function fetchLibraryImages() {
+        libraryImagesLoading.classList.remove('d-none');
+        libraryImagesGrid.innerHTML = '';
+        libraryEmptyState.classList.add('d-none');
+        libraryPagination.classList.add('d-none');
+
+        fetch("{{ route('shopify.image-picker-images') }}", {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            libraryImagesLoading.classList.add('d-none');
+            if (data.success && Array.isArray(data.images) && data.images.length > 0) {
+                allLibraryImages = data.images;
+                currentLibraryPage = 1;
+                renderLibraryTabPage();
+            } else {
+                libraryEmptyState.classList.remove('d-none');
+            }
+        })
+        .catch(err => {
+            console.error('Failed to load library images:', err);
+            libraryImagesLoading.classList.add('d-none');
+            libraryEmptyState.textContent = 'Unable to load images. Please try again.';
+            libraryEmptyState.classList.remove('d-none');
+        });
+    }
+
+    // Render Modal Images for the current tab page (Strictly 10 max per page/tab)
+    function renderLibraryTabPage() {
+        libraryImagesGrid.innerHTML = '';
+
+        if (!allLibraryImages || allLibraryImages.length === 0) {
+            libraryEmptyState.classList.remove('d-none');
+            libraryPagination.classList.add('d-none');
+            return;
+        }
+
+        libraryEmptyState.classList.add('d-none');
+
+        const totalImages = allLibraryImages.length;
+        const totalPages = Math.max(1, Math.ceil(totalImages / IMAGES_PER_TAB_PAGE));
+        if (currentLibraryPage > totalPages) {
+            currentLibraryPage = totalPages;
+        }
+        if (currentLibraryPage < 1) {
+            currentLibraryPage = 1;
+        }
+
+        const startIndex = (currentLibraryPage - 1) * IMAGES_PER_TAB_PAGE;
+        const pageImages = allLibraryImages.slice(startIndex, startIndex + IMAGES_PER_TAB_PAGE);
+
+        pageImages.forEach(img => {
+            const card = document.createElement('div');
+            const isSelected = modalSelectedMap.has(img.url);
+            card.className = 'library-image-card' + (isSelected ? ' is-selected' : '');
+            card.setAttribute('data-url', img.url);
+
+            card.innerHTML = `
+                <div class="image-library-preview-wrapper">
+                    <img src="${img.url}" alt="${img.name}" class="image-library-preview">
+                </div>
+                <span class="select-badge">${isSelected ? '✓' : '+'}</span>
+            `;
+
+            card.addEventListener('click', function() {
+                if (currentModalTarget === 'gallery') {
+                    if (modalSelectedMap.has(img.url)) {
+                        modalSelectedMap.delete(img.url);
+                        card.classList.remove('is-selected');
+                        card.querySelector('.select-badge').textContent = '+';
+                    } else {
+                        modalSelectedMap.set(img.url, img);
+                        card.classList.add('is-selected');
+                        card.querySelector('.select-badge').textContent = '✓';
+                    }
+                } else if (currentModalTarget && currentModalTarget.type === 'variant') {
+                    if (modalSelectedMap.has(img.url)) {
+                        modalSelectedMap.clear();
+                        card.classList.remove('is-selected');
+                        card.querySelector('.select-badge').textContent = '+';
+                    } else {
+                        modalSelectedMap.clear();
+                        modalSelectedMap.set(img.url, img);
+                        document.querySelectorAll('#libraryImagesGrid .library-image-card').forEach(c => {
+                            c.classList.remove('is-selected');
+                            const b = c.querySelector('.select-badge');
+                            if (b) b.textContent = '+';
+                        });
+                        card.classList.add('is-selected');
+                        card.querySelector('.select-badge').textContent = '✓';
+                    }
+                }
+                updateModalCounter();
+            });
+
+            libraryImagesGrid.appendChild(card);
+        });
+
+        // Update Pagination Controls
+        if (totalImages > IMAGES_PER_TAB_PAGE) {
+            libraryPagination.classList.remove('d-none');
+            const endCount = Math.min(startIndex + IMAGES_PER_TAB_PAGE, totalImages);
+            libraryPaginationInfo.textContent = `Showing ${startIndex + 1} - ${endCount} of ${totalImages} images (Page ${currentLibraryPage} of ${totalPages})`;
+            libraryPrevPageBtn.disabled = (currentLibraryPage <= 1);
+            libraryNextPageBtn.disabled = (currentLibraryPage >= totalPages);
+        } else {
+            libraryPagination.classList.add('d-none');
+        }
+    }
+
+    // Pagination Click Listeners
+    libraryPrevPageBtn.addEventListener('click', function() {
+        if (currentLibraryPage > 1) {
+            currentLibraryPage--;
+            renderLibraryTabPage();
+        }
+    });
+
+    libraryNextPageBtn.addEventListener('click', function() {
+        const totalPages = Math.ceil(allLibraryImages.length / IMAGES_PER_TAB_PAGE);
+        if (currentLibraryPage < totalPages) {
+            currentLibraryPage++;
+            renderLibraryTabPage();
+        }
+    });
+
+    function updateModalCounter() {
+        const count = modalSelectedMap.size;
+        selectedLibraryCount.textContent = `Selected: ${count} image${count === 1 ? '' : 's'}`;
+    }
+
+    // Confirm selection from modal
+    confirmLibrarySelectionBtn.addEventListener('click', function() {
+        if (currentModalTarget === 'gallery') {
+            selectedLibraryImages = Array.from(modalSelectedMap.values());
+            renderAllImagePreviews();
+        } else if (currentModalTarget && currentModalTarget.type === 'variant') {
+            const idx = currentModalTarget.index;
+            if (modalSelectedMap.size > 0) {
+                const selectedImg = Array.from(modalSelectedMap.values())[0];
+                setVariantImage(idx, selectedImg.url, selectedImg.name);
+            } else {
+                removeVariantImage(idx);
+            }
+        }
+        libraryModal.hide();
     });
 
     const subCategorySearch = document.getElementById('sub_category_search');
@@ -826,6 +1512,7 @@
 
                     subCategoryResults.innerHTML = '';
                     subCategoryResults.style.display = 'none';
+                    updateSubmitButtonState();
                 });
 
                 subCategoryResults.appendChild(item);
@@ -849,23 +1536,45 @@
 
 
 
+    function invalidateMatrix() {
+        const matrixDiv = document.getElementById('combinationMatrix');
+        if (matrixDiv) {
+            matrixDiv.style.padding = '12px';
+            matrixDiv.innerHTML = '<p class="text-muted">Variant types have changed. Click Generate to build the matrix.</p>';
+        }
+        const hiddenDiv = document.getElementById('hiddenVariantData');
+        if (hiddenDiv) {
+            hiddenDiv.innerHTML = '';
+        }
+        updateSubmitButtonState();
+    }
+
     function addVariantType() {
         const container = document.getElementById('variantTypesContainer');
         const div = document.createElement('div');
         div.classList.add('variant-type-box');
         div.innerHTML = `
-            <span class="remove-btn" onclick="this.parentElement.remove()">✕</span>
+            <span class="remove-btn" onclick="removeVariantType(this)">✕</span>
             <div class="row">
                 <div class="col-md-4 mb-2">
                     <label class="form-label">Type Name</label>
-                    <input type="text" class="form-control variant-type-name" placeholder="e.g., Material">
+                    <input type="text" class="form-control variant-type-name" name="variant_names[]" placeholder="e.g., Material">
                 </div>
                 <div class="col-md-8 mb-2">
                     <label class="form-label">Possible Values</label>
-                    <input type="text" class="form-control variant-type-values" placeholder="e.g., Cotton, Polyester">
+                    <input type="text" class="form-control variant-type-values" name="variant_values[]" placeholder="e.g., Cotton, Polyester">
                 </div>
             </div>`;
         container.appendChild(div);
+        invalidateMatrix();
+    }
+
+    function removeVariantType(button) {
+        const box = button.closest('.variant-type-box');
+        if (box) {
+            box.remove();
+        }
+        invalidateMatrix();
     }
 
     function addMetaField() {
@@ -885,18 +1594,21 @@
                 <button type="button" class="btn btn-outline-danger" onclick="removeMetaField(this)">Remove</button>
             </div>`;
         container.appendChild(div);
+        updateSubmitButtonState();
     }
 
     function removeMetaField(button) {
         button.closest('.meta-field-row').remove();
+        updateSubmitButtonState();
     }
 
     function generateCombinations() {
         const variantTypes = [];
         document.querySelectorAll('.variant-type-box').forEach(box => {
-            const name = box.querySelector('.variant-type-name').value.trim();
-            const values = box.querySelector('.variant-type-values').value
-                .split(',').map(v => v.trim()).filter(v => v);
+            const nameEl = box.querySelector('.variant-type-name');
+            const valuesEl = box.querySelector('.variant-type-values');
+            const name = nameEl ? nameEl.value.trim() : '';
+            const values = valuesEl ? valuesEl.value.split(',').map(v => v.trim()).filter(v => v) : [];
             if (name && values.length > 0) variantTypes.push({
                 name,
                 values
@@ -926,6 +1638,7 @@
         if (combinations.length === 0) {
             matrixDiv.style.padding = '12px';
             matrixDiv.innerHTML = '<p class="text-muted">No combinations generated.</p>';
+            updateSubmitButtonState();
             return;
         }
         const table = document.createElement('table');
@@ -935,6 +1648,33 @@
         table.innerHTML = thead;
         const tbody = document.createElement('tbody');
         combinations.forEach((combo, idx) => {
+            const comboKey = combo.map(c => `${c.type}:${c.value}`).join('|');
+            if (!variantImageMap[idx] && savedComboImageMap[comboKey]) {
+                variantImageMap[idx] = { ...savedComboImageMap[comboKey], key: comboKey };
+            } else if (variantImageMap[idx]) {
+                variantImageMap[idx].key = comboKey;
+                savedComboImageMap[comboKey] = { url: variantImageMap[idx].url, name: variantImageMap[idx].name };
+            }
+
+            const current = variantImageMap[idx];
+            const imgCellHtml = (current && current.url)
+                ? `<div class="variant-img-cell d-flex align-items-center gap-2" id="variant_img_cell_${idx}">
+                    <div style="position: relative; width: 36px; height: 36px; border: 1px solid #D1D5DB; border-radius: 6px; overflow: hidden; background: #F9FAFB; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                        <img src="${current.url}" alt="${current.name || ''}" class="variant-image-preview">
+                    </div>
+                    <div class="d-flex flex-column" style="line-height: 1.2;">
+                        <button type="button" class="btn btn-link p-0 text-primary text-decoration-none" style="font-size: 11px; text-align: left;" onclick="openVariantImageModal(${idx})">Change</button>
+                        <button type="button" class="btn btn-link p-0 text-danger text-decoration-none" style="font-size: 11px; text-align: left;" onclick="removeVariantImage(${idx})">Remove</button>
+                    </div>
+                    <input type="hidden" name="variants[${idx}][image]" id="variant_image_input_${idx}" value="${current.url}">
+                </div>`
+                : `<div class="variant-img-cell" id="variant_img_cell_${idx}">
+                    <button type="button" class="btn btn-outline-dark btn-sm select-variant-img-btn" onclick="openVariantImageModal(${idx})" style="font-size: 11px; padding: 4px 8px; white-space: nowrap;">
+                        <i class="bi bi-image me-1"></i> Select Image
+                    </button>
+                    <input type="hidden" name="variants[${idx}][image]" id="variant_image_input_${idx}" value="">
+                </div>`;
+
             const row = document.createElement('tr');
             let cells = '';
             combo.forEach((c, i) => {
@@ -944,8 +1684,8 @@
                 </td>`;
             });
             cells += `
-                <td>
-                    <input type="file" name="variants[${idx}][image]" class="form-control form-control-sm" style="padding-top:2px;">
+                <td id="variant_img_td_${idx}">
+                    ${imgCellHtml}
                 </td>
                 <td>
                     <input type="number" step="0.01" name="variants[${idx}][price]" class="form-control form-control-sm" placeholder="0.00">
@@ -978,6 +1718,8 @@
             hidden.value = JSON.stringify(combo);
             hiddenDiv.appendChild(hidden);
         });
+
+        updateSubmitButtonState();
     }
 
     function updatecategory(category) {
@@ -990,6 +1732,253 @@
         if (!category) {
             subCategorySearch.setCustomValidity('');
         }
+        updateSubmitButtonState();
+    }
+
+    // --- Validation and Submit Button Management ---
+    function validateCreateProductForm() {
+        // 1. Product Title (required)
+        const titleInput = document.querySelector('input[name="title"]');
+        if (!titleInput || !titleInput.value.trim()) {
+            return false;
+        }
+
+        // 2. Product Category (required)
+        const categorySelect = document.getElementById('category');
+        if (!categorySelect || !categorySelect.value.trim()) {
+            return false;
+        }
+
+        // 3. Sub Category (required if category is selected)
+        const subCatInput = document.getElementById('sub_category');
+        if (categorySelect.value.trim() && (!subCatInput || !subCatInput.value.trim())) {
+            return false;
+        }
+
+        // 4. Description (required)
+        const descInput = document.querySelector('textarea[name="description"]');
+        if (!descInput || !descInput.value.trim()) {
+            return false;
+        }
+
+        // 5. Status (required)
+        const statusSelect = document.querySelector('select[name="status"]');
+        if (!statusSelect || !statusSelect.value.trim()) {
+            return false;
+        }
+
+        // 6. Base Price (required, valid number >= 0)
+        const priceInput = document.querySelector('input[name="price"]');
+        if (!priceInput || priceInput.value.trim() === '' || isNaN(priceInput.value) || parseFloat(priceInput.value) < 0) {
+            return false;
+        }
+
+        // 7. Product Type (required)
+        const productTypeInput = document.querySelector('input[name="product_type"]');
+        if (!productTypeInput || !productTypeInput.value.trim()) {
+            return false;
+        }
+
+        // 8. Vendor (required)
+        const vendorInput = document.querySelector('input[name="vendor"]');
+        if (!vendorInput || !vendorInput.value.trim()) {
+            return false;
+        }
+
+        // 9. Collections (required)
+        const collectionsInput = document.querySelector('input[name="collections"]');
+        if (!collectionsInput || !collectionsInput.value.trim()) {
+            return false;
+        }
+
+        // 10. Tags (required)
+        const tagsInput = document.querySelector('input[name="tags"]');
+        if (!tagsInput || !tagsInput.value.trim()) {
+            return false;
+        }
+
+        // 11. Variant matrix validation: Must have generated rows and all rows must be filled and valid
+        const combinationRows = document.querySelectorAll('#combinationMatrix tbody tr');
+        if (!combinationRows || combinationRows.length === 0) {
+            return false;
+        }
+
+        for (const row of combinationRows) {
+            const vPrice = row.querySelector('input[name$="[price]"]');
+            if (!vPrice || vPrice.value.trim() === '' || isNaN(vPrice.value) || parseFloat(vPrice.value) < 0) {
+                return false;
+            }
+
+            const vSku = row.querySelector('input[name$="[sku]"]');
+            if (!vSku || vSku.value.trim() === '') {
+                return false;
+            }
+
+            const vQty = row.querySelector('input[name$="[qty]"]');
+            if (!vQty || vQty.value.trim() === '' || isNaN(vQty.value) || parseInt(vQty.value, 10) < 0) {
+                return false;
+            }
+        }
+
+        // Note: Custom metafields (meta_name[], meta_value[]) are strictly OPTIONAL.
+
+        return true;
+    }
+
+    function updateSubmitButtonState() {
+        const saveProductBtn = document.getElementById('saveProductBtn');
+        if (!saveProductBtn) return;
+
+        const isValid = validateCreateProductForm();
+        saveProductBtn.disabled = !isValid;
+
+        if (isValid) {
+            hideValidationAlert();
+            document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        }
+    }
+
+    function highlightAndFocusFirstInvalidField() {
+        const requiredChecks = [
+            {
+                element: document.querySelector('input[name="title"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please enter a product title.'
+            },
+            {
+                element: document.getElementById('category'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please select a product category.'
+            },
+            {
+                element: document.getElementById('sub_category_search'),
+                isValid: () => {
+                    const subCat = document.getElementById('sub_category');
+                    return subCat && subCat.value.trim() !== '';
+                },
+                message: 'Please search and select a sub category.'
+            },
+            {
+                element: document.querySelector('textarea[name="description"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please enter a product description.'
+            },
+            {
+                element: document.querySelector('select[name="status"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please select a status.'
+            },
+            {
+                element: document.querySelector('input[name="price"]'),
+                isValid: (el) => el && el.value.trim() !== '' && !isNaN(el.value) && parseFloat(el.value) >= 0,
+                message: 'Please enter a valid base price (≥ 0.00).'
+            },
+            {
+                element: document.querySelector('input[name="product_type"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please enter a product type.'
+            },
+            {
+                element: document.querySelector('input[name="vendor"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please enter a vendor name.'
+            },
+            {
+                element: document.querySelector('input[name="collections"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please enter collections.'
+            },
+            {
+                element: document.querySelector('input[name="tags"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please enter tags.'
+            }
+        ];
+
+        // Check if combination matrix has generated rows
+        const combinationRows = document.querySelectorAll('#combinationMatrix tbody tr');
+        if (combinationRows.length === 0) {
+            const genBtn = document.querySelector('.gen-row button');
+            if (genBtn) {
+                genBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showValidationAlert('Please click Generate to create the variant combination matrix.');
+            return false;
+        }
+
+        // Validate variant matrix row inputs
+        for (const row of combinationRows) {
+            const vPrice = row.querySelector('input[name$="[price]"]');
+            const vSku = row.querySelector('input[name$="[sku]"]');
+            const vQty = row.querySelector('input[name$="[qty]"]');
+
+            if (vPrice) {
+                requiredChecks.push({
+                    element: vPrice,
+                    isValid: (el) => el && el.value.trim() !== '' && !isNaN(el.value) && parseFloat(el.value) >= 0,
+                    message: 'Please enter a valid variant price (≥ 0.00).'
+                });
+            }
+            if (vSku) {
+                requiredChecks.push({
+                    element: vSku,
+                    isValid: (el) => el && el.value.trim() !== '',
+                    message: 'Please enter a variant SKU.'
+                });
+            }
+            if (vQty) {
+                requiredChecks.push({
+                    element: vQty,
+                    isValid: (el) => el && el.value.trim() !== '' && !isNaN(el.value) && parseInt(el.value, 10) >= 0,
+                    message: 'Please enter a valid variant quantity (≥ 0).'
+                });
+            }
+        }
+
+        document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+        for (const check of requiredChecks) {
+            if (!check.isValid(check.element)) {
+                if (check.element) {
+                    check.element.classList.add('is-invalid');
+                    check.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (typeof check.element.focus === 'function' && !check.element.disabled) {
+                        check.element.focus();
+                    }
+                    if (typeof check.element.reportValidity === 'function') {
+                        check.element.setCustomValidity(check.message);
+                        check.element.reportValidity();
+                    }
+                }
+                showValidationAlert(check.message || 'Please fill all required fields before saving the product.');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function showValidationAlert(message) {
+        let alertBox = document.getElementById('formValidationAlert');
+        if (!alertBox) {
+            alertBox = document.createElement('div');
+            alertBox.id = 'formValidationAlert';
+            alertBox.className = 'alert alert-danger py-2 px-3 mb-3';
+            const cardShell = document.querySelector('.card-shell');
+            if (cardShell) {
+                cardShell.insertBefore(alertBox, cardShell.firstChild);
+            }
+        }
+        alertBox.textContent = message;
+        alertBox.classList.remove('d-none');
+        alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function hideValidationAlert() {
+        const alertBox = document.getElementById('formValidationAlert');
+        if (alertBox) {
+            alertBox.classList.add('d-none');
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -1000,21 +1989,70 @@
             subCategorySearch.disabled = false;
         }
 
+        // Live validation listeners on the form
+        form.addEventListener('input', updateSubmitButtonState);
+        form.addEventListener('change', updateSubmitButtonState);
+        form.addEventListener('blur', updateSubmitButtonState, true);
+
+        // Listen for changes in variant types container to invalidate outdated combination matrix
+        const variantTypesContainer = document.getElementById('variantTypesContainer');
+        if (variantTypesContainer) {
+            variantTypesContainer.addEventListener('input', function(e) {
+                if (e.target.classList.contains('variant-type-name') || e.target.classList.contains('variant-type-values')) {
+                    const matrixRows = document.querySelectorAll('#combinationMatrix tbody tr');
+                    if (matrixRows.length > 0) {
+                        invalidateMatrix();
+                    }
+                }
+            });
+        }
+
+        // Prevent accidental form submission when pressing Enter (allow in textareas)
+        form.addEventListener('keydown', function(event) {
+            if (event.key !== 'Enter') {
+                return;
+            }
+
+            const target = event.target;
+            if (
+                target.tagName === 'TEXTAREA' ||
+                target.closest('[contenteditable="true"]')
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+            updateSubmitButtonState();
+        });
+
+        // Submit protection handler
         form.addEventListener('submit', function(e) {
             const categoryElement = document.getElementById('category');
-            if (categoryElement && categoryElement.value && !subCategoryInput.value) {
+            if (categoryElement && categoryElement.value && (!subCategoryInput || !subCategoryInput.value)) {
                 subCategorySearch.setCustomValidity('Please select a sub category from the dropdown.');
                 subCategorySearch.reportValidity();
                 e.preventDefault();
+                updateSubmitButtonState();
+                highlightAndFocusFirstInvalidField();
                 return false;
-            } else {
+            } else if (subCategorySearch) {
                 subCategorySearch.setCustomValidity('');
+            }
+
+            if (!validateCreateProductForm()) {
+                e.preventDefault();
+                updateSubmitButtonState();
+                highlightAndFocusFirstInvalidField();
+                return false;
             }
 
             if (typeof showLoader === "function") {
                 showLoader('Creating product...');
             }
         });
+
+        // Initialize submit button state on page load
+        updateSubmitButtonState();
     });
 </script>
 @endpush
