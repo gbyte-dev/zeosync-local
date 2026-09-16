@@ -48,11 +48,7 @@
             Enter your store details to activate the app
         </div>
 
-        <form
-    method="POST"
-    action="{{ route('setup.store', ['shop' => $shopModel?->shop]) }}"
-    id="activateForm"
->
+        <form method="POST" action="{{ route('setup.store', ['shop' => $shopModel?->shop]) }}" id="activateForm">
             @csrf
 
             <!-- Shopify URL -->
@@ -66,16 +62,14 @@
             <!-- Shop Name -->
             <div class="mb-3 text-start">
                 <label class="mb-1">Shop Name</label>
-                <input type="text" name="shop_name"
-                       placeholder="My Store"
+                <input type="text" name="shop_name" placeholder="My Store"
                        class="form-control" value="{{$shopModel?->shop_name}}" required >
             </div>
 
             <!-- Email -->
             <div class="mb-3 text-start">
                 <label class="mb-1">Email</label>
-                <input type="email" name="email"
-                       placeholder="owner@email.com"
+                <input type="email" name="email" placeholder="owner@email.com"
                        class="form-control" value="{{$shopModel?->email}}" required>
             </div>
 

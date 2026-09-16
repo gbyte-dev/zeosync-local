@@ -231,6 +231,9 @@ class AIController extends Controller
             'Amazon  orders: ' . count($amazonOrders) . ' orders' . ($amazonOrderIds ? ' (sample IDs: ' . implode(', ', $amazonOrderIds) . ')' : ''),
             'Amazon  inventory items: ' . count($amazonInventory),
             $catalogSummary,
+            'To connect amazon use account connected menu in the app.',
+            'To sync use Inventory menu in the app.',
+            'Plans and billing complete managed by shopify billing , In app you get only view of plans.',
             'Note: Amazon product pricing is not stored explicitly in this system unless the Shopify product record includes that detail.',
         ]);
 
