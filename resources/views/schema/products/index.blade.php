@@ -16,15 +16,6 @@
         font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Inter", "Segoe UI", Roboto, sans-serif;
     }
 
-    /* Typography */
-    .sp-title {
-        font-size: 24px;
-        font-weight: 600;
-        color: #111827;
-        letter-spacing: -0.01em;
-        margin: 0;
-        line-height: 1.2;
-    }
 
     /* Layout Spacing */
     .sp-header-section {
@@ -375,7 +366,8 @@
     <div class="sp-header-section">
         <div class="saas-page-header">
             <div class="col-md-7 col-sm-12">
-                <h4 class="sp-title">Amazon Products Under Progress</h4>
+                <h5 class="sp-title">Amazon Products </h5>
+                <p class="sp-text-muted" style="font-size: 13px;">Manage your Amazon products added from our platform.</p>
             </div>
             @if(checkAmazonConnected())
             <div class="sp-actions col-md-5 col-sm-12">
