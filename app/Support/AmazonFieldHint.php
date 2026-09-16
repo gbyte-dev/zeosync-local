@@ -61,6 +61,7 @@ class AmazonFieldHint
         'unit_count'    => '50 Count or (12 Fl Oz) or (1 ounces)',
 
         // ── Other Formatted Fields ───────────────────────────────────
+        'battery'                            => 'Lithium-Ion, 50g, 5000mAh, 5 hours',
         'country_of_origin'                  => 'US, CN, or IN',
         'contains_battery_or_cell'           => [self::TITLE_VALUE, 'contains_battery or no'],
         'water_resistance_level'             => [self::TITLE_VALUE, 'waterproof or ipx8'],
