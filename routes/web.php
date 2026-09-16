@@ -108,10 +108,11 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
 
     // AJAX: check SKU status on Amazon and update local product status
     Route::post('/amazon/check-sku', [ProductSchemaController::class, 'checkSkuStatus'])->name('amazon.check.sku');
-    Route::get('/logs_next', [ShopifyController::class, 'logs'])->name('dashboard.logs')->middleware('shopify.session');
    
 });
+    
 
+Route::get('/logs_next', [SettingsController::class, 'logs'])->name('dashboard.logs')->middleware('shopify.session');
 Route::get('/api/shopify/patch-id-token', function (Request $request) {
     setShopifySettings();
     $shopify = new ShopifyApp( config('shopify.api_key'), config('shopify.api_secret') );
