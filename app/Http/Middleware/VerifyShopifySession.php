@@ -42,7 +42,7 @@ class VerifyShopifySession
             return $next($request);
         }
         $idToken = $result->idToken; 
-        $verifiedShopDomain = $result->shop.'myshopify.com';
+        $verifiedShopDomain = $result->shop.'.myshopify.com';
         $shop = Shop::where('shop', $verifiedShopDomain)->first();
 
         if (!$shop) {

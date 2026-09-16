@@ -326,7 +326,7 @@ class ShopifyController extends Controller
             if($request->expectsJson() || $request->ajax()){
                 return response()->json(['error' => 'Missing shop parameter'], 400);
             }
-            return redirect()->route('crm.entry')->with('error', 'shop information is missing. Please provide your Shopify store domain.');
+            return redirect()->route('crm.entry')->with('error', 'Shopify store information is missing. Please provide your store domain.');
         }
 
         if (!str_contains($shop, '.myshopify.com')) {
