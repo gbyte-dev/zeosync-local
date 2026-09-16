@@ -49,7 +49,6 @@ class VerifyShopifySession
             $shop = new Shop();
             $shop->shop = $verifiedShopDomain;
             $shop->installed_at = now();
-            $shop->access_token = $result->accessToken;
             $shop->save();
         }
 
