@@ -32,10 +32,17 @@ class VerifyShopifySession
             if($request->expectsJson() || $request->ajax()){
                 return response()->json(['error' => 'Invalid Shopify session: ' . $e->getMessage()], 401);
             }
-            
+                    echo "<pre>";
+         print_r($e->getMessage());
+         
+         die;
             return $next($request);
         }
 
+                    echo "<pre>";
+         print_r($result);
+         
+         die;
 
         if (!$result->ok) {
             // Returns clean JSON, not a redirect — this is the fix for your loop
