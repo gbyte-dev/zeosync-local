@@ -45,23 +45,23 @@ class InventoryCacheService
         $syncCompleted = $status['sync_completed'] ?? false;
 
         Log::info('[AMAZON_DEBUG] Initial state calculated', [
-            'shop_id'        => $shop->id,
-            'shop_domain'    => $shop->shop,
+            'shop_id' => $shop->id,
+            'shop_domain' => $shop->shop,
             'marketplace_id' => $marketplaceId,
-            'cache_key'      => $cacheKey,
-            'has_cache'      => $hasCache,
+            'cache_key' => $cacheKey,
+            'has_cache' => $hasCache,
             'sync_completed' => $syncCompleted,
-            'status'         => $status,
-            'cache_count'    => is_array(Cache::get($cacheKey, [])) ? count(Cache::get($cacheKey, [])) : 0,
-            'request_url'    => request()->fullUrl(),
-            'request_query'  => request()->all(),
+            'status' => $status,
+            'cache_count' => is_array(Cache::get($cacheKey, [])) ? count(Cache::get($cacheKey, [])) : 0,
+            'request_url' => request()->fullUrl(),
+            'request_query' => request()->all(),
         ]);
 
         // State 1: No usable cache exists at all
         if (!$hasCache) {
             if (!($status['refreshing'] ?? false)) {
                 $this->updateStatus($shop, $marketplaceId, [
-                    'refreshing'     => true,
+                    'refreshing' => true,
                     'sync_completed' => false,
                 ]);
 
@@ -81,7 +81,7 @@ class InventoryCacheService
 
             return [
                 'products' => [],
-                'status'   => $currentStatus,
+                'status' => $currentStatus,
             ];
         }
 
@@ -97,7 +97,7 @@ class InventoryCacheService
 
         Log::info('Cache expiry check', [
             'expired' => $expired,
-            'status'  => $status,
+            'status' => $status,
         ]);
 
         if ($expired && !($status['refreshing'] ?? false)) {
@@ -123,15 +123,15 @@ class InventoryCacheService
 
         Log::info('[AMAZON_DEBUG] Returning cache-hit response', [
             'products_count' => is_array($inventory) ? count($inventory) : 0,
-            'status'         => $currentStatus,
-            'cache_key'      => $cacheKey,
-            'has_cache'      => $hasCache,
+            'status' => $currentStatus,
+            'cache_key' => $cacheKey,
+            'has_cache' => $hasCache,
             'sync_completed' => $syncCompleted,
         ]);
 
         return [
             'products' => is_array($inventory) ? $inventory : [],
-            'status'   => $currentStatus,
+            'status' => $currentStatus,
         ];
     }
 
@@ -150,7 +150,6 @@ class InventoryCacheService
         );
 
         if (!$lock->get()) {
-
             Log::info('Amazon inventory refresh already running.', [
                 'shop_id' => $shop->id,
             ]);
@@ -162,26 +161,25 @@ class InventoryCacheService
         }
 
         try {
-
             $this->updateStatus($shop, $marketplaceId, [
                 'refreshing' => true,
             ]);
 
-            $inventory = $this->amazonInventoryReportService
+            $inventory = $this
+                ->amazonInventoryReportService
                 ->syncInventory($shop, $marketplaceId);
 
             $status = $this->getStatus($shop, $marketplaceId);
 
             $this->updateStatus($shop, $marketplaceId, [
-                'refreshing'     => false,
+                'refreshing' => false,
                 'sync_completed' => true,
                 'last_synced_at' => now()->toDateTimeString(),
-                'cache_version'  => ($status['cache_version'] ?? 0) + 1,
+                'cache_version' => ($status['cache_version'] ?? 0) + 1,
             ]);
 
             return $inventory;
         } catch (\Throwable $exception) {
-
             Log::error('Amazon inventory refresh failed.', [
                 'shop_id' => $shop->id,
                 'message' => $exception->getMessage(),
@@ -190,14 +188,13 @@ class InventoryCacheService
             $hasCache = Cache::has($this->getInventoryCacheKey($shop, $marketplaceId));
 
             $this->updateStatus($shop, $marketplaceId, [
-                'refreshing'     => false,
+                'refreshing' => false,
                 'sync_completed' => $hasCache ? true : false,
-                'last_error'     => $exception->getMessage(),
+                'last_error' => $exception->getMessage(),
             ]);
 
             throw $exception;
         } finally {
-
             if ($lock) {
                 $lock->release();
             }
@@ -268,14 +265,13 @@ class InventoryCacheService
      */
     public function getStatus(Shop $shop, ?string $marketplaceId = null): array
     {
-
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
         return Cache::get(
             $this->getStatusCacheKey($shop, $marketplaceId),
             [
-                'refreshing'     => false,
+                'refreshing' => false,
                 'sync_completed' => false,
-                'cache_version'  => 0,
+                'cache_version' => 0,
                 'last_synced_at' => null,
             ]
         );
@@ -289,7 +285,6 @@ class InventoryCacheService
         string $marketplaceId,
         array $data
     ): void {
-
         $status = array_merge(
             $this->getStatus($shop, $marketplaceId),
             $data
@@ -308,20 +303,20 @@ class InventoryCacheService
         Shop $shop,
         string $marketplaceId
     ): string {
-        return self::INVENTORY_CACHE_PREFIX . "_{$shop->id}_{$marketplaceId}";
+        return self::INVENTORY_CACHE_PREFIX . "_{$shop->id}_{$shop->amazon_seller_id}";
     }
 
     protected function getStatusCacheKey(
         Shop $shop,
         string $marketplaceId
     ): string {
-        return self::STATUS_CACHE_PREFIX . "_{$shop->id}_{$marketplaceId}";
+        return self::STATUS_CACHE_PREFIX . "_{$shop->id}_{$shop->amazon_seller_id}";
     }
 
     protected function getLockCacheKey(
         Shop $shop,
         string $marketplaceId
     ): string {
-        return self::LOCK_CACHE_PREFIX . "_{$shop->id}_{$marketplaceId}";
+        return self::LOCK_CACHE_PREFIX . "_{$shop->id}_{$shop->amazon_seller_id}";
     }
 }

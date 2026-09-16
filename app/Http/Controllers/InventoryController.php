@@ -2,22 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Cache;
 use App\Http\Controllers\ShopifyController;
-use App\Models\Shop;
-use App\Services\ShopifyService;
-use App\Services\AmazonInventoryReportService;
-use App\Services\AmazonService;
-use App\Services\SyncLimitService;
-use App\Services\ShopifyInventoryService;
-use App\Services\AutoSkuMappingService;
-use App\Services\InventoryCacheService;
-use Illuminate\Support\Facades\Log;
 use App\Models\AdminSetting;
 use App\Models\ProductMarketplaceMapping;
-
+use App\Models\Shop;
+use App\Services\AmazonInventoryReportService;
+use App\Services\AmazonService;
+use App\Services\AutoSkuMappingService;
+use App\Services\InventoryCacheService;
+use App\Services\ShopifyInventoryService;
+use App\Services\ShopifyService;
+use App\Services\SyncLimitService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class InventoryController extends ShopifyController
 {
@@ -56,7 +55,8 @@ class InventoryController extends ShopifyController
         $shop = $this->getActiveShopModel($request);
 
         if (!$shop) {
-            return redirect()->route('dashboard')
+            return redirect()
+                ->route('dashboard')
                 ->with('error', 'Shop not found.');
         }
 
@@ -85,7 +85,7 @@ class InventoryController extends ShopifyController
         $shopModel = $this->getActiveShopModel($request);
         if (!$shopModel) {
             return response()->json([
-                'error'   => 'Unauthorized',
+                'error' => 'Unauthorized',
                 'message' => 'Active shop not resolved.',
             ], 401);
         }
@@ -104,9 +104,9 @@ class InventoryController extends ShopifyController
                 $vid = (string) ($item['vid'] ?? '');
                 $mapping = $mappings->get($vid);
 
-                $isMapped = $mapping
-                    && !empty($mapping->shopify_variant_id)
-                    && !empty($mapping->amazon_sku);
+                $isMapped = $mapping &&
+                    !empty($mapping->shopify_variant_id) &&
+                    !empty($mapping->amazon_sku);
 
                 $item['is_mapped'] = $isMapped;
                 $item['mapped_sku'] = $isMapped ? $mapping->amazon_sku : null;
@@ -118,14 +118,14 @@ class InventoryController extends ShopifyController
         app(AutoSkuMappingService::class)->handle(
             $shopModel,
             $data,
-            Cache::get("amazon_inventory_{$shopModel->id}_" . ($shopModel->amazon_marketplace_id ?: 'ATVPDKIKX0DER'), [])
+            Cache::get("amazon_inventory_{$shopModel->id}_" . ($shopModel->amazon_seller_id), [])
         );
 
         return response()->json($data);
     }
 
     /**
-     *  Amazon Inventory 
+     * Amazon Inventory
      */
     public function amazon(Request $request)
     {
@@ -133,23 +133,23 @@ class InventoryController extends ShopifyController
 
         if (!$shop) {
             return response()->json([
-                'error'   => 'Unauthorized',
+                'error' => 'Unauthorized',
                 'message' => 'Shop not resolved.'
             ], 401);
         }
 
         if (empty($shop->amazon_refresh_token)) {
             return response()->json([
-                'success'   => false,
+                'success' => false,
                 'connected' => false,
-                'status'    => [
-                    'connected'      => false,
-                    'refreshing'     => false,
+                'status' => [
+                    'connected' => false,
+                    'refreshing' => false,
                     'sync_completed' => false,
-                    'error'          => 'amazon_not_connected',
+                    'error' => 'amazon_not_connected',
                 ],
-                'message'   => 'Please connect your Amazon account first.',
-                'products'  => [],
+                'message' => 'Please connect your Amazon account first.',
+                'products' => [],
             ]);
         }
 
@@ -172,9 +172,9 @@ class InventoryController extends ShopifyController
                 $sku = (string) ($item['sku'] ?? '');
                 $mapping = $mappings->get($sku);
 
-                $isMapped = $mapping
-                    && !empty($mapping->shopify_variant_id)
-                    && !empty($mapping->amazon_sku);
+                $isMapped = $mapping &&
+                    !empty($mapping->shopify_variant_id) &&
+                    !empty($mapping->amazon_sku);
 
                 $item['is_mapped'] = $isMapped;
                 $item['mapping_id'] = $isMapped ? $mapping->id : null;
@@ -224,10 +224,8 @@ class InventoryController extends ShopifyController
         $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
         try {
-
             $result = $reportService->syncInventory(
                 shop: $shop,
-                region: $region,
                 marketplaceId: $marketplaceId
             );
 
@@ -237,7 +235,6 @@ class InventoryController extends ShopifyController
                 'data' => $result
             ]);
         } catch (\Throwable $e) {
-
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -250,7 +247,7 @@ class InventoryController extends ShopifyController
         $shop = $this->getActiveShopModel($request);
         if (!$shop) {
             return response()->json([
-                'error'   => 'Unauthorized',
+                'error' => 'Unauthorized',
                 'message' => 'Active shop not resolved.',
             ], 401);
         }
@@ -265,7 +262,6 @@ class InventoryController extends ShopifyController
                 Cache::forget("shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}");
             }
         } elseif ($type === 'amazon') {
-
             $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
             // Preserve active inventory cache; only clear progress and dispatch background refresh
@@ -298,7 +294,7 @@ class InventoryController extends ShopifyController
 
     public function getProductCategory(Request $request)
     {
-        $parent_id = (int)$request->parent_id;
+        $parent_id = (int) $request->parent_id;
         $datas = getCategorires($parent_id);
         $datcat = [];
         foreach ($datas as $data) {
@@ -349,15 +345,14 @@ class InventoryController extends ShopifyController
 
         $parentName =
             $parent['summaries'][0]['itemName']
-            ?? $parent['attributes']['item_name'][0]['value']
-            ?? '-';
+                ?? $parent['attributes']['item_name'][0]['value']
+                ?? '-';
 
         $childSkus = $parent['relationships'][0]['relationships'][0]['childSkus'] ?? [];
 
         $variants = [];
 
         foreach ($childSkus as $childSku) {
-
             $variant = $amazonService->checkAmazonListing(
                 $shop,
                 $childSku
@@ -366,19 +361,14 @@ class InventoryController extends ShopifyController
             $attributes = $variant['attributes'] ?? [];
 
             $variants[] = [
-
                 'sku' => $variant['sku'],
-
                 'color' => $attributes['color'][0]['value'] ?? '-',
-
                 'size' => $attributes['footwear_size'][0]['size']
                     ?? $attributes['size'][0]['value']
                     ?? '-',
-
                 'asin' => $attributes['merchant_suggested_asin'][0]['value']
                     ?? $variant['summaries'][0]['asin']
                     ?? '-',
-
                 'quantity' => $attributes['fulfillment_availability'][0]['quantity']
                     ?? 0,
             ];
@@ -404,7 +394,7 @@ class InventoryController extends ShopifyController
         $shop = $this->getActiveShopModel($request);
         if (!$shop) {
             return response()->json([
-                'error'   => 'Unauthorized',
+                'error' => 'Unauthorized',
                 'message' => 'Active shop not resolved.',
             ], 401);
         }
@@ -421,19 +411,18 @@ class InventoryController extends ShopifyController
             return response()->json($response);
         } catch (\Throwable $e) {
             Log::error('Amazon manual quantity update failed', [
-                'shop_id'   => $shop->id,
+                'shop_id' => $shop->id,
                 'child_sku' => $childSku,
-                'quantity'  => $request->quantity,
-                'error'     => $e->getMessage(),
+                'quantity' => $request->quantity,
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
-                'error'   => true,
+                'error' => true,
                 'message' => $e->getMessage(),
             ], 422);
         }
     }
-
 
     /**
      * Ensures the shop has a valid access token, refreshing if needed.
@@ -465,9 +454,9 @@ class InventoryController extends ShopifyController
             }
 
             $response = Http::asJson()->post("https://{$shopModel->shop}/admin/oauth/access_token", [
-                'client_id'     => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
+                'client_id' => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
                 'client_secret' => AdminSetting::get('SHOPIFY_API_SECRET', config('services.shopify.api_secret')),
-                'grant_type'    => 'refresh_token',
+                'grant_type' => 'refresh_token',
                 'refresh_token' => $shopModel->refresh_token,
             ]);
 
