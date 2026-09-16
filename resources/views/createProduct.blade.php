@@ -493,6 +493,23 @@
         gap: 6px;
     }
 
+    .form-control.is-invalid,
+    .form-select.is-invalid {
+        border-color: #DC2626 !important;
+        box-shadow: 0 0 0 1px #DC2626 !important;
+        background-color: #FEF2F2 !important;
+    }
+
+    #saveProductBtn:disabled,
+    #saveProductBtn[disabled] {
+        background: #9CA3AF !important;
+        border-color: #9CA3AF !important;
+        cursor: not-allowed !important;
+        opacity: 0.65 !important;
+        box-shadow: none !important;
+        pointer-events: none !important;
+    }
+
     .preview-image-item .remove-preview-btn:hover {
         background: #B91C1C;
     }
@@ -813,7 +830,7 @@
     <a href="{{ route('shopify.products', ['shop' => $activeShop]) }}" class="btn btn-outline-dark">
         Cancel
     </a>
-    <button type="submit" class="btn btn-success">
+    <button type="submit" class="btn btn-success" id="saveProductBtn" disabled>
         Save Product
     </button>
 </div>
@@ -1495,6 +1512,7 @@
 
                     subCategoryResults.innerHTML = '';
                     subCategoryResults.style.display = 'none';
+                    updateSubmitButtonState();
                 });
 
                 subCategoryResults.appendChild(item);
@@ -1523,18 +1541,19 @@
         const div = document.createElement('div');
         div.classList.add('variant-type-box');
         div.innerHTML = `
-            <span class="remove-btn" onclick="this.parentElement.remove()">✕</span>
+            <span class="remove-btn" onclick="this.parentElement.remove(); updateSubmitButtonState();">✕</span>
             <div class="row">
                 <div class="col-md-4 mb-2">
                     <label class="form-label">Type Name</label>
-                    <input type="text" class="form-control variant-type-name" placeholder="e.g., Material">
+                    <input type="text" class="form-control variant-type-name" name="variant_names[]" placeholder="e.g., Material">
                 </div>
                 <div class="col-md-8 mb-2">
                     <label class="form-label">Possible Values</label>
-                    <input type="text" class="form-control variant-type-values" placeholder="e.g., Cotton, Polyester">
+                    <input type="text" class="form-control variant-type-values" name="variant_values[]" placeholder="e.g., Cotton, Polyester">
                 </div>
             </div>`;
         container.appendChild(div);
+        updateSubmitButtonState();
     }
 
     function addMetaField() {
@@ -1554,18 +1573,21 @@
                 <button type="button" class="btn btn-outline-danger" onclick="removeMetaField(this)">Remove</button>
             </div>`;
         container.appendChild(div);
+        updateSubmitButtonState();
     }
 
     function removeMetaField(button) {
         button.closest('.meta-field-row').remove();
+        updateSubmitButtonState();
     }
 
     function generateCombinations() {
         const variantTypes = [];
         document.querySelectorAll('.variant-type-box').forEach(box => {
-            const name = box.querySelector('.variant-type-name').value.trim();
-            const values = box.querySelector('.variant-type-values').value
-                .split(',').map(v => v.trim()).filter(v => v);
+            const nameEl = box.querySelector('.variant-type-name');
+            const valuesEl = box.querySelector('.variant-type-values');
+            const name = nameEl ? nameEl.value.trim() : '';
+            const values = valuesEl ? valuesEl.value.split(',').map(v => v.trim()).filter(v => v) : [];
             if (name && values.length > 0) variantTypes.push({
                 name,
                 values
@@ -1595,6 +1617,7 @@
         if (combinations.length === 0) {
             matrixDiv.style.padding = '12px';
             matrixDiv.innerHTML = '<p class="text-muted">No combinations generated.</p>';
+            updateSubmitButtonState();
             return;
         }
         const table = document.createElement('table');
@@ -1674,6 +1697,8 @@
             hidden.value = JSON.stringify(combo);
             hiddenDiv.appendChild(hidden);
         });
+
+        updateSubmitButtonState();
     }
 
     function updatecategory(category) {
@@ -1686,6 +1711,225 @@
         if (!category) {
             subCategorySearch.setCustomValidity('');
         }
+        updateSubmitButtonState();
+    }
+
+    // --- Validation and Submit Button Management ---
+    function validateCreateProductForm() {
+        // 1. Product Title (required)
+        const titleInput = document.querySelector('input[name="title"]');
+        if (!titleInput || !titleInput.value.trim()) {
+            return false;
+        }
+
+        // 2. Product Category (required)
+        const categorySelect = document.getElementById('category');
+        if (!categorySelect || !categorySelect.value.trim()) {
+            return false;
+        }
+
+        // 3. Sub Category (required if category is selected)
+        const subCatInput = document.getElementById('sub_category');
+        if (categorySelect.value.trim() && (!subCatInput || !subCatInput.value.trim())) {
+            return false;
+        }
+
+        // 4. Description (required)
+        const descInput = document.querySelector('textarea[name="description"]');
+        if (!descInput || !descInput.value.trim()) {
+            return false;
+        }
+
+        // 5. Status (required)
+        const statusSelect = document.querySelector('select[name="status"]');
+        if (!statusSelect || !statusSelect.value.trim()) {
+            return false;
+        }
+
+        // 6. Base Price (required, valid number >= 0)
+        const priceInput = document.querySelector('input[name="price"]');
+        if (!priceInput || priceInput.value.trim() === '' || isNaN(priceInput.value) || parseFloat(priceInput.value) < 0) {
+            return false;
+        }
+
+        // 7. Product Type (required)
+        const productTypeInput = document.querySelector('input[name="product_type"]');
+        if (!productTypeInput || !productTypeInput.value.trim()) {
+            return false;
+        }
+
+        // 8. Vendor (required)
+        const vendorInput = document.querySelector('input[name="vendor"]');
+        if (!vendorInput || !vendorInput.value.trim()) {
+            return false;
+        }
+
+        // 9. Collections (required)
+        const collectionsInput = document.querySelector('input[name="collections"]');
+        if (!collectionsInput || !collectionsInput.value.trim()) {
+            return false;
+        }
+
+        // 10. Tags (required)
+        const tagsInput = document.querySelector('input[name="tags"]');
+        if (!tagsInput || !tagsInput.value.trim()) {
+            return false;
+        }
+
+        // 11. Variant matrix numeric fields (if filled, must be valid non-negative numbers)
+        const variantPriceInputs = document.querySelectorAll('#combinationMatrix input[name$="[price]"]');
+        for (const vPrice of variantPriceInputs) {
+            if (vPrice.value.trim() !== '' && (isNaN(vPrice.value) || parseFloat(vPrice.value) < 0)) {
+                return false;
+            }
+        }
+
+        const variantQtyInputs = document.querySelectorAll('#combinationMatrix input[name$="[qty]"]');
+        for (const vQty of variantQtyInputs) {
+            if (vQty.value.trim() !== '' && (isNaN(vQty.value) || parseInt(vQty.value, 10) < 0)) {
+                return false;
+            }
+        }
+
+        // Note: Custom metafields (meta_name[], meta_value[]) are strictly OPTIONAL.
+
+        return true;
+    }
+
+    function updateSubmitButtonState() {
+        const saveProductBtn = document.getElementById('saveProductBtn');
+        if (!saveProductBtn) return;
+
+        const isValid = validateCreateProductForm();
+        saveProductBtn.disabled = !isValid;
+
+        if (isValid) {
+            hideValidationAlert();
+            document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        }
+    }
+
+    function highlightAndFocusFirstInvalidField() {
+        const requiredChecks = [
+            {
+                element: document.querySelector('input[name="title"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please enter a product title.'
+            },
+            {
+                element: document.getElementById('category'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please select a product category.'
+            },
+            {
+                element: document.getElementById('sub_category_search'),
+                isValid: () => {
+                    const subCat = document.getElementById('sub_category');
+                    return subCat && subCat.value.trim() !== '';
+                },
+                message: 'Please search and select a sub category.'
+            },
+            {
+                element: document.querySelector('textarea[name="description"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please enter a product description.'
+            },
+            {
+                element: document.querySelector('select[name="status"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please select a status.'
+            },
+            {
+                element: document.querySelector('input[name="price"]'),
+                isValid: (el) => el && el.value.trim() !== '' && !isNaN(el.value) && parseFloat(el.value) >= 0,
+                message: 'Please enter a valid base price (≥ 0.00).'
+            },
+            {
+                element: document.querySelector('input[name="product_type"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please enter a product type.'
+            },
+            {
+                element: document.querySelector('input[name="vendor"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please enter a vendor name.'
+            },
+            {
+                element: document.querySelector('input[name="collections"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please enter collections.'
+            },
+            {
+                element: document.querySelector('input[name="tags"]'),
+                isValid: (el) => el && el.value.trim() !== '',
+                message: 'Please enter tags.'
+            }
+        ];
+
+        // Check variant price inputs if invalid
+        const variantPriceInputs = document.querySelectorAll('#combinationMatrix input[name$="[price]"]');
+        for (const vPrice of variantPriceInputs) {
+            requiredChecks.push({
+                element: vPrice,
+                isValid: (el) => el.value.trim() === '' || (!isNaN(el.value) && parseFloat(el.value) >= 0),
+                message: 'Please enter a valid variant price (≥ 0).'
+            });
+        }
+
+        // Check variant qty inputs if invalid
+        const variantQtyInputs = document.querySelectorAll('#combinationMatrix input[name$="[qty]"]');
+        for (const vQty of variantQtyInputs) {
+            requiredChecks.push({
+                element: vQty,
+                isValid: (el) => el.value.trim() === '' || (!isNaN(el.value) && parseInt(el.value, 10) >= 0),
+                message: 'Please enter a valid variant quantity (≥ 0).'
+            });
+        }
+
+        document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+        for (const check of requiredChecks) {
+            if (!check.isValid(check.element)) {
+                if (check.element) {
+                    check.element.classList.add('is-invalid');
+                    check.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (typeof check.element.focus === 'function' && !check.element.disabled) {
+                        check.element.focus();
+                    }
+                    if (typeof check.element.reportValidity === 'function') {
+                        check.element.setCustomValidity(check.message);
+                        check.element.reportValidity();
+                    }
+                }
+                showValidationAlert(check.message || 'Please fill all required fields before saving the product.');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function showValidationAlert(message) {
+        let alertBox = document.getElementById('formValidationAlert');
+        if (!alertBox) {
+            alertBox = document.createElement('div');
+            alertBox.id = 'formValidationAlert';
+            alertBox.className = 'alert alert-danger py-2 px-3 mb-3';
+            const cardShell = document.querySelector('.card-shell');
+            if (cardShell) {
+                cardShell.insertBefore(alertBox, cardShell.firstChild);
+            }
+        }
+        alertBox.textContent = message;
+        alertBox.classList.remove('d-none');
+        alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function hideValidationAlert() {
+        const alertBox = document.getElementById('formValidationAlert');
+        if (alertBox) {
+            alertBox.classList.add('d-none');
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -1696,21 +1940,57 @@
             subCategorySearch.disabled = false;
         }
 
+        // Live validation listeners on the form
+        form.addEventListener('input', updateSubmitButtonState);
+        form.addEventListener('change', updateSubmitButtonState);
+        form.addEventListener('blur', updateSubmitButtonState, true);
+
+        // Prevent accidental form submission when pressing Enter (allow in textareas)
+        form.addEventListener('keydown', function(event) {
+            if (event.key !== 'Enter') {
+                return;
+            }
+
+            const target = event.target;
+            if (
+                target.tagName === 'TEXTAREA' ||
+                target.closest('[contenteditable="true"]')
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+            updateSubmitButtonState();
+        });
+
+        // Submit protection handler
         form.addEventListener('submit', function(e) {
             const categoryElement = document.getElementById('category');
-            if (categoryElement && categoryElement.value && !subCategoryInput.value) {
+            if (categoryElement && categoryElement.value && (!subCategoryInput || !subCategoryInput.value)) {
                 subCategorySearch.setCustomValidity('Please select a sub category from the dropdown.');
                 subCategorySearch.reportValidity();
                 e.preventDefault();
+                updateSubmitButtonState();
+                highlightAndFocusFirstInvalidField();
                 return false;
-            } else {
+            } else if (subCategorySearch) {
                 subCategorySearch.setCustomValidity('');
+            }
+
+            if (!validateCreateProductForm()) {
+                e.preventDefault();
+                updateSubmitButtonState();
+                highlightAndFocusFirstInvalidField();
+                return false;
             }
 
             if (typeof showLoader === "function") {
                 showLoader('Creating product...');
             }
         });
+
+        // Initialize submit button state on page load
+        updateSubmitButtonState();
     });
 </script>
 @endpush
