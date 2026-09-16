@@ -36,7 +36,6 @@ Route::get('/apps/{token}', [ShopifyController::class, 'appLaunch'])->name('shop
 Route::get('/store/{shop_handle}/apps/{token}/dashboard', [ShopifyController::class, 'appLaunchStore'])->name('shopify.app.launch.store.dashboard');
 Route::get('/store/{shop_handle}/apps/{token}', [ShopifyController::class, 'appLaunchStore'])->name('shopify.app.launch.store');
 Route::get('/install', [ShopifyController::class, 'install'])->name('shopify.install');
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/callback', [ShopifyController::class, 'callback'])->name('shopify.callback');
 Route::get('/api/shop-status', [ShopifyController::class, 'checkShopStatus'])->name('api.shop.status');
 
@@ -72,6 +71,7 @@ Route::middleware([ ResolveActiveShop::class,  \App\Http\Middleware\CheckSubscri
 
 
 Route::middleware([ResolveActiveShop::class])->group(function () {
+   Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     //  product page route 
     Route::get('/products', [ShopifyController::class, 'products'])->name('shopify.products');
     Route::post('/createProduct', [ShopifyController::class, 'createProduct'])->name('shopify.product.create.post');
