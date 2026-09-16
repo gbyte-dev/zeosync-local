@@ -2051,7 +2051,12 @@ class ShopifyController extends Controller
             'tags' => 'nullable|string',
             'images.*' => 'nullable|image|max:5120',
             'existing_images' => 'nullable|array',
-            'existing_images.*' => 'nullable|url'
+            'existing_images.*' => 'nullable|url',
+            'variants' => 'nullable|array',
+            'variants.*.image' => 'nullable|string',
+            'variants.*.price' => 'nullable|numeric|min:0',
+            'variants.*.sku' => 'nullable|string|max:255',
+            'variants.*.qty' => 'nullable|integer|min:0',
         ]);
 
         $shopModel = $this->getActiveShop($request);
@@ -2149,6 +2154,7 @@ class ShopifyController extends Controller
                     'inventory_quantity' => (int) ($formVariant['qty'] ?? 0),
                     'option1' => $formVariant['option1'] ?? null,
                     'option2' => $formVariant['option2'] ?? null,
+                    'image' => $formVariant['image'] ?? null,
                 ];
             }
 
@@ -2955,15 +2961,39 @@ class ShopifyController extends Controller
         }
 
 
-        foreach ($request->file('variants', []) as $index => $variantFiles) {
-            if (!empty($variantFiles['image']) && $variantFiles['image']->isValid()) {
-                $file = $variantFiles['image'];
-                $images[] = [
-                    'attachment' => base64_encode(
-                        file_get_contents($file->getRealPath())
-                    )
-                ];
-                $variantImageMap[$index] = count($images) - 1;
+        if ($request->hasFile('variants')) {
+            foreach ($request->file('variants', []) as $index => $variantFiles) {
+                if (!empty($variantFiles['image']) && $variantFiles['image']->isValid()) {
+                    $file = $variantFiles['image'];
+                    $images[] = [
+                        'attachment' => base64_encode(
+                            file_get_contents($file->getRealPath())
+                        )
+                    ];
+                    $variantImageMap[$index] = count($images) - 1;
+                }
+            }
+        }
+
+        $variantsInput = $request->input('variants', []);
+        foreach ($variantsInput as $index => $vData) {
+            if (!empty($vData['image']) && is_string($vData['image'])) {
+                $variantImgUrl = trim($vData['image']);
+                if (filter_var($variantImgUrl, FILTER_VALIDATE_URL)) {
+                    $existingPosition = null;
+                    foreach ($images as $pos => $imgObj) {
+                        if (isset($imgObj['src']) && $imgObj['src'] === $variantImgUrl) {
+                            $existingPosition = $pos;
+                            break;
+                        }
+                    }
+                    if ($existingPosition !== null) {
+                        $variantImageMap[$index] = $existingPosition;
+                    } else {
+                        $images[] = ['src' => $variantImgUrl];
+                        $variantImageMap[$index] = count($images) - 1;
+                    }
+                }
             }
         }
 
@@ -3649,6 +3679,14 @@ class ShopifyController extends Controller
                 }
             }
         }
+        $variantsInput = $request->input('variants', []);
+        if (is_array($variantsInput)) {
+            foreach ($variantsInput as $v) {
+                if (!empty($v['image']) && is_string($v['image']) && filter_var($v['image'], FILTER_VALIDATE_URL)) {
+                    $paths[] = trim($v['image']);
+                }
+            }
+        }
         if ($request->hasFile('images')) {
             $images = $request->file('images');
             foreach ($images as $image) {
@@ -3658,7 +3696,7 @@ class ShopifyController extends Controller
                 }
             }
         }
-        return $paths;
+        return array_values(array_unique($paths));
     }
 
     public function syncShopifyToAmazon(Request $request, $id)
