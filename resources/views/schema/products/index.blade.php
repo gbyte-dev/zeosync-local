@@ -357,6 +357,14 @@
     table.dataTable.dtr-inline.collapsed>tbody>tr>th.dtr-control:before {
         background: white;
     }
+
+    .sp-title {
+        font-size: 16px;
+        font-weight: 650;
+        letter-spacing: -0.2px;
+        color: #1A1A1A;
+        margin: 0 0 4px 0;
+    }
 </style>
 
 
