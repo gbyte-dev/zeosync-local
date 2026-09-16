@@ -2051,7 +2051,7 @@ class ShopifyController extends Controller
             'tags' => 'nullable|string',
             'images.*' => 'nullable|image|max:5120',
             'existing_images' => 'nullable|array',
-            'existing_images.*' => 'nullable|string'
+            'existing_images.*' => 'nullable|url'
         ]);
 
         $shopModel = $this->getActiveShop($request);
@@ -2280,6 +2280,8 @@ class ShopifyController extends Controller
             foreach ($keptImages as $imgId) {
                 if (!empty($imgId) && is_numeric($imgId)) {
                     $imagesdata[] = ['id' => (int) $imgId];
+                } elseif (!empty($imgId) && filter_var($imgId, FILTER_VALIDATE_URL)) {
+                    $imagesdata[] = ['src' => $imgId];
                 }
             }
 

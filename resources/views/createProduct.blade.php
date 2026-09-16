@@ -381,40 +381,61 @@
         overflow: hidden;
         border: 2px solid #E5E7EB;
         cursor: pointer;
-        transition: all 0.15s ease;
+        transition: all 0.15s ease-in-out;
         background: #F9FAFB;
-        height: 100px;
+        width: 104px;
+        height: 104px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        user-select: none;
     }
 
     .library-image-card:hover {
         border-color: #9CA3AF;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
     }
 
     .library-image-card.is-selected {
-        border-color: #2563EB;
-        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+        border-color: #2563EB !important;
+        background: #EFF6FF !important;
+        box-shadow: 0 0 0 1px #2563EB;
     }
 
-    .library-image-card img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
+    .image-library-preview-wrapper {
+        width: 100px;
+        height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+    }
+
+    .image-library-preview {
+        width: 100px;
+        height: 100px;
+        object-fit: contain;
+        display: block;
     }
 
     .library-image-card .select-badge {
         position: absolute;
-        top: 6px;
-        right: 6px;
+        top: 4px;
+        right: 4px;
         width: 20px;
         height: 20px;
         border-radius: 50%;
-        background: rgba(0, 0, 0, 0.45);
+        background: rgba(0, 0, 0, 0.5);
         color: #fff;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 11px;
+        font-weight: bold;
         transition: all 0.15s ease;
+        z-index: 2;
     }
 
     .library-image-card.is-selected .select-badge {
@@ -802,28 +823,45 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="mb-3">
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" id="libraryImageSearch" class="form-control border-start-0" placeholder="Search images by name...">
-                    </div>
-                </div>
+                <!-- Tab Navigation (Default: Add Product) -->
+                <ul class="nav nav-tabs border-bottom mb-3" id="imageLibraryTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-medium px-3 py-2" id="tab-add-product" type="button" role="tab" style="font-size: 13px;">
+                            <i class="bi bi-grid-fill me-1 text-primary"></i> Add Product
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Loading State -->
                 <div id="libraryImagesLoading" class="text-center py-4">
                     <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                     <span class="ms-2 small text-muted">Loading your images...</span>
                 </div>
-                <div id="libraryImagesGrid" class="row g-2" style="max-height: 360px; overflow-y: auto;">
+
+                <!-- Images Grid (Max 10 per tab/page, fixed 100x100 contain previews) -->
+                <div id="libraryImagesGrid" class="d-flex flex-wrap gap-2 justify-content-start" style="min-height: 230px;">
                     <!-- Dynamically populated -->
                 </div>
+
+                <!-- Empty State -->
                 <div id="libraryEmptyState" class="text-center py-4 text-muted small d-none">
                     No images found in your library.
+                </div>
+
+                <!-- Pagination & Page Controls (10 images max per tab/page) -->
+                <div id="libraryPagination" class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top d-none">
+                    <span class="small text-muted" id="libraryPaginationInfo">Showing 0 - 0 of 0 images</span>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-dark btn-sm" id="libraryPrevPageBtn" disabled>‹ Previous</button>
+                        <button type="button" class="btn btn-outline-dark btn-sm" id="libraryNextPageBtn" disabled>Next ›</button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer d-flex justify-content-between py-2 px-4" style="border-top: 1px solid #F3F4F6; background: #FAFAFA; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
                 <span class="small fw-500 text-muted" id="selectedLibraryCount">Selected: 0 images</span>
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-outline-dark btn-sm" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-success btn-sm" id="confirmLibrarySelectionBtn">Select Images</button>
+                    <button type="button" class="btn btn-success btn-sm" id="confirmLibrarySelectionBtn">Add Selected Images</button>
                 </div>
             </div>
         </div>
@@ -858,11 +896,16 @@
     const libraryImagesGrid = document.getElementById('libraryImagesGrid');
     const libraryImagesLoading = document.getElementById('libraryImagesLoading');
     const libraryEmptyState = document.getElementById('libraryEmptyState');
-    const libraryImageSearch = document.getElementById('libraryImageSearch');
     const selectedLibraryCount = document.getElementById('selectedLibraryCount');
     const confirmLibrarySelectionBtn = document.getElementById('confirmLibrarySelectionBtn');
+    const libraryPagination = document.getElementById('libraryPagination');
+    const libraryPaginationInfo = document.getElementById('libraryPaginationInfo');
+    const libraryPrevPageBtn = document.getElementById('libraryPrevPageBtn');
+    const libraryNextPageBtn = document.getElementById('libraryNextPageBtn');
 
+    const IMAGES_PER_TAB_PAGE = 10;
     let allLibraryImages = [];
+    let currentLibraryPage = 1;
     let selectedLibraryImages = []; // Array of { id, url, name, path }
     let modalSelectedMap = new Map(); // Map of url => image object currently toggled in modal
 
@@ -978,7 +1021,7 @@
         if (allLibraryImages.length === 0) {
             fetchLibraryImages();
         } else {
-            renderLibraryGrid(libraryImageSearch.value.trim());
+            renderLibraryTabPage();
         }
     });
 
@@ -987,6 +1030,7 @@
         libraryImagesLoading.classList.remove('d-none');
         libraryImagesGrid.innerHTML = '';
         libraryEmptyState.classList.add('d-none');
+        libraryPagination.classList.add('d-none');
 
         fetch("{{ route('shopify.image-picker-images') }}", {
             headers: {
@@ -999,7 +1043,8 @@
             libraryImagesLoading.classList.add('d-none');
             if (data.success && Array.isArray(data.images) && data.images.length > 0) {
                 allLibraryImages = data.images;
-                renderLibraryGrid(libraryImageSearch.value.trim());
+                currentLibraryPage = 1;
+                renderLibraryTabPage();
             } else {
                 libraryEmptyState.classList.remove('d-none');
             }
@@ -1012,29 +1057,40 @@
         });
     }
 
-    // Render Modal Images Grid
-    function renderLibraryGrid(searchQuery) {
+    // Render Modal Images for the current tab page (Strictly 10 max per page/tab)
+    function renderLibraryTabPage() {
         libraryImagesGrid.innerHTML = '';
-        const q = (searchQuery || '').toLowerCase();
-        const filtered = allLibraryImages.filter(img => (img.name || '').toLowerCase().includes(q));
 
-        if (filtered.length === 0) {
+        if (!allLibraryImages || allLibraryImages.length === 0) {
             libraryEmptyState.classList.remove('d-none');
+            libraryPagination.classList.add('d-none');
             return;
         }
 
         libraryEmptyState.classList.add('d-none');
 
-        filtered.forEach(img => {
-            const col = document.createElement('div');
-            col.className = 'col-6 col-sm-4 col-md-3';
+        const totalImages = allLibraryImages.length;
+        const totalPages = Math.max(1, Math.ceil(totalImages / IMAGES_PER_TAB_PAGE));
+        if (currentLibraryPage > totalPages) {
+            currentLibraryPage = totalPages;
+        }
+        if (currentLibraryPage < 1) {
+            currentLibraryPage = 1;
+        }
 
+        const startIndex = (currentLibraryPage - 1) * IMAGES_PER_TAB_PAGE;
+        const pageImages = allLibraryImages.slice(startIndex, startIndex + IMAGES_PER_TAB_PAGE);
+
+        pageImages.forEach(img => {
             const card = document.createElement('div');
             const isSelected = modalSelectedMap.has(img.url);
             card.className = 'library-image-card' + (isSelected ? ' is-selected' : '');
+            card.setAttribute('data-url', img.url);
 
             card.innerHTML = `
-                <img src="${img.url}" alt="${img.name}">
+                <div class="image-library-preview-wrapper">
+                    <img src="${img.url}" alt="${img.name}" class="image-library-preview">
+                </div>
                 <span class="select-badge">${isSelected ? '✓' : '+'}</span>
             `;
 
@@ -1051,20 +1107,41 @@
                 updateModalCounter();
             });
 
-            col.appendChild(card);
-            libraryImagesGrid.appendChild(col);
+            libraryImagesGrid.appendChild(card);
         });
+
+        // Update Pagination Controls
+        if (totalImages > IMAGES_PER_TAB_PAGE) {
+            libraryPagination.classList.remove('d-none');
+            const endCount = Math.min(startIndex + IMAGES_PER_TAB_PAGE, totalImages);
+            libraryPaginationInfo.textContent = `Showing ${startIndex + 1} - ${endCount} of ${totalImages} images (Page ${currentLibraryPage} of ${totalPages})`;
+            libraryPrevPageBtn.disabled = (currentLibraryPage <= 1);
+            libraryNextPageBtn.disabled = (currentLibraryPage >= totalPages);
+        } else {
+            libraryPagination.classList.add('d-none');
+        }
     }
+
+    // Pagination Click Listeners
+    libraryPrevPageBtn.addEventListener('click', function() {
+        if (currentLibraryPage > 1) {
+            currentLibraryPage--;
+            renderLibraryTabPage();
+        }
+    });
+
+    libraryNextPageBtn.addEventListener('click', function() {
+        const totalPages = Math.ceil(allLibraryImages.length / IMAGES_PER_TAB_PAGE);
+        if (currentLibraryPage < totalPages) {
+            currentLibraryPage++;
+            renderLibraryTabPage();
+        }
+    });
 
     function updateModalCounter() {
         const count = modalSelectedMap.size;
         selectedLibraryCount.textContent = `Selected: ${count} image${count === 1 ? '' : 's'}`;
     }
-
-    // Search input filtering
-    libraryImageSearch.addEventListener('input', function() {
-        renderLibraryGrid(this.value.trim());
-    });
 
     // Confirm selection from modal
     confirmLibrarySelectionBtn.addEventListener('click', function() {
