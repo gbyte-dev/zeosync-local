@@ -349,7 +349,7 @@ class AmazonConnect extends ShopifyController
             'amazon_oauth_state'    => null,
         ]);
         $this->reassignProductsOwner($shop);
-        Cache::forget('amazon_orders_' . $shop->shop);
+        Cache::forget('amazon_orders_' . $shop->shop.'_' . $shop->seller_id);
         Cache::forget("amazon_connect_progress_{$shop->id}");
         $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_marketplace_id}";
         Cache::forget($cacheKey);

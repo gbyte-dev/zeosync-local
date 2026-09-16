@@ -255,11 +255,9 @@ class AIController extends Controller
 
     private function getAmazonOrdersCache(?Shop $shop): array
     {
-        if (!$shop) {
-            return [];
-        }
-
-        return Cache::get('amazon_orders_' . $shop->shop, []);
+        if (!$shop) {  return []; }
+        $cacheKeyai = 'amazon_orders_ai_' . $shop->shop.'_' . $shop->seller_id;
+        return Cache::get($cacheKeyai, []);
     }
 
     private function getAmazonInventoryCache(?Shop $shop): array

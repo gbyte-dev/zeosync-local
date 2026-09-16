@@ -832,7 +832,6 @@ class ShopifyController extends Controller
                 'source' => 'amazon',
                 'orders' => $amazonOrders,
                 'activeShop' => $activeShop,
-                // dummy stats for now
                 'totalOrders' => count($amazonOrders),
                 'paidOrders' => 0,
                 'pendingOrders' => 0,
@@ -3233,19 +3232,14 @@ class ShopifyController extends Controller
     private function fetchAmazonOrders($forceRefresh = false)
     {
         $activeShop = session('active_shop');
-
         $shop = \App\Models\Shop::where('shop', $activeShop)->first();
 
         if (!$shop || empty($shop->amazon_refresh_token)) {
-            Log::info('Amazon orders skipped: Amazon not connected.', [
-                'shop' => $activeShop,
-            ]);
-
             return [];
         }
 
-        $cacheKey = 'amazon_orders_' . $activeShop;
-
+        $cacheKey = 'amazon_orders_' . $activeShop.'_' . $shop->seller_id;
+        $cacheKeyai = 'amazon_orders_ai_' . $activeShop.'_' . $shop->seller_id;
         if ($forceRefresh) {
             Cache::forget($cacheKey);
         }
@@ -3268,14 +3262,8 @@ class ShopifyController extends Controller
                 try {
 
                     $connector = \SellingPartnerApi\SellingPartnerApi::seller(
-                        clientId: AdminSetting::get(
-                            'production_client_id',
-                            config('amazon.client_id')
-                        ),
-                        clientSecret: AdminSetting::get(
-                            'production_client_secret',
-                            config('amazon.client_secret')
-                        ),
+                        clientId: AdminSetting::get('production_client_id',  config('amazon.client_id')  ),
+                        clientSecret: AdminSetting::get('production_client_secret',  config('amazon.client_secret')),
                         refreshToken: $shop->amazon_refresh_token,
                         endpoint: \SellingPartnerApi\Enums\Endpoint::NA
                     );
@@ -3299,7 +3287,7 @@ class ShopifyController extends Controller
                             );
                         }
                     }
-
+                    Cache::put( $cacheKeyai,  $orders, now()->addHours(24) );
                     return $orders;
                 } catch (\Exception $e) {
 
