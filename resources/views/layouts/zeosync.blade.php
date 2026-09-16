@@ -20,9 +20,10 @@
     <title>@yield('title', config('app.name', 'Zeosync'))</title>
     <meta name="description" content="@yield('meta_description', 'Connect Amazon and Shopify with clearer product, inventory, order and returns workflows.')">
     <meta name="theme-color" content="#111c25">
-   {{-- <meta name="shopify-api-key" content="{{ $shopifyclient_id }}">
-    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script> --}}
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
+   {{--  <meta name="shopify-api-key" content="{{ $shopifyclient_id }}">
+    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+--}}
+<link rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
     <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
