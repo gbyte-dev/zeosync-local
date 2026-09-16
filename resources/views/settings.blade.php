@@ -338,7 +338,7 @@
                     </div>
                 </div>
 
-                <div class="saas-setting-row">
+                <!-- <div class="saas-setting-row">
                     <div>
                         <div class="saas-setting-label">AI Assistance</div>
                         <div class="saas-setting-help">Automatically map SKUs using AI.</div>
@@ -350,7 +350,7 @@
                             value="1"
                             {{ old('ai_assist', $settings->ai_assist ?? '0') == '1' ? 'checked' : '' }}>
                     </div>
-                </div>
+                </div> -->
                 <div class="saas-setting-row">
                     <div>
                         <div class="saas-setting-label">Automatic SKU Mapping</div>
@@ -390,7 +390,7 @@
                         </select>
                     </div>
 
-                    <div class="col-md-6">
+                    <!-- <div class="col-md-6">
                         <label class="saas-label">Tax Behavior</label>
                         <select name="tax_behavior" class="saas-select">
                             <option value="include" {{ old('tax_behavior', $settings->tax_behavior ?? 'include') == 'include' ? 'selected' : '' }}>
@@ -400,7 +400,7 @@
                                 Prices exclude tax
                             </option>
                         </select>
-                    </div>
+                    </div> -->
                 </div>
             </div>
         </div>
