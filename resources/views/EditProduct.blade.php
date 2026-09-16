@@ -611,6 +611,19 @@
         line-height: 1;
         box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
+
+    .variant-image-preview {
+        width: 36px;
+        height: 36px;
+        object-fit: contain;
+        display: block;
+    }
+
+    .variant-img-cell {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
 </style>
 
 @php
@@ -874,19 +887,32 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                     <h5 class="modal-title fw-semibold text-dark mb-0" id="imageLibraryModalLabel" style="font-size: 15px;">
                         Image Library
                     </h5>
-                    <p class="text-muted small mb-0" style="font-size: 12px;">Choose existing images previously uploaded to your library</p>
+                    <p class="text-muted small mb-0" id="imageLibraryModalSubtitle" style="font-size: 12px;">Choose existing images previously uploaded to your library</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
-                <!-- Tab Navigation (Default: Add Product) -->
-                <ul class="nav nav-tabs border-bottom mb-3" id="imageLibraryTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active fw-medium px-3 py-2" id="tab-add-product" type="button" role="tab" style="font-size: 13px;">
-                            <i class="bi bi-grid-fill me-1 text-primary"></i> Add Product
+                <!-- Modal Alert Message -->
+                <div id="modalAlertMessage" class="alert d-none py-2 px-3 small mb-3" role="alert"></div>
+
+                <!-- Tab Navigation & Upload from Device Toolbar -->
+                <div class="d-flex justify-content-between align-items-center border-bottom mb-3 pb-1">
+                    <ul class="nav nav-tabs border-bottom-0 mb-0" id="imageLibraryTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-medium px-3 py-2 border-0 bg-transparent text-dark border-bottom border-2 border-primary" id="tab-add-product" type="button" role="tab" style="font-size: 13px;">
+                                <i class="bi bi-grid-fill me-1 text-primary"></i> Add Product
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="d-flex align-items-center">
+                        <input type="file" id="modalDeviceUploadInput" accept="image/*" class="d-none">
+                        <button type="button" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" id="modalDeviceUploadBtn" style="font-size: 12px;">
+                            <i class="bi bi-cloud-arrow-up" id="modalUploadIcon"></i>
+                            <span id="modalUploadBtnSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            <span id="modalUploadBtnText">Upload from Device</span>
                         </button>
-                    </li>
-                </ul>
+                    </div>
+                </div>
 
                 <!-- Loading State -->
                 <div id="libraryImagesLoading" class="text-center py-4">
@@ -970,11 +996,191 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
     const libraryPrevPageBtn = document.getElementById('libraryPrevPageBtn');
     const libraryNextPageBtn = document.getElementById('libraryNextPageBtn');
 
+    // Modal Upload from Device Controls
+    const modalDeviceUploadBtn = document.getElementById('modalDeviceUploadBtn');
+    const modalDeviceUploadInput = document.getElementById('modalDeviceUploadInput');
+    const modalUploadBtnText = document.getElementById('modalUploadBtnText');
+    const modalUploadIcon = document.getElementById('modalUploadIcon');
+    const modalUploadBtnSpinner = document.getElementById('modalUploadBtnSpinner');
+    const modalAlertMessage = document.getElementById('modalAlertMessage');
+
     const IMAGES_PER_TAB_PAGE = 10;
     let allLibraryImages = [];
     let currentLibraryPage = 1;
     let selectedLibraryImages = []; // Array of { id, url, name, path }
-    let modalSelectedMap = new Map(); // Map of url => image object
+    let modalSelectedMap = new Map(); // Map of url => image object currently toggled in modal
+
+    // Target Management: 'gallery' OR { type: 'variant', index: idx }
+    let currentModalTarget = 'gallery';
+    const variantImageMap = {}; // idx => { url, name, imageId, key }
+    const savedComboImageMap = {}; // comboKey => { url, name, imageId }
+
+    // Upload from Device inside modal
+    if (modalDeviceUploadBtn && modalDeviceUploadInput) {
+        modalDeviceUploadBtn.addEventListener('click', function() {
+            modalDeviceUploadInput.value = '';
+            if (modalAlertMessage) modalAlertMessage.className = 'alert d-none py-2 px-3 small mb-3';
+            modalDeviceUploadInput.click();
+        });
+
+        modalDeviceUploadInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showModalAlert('Please select a valid image file (JPG, PNG, or WEBP).', 'danger');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                showModalAlert('Image size must not exceed 10 MB.', 'danger');
+                return;
+            }
+
+            modalDeviceUploadBtn.disabled = true;
+            modalUploadIcon.classList.add('d-none');
+            modalUploadBtnSpinner.classList.remove('d-none');
+            modalUploadBtnText.textContent = 'Uploading...';
+            if (modalAlertMessage) modalAlertMessage.className = 'alert d-none py-2 px-3 small mb-3';
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('_token', '{{ csrf_token() }}');
+
+            fetch("{{ route('shopify.imgupload.store') }}", {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: formData
+            })
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Failed to upload image.');
+                }
+                return data;
+            })
+            .then(data => {
+                const newImg = data.image;
+                allLibraryImages.unshift(newImg);
+                currentLibraryPage = 1;
+
+                if (currentModalTarget === 'gallery') {
+                    modalSelectedMap.set(newImg.url, newImg);
+                } else if (currentModalTarget && currentModalTarget.type === 'variant') {
+                    modalSelectedMap.clear();
+                    modalSelectedMap.set(newImg.url, newImg);
+                    setVariantImage(currentModalTarget.index, newImg.url, newImg.name);
+                }
+
+                renderLibraryTabPage();
+                updateModalCounter();
+                showModalAlert('Image uploaded successfully and selected.', 'success');
+            })
+            .catch(err => {
+                console.error('Modal upload failed:', err);
+                showModalAlert(err.message || 'Failed to upload image. Please try again.', 'danger');
+            })
+            .finally(() => {
+                modalDeviceUploadBtn.disabled = false;
+                modalUploadIcon.classList.remove('d-none');
+                modalUploadBtnSpinner.classList.add('d-none');
+                modalUploadBtnText.textContent = 'Upload from Device';
+                modalDeviceUploadInput.value = '';
+            });
+        });
+    }
+
+    function showModalAlert(message, type = 'danger') {
+        if (!modalAlertMessage) return;
+        modalAlertMessage.textContent = message;
+        modalAlertMessage.className = `alert alert-${type} py-2 px-3 small mb-3`;
+    }
+
+    function getVariantComboKey(idx) {
+        const hiddenCombo = document.querySelector(`input[name="variant_combo[${idx}]"]`);
+        if (hiddenCombo && hiddenCombo.value) {
+            try {
+                const parsed = JSON.parse(hiddenCombo.value);
+                return parsed.map(c => `${c.type}:${c.value}`).join('|');
+            } catch (e) {}
+        }
+        return `variant_${idx}`;
+    }
+
+    function renderVariantImage(idx) {
+        const td = document.getElementById(`variant_img_td_${idx}`);
+        if (!td) return;
+        const current = variantImageMap[idx];
+        if (current && current.url) {
+            td.innerHTML = `
+                <div class="variant-img-cell d-flex align-items-center gap-2" id="variant_img_cell_${idx}">
+                    <div style="position: relative; width: 36px; height: 36px; border: 1px solid #D1D5DB; border-radius: 6px; overflow: hidden; background: #F9FAFB; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                        <img src="${current.url}" alt="${current.name || ''}" class="variant-image-preview">
+                    </div>
+                    <div class="d-flex flex-column" style="line-height: 1.2;">
+                        <button type="button" class="btn btn-link p-0 text-primary text-decoration-none" style="font-size: 11px; text-align: left;" onclick="openVariantImageModal(${idx})">Change</button>
+                        <button type="button" class="btn btn-link p-0 text-danger text-decoration-none" style="font-size: 11px; text-align: left;" onclick="removeVariantImage(${idx})">Remove</button>
+                    </div>
+                    ${current.imageId ? `<input type="hidden" name="existing_variant_image[${idx}]" id="variant_existing_img_input_${idx}" value="${current.imageId}">` : ''}
+                    <input type="hidden" name="variants[${idx}][image]" id="variant_image_input_${idx}" value="${current.url}">
+                </div>
+            `;
+        } else {
+            td.innerHTML = `
+                <div class="variant-img-cell" id="variant_img_cell_${idx}">
+                    <button type="button" class="btn btn-outline-dark btn-sm select-variant-img-btn" onclick="openVariantImageModal(${idx})" style="font-size: 11px; padding: 4px 8px; white-space: nowrap;">
+                        <i class="bi bi-image me-1"></i> Select Image
+                    </button>
+                    <input type="hidden" name="variants[${idx}][image]" id="variant_image_input_${idx}" value="">
+                </div>
+            `;
+        }
+    }
+
+    function setVariantImage(idx, url, name, imageId = null) {
+        const comboKey = getVariantComboKey(idx);
+        variantImageMap[idx] = { url, name: name || '', imageId: imageId, key: comboKey };
+        if (comboKey) {
+            savedComboImageMap[comboKey] = { url, name: name || '', imageId: imageId };
+        }
+        renderVariantImage(idx);
+    }
+
+    function removeVariantImage(idx) {
+        const comboKey = getVariantComboKey(idx);
+        delete variantImageMap[idx];
+        if (comboKey && savedComboImageMap[comboKey]) {
+            delete savedComboImageMap[comboKey];
+        }
+        renderVariantImage(idx);
+    }
+
+    function openVariantImageModal(idx) {
+        currentModalTarget = { type: 'variant', index: idx };
+        document.getElementById('imageLibraryModalLabel').textContent = 'Select Image for Variant';
+        const subtitle = document.getElementById('imageLibraryModalSubtitle');
+        if (subtitle) subtitle.textContent = 'Choose an image from your library or upload from device';
+        confirmLibrarySelectionBtn.textContent = 'Select Image';
+        if (modalAlertMessage) modalAlertMessage.className = 'alert d-none py-2 px-3 small mb-3';
+
+        modalSelectedMap.clear();
+        if (variantImageMap[idx]) {
+            const curr = variantImageMap[idx];
+            modalSelectedMap.set(curr.url, { url: curr.url, name: curr.name, id: curr.imageId });
+        }
+        updateModalCounter();
+        libraryModal.show();
+
+        if (allLibraryImages.length === 0) {
+            fetchLibraryImages();
+        } else {
+            renderLibraryTabPage();
+        }
+    }
 
     // Render newly selected library images into Edit Product view
     function renderSelectedLibraryImages() {
@@ -1066,6 +1272,13 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 
     // Open Library Modal
     openImageLibraryBtn.addEventListener('click', function() {
+        currentModalTarget = 'gallery';
+        document.getElementById('imageLibraryModalLabel').textContent = 'Image Library';
+        const subtitle = document.getElementById('imageLibraryModalSubtitle');
+        if (subtitle) subtitle.textContent = 'Choose existing images previously uploaded to your library';
+        confirmLibrarySelectionBtn.textContent = 'Add Selected Images';
+        if (modalAlertMessage) modalAlertMessage.className = 'alert d-none py-2 px-3 small mb-3';
+
         modalSelectedMap.clear();
         selectedLibraryImages.forEach(img => {
             modalSelectedMap.set(img.url, img);
@@ -1151,14 +1364,32 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
             `;
 
             card.addEventListener('click', function() {
-                if (modalSelectedMap.has(img.url)) {
-                    modalSelectedMap.delete(img.url);
-                    card.classList.remove('is-selected');
-                    card.querySelector('.select-badge').textContent = '+';
-                } else {
-                    modalSelectedMap.set(img.url, img);
-                    card.classList.add('is-selected');
-                    card.querySelector('.select-badge').textContent = '✓';
+                if (currentModalTarget === 'gallery') {
+                    if (modalSelectedMap.has(img.url)) {
+                        modalSelectedMap.delete(img.url);
+                        card.classList.remove('is-selected');
+                        card.querySelector('.select-badge').textContent = '+';
+                    } else {
+                        modalSelectedMap.set(img.url, img);
+                        card.classList.add('is-selected');
+                        card.querySelector('.select-badge').textContent = '✓';
+                    }
+                } else if (currentModalTarget && currentModalTarget.type === 'variant') {
+                    if (modalSelectedMap.has(img.url)) {
+                        modalSelectedMap.clear();
+                        card.classList.remove('is-selected');
+                        card.querySelector('.select-badge').textContent = '+';
+                    } else {
+                        modalSelectedMap.clear();
+                        modalSelectedMap.set(img.url, img);
+                        document.querySelectorAll('#libraryImagesGrid .library-image-card').forEach(c => {
+                            c.classList.remove('is-selected');
+                            const b = c.querySelector('.select-badge');
+                            if (b) b.textContent = '+';
+                        });
+                        card.classList.add('is-selected');
+                        card.querySelector('.select-badge').textContent = '✓';
+                    }
                 }
                 updateModalCounter();
             });
@@ -1201,8 +1432,16 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 
     // Confirm selection from modal
     confirmLibrarySelectionBtn.addEventListener('click', function() {
-        selectedLibraryImages = Array.from(modalSelectedMap.values());
-        renderSelectedLibraryImages();
+        if (currentModalTarget === 'gallery') {
+            selectedLibraryImages = Array.from(modalSelectedMap.values());
+            renderSelectedLibraryImages();
+        } else if (currentModalTarget && currentModalTarget.type === 'variant') {
+            const idx = currentModalTarget.index;
+            if (modalSelectedMap.size > 0) {
+                const selectedImg = Array.from(modalSelectedMap.values())[0];
+                setVariantImage(idx, selectedImg.url, selectedImg.name, selectedImg.id);
+            }
+        }
         libraryModal.hide();
     });
 
@@ -1478,23 +1717,53 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                     '') :
                 '';
             let existingSku = existingVariant ? (existingVariant.sku || '') : '';
-            let existingImageHtml = '';
-            if (existingVariant && existingVariant.image_id && imageIdToSrc[existingVariant.image_id]) {
-                const src = imageIdToSrc[existingVariant.image_id];
-                existingImageHtml = `
-                    <div class="mt-2">
-                        <small class="text-muted" style="display:block;">Existing image:</small>
-                        <img src="${src}" alt="Variant image" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
-                        <input type="hidden" name="existing_variant_image[${idx}]" value="${existingVariant.image_id}">
-                    </div>
-                `;
+
+            // Handle variant image state
+            if (!variantImageMap[idx]) {
+                if (existingVariant && existingVariant.image_id && imageIdToSrc[existingVariant.image_id]) {
+                    variantImageMap[idx] = {
+                        url: imageIdToSrc[existingVariant.image_id],
+                        imageId: existingVariant.image_id,
+                        name: 'Variant Image',
+                        key: comboKey
+                    };
+                } else if (savedComboImageMap[comboKey]) {
+                    variantImageMap[idx] = { ...savedComboImageMap[comboKey], key: comboKey };
+                }
+            } else {
+                variantImageMap[idx].key = comboKey;
+                savedComboImageMap[comboKey] = {
+                    url: variantImageMap[idx].url,
+                    imageId: variantImageMap[idx].imageId,
+                    name: variantImageMap[idx].name
+                };
             }
+
+            const current = variantImageMap[idx];
+            const imgCellHtml = (current && current.url)
+                ? `<div class="variant-img-cell d-flex align-items-center gap-2" id="variant_img_cell_${idx}">
+                    <div style="position: relative; width: 36px; height: 36px; border: 1px solid #D1D5DB; border-radius: 6px; overflow: hidden; background: #F9FAFB; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                        <img src="${current.url}" alt="${current.name || ''}" class="variant-image-preview">
+                    </div>
+                    <div class="d-flex flex-column" style="line-height: 1.2;">
+                        <button type="button" class="btn btn-link p-0 text-primary text-decoration-none" style="font-size: 11px; text-align: left;" onclick="openVariantImageModal(${idx})">Change</button>
+                        <button type="button" class="btn btn-link p-0 text-danger text-decoration-none" style="font-size: 11px; text-align: left;" onclick="removeVariantImage(${idx})">Remove</button>
+                    </div>
+                    ${current.imageId ? `<input type="hidden" name="existing_variant_image[${idx}]" id="variant_existing_img_input_${idx}" value="${current.imageId}">` : ''}
+                    <input type="hidden" name="variants[${idx}][image]" id="variant_image_input_${idx}" value="${current.url}">
+                </div>`
+                : `<div class="variant-img-cell" id="variant_img_cell_${idx}">
+                    <button type="button" class="btn btn-outline-dark btn-sm select-variant-img-btn" onclick="openVariantImageModal(${idx})" style="font-size: 11px; padding: 4px 8px; white-space: nowrap;">
+                        <i class="bi bi-image me-1"></i> Select Image
+                    </button>
+                    <input type="hidden" name="variants[${idx}][image]" id="variant_image_input_${idx}" value="">
+                </div>`;
+
             cells += `
                 <input type="hidden" name="variant_ids[]" value="${existingVariant ? existingVariant.id : ''}">
                 <input type="hidden" name="inventory_item_id[]" value="${existingVariant ? existingVariant.inventory_item_id : ''}">
-                <td>
-                    <input type="file" name="variant_image[${idx}]" class="form-control form-control-sm" style="padding-top:2px;" accept="image/*">
-                    ${existingImageHtml}
+                <td id="variant_img_td_${idx}">
+                    ${imgCellHtml}
                 </td>
                 <td>
                     <input type="number" step="0.01" name="variant_price[${idx}]" class="form-control form-control-sm" placeholder="0.00" value="${existingPrice}">
