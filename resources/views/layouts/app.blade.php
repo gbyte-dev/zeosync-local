@@ -567,31 +567,6 @@
         }
     </script>
 
-    <script>
-        document.addEventListener('click', function(e) {
-
-            const link = e.target.closest('a');
-
-            if (!link) {
-                return;
-            }
-
-            // Ignore Bootstrap collapse/dropdown links
-            const href = link.getAttribute('href');
-
-            if (!href || href.startsWith('#')) {
-                return;
-            }
-
-            const url = new URL(link.href, window.location.origin);
-
-            if (url.pathname !== '/products') {
-                return;
-            }
-
-            showLoader('Loading Shopify products...');
-        });
-    </script>
 
     <div id="dynamicToastContainer"
         class="position-fixed top-0 end-0 p-3"

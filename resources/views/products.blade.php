@@ -174,21 +174,20 @@
 
 
 
-    .shopify-products-loader {
-        position: fixed;
-        inset: 0;
-        z-index: 99999;
-        background: rgba(255, 255, 255, 0.85);
-        display: none;
+    .sp-table-loader {
+        display: flex;
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
+        padding: 60px 12px;
+        min-height: 280px;
+        background: transparent;
     }
 
-    .shopify-products-loader-text {
+    .sp-table-loader-text {
         font-size: 13px;
-        color: #374151;
+        color: #4B5563;
         font-weight: 500;
     }
 
@@ -378,16 +377,6 @@
     }
 </style>
 
-<div id="shopifyProductsPageLoader" class="shopify-products-loader">
-    <div class="spinner-border" role="status">
-        <span class="visually-hidden">Loading...</span>
-    </div>
-
-    <div class="shopify-products-loader-text">
-        Loading Shopify products...
-    </div>
-</div>
-
 <div class="sp-page">
 
     <!-- Header Section -->
@@ -448,8 +437,18 @@
 
     <!-- Table Section -->
     <div class="sp-table-wrapper">
+        <!-- In-Page Table Loader -->
+        <div id="shopifyTableLoader" class="sp-table-loader">
+            <div class="spinner-border text-primary" role="status" style="width: 2.2rem; height: 2.2rem; border-width: 0.2em;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="sp-table-loader-text">
+                Loading Shopify products...
+            </div>
+        </div>
+
         @if(count($products) > 0)
-        <div class="table-responsive">
+        <div class="table-responsive" id="productsTableContainer" style="display: none;">
             <table class="sp-table table" id="productsTable" style="width: 100%;">
                 <thead>
                     <tr>
@@ -618,7 +617,7 @@
         </div>
         @else
         <!-- Rendered safely outside the table tag to prevent DataTables "_DT_CellIndex" errors -->
-        <div style="text-align: center; padding: 60px 12px;">
+        <div id="productsEmptyContainer" style="display: none; text-align: center; padding: 60px 12px;">
             <div style="display: flex; flex-direction: column; align-items: center; ">
                 <div style="background: #F3F4F6; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
                     <i class="bi bi-box-seam" style="font-size: 18px; color: #9CA3AF;"></i>
@@ -647,6 +646,9 @@
 <script>
     $(document).ready(function() {
         const $table = $('#productsTable');
+        const $loader = $('#shopifyTableLoader');
+        const $tableContainer = $('#productsTableContainer');
+        const $emptyContainer = $('#productsEmptyContainer');
 
         // Initialize DataTables safely only if the table is rendered in the DOM
         if ($table.length > 0) {
@@ -655,7 +657,7 @@
                 $table.DataTable().destroy();
             }
 
-            $table.DataTable({
+            const dt = $table.DataTable({
                 responsive: true,
                 autoWidth: false,
                 processing: true,
@@ -673,11 +675,20 @@
                     searchPlaceholder: "Search products..."
                 }
             });
+
+            // Hide in-page loader and show DataTable container immediately
+            $loader.hide();
+            $tableContainer.show();
+
+            // Adjust columns for accurate responsive layout
+            if (dt && typeof dt.columns === 'function') {
+                dt.columns.adjust().responsive.recalc();
+            }
+        } else {
+            // Hide in-page loader and show empty state container
+            $loader.hide();
+            $emptyContainer.show();
         }
-        // const refreshBtn = document.getElementById('refreshBtn');
-        // if (refreshBtn) {
-        //     refreshBtn.click();
-        // }
     });
 
     document.addEventListener('click', function(e) {
@@ -759,36 +770,55 @@
         });
     }
 
-    document.getElementById('refreshBtn').addEventListener('click', function() {
-        const btn = this;
-        const icon = btn.querySelector('i');
-        btn.disabled = true;
-        icon.classList.add('fa-spin');
-        let url = btn.dataset.url;
-        if (url.includes('?')) {
-            url += '&refresh=1';
-        } else {
-            url += '?refresh=1';
-        }
-        fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                location.reload();
-            })
-            .catch(err => {
-                console.error(err);
-                alert('Refresh failed');
-            })
-            .finally(() => {
-                btn.disabled = false;
-                icon.classList.remove('fa-spin');
-            });
-    });
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            const btn = this;
+            const icon = btn.querySelector('i');
+            if (btn.disabled) return;
+            btn.disabled = true;
+            if (icon) icon.classList.add('fa-spin');
+
+            const $loader = $('#shopifyTableLoader');
+            const $tableContainer = $('#productsTableContainer');
+            const $emptyContainer = $('#productsEmptyContainer');
+
+            // Temporarily hide table/empty area and show in-page loader
+            if ($tableContainer.length) $tableContainer.hide();
+            if ($emptyContainer.length) $emptyContainer.hide();
+            $loader.show();
+
+            let url = btn.dataset.url;
+            if (url.includes('?')) {
+                url += '&refresh=1';
+            } else {
+                url += '?refresh=1';
+            }
+            fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    location.reload();
+                })
+                .catch(err => {
+                    console.error(err);
+                    $loader.hide();
+                    if ($tableContainer.length) $tableContainer.show();
+                    if ($emptyContainer.length) $emptyContainer.show();
+                    btn.disabled = false;
+                    if (icon) icon.classList.remove('fa-spin');
+                    if (typeof showToast === 'function') {
+                        showToast('Refresh failed. Please try again.', 'danger');
+                    } else {
+                        alert('Refresh failed');
+                    }
+                });
+        });
+    }
 
     document.addEventListener('click', function(e) {
         const initialSyncLink = e.target.closest('.btn-initial-sync');
