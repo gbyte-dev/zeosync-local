@@ -125,6 +125,21 @@ document.getElementById('activateForm').addEventListener('submit', async functio
         window.close();
 
     } catch (error) {
+        console.error('Activation error:', error);
+
+        const isHtmlJsonSyntaxError = (error instanceof SyntaxError) &&
+            (error.message.includes('<!DOCTYPE') ||
+             error.message.includes('Unexpected token \'<\'') ||
+             error.message.includes('Unexpected token <') ||
+             (error.message.includes('<') && error.message.includes('is not valid JSON')));
+
+        if (isHtmlJsonSyntaxError) {
+            try {
+                window.close();
+            } catch (e) {}
+            return;
+        }
+
         alert(error.message);
 
         button.disabled = false;
