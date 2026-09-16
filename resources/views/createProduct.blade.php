@@ -787,7 +787,7 @@
                 @endphp
                 @for($i = 0; $i < $variantCount; $i++)
                     <div class="variant-type-box">
-                    <span class="remove-btn" onclick="this.parentElement.remove()">✕</span>
+                    <span class="remove-btn" onclick="removeVariantType(this)">✕</span>
                     <div class="row">
                         <div class="col-md-4 mb-2">
                             <label class="form-label">Type Name</label>
@@ -1536,12 +1536,25 @@
 
 
 
+    function invalidateMatrix() {
+        const matrixDiv = document.getElementById('combinationMatrix');
+        if (matrixDiv) {
+            matrixDiv.style.padding = '12px';
+            matrixDiv.innerHTML = '<p class="text-muted">Variant types have changed. Click Generate to build the matrix.</p>';
+        }
+        const hiddenDiv = document.getElementById('hiddenVariantData');
+        if (hiddenDiv) {
+            hiddenDiv.innerHTML = '';
+        }
+        updateSubmitButtonState();
+    }
+
     function addVariantType() {
         const container = document.getElementById('variantTypesContainer');
         const div = document.createElement('div');
         div.classList.add('variant-type-box');
         div.innerHTML = `
-            <span class="remove-btn" onclick="this.parentElement.remove(); updateSubmitButtonState();">✕</span>
+            <span class="remove-btn" onclick="removeVariantType(this)">✕</span>
             <div class="row">
                 <div class="col-md-4 mb-2">
                     <label class="form-label">Type Name</label>
@@ -1553,7 +1566,15 @@
                 </div>
             </div>`;
         container.appendChild(div);
-        updateSubmitButtonState();
+        invalidateMatrix();
+    }
+
+    function removeVariantType(button) {
+        const box = button.closest('.variant-type-box');
+        if (box) {
+            box.remove();
+        }
+        invalidateMatrix();
     }
 
     function addMetaField() {
@@ -1776,17 +1797,25 @@
             return false;
         }
 
-        // 11. Variant matrix numeric fields (if filled, must be valid non-negative numbers)
-        const variantPriceInputs = document.querySelectorAll('#combinationMatrix input[name$="[price]"]');
-        for (const vPrice of variantPriceInputs) {
-            if (vPrice.value.trim() !== '' && (isNaN(vPrice.value) || parseFloat(vPrice.value) < 0)) {
-                return false;
-            }
+        // 11. Variant matrix validation: Must have generated rows and all rows must be filled and valid
+        const combinationRows = document.querySelectorAll('#combinationMatrix tbody tr');
+        if (!combinationRows || combinationRows.length === 0) {
+            return false;
         }
 
-        const variantQtyInputs = document.querySelectorAll('#combinationMatrix input[name$="[qty]"]');
-        for (const vQty of variantQtyInputs) {
-            if (vQty.value.trim() !== '' && (isNaN(vQty.value) || parseInt(vQty.value, 10) < 0)) {
+        for (const row of combinationRows) {
+            const vPrice = row.querySelector('input[name$="[price]"]');
+            if (!vPrice || vPrice.value.trim() === '' || isNaN(vPrice.value) || parseFloat(vPrice.value) < 0) {
+                return false;
+            }
+
+            const vSku = row.querySelector('input[name$="[sku]"]');
+            if (!vSku || vSku.value.trim() === '') {
+                return false;
+            }
+
+            const vQty = row.querySelector('input[name$="[qty]"]');
+            if (!vQty || vQty.value.trim() === '' || isNaN(vQty.value) || parseInt(vQty.value, 10) < 0) {
                 return false;
             }
         }
@@ -1866,24 +1895,44 @@
             }
         ];
 
-        // Check variant price inputs if invalid
-        const variantPriceInputs = document.querySelectorAll('#combinationMatrix input[name$="[price]"]');
-        for (const vPrice of variantPriceInputs) {
-            requiredChecks.push({
-                element: vPrice,
-                isValid: (el) => el.value.trim() === '' || (!isNaN(el.value) && parseFloat(el.value) >= 0),
-                message: 'Please enter a valid variant price (≥ 0).'
-            });
+        // Check if combination matrix has generated rows
+        const combinationRows = document.querySelectorAll('#combinationMatrix tbody tr');
+        if (combinationRows.length === 0) {
+            const genBtn = document.querySelector('.gen-row button');
+            if (genBtn) {
+                genBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showValidationAlert('Please click Generate to create the variant combination matrix.');
+            return false;
         }
 
-        // Check variant qty inputs if invalid
-        const variantQtyInputs = document.querySelectorAll('#combinationMatrix input[name$="[qty]"]');
-        for (const vQty of variantQtyInputs) {
-            requiredChecks.push({
-                element: vQty,
-                isValid: (el) => el.value.trim() === '' || (!isNaN(el.value) && parseInt(el.value, 10) >= 0),
-                message: 'Please enter a valid variant quantity (≥ 0).'
-            });
+        // Validate variant matrix row inputs
+        for (const row of combinationRows) {
+            const vPrice = row.querySelector('input[name$="[price]"]');
+            const vSku = row.querySelector('input[name$="[sku]"]');
+            const vQty = row.querySelector('input[name$="[qty]"]');
+
+            if (vPrice) {
+                requiredChecks.push({
+                    element: vPrice,
+                    isValid: (el) => el && el.value.trim() !== '' && !isNaN(el.value) && parseFloat(el.value) >= 0,
+                    message: 'Please enter a valid variant price (≥ 0.00).'
+                });
+            }
+            if (vSku) {
+                requiredChecks.push({
+                    element: vSku,
+                    isValid: (el) => el && el.value.trim() !== '',
+                    message: 'Please enter a variant SKU.'
+                });
+            }
+            if (vQty) {
+                requiredChecks.push({
+                    element: vQty,
+                    isValid: (el) => el && el.value.trim() !== '' && !isNaN(el.value) && parseInt(el.value, 10) >= 0,
+                    message: 'Please enter a valid variant quantity (≥ 0).'
+                });
+            }
         }
 
         document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
@@ -1944,6 +1993,19 @@
         form.addEventListener('input', updateSubmitButtonState);
         form.addEventListener('change', updateSubmitButtonState);
         form.addEventListener('blur', updateSubmitButtonState, true);
+
+        // Listen for changes in variant types container to invalidate outdated combination matrix
+        const variantTypesContainer = document.getElementById('variantTypesContainer');
+        if (variantTypesContainer) {
+            variantTypesContainer.addEventListener('input', function(e) {
+                if (e.target.classList.contains('variant-type-name') || e.target.classList.contains('variant-type-values')) {
+                    const matrixRows = document.querySelectorAll('#combinationMatrix tbody tr');
+                    if (matrixRows.length > 0) {
+                        invalidateMatrix();
+                    }
+                }
+            });
+        }
 
         // Prevent accidental form submission when pressing Enter (allow in textareas)
         form.addEventListener('keydown', function(event) {
