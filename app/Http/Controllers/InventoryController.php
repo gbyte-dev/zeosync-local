@@ -138,6 +138,21 @@ class InventoryController extends ShopifyController
             ], 401);
         }
 
+        if (empty($shop->amazon_refresh_token)) {
+            return response()->json([
+                'success'   => false,
+                'connected' => false,
+                'status'    => [
+                    'connected'      => false,
+                    'refreshing'     => false,
+                    'sync_completed' => false,
+                    'error'          => 'amazon_not_connected',
+                ],
+                'message'   => 'Please connect your Amazon account first.',
+                'products'  => [],
+            ]);
+        }
+
         $inventoryCacheService = app(InventoryCacheService::class);
 
         $response = $inventoryCacheService->getAmazonInventory(

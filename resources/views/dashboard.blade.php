@@ -697,6 +697,29 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                         })
                         .then(response => response.json())
                         .then(data => {
+
+                            const isNotConnected = data.connected === false || data.status?.error === 'amazon_not_connected';
+
+                            if (isNotConnected) {
+                                if (amazonInventoryBody) {
+                                    amazonInventoryBody.innerHTML = `
+                                        <tr>
+                                            <td colspan="3" class="p-3 border-0">
+                                                <div class="alert alert-warning mb-0 border-0"
+                                                     style="border-radius: 8px; font-size: 13px;">
+                                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                                    Please connect your Amazon account first.
+                                                    <a href="{{ route('amazon.connect') }}"
+                                                       class="fw-bold ms-1 text-dark text-decoration-underline">
+                                                        Connect Amazon
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }
+                                return;
+                            }
                         
                             const products = data.products || [];
                             const refreshing = data.status?.refreshing === true;
