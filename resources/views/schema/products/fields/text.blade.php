@@ -148,10 +148,6 @@ if ($field['name'] === 'cpu_model') {
     $extramsg = 'Please use in format like `Intel Core i7 1165G7 , 3.2GHz` or `AMD Ryzen 5 5600X , 3.2 GHz` (comma separated )';
 }
 
-if ($field['name'] === 'battery') {
-    $extramsg = "Please use in format like '";
-}
-
 if ($field['name'] === 'item_length_width_thickness') {
     $extramsg = 'Please use in format " 39L x 17.5W x 3T Centimeters "';
 }
@@ -159,7 +155,6 @@ if ($field['name'] === 'item_length_width_thickness') {
 if ($field['name'] === 'display') {
     $extramsg = 'Please use in format like "15.6 inch FHD IPS 1920x1080 144Hz"';
 }
-
 
 if ($field['name'] === 'lithium_battery') {
     $extramsg = 'Please use format 50 watt_hours | 0.5 grams';
@@ -190,16 +185,9 @@ if ($field['name'] === 'effective_still_resolution') {
 }
 
 $idreq = !empty($field['required']) ? 'required' : '';
-
-$batterydata = [ 'cell' => 'Lithium-Ion',  'weight' => '50g', 'capacity' => '5000mAh',
-        'power' => '18.5Wh', 'average_life' => '5 hours', 'average_life_talk_time' => '6 hours',
-        'charge_time' => '2 hours'
-    ];
-    
 @endphp
  
 <div class="mb-2">
-@if($field['name'] !== 'battery')
     <input {{ $idreq }} type="text" name="attributes[{{ $field['name'] }}]"
         class="form-control form-control-sm"  value="{{ $value }}"
         placeholder="{{ \Illuminate\Support\Str::limit(trim(($field['description'] ?? '') . ' ' . ($extramsg ?? '')), 55) }}"
@@ -214,35 +202,6 @@ $batterydata = [ 'cell' => 'Lithium-Ion',  'weight' => '50g', 'capacity' => '500
             border:1px solid #aaaaeb !important;
         @endif
         ">
-@else
-@foreach($batterydata as $key => $val)
-    @php
-        $value = '';
-        if ( isset($prodAttrijson) && array_key_exists('battery', $prodAttrijson) &&
-            is_array($prodAttrijson['battery']) && array_key_exists($key, $prodAttrijson['battery'])
-        ) {
-            $value = $prodAttrijson['battery'][$key];
-        }
-        $extramsgn = 'for battery '.$key. ' like '.$val;
-        $extramsg = $extramsg . ' ' .$val.' ,';
-    @endphp
-    <input {{ $idreq }} type="text" name="attributes[battery][{{ $key }}]"
-        class="form-control form-control-sm"  value="{{ $value }}"
-        placeholder="{{ \Illuminate\Support\Str::limit(trim(($field['description'] ?? '') . ' ' . ($extramsgn ?? '')), 80) }}"
-        style="font-size: small;
-        @if(!empty($php_errormsg))
-            border:3px solid #dc3545 !important;
-            background:#fff0f0 !important;
-        @elseif(!empty($isAutofilled) && $isAutofilled)
-            border:2px solid #0dcaf0 !important;
-            background:#f0f9ff !important;
-        @else
-            border:1px solid #aaaaeb !important;
-        @endif
-        ">
-@endforeach
-
-@endif
 
     @if(!empty($field['description']) || !empty($extramsg) || !empty($fieldHint))
     <div class="form-text text-dark mt-1 clearfix">
