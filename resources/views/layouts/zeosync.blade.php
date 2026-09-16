@@ -60,89 +60,89 @@
     <script src="{{ asset('js/bootstrap.bundle.min.js') }}" defer></script>
 
     <script>
-        (function() {
-            function isInIframe() {
-                try {
-                    return window.self !== window.top;
-                } catch (e) {
-                    return true;
-                }
-            }
+    //     (function() {
+    //         function isInIframe() {
+    //             try {
+    //                 return window.self !== window.top;
+    //             } catch (e) {
+    //                 return true;
+    //             }
+    //         }
 
-            // 1. Normal standalone browser window: do nothing
-            if (!isInIframe()) {
-                return;
-            }
+    //         // 1. Normal standalone browser window: do nothing
+    //         if (!isInIframe()) {
+    //             return;
+    //         }
 
-            // 2. Loop prevention & explicit logout checks
-            const REAUTH_GUARD_KEY = 'zeosync_iframe_reauth_ts';
-            const REAUTH_COOLDOWN_MS = 60000;
-            const urlParams = new URLSearchParams(window.location.search);
+    //         // 2. Loop prevention & explicit logout checks
+    //         const REAUTH_GUARD_KEY = 'zeosync_iframe_reauth_ts';
+    //         const REAUTH_COOLDOWN_MS = 60000;
+    //         const urlParams = new URLSearchParams(window.location.search);
 
-            if (urlParams.get('logged_out') === '1' || sessionStorage.getItem('zeosync_explicit_logout') === '1') {
-                return;
-            }
+    //         if (urlParams.get('logged_out') === '1' || sessionStorage.getItem('zeosync_explicit_logout') === '1') {
+    //             return;
+    //         }
 
-            const lastAttempt = sessionStorage.getItem(REAUTH_GUARD_KEY);
-            const now = Date.now();
-            if (lastAttempt && (now - parseInt(lastAttempt, 10)) < REAUTH_COOLDOWN_MS) {
-                return;
-            }
+    //         const lastAttempt = sessionStorage.getItem(REAUTH_GUARD_KEY);
+    //         const now = Date.now();
+    //         if (lastAttempt && (now - parseInt(lastAttempt, 10)) < REAUTH_COOLDOWN_MS) {
+    //             return;
+    //         }
 
-            // 3. Embedded Shopify Recovery via App Bridge
-            async function recoverEmbeddedShopifySession() {
-                if (typeof shopify === 'undefined' || typeof shopify.idToken !== 'function') {
-                    // Not in Shopify App Bridge environment (e.g. generic iframe)
-                    return;
-                }
+    //         // 3. Embedded Shopify Recovery via App Bridge
+    //         async function recoverEmbeddedShopifySession() {
+    //             if (typeof shopify === 'undefined' || typeof shopify.idToken !== 'function') {
+    //                 // Not in Shopify App Bridge environment (e.g. generic iframe)
+    //                 return;
+    //             }
 
-                try {
-                    sessionStorage.setItem(REAUTH_GUARD_KEY, String(Date.now()));
-                    const token = await shopify.idToken();
-                    if (!token) {
-                        return;
-                    }
+    //             try {
+    //                 sessionStorage.setItem(REAUTH_GUARD_KEY, String(Date.now()));
+    //                 const token = await shopify.idToken();
+    //                 if (!token) {
+    //                     return;
+    //                 }
 
-                    let targetPath = window.location.pathname;
-                    if (targetPath === '' || targetPath === '/') {
-                        targetPath = '/dashboard';
-                    }
+    //                 let targetPath = window.location.pathname;
+    //                 if (targetPath === '' || targetPath === '/') {
+    //                     targetPath = '/dashboard';
+    //                 }
 
-                    if (targetPath.startsWith('http://') || targetPath.startsWith('https://')) {
-                        try {
-                            const parsed = new URL(targetPath, window.location.origin);
-                            if (parsed.origin !== window.location.origin) {
-                                targetPath = '/dashboard';
-                            } else {
-                                targetPath = parsed.pathname;
-                            }
-                        } catch (e) {
-                            targetPath = '/dashboard';
-                        }
-                    }
+    //                 if (targetPath.startsWith('http://') || targetPath.startsWith('https://')) {
+    //                     try {
+    //                         const parsed = new URL(targetPath, window.location.origin);
+    //                         if (parsed.origin !== window.location.origin) {
+    //                             targetPath = '/dashboard';
+    //                         } else {
+    //                             targetPath = parsed.pathname;
+    //                         }
+    //                     } catch (e) {
+    //                         targetPath = '/dashboard';
+    //                     }
+    //                 }
 
-                    const shop = urlParams.get('shop');
-                    const host = urlParams.get('host');
+    //                 const shop = urlParams.get('shop');
+    //                 const host = urlParams.get('host');
 
-                    const outParams = new URLSearchParams();
-                    if (shop) outParams.set('shop', shop);
-                    if (host) outParams.set('host', host);
-                    outParams.set('embedded', '1');
-                    outParams.set('id_token', token);
+    //                 const outParams = new URLSearchParams();
+    //                 if (shop) outParams.set('shop', shop);
+    //                 if (host) outParams.set('host', host);
+    //                 outParams.set('embedded', '1');
+    //                 outParams.set('id_token', token);
 
-                    sessionStorage.removeItem(REAUTH_GUARD_KEY);
-                    window.location.replace(targetPath + '?' + outParams.toString());
-                } catch (err) {
-                    console.warn('Shopify iframe re-auth skipped or unavailable:', err);
-                }
-            }
+    //                 sessionStorage.removeItem(REAUTH_GUARD_KEY);
+    //                 window.location.replace(targetPath + '?' + outParams.toString());
+    //             } catch (err) {
+    //                 console.warn('Shopify iframe re-auth skipped or unavailable:', err);
+    //             }
+    //         }
 
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', recoverEmbeddedShopifySession);
-            } else {
-                recoverEmbeddedShopifySession();
-            }
-        })();
-    </script>
+    //         if (document.readyState === 'loading') {
+    //             document.addEventListener('DOMContentLoaded', recoverEmbeddedShopifySession);
+    //         } else {
+    //             recoverEmbeddedShopifySession();
+    //         }
+    //     })();
+     </script>
 </body>
 </html>
