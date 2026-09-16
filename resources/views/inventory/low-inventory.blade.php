@@ -315,6 +315,15 @@
         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
         Products are loading...
     </div>
+    <div id="lowInventoryNotConnected" class="d-none">
+        <div class="alert alert-warning mb-0 border-0" style="border-radius: 8px; font-size: 13px;">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            Please connect your Amazon account first.
+            <a href="{{ route('amazon.connect') }}" class="fw-bold ms-1 text-dark text-decoration-underline">
+                Connect Amazon
+            </a>
+        </div>
+    </div>
     <div id="lowInventoryError" class="empty-state text-danger d-none">
         Failed to load Amazon inventory. Please try again later.
     </div>
@@ -511,6 +520,7 @@
 
     if (!amazonInventoryCacheExists) {
         const loader = document.getElementById('lowInventoryLoader');
+        const notConnectedBox = document.getElementById('lowInventoryNotConnected');
         const errorBox = document.getElementById('lowInventoryError');
 
         const pollAmazonInventory = () => {
@@ -522,6 +532,15 @@
             })
             .then(response => response.json())
             .then(data => {
+                const isNotConnected = data.connected === false || data.status?.error === 'amazon_not_connected';
+
+                if (isNotConnected) {
+                    if (loader) loader.classList.add('d-none');
+                    if (errorBox) errorBox.classList.add('d-none');
+                    if (notConnectedBox) notConnectedBox.classList.remove('d-none');
+                    return;
+                }
+
                 const refreshing = data.status?.refreshing === true;
                 const syncCompleted = data.status?.sync_completed === true;
 
@@ -534,12 +553,14 @@
                     location.reload();
                 } else {
                     if (loader) loader.classList.add('d-none');
+                    if (notConnectedBox) notConnectedBox.classList.add('d-none');
                     if (errorBox) errorBox.classList.remove('d-none');
                 }
             })
             .catch(error => {
                 console.error('Amazon inventory fetch failed:', error);
                 if (loader) loader.classList.add('d-none');
+                if (notConnectedBox) notConnectedBox.classList.add('d-none');
                 if (errorBox) errorBox.classList.remove('d-none');
             });
         };
