@@ -170,4 +170,10 @@
         </div>
     </div>
 </div>
+
+<form method="GET" action="{{ route('shopify.install') }}" style="display:none;">
+    <input type="text" name="shop" class="form-control" placeholder="your-store-name" value="{{session('active_shop')}}" required>
+    <button type="submit" class="btn btn-primary px-4" id="connect_to_store"> Connect Store </button>
+</form>
+
 @endsection

@@ -226,11 +226,21 @@ class AIController extends Controller
 
         $contextLines = array_filter([
             "Shop name: {$shop->shop}",
+            'What ZeoSync does: ZeoSync connects Shopify and Amazon to help merchants manage products and inventory between both marketplaces from one place.',
+            'Shopify products: Merchants can view and manage their Shopify products through ZeoSync.',
+            'Amazon products: Merchants can view their Amazon catalog and inventory through ZeoSync.',
+            'Shopify-Amazon sync: ZeoSync makes it easier to sync product and inventory information between Shopify and Amazon, reducing the need to manage both platforms separately.',
+            'AI product listing: ZeoSync provides AI-assisted tools to help merchants create and prepare Amazon product listings from their Shopify product information.',
+            'Amazon account connection: To connect Amazon, use the Account Connected menu in the app.',
+            'Product synchronization: To sync products or inventory, use the Inventory menu in the app.',
             'Total Shopify products: ' . $totalProducts,
             'Top selling products: ' . ($topProductsLines ? implode('; ', $topProductsLines) : 'No sales data available'),
             'Amazon  orders: ' . count($amazonOrders) . ' orders' . ($amazonOrderIds ? ' (sample IDs: ' . implode(', ', $amazonOrderIds) . ')' : ''),
             'Amazon  inventory items: ' . count($amazonInventory),
             $catalogSummary,
+            'To connect amazon use account connected menu in the app.',
+            'To sync use Inventory menu in the app.',
+            'Plans and billing complete managed by shopify billing , In app you get only view of plans.',
             'Note: Amazon product pricing is not stored explicitly in this system unless the Shopify product record includes that detail.',
         ]);
 

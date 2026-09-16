@@ -245,12 +245,6 @@ class ShopifyController extends Controller
                     ]
                 );
 
-            Log::info('SHOP STATUS CHECK', [
-                'shop_id' => $shop->id,
-                'shop' => $shop->shop,
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
 
             // Token revoked / invalid
             if (in_array($response->status(), [401, 402], true)) {
@@ -318,9 +312,7 @@ class ShopifyController extends Controller
 
     public function install(Request $request)
     {
-        Log::info('INSTALL HIT', [
-            'shop' => $request->query('shop'),
-        ]);
+
         $shop = $request->query('shop');
         //   fallback from host (IMPORTANT)
         if (!$shop && $request->has('host')) {
@@ -331,8 +323,10 @@ class ShopifyController extends Controller
         }
 
         if (!$shop) {
-            Log::error('SHOP MISSING');
-            return response('Missing shop parameter', 400);
+            if($request->expectsJson() || $request->ajax()){
+                return response()->json(['error' => 'Missing shop parameter'], 400);
+            }
+            return redirect()->route('crm.entry')->with('error', 'Shopify store information is missing. Please provide your store domain.');
         }
 
         if (!str_contains($shop, '.myshopify.com')) {
@@ -350,20 +344,10 @@ class ShopifyController extends Controller
 
    
         // ⚡ build query safely
-        $shopifyApiKey = AdminSetting::get(
-            'SHOPIFY_API_KEY',
-            config('services.shopify.api_key')
-        );
-
-        $shopifyRedirectUri = AdminSetting::get(
-            'SHOPIFY_REDIRECT_URI',
-            config('services.shopify.redirect_uri')
-        );
-
-        $query = http_build_query([
-            'client_id'    => $shopifyApiKey,
-            'scope'        => $this->oauthScopes(),
-            'redirect_uri' => $shopifyRedirectUri,
+        $shopifyApiKey = AdminSetting::get( 'SHOPIFY_API_KEY', config('services.shopify.api_key'));
+        $shopifyRedirectUri = AdminSetting::get( 'SHOPIFY_REDIRECT_URI',  config('services.shopify.redirect_uri'));
+        $query = http_build_query([ 'client_id'    => $shopifyApiKey, 
+            'scope'  => $this->oauthScopes(), 'redirect_uri' => $shopifyRedirectUri,
             'state'        => $state,
         ]);
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
@@ -378,7 +362,6 @@ class ShopifyController extends Controller
     }
     public function callback(Request $request)
     {
-        Log::info('Shopify OAuth callback received');
         // =========================
         // STEP 1: HMAC VALIDATION (FIRST)
         // =========================
@@ -435,10 +418,6 @@ class ShopifyController extends Controller
             'expiring' => 1,
         ]);
         if (!$response->successful()) {
-            Log::error('TOKEN FAILED', [
-                'status' => $response->status(),
-                'body' => $response->body()
-            ]);
             return redirect('/')->with('error', 'Shopify connection failed.');
         }
         $data = $response->json();

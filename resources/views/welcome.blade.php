@@ -17,15 +17,11 @@
 
             <form method="GET" action="{{ route('shopify.install') }}" class="d-flex justify-content-center">
                 <div class="input-group" style="max-width: 450px;">
-
                     <input type="text" name="shop" class="form-control" placeholder="your-store-name" value="{{session('active_shop')}}" required>
-
                     <span class="input-group-text d-none d-md-inline-flex">.myshopify.com</span>
-
-                    <button class="btn btn-primary px-4">
+                    <button class="btn btn-primary px-4" id="connect_to_store">
                         Connect Store
                     </button>
-
                 </div>
             </form>
 

@@ -207,15 +207,13 @@ class SettingsController extends ShopifyController
 
             $shopUrl = strtolower(trim((string) $validated['shop_url']));
 
-            $shop = Shop::whereRaw('LOWER(shop) = ?', [
-                $shopUrl
-            ])->first();
+            $shop = Shop::whereRaw('LOWER(shop) = ?', [ $shopUrl  ])->first();
 
             if (!$shop) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Shop not found.',
-                ], 404);
+                ], 319);
             }
 
             $shop->update([
@@ -226,9 +224,7 @@ class SettingsController extends ShopifyController
 
             $shop->fresh();
 
-            session([
-                'active_shop' => $shop->shop,
-            ]);
+            session(['active_shop' => $shop->shop]);
 
             try {
                 $template = MailTemplate::active()
