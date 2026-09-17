@@ -79,53 +79,70 @@
         min-width: auto !important;
     }
 
-    /* Image Library Modal Cards */
-    .library-image-card {
-        position: relative;
-        border-radius: 8px;
-        overflow: hidden;
-        border: 2px solid #E5E7EB;
-        cursor: pointer;
-        transition: all 0.15s ease-in-out;
-        background: #F9FAFB;
-        width: 104px;
-        height: 104px;
+    /* Image Library Modal Cards - Scoped strictly to Amazon Image Library Modal */
+    #imageLibraryModal .library-image-card {
+        width: 100px;
+        height: 100px;
+        min-width: 100px;
+        min-height: 100px;
+        max-width: 100px;
+        max-height: 100px;
+        flex: 0 0 100px;
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
+        position: relative;
+        border-radius: 8px;
+        border: 2px solid #E5E7EB;
+        background: #F9FAFB;
+        cursor: pointer;
+        transition: all 0.15s ease-in-out;
         box-sizing: border-box;
         user-select: none;
     }
 
-    .library-image-card:hover {
+    #imageLibraryModal .library-image-card:hover {
         border-color: #9CA3AF;
         transform: translateY(-1px);
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
     }
 
-    .library-image-card.is-selected {
+    #imageLibraryModal .library-image-card.is-selected {
         border-color: #2563EB !important;
         background: #EFF6FF !important;
         box-shadow: 0 0 0 1px #2563EB;
     }
 
-    .image-library-preview-wrapper {
+    #imageLibraryModal .image-library-preview-wrapper {
         width: 100px;
         height: 100px;
+        min-width: 100px;
+        min-height: 100px;
+        max-width: 100px;
+        max-height: 100px;
         display: flex;
         align-items: center;
         justify-content: center;
         background: transparent;
+        overflow: hidden;
+        box-sizing: border-box;
     }
 
-    .image-library-preview {
+    #imageLibraryModal .library-image-card img,
+    #imageLibraryModal .image-library-preview {
         width: 100px;
         height: 100px;
+        min-width: 100px;
+        min-height: 100px;
+        max-width: 100px;
+        max-height: 100px;
         object-fit: contain;
         display: block;
+        margin: auto;
     }
 
-    .library-image-card .select-badge {
+    #imageLibraryModal .library-image-card .select-badge {
         position: absolute;
         top: 4px;
         right: 4px;
@@ -143,7 +160,7 @@
         z-index: 2;
     }
 
-    .library-image-card.is-selected .select-badge {
+    #imageLibraryModal .library-image-card.is-selected .select-badge {
         background: #2563EB;
         color: #fff;
     }
