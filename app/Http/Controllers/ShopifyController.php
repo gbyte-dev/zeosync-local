@@ -3159,8 +3159,10 @@ class ShopifyController extends Controller
             ->limit(10)
             ->get();
 
-        // Notifications for this shop
-        $notifications = \App\Models\UserNotification::where('shop_id', $shop->id)
+        // Admin notifications for this shop (includes global notifications with null shop_id)
+        $notifications = \App\Models\AdminNotification::where(function($q) use ($shop) {
+                $q->whereNull('shop_id')->orWhere('shop_id', $shop->id);
+            })
             ->orderBy('created_at', 'desc')
             ->limit(20)
             ->get();
