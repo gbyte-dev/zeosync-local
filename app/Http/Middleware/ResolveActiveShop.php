@@ -82,7 +82,8 @@ class ResolveActiveShop
                 if (
                     !$isActivated &&
                     !$request->routeIs('setup.form') &&
-                    !$request->routeIs('setup.store')
+                    !$request->routeIs('setup.store') &&
+                    !$request->routeIs('setup.activation.status')
                 ) {
                     Log::info('RESOLVE_ACTIVE_SHOP: Activation required', [
                         'shop_id' => $shop->id,
@@ -123,6 +124,7 @@ class ResolveActiveShop
             $request->routeIs('api.shop.status') ||
             $request->routeIs('setup.form') ||
             $request->routeIs('setup.store') ||
+            $request->routeIs('setup.activation.status') ||
             $request->routeIs('about') ||
             $request->routeIs('pricing') ||
             $request->routeIs('contact') ||

@@ -743,6 +743,36 @@
             }
         })();
     </script>
+    <script>
+        window.addEventListener('message', function(event) {
+            if (event.origin && window.location.origin && event.origin !== 'null' && event.origin !== window.location.origin && !event.origin.includes('myshopify.com')) {
+                return;
+            }
+
+            const data = event.data || {};
+            if (data.type === 'shopify_activated' || data.type === 'shopify_authenticated') {
+                const currentShop = "{{ $activeShop ?? session('active_shop') ?? request('shop') ?? '' }}";
+                if (data.shop && currentShop && data.shop.toLowerCase() !== currentShop.toLowerCase()) {
+                    return;
+                }
+
+                if (data.status === 'activated' || data.type === 'shopify_activated') {
+                    if (typeof showToast === 'function') {
+                        showToast('Store activated successfully.', 'success');
+                    } else if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Store activated successfully.',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                    }
+                }
+            }
+        });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 

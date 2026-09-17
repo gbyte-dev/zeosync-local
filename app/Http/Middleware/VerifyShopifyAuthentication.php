@@ -411,6 +411,7 @@ class VerifyShopifyAuthentication
             $request->routeIs('api.shop.status') ||
             $request->routeIs('setup.form') ||
             $request->routeIs('setup.store') ||
+            $request->routeIs('setup.activation.status') ||
             $request->routeIs('about') ||
             $request->routeIs('pricing') ||
             $request->routeIs('contact') ||

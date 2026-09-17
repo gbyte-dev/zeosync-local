@@ -60,6 +60,7 @@ Route::post('settings', [SettingsController::class, 'update'])->name('settings.u
 // Route::get('logs', [SettingsController::class, 'logs'])->name('shopify.logs');
 Route::get('activate', [SettingsController::class, 'showForm'])->name('setup.form');
 Route::post('activate', [SettingsController::class, 'store'])->name('setup.store');
+Route::get('setup/activation-status', [SettingsController::class, 'activationStatus'])->name('setup.activation.status');
 // return refunds
 // Route::get('return_refunds', [ReturnController::class, 'index'])->name('shopify.return');
 // Route::get('returns/amazon', [ReturnController::class, 'amazon'])->name('shopify.returns.amazon');

@@ -137,6 +137,9 @@
 <script>
 (function() {
     let isSubmitting = false;
+    let isPolling = false;
+    let pollInterval = null;
+    let pollTimeout = null;
     let hasCompletedSuccessFlow = false;
 
     const form = document.getElementById('activateForm');
@@ -147,10 +150,22 @@
     const errorAlert = document.getElementById('activationErrorAlert');
     const errorMsg = document.getElementById('activationErrorMessage');
 
+    function stopPolling() {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+        if (pollTimeout) {
+            clearTimeout(pollTimeout);
+            pollTimeout = null;
+        }
+        isPolling = false;
+    }
+
     form.addEventListener('submit', async function (event) {
         event.preventDefault();
 
-        if (isSubmitting || hasCompletedSuccessFlow) {
+        if (isSubmitting || isPolling || hasCompletedSuccessFlow) {
             return;
         }
 
@@ -158,6 +173,7 @@
         button.disabled = true;
         button.innerText = 'Activating...';
         errorAlert.style.display = 'none';
+        successAlert.style.display = 'none';
 
         try {
             const response = await fetch(form.action, {
@@ -190,90 +206,157 @@
                 throw new Error(msg);
             }
 
-            // SUCCESS FLOW
-            hasCompletedSuccessFlow = true;
-
-            // 1. Show the user a clear success message: "Store activated successfully."
-            successMsg.textContent = 'Store activated successfully.';
-            successAlert.style.display = 'block';
-
-            // Disable form inputs
-            Array.from(form.elements).forEach(function(el) { el.disabled = true; });
-            button.innerText = 'Activated ✓';
-            button.classList.remove('btn-primary');
-            button.classList.add('btn-success');
-
-            if (typeof showToast === 'function') {
-                showToast('Store activated successfully.', 'success');
-            }
-
+            // Form submitted successfully: now start DB-confirmed polling
+            const shopDomain = data.shop || '{{ $shopModel?->shop }}';
+            const pollUrl = data.poll_url || '{{ route("setup.activation.status") }}?shop=' + encodeURIComponent(shopDomain);
             const redirectUrl = data.redirect_url || '{{ route("dashboard", ["shop" => $shopModel?->shop]) }}';
-            const shopDomain = '{{ $shopModel?->shop }}';
 
-            // Detect if opened as popup or inside iframe
-            const isInsideIframe = (window.self !== window.top);
-            const isPopup = Boolean(window.opener && !window.opener.closed && !isInsideIframe);
+            // Disable form inputs during polling
+            Array.from(form.elements).forEach(function(el) { el.disabled = true; });
+            button.innerText = 'Verifying activation...';
 
-            // Notify opener/parent via postMessage
-            const messagePayload = {
-                type: 'shopify_activated',
-                shop: shopDomain,
-                redirect_url: redirectUrl,
-                status: 'activated'
-            };
+            isSubmitting = false;
+            isPolling = true;
 
-            const legacyPayload = {
-                type: 'shopify_authenticated',
-                shop: shopDomain,
-                redirect_url: redirectUrl,
-                status: 'activated'
-            };
+            const startTime = Date.now();
+            const maxPollDuration = 30000; // 30 seconds timeout
 
-            if (isPopup) {
-                try {
-                    window.opener.postMessage(messagePayload, '*');
-                    window.opener.postMessage(legacyPayload, '*');
-                } catch (e) {
-                    console.warn('Could not postMessage to opener:', e);
+            // Start 30s timeout guard
+            pollTimeout = setTimeout(function() {
+                stopPolling();
+                if (!hasCompletedSuccessFlow) {
+                    errorMsg.textContent = 'Activation is still processing. Please refresh and try again.';
+                    errorAlert.style.display = 'block';
+                    button.disabled = false;
+                    button.innerText = 'Activate App';
+                    Array.from(form.elements).forEach(function(el) {
+                        if (el.name !== 'shop_url') el.disabled = false;
+                    });
+                }
+            }, maxPollDuration);
+
+            // Polling function
+            async function checkActivationStatus() {
+                if (hasCompletedSuccessFlow || !isPolling) {
+                    return;
                 }
 
-                // Immediately close the popup window after displaying success message
                 try {
-                    window.close();
-                } catch (e) {
-                    console.warn('window.close() threw error:', e);
-                }
+                    const statusRes = await fetch(pollUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
 
-                // If browser blocked window.close() or window remains open:
-                setTimeout(function () {
-                    if (!window.closed) {
-                        successSubtext.style.display = 'block';
-                        successSubtext.innerHTML = 'Activation complete. You can close this window or <a href="' + redirectUrl + '" class="fw-bold text-decoration-underline">click here to open Dashboard</a>.';
-
-                        // Safe fallback navigation if user is still on page
-                        setTimeout(function() {
-                            if (!window.closed) {
-                                window.location.href = redirectUrl;
-                            }
-                        }, 1200);
+                    if (!statusRes.ok) {
+                        return;
                     }
-                }, 300);
-            } else if (isInsideIframe && window.parent && window.parent !== window) {
-                try {
-                    window.parent.postMessage(messagePayload, '*');
-                    window.parent.postMessage(legacyPayload, '*');
-                } catch (e) {
-                    console.warn('Could not postMessage to parent:', e);
+
+                    const statusData = await statusRes.json();
+
+                    if (statusData && statusData.activated === true) {
+                        // DB CONFIRMED ACTIVATION
+                        stopPolling();
+                        hasCompletedSuccessFlow = true;
+
+                        // 1. Display "Store activated successfully."
+                        successMsg.textContent = 'Store activated successfully.';
+                        successAlert.style.display = 'block';
+                        button.innerText = 'Activated ✓';
+                        button.classList.remove('btn-primary');
+                        button.classList.add('btn-success');
+
+                        if (typeof showToast === 'function') {
+                            showToast('Store activated successfully.', 'success');
+                        }
+
+                        // Detect if opened as popup or inside iframe
+                        const isInsideIframe = (window.self !== window.top);
+                        const isPopup = Boolean(window.opener && !window.opener.closed && !isInsideIframe);
+
+                        // Secure message target origin
+                        const targetOrigin = window.location.origin && window.location.origin !== 'null'
+                            ? window.location.origin
+                            : '*';
+
+                        const messagePayload = {
+                            type: 'shopify_activated',
+                            shop: shopDomain,
+                            redirect_url: redirectUrl,
+                            status: 'activated'
+                        };
+
+                        const legacyPayload = {
+                            type: 'shopify_authenticated',
+                            shop: shopDomain,
+                            redirect_url: redirectUrl,
+                            status: 'activated'
+                        };
+
+                        if (isPopup) {
+                            try {
+                                window.opener.postMessage(messagePayload, targetOrigin);
+                                window.opener.postMessage(legacyPayload, targetOrigin);
+                            } catch (e) {
+                                try {
+                                    window.opener.postMessage(messagePayload, '*');
+                                    window.opener.postMessage(legacyPayload, '*');
+                                } catch (err) {}
+                            }
+
+                            // Automatically close the popup window after DB confirmation
+                            try {
+                                window.close();
+                            } catch (e) {
+                                console.warn('window.close() error:', e);
+                            }
+
+                            // If browser blocked window.close():
+                            setTimeout(function () {
+                                if (!window.closed) {
+                                    successSubtext.style.display = 'block';
+                                    successSubtext.innerHTML = 'Store activated successfully. You can close this window or <a href="' + redirectUrl + '" class="fw-bold text-decoration-underline">click here to open Dashboard</a>.';
+
+                                    setTimeout(function() {
+                                        if (!window.closed) {
+                                            window.location.href = redirectUrl;
+                                        }
+                                    }, 1500);
+                                }
+                            }, 300);
+
+                        } else if (isInsideIframe && window.parent && window.parent !== window) {
+                            try {
+                                window.parent.postMessage(messagePayload, targetOrigin);
+                                window.parent.postMessage(legacyPayload, targetOrigin);
+                            } catch (e) {
+                                try {
+                                    window.parent.postMessage(messagePayload, '*');
+                                    window.parent.postMessage(legacyPayload, '*');
+                                } catch (err) {}
+                            }
+                            // Inside iframe: never call window.close(), redirect safely
+                            window.location.href = redirectUrl;
+                        } else {
+                            // Standalone direct navigation
+                            window.location.href = redirectUrl;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Polling check error:', err);
                 }
-                // Inside iframe or direct navigation - never call window.close(), navigate safely
-                window.location.href = redirectUrl;
-            } else {
-                // Standalone direct navigation
-                window.location.href = redirectUrl;
             }
+
+            // Poll every 750ms
+            pollInterval = setInterval(checkActivationStatus, 750);
+            // Also run one immediate poll
+            checkActivationStatus();
 
         } catch (error) {
             console.error('Activation error:', error);
+            stopPolling();
             errorMsg.textContent = error.message || 'An error occurred during activation.';
             errorAlert.style.display = 'block';
             button.disabled = false;

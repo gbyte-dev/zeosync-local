@@ -157,9 +157,10 @@ it('1. First-time install: setup.store returns JSON success with redirect_url', 
     $response->assertStatus(200);
     $response->assertJson([
         'success' => true,
-        'message' => 'App activated successfully!',
+        'message' => 'Store activated successfully.',
     ]);
     expect($response->json('redirect_url'))->toContain('/dashboard');
+    expect($response->json('poll_url'))->toContain('/setup/activation-status');
 
     $shop->refresh();
     expect($shop->shop_name)->toBe('New Store Name');
@@ -680,8 +681,84 @@ it('13. Activation submission returns JSON success with redirect URL for both po
         'success' => true,
     ]);
     expect($response->json('redirect_url'))->toContain('/dashboard');
+    expect($response->json('poll_url'))->toContain('/setup/activation-status');
 
     $shop->refresh();
     expect($shop->shop_name)->toBe('Popup Store');
     expect($shop->email)->toBe('popup@store.com');
+});
+
+it('14. Activation status endpoint returns activated: false when either field is missing', function () {
+    $shop = Shop::create([
+        'shop' => 'unactivated-status.myshopify.com',
+        'access_token' => 'shpat_tok_unactivated',
+        'is_active' => 1,
+        'shop_name' => null,
+        'email' => null,
+    ]);
+
+    $response = $this->getJson('/setup/activation-status?shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+    $response->assertJson([
+        'activated' => false,
+        'shop' => $shop->shop,
+        'shop_name' => null,
+        'email' => null,
+        'message' => 'Store activation pending.',
+    ]);
+});
+
+it('15. Activation status endpoint returns activated: true only when both fields exist in DB', function () {
+    $shop = Shop::create([
+        'shop' => 'activated-status.myshopify.com',
+        'access_token' => 'shpat_tok_activated',
+        'is_active' => 1,
+        'shop_name' => 'Confirmed Name',
+        'email' => 'confirmed@email.com',
+    ]);
+
+    $response = $this->getJson('/setup/activation-status?shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+    $response->assertJson([
+        'activated' => true,
+        'shop' => $shop->shop,
+        'shop_name' => 'Confirmed Name',
+        'email' => 'confirmed@email.com',
+        'message' => 'Store activated successfully.',
+    ]);
+});
+
+it('16. Activation status endpoint returns 404 JSON for unknown shop domain', function () {
+    $response = $this->getJson('/setup/activation-status?shop=unknown-store.myshopify.com');
+
+    $response->assertStatus(404);
+    $response->assertJson([
+        'activated' => false,
+        'shop' => 'unknown-store.myshopify.com',
+        'message' => 'Shop not found.',
+    ]);
+});
+
+it('17. Activation page blade contains polling loop, DB confirmation logic, timeout handling, and stopPolling controls', function () {
+    $shop = Shop::create([
+        'shop' => 'polling-blade.myshopify.com',
+        'access_token' => 'shpat_tok_poll_blade',
+        'is_active' => 1,
+    ]);
+
+    $response = $this->withSession([
+        '_shopify_verified_shop' => $shop->shop,
+        'active_shop' => $shop->shop,
+        'active_shop_id' => $shop->id,
+    ])->get('/activate?shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+    $response->assertSee('pollUrl');
+    $response->assertSee('checkActivationStatus');
+    $response->assertSee('stopPolling');
+    $response->assertSee('maxPollDuration');
+    $response->assertSee('Activation is still processing. Please refresh and try again.');
+    $response->assertSee('statusData.activated === true');
 });

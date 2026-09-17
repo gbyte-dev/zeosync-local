@@ -262,10 +262,16 @@ class SettingsController extends ShopifyController
                 'shop' => $shop->shop,
             ]);
 
+            $pollUrl = route('setup.activation.status', [
+                'shop' => $shop->shop,
+            ]);
+
             return response()->json([
                 'success' => true,
+                'shop' => $shop->shop,
+                'poll_url' => $pollUrl,
                 'redirect_url' => $dashboardUrl,
-                'message' => 'App activated successfully!',
+                'message' => 'Store activated successfully.',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
@@ -280,6 +286,62 @@ class SettingsController extends ShopifyController
                 'message' => 'Something went wrong. Request ID: ' . $requestId,
             ], 500);
         }
+    }
+
+    public function activationStatus(Request $request)
+    {
+        $requestId = (string) \Illuminate\Support\Str::uuid();
+        $shopParam = strtolower(trim((string) ($request->query('shop') ?? $request->input('shop', ''))));
+
+        $shop = null;
+        if ($shopParam !== '') {
+            $shop = Shop::whereRaw('LOWER(shop) = ?', [$shopParam])->first();
+        }
+
+        if (!$shop) {
+            $shopModel = $this->getActiveShop($request);
+            if ($shopModel) {
+                $shop = $shopModel;
+            }
+        }
+
+        if (!$shop) {
+            Log::info('ACTIVATION_STATUS_CHECK: Shop not found', [
+                'request_id' => $requestId,
+                'shop_domain' => $shopParam,
+                'status' => 'shop_not_found',
+            ]);
+
+            return response()->json([
+                'activated' => false,
+                'shop' => $shopParam,
+                'shop_name' => null,
+                'email' => null,
+                'message' => 'Shop not found.',
+            ], 404);
+        }
+
+        $shopName = trim((string) $shop->shop_name);
+        $email = trim((string) $shop->email);
+        $isActivated = ($shopName !== '' && $email !== '' && (int) $shop->is_active === 1);
+
+        Log::info('ACTIVATION_STATUS_CHECK: Polling request evaluated', [
+            'request_id' => $requestId,
+            'shop_id' => $shop->id,
+            'shop_domain' => $shop->shop,
+            'has_shop_name' => !empty($shopName),
+            'has_email' => !empty($email),
+            'is_active' => (int) $shop->is_active,
+            'activated' => $isActivated,
+        ]);
+
+        return response()->json([
+            'activated' => $isActivated,
+            'shop' => $shop->shop,
+            'shop_name' => $isActivated ? $shopName : null,
+            'email' => $isActivated ? $email : null,
+            'message' => $isActivated ? 'Store activated successfully.' : 'Store activation pending.',
+        ]);
     }
 
     // public function store(Request $request)
