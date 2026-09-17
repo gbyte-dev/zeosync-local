@@ -31,7 +31,7 @@
 
         <div class="card-body border-0">
             @if($shops->count() > 0)
-            <div class="table-responsive d-none d-md-block">
+            <div class="table-responsive  d-md-block">
                 <table id="shops-table" class="table table-hover align-middle mb-0 w-100">
                     <thead class="table-light">
                         <tr>
@@ -156,12 +156,12 @@
                             "<'row'<'col-sm-12'tr>>" +
                             "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
                         buttons: [
-                            { extend: 'copy', className: 'btn btn-sm btn-outline-secondary' },
-                            { extend: 'csv', className: 'btn btn-sm btn-outline-secondary' },
-                            { extend: 'excel', className: 'btn btn-sm btn-outline-secondary' },
-                            { extend: 'pdf', className: 'btn btn-sm btn-outline-secondary' },
-                            { extend: 'print', className: 'btn btn-sm btn-outline-secondary' },
-                            { extend: 'colvis', className: 'btn btn-sm btn-outline-secondary' }
+                            { extend: 'copy', className: 'btn btn-sm btn-outline-primary text-white' },
+                            { extend: 'csv', className: 'btn btn-sm btn-outline-primary text-white' },
+                            { extend: 'excel', className: 'btn btn-sm btn-outline-primary text-white' },
+                            { extend: 'pdf', className: 'btn btn-sm btn-outline-primary text-white' },
+                            { extend: 'print', className: 'btn btn-sm btn-outline-primary text-white' },
+                            { extend: 'colvis', className: 'btn btn-sm btn-outline-primary text-white' }
                         ],
                         responsive: true,
                         pagingType: 'simple_numbers',
@@ -193,7 +193,7 @@
                 }
 
                 // Mobile card search (simple client-side filter, mirrors desktop search behavior)
-                const mobileSearch = document.getElementById('mobile-shop-search');
+                const mobileSearch = '';// document.getElementById('mobile-shop-search');
                 const mobileCards = Array.from(document.querySelectorAll('[data-shop-card]'));
                 const mobileNoResults = document.getElementById('mobile-shop-no-results');
 
