@@ -34,7 +34,7 @@
 
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table id="datatable-table" class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
                             <th>#</th>
@@ -111,3 +111,11 @@
 @push('css')
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
 @endpush
+
+@section('scripts')
+    <script>
+        $(document).ready(function() {
+            initDatatable('#datatable-table');
+        });
+    </script>
+@endsection
