@@ -8,6 +8,9 @@
     {{-- Bootstrap 5 --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
     @php
     $favicon = \App\Models\AdminSetting::where('option_key', 'app_favicon')->value('option_value');
 
@@ -232,6 +235,15 @@
             border-radius: 22px 22px 0 0;
             border-top: 1px solid gray;
         }
+
+    #datatable-table_filter { float: inline-end; }
+    #datatable-table_paginate { float: inline-end; margin-top: 10px; }
+    #datatable-table { margin-bottom: 10px; }
+    #datatable-table_info { float: inline-start; margin-top: 10px; }
+    #datatable-table_length { width: fit-content; }
+    .dataTables_length>label,
+    .dataTables_filter>label { display: flex; align-items: center; gap: 10px; }
+
     </style>
     @stack('css')
 </head>
@@ -439,6 +451,21 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
+    <!-- Buttons extension -->
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.colVis.min.js"></script>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.toast').forEach(function(toastEl) {
@@ -472,6 +499,49 @@
                     console.error(error);
                 });
         });
+
+    // Initialize reusable datatable for this page
+    function initDatatable(selector, opts = {}) {
+        const $el = $(selector);
+        if (!$el.length) return null;
+
+        const defaults = {
+            dom: "<'row'<'col-sm-12 col-md-6'B><'col-sm-12 col-md-6'f>>" +
+                "<'row'<'col-sm-12'tr>>" +
+                "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+            buttons: [
+                { extend: 'csv', className: 'btn btn-sm btn-outline-primary text-white' },
+                { extend: 'excel', className: 'btn btn-sm btn-outline-primary text-white' },
+                { extend: 'pdf', className: 'btn btn-sm btn-outline-primary text-white' },
+                { extend: 'print', className: 'btn btn-sm btn-outline-primary text-white' },
+                { extend: 'colvis', className: 'btn btn-sm btn-outline-primary text-white' }
+            ],
+            responsive: true,
+            pagingType: 'simple_numbers',
+            pageLength: 10,
+            lengthChange: true,
+            lengthMenu: [10, 25, 50, 100],
+            searching: true,
+            ordering: true,
+            info: true,
+            order: [[0, 'asc']],
+            columnDefs: [{ orderable: false, targets: [1,2,3,4] }],
+            language: {
+                search: "Search:",
+                searchPlaceholder: "Find a shop",
+                emptyTable: "No shops found",
+                zeroRecords: "No matching shops found",
+                info: "Showing _START_ to _END_ of _TOTAL_ shops",
+                infoEmpty: "Showing 0 shops",
+                infoFiltered: "(filtered from _MAX_ total shops)",
+                lengthMenu: "Show _MENU_ shops",
+                paginate: { previous: "Previous", next: "Next" }
+            }
+        };
+
+        const config = $.extend(true, {}, defaults, opts);
+        return $el.DataTable(config);
+    }
     </script>
     @yield('scripts')
     @stack('scripts')
