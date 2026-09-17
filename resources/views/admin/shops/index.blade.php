@@ -101,9 +101,9 @@
                 <div class="border rounded-4 p-3 mb-3 bg-white shadow-sm" data-shop-card>
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <a href="{{ route('admin.shops.show', $shop->id) }}" class="text-dark text-decoration-none fw-bold d-flex align-items-center">
-                            <span class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary fw-bold me-2" style="width: 38px; height: 38px;">
+                            <!-- <span class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary fw-bold me-2" style="width: 38px; height: 38px;">
                                 {{ strtoupper(substr($shop->shop, 0, 1)) }}
-                            </span>
+                            </span> -->
                             <span>{{ $shop->shop }}</span>
                         </a>
                         @if($shop->is_active)
@@ -181,6 +181,7 @@
                         searching: true,
                         ordering: true,
                         info: true,
+                        order: [[0, 'asc']],
                         columnDefs: [{
                             orderable: false,
                             targets: [1, 2, 3, 4]
