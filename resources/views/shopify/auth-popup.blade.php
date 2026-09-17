@@ -116,6 +116,9 @@
                     if (data.redirect_url && (data.redirect_url.includes('/dashboard') || data.type === 'shopify_activated') && !hasRedirected) {
                         hasRedirected = true;
                         if (setupCheckInterval) clearInterval(setupCheckInterval);
+                        if (popup && !popup.closed) {
+                            try { popup.close(); } catch(e) {}
+                        }
                         window.location.href = data.redirect_url;
                         return;
                     }

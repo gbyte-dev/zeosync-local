@@ -633,3 +633,55 @@ it('11. Repeated uninstall overwrites previous_activation_details with latest na
     expect($shop->previous_activation_details['email'])->toBe('v2@store.com');
     expect($shop->previous_activation_details['saved_at'])->not->toBe('2025-01-01T00:00:00+00:00');
 });
+
+it('12. Activation page renders the success container, postMessage support, popup closing logic, and iframe safety checks', function () {
+    $shop = Shop::create([
+        'shop' => 'view-test.myshopify.com',
+        'access_token' => 'shpat_tok_view',
+        'is_active' => 1,
+    ]);
+
+    $response = $this->withSession([
+        '_shopify_verified_shop' => $shop->shop,
+        'active_shop' => $shop->shop,
+        'active_shop_id' => $shop->id,
+    ])->get('/activate?shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+    $response->assertSee('Store activated successfully.');
+    $response->assertSee('activationSuccessAlert');
+    $response->assertSee('shopify_activated');
+    $response->assertSee('isInsideIframe');
+    $response->assertSee('window.close()');
+});
+
+it('13. Activation submission returns JSON success with redirect URL for both popup and embedded flows', function () {
+    $shop = Shop::create([
+        'shop' => 'popup-flow.myshopify.com',
+        'access_token' => 'shpat_tok_popup',
+        'is_active' => 1,
+    ]);
+
+    $response = $this->withSession([
+        '_shopify_verified_shop' => $shop->shop,
+        'active_shop' => $shop->shop,
+        'active_shop_id' => $shop->id,
+    ])->withHeaders([
+        'Accept' => 'application/json',
+        'X-Requested-With' => 'XMLHttpRequest',
+    ])->post('/activate?shop=' . $shop->shop, [
+        'shop_url' => $shop->shop,
+        'shop_name' => 'Popup Store',
+        'email' => 'popup@store.com',
+    ]);
+
+    $response->assertStatus(200);
+    $response->assertJson([
+        'success' => true,
+    ]);
+    expect($response->json('redirect_url'))->toContain('/dashboard');
+
+    $shop->refresh();
+    expect($shop->shop_name)->toBe('Popup Store');
+    expect($shop->email)->toBe('popup@store.com');
+});
