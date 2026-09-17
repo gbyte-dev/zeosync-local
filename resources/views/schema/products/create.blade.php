@@ -78,6 +78,75 @@
         font-size: 14px !important;
         min-width: auto !important;
     }
+
+    /* Image Library Modal Cards */
+    .library-image-card {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 2px solid #E5E7EB;
+        cursor: pointer;
+        transition: all 0.15s ease-in-out;
+        background: #F9FAFB;
+        width: 104px;
+        height: 104px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        user-select: none;
+    }
+
+    .library-image-card:hover {
+        border-color: #9CA3AF;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .library-image-card.is-selected {
+        border-color: #2563EB !important;
+        background: #EFF6FF !important;
+        box-shadow: 0 0 0 1px #2563EB;
+    }
+
+    .image-library-preview-wrapper {
+        width: 100px;
+        height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+    }
+
+    .image-library-preview {
+        width: 100px;
+        height: 100px;
+        object-fit: contain;
+        display: block;
+    }
+
+    .library-image-card .select-badge {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.5);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: bold;
+        transition: all 0.15s ease;
+        z-index: 2;
+    }
+
+    .library-image-card.is-selected .select-badge {
+        background: #2563EB;
+        color: #fff;
+    }
 </style>
 @endpush
 @section('content')
@@ -730,6 +799,78 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 </div>
 
 <div id="aiError" class="alert alert-danger d-none mb-3"></div>
+
+<!-- Image Library Selection Modal -->
+<div class="modal fade" id="imageLibraryModal" tabindex="-1" aria-labelledby="imageLibraryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="border-radius: 12px; border: 1px solid #E5E7EB;">
+            <div class="modal-header py-3 px-4" style="border-bottom: 1px solid #F3F4F6;">
+                <div>
+                    <h5 class="modal-title fw-semibold text-dark mb-0" id="imageLibraryModalLabel" style="font-size: 15px;">
+                        Select Image
+                    </h5>
+                    <p class="text-muted small mb-0" id="imageLibraryModalSubtitle" style="font-size: 12px;">Choose an image from your library or upload from device</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Modal Alert Message -->
+                <div id="modalAlertMessage" class="alert d-none py-2 px-3 small mb-3" role="alert"></div>
+
+                <!-- Tab Navigation & Upload from Device Toolbar -->
+                <div class="d-flex justify-content-between align-items-center border-bottom mb-3 pb-1">
+                    <ul class="nav nav-tabs border-bottom-0 mb-0" id="imageLibraryTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-medium px-3 py-2 border-0 bg-transparent text-dark border-bottom border-2 border-primary" id="tab-add-product" type="button" role="tab" style="font-size: 13px;">
+                                <i class="bi bi-grid-fill me-1 text-primary"></i> Image Library
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="d-flex align-items-center">
+                        <input type="file" id="modalDeviceUploadInput" accept="image/*" class="d-none">
+                        <button type="button" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" id="modalDeviceUploadBtn" style="font-size: 12px;">
+                            <i class="bi bi-cloud-arrow-up" id="modalUploadIcon"></i>
+                            <span id="modalUploadBtnSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            <span id="modalUploadBtnText">Upload from Device</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div id="libraryImagesLoading" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <span class="ms-2 small text-muted">Loading your images...</span>
+                </div>
+
+                <!-- Images Grid (Max 10 per tab/page, fixed 100x100 contain previews) -->
+                <div id="libraryImagesGrid" class="d-flex flex-wrap gap-2 justify-content-start" style="min-height: 230px;">
+                    <!-- Dynamically populated -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="libraryEmptyState" class="text-center py-4 text-muted small d-none">
+                    No images found in your library.
+                </div>
+
+                <!-- Pagination & Page Controls (10 images max per tab/page) -->
+                <div id="libraryPagination" class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top d-none">
+                    <span class="small text-muted" id="libraryPaginationInfo">Showing 0 - 0 of 0 images</span>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-dark btn-sm" id="libraryPrevPageBtn" disabled>‹ Previous</button>
+                        <button type="button" class="btn btn-outline-dark btn-sm" id="libraryNextPageBtn" disabled>Next ›</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between py-2 px-4" style="border-top: 1px solid #F3F4F6; background: #FAFAFA; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                <span class="small fw-500 text-muted" id="selectedLibraryCount">Selected: 0 images</span>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-dark btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success btn-sm" id="confirmLibrarySelectionBtn">Select Image</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 @push('scripts')
 <script>
@@ -1383,226 +1524,319 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
     });
 
-    function renderImagePickerPage(images, fieldName, page, itemsEl, paginationEl) {
-        const perPage = 6;
-        const totalPages = Math.max(1, Math.ceil(images.length / perPage));
-        const safePage = Math.min(page, totalPages);
-        const start = (safePage - 1) * perPage;
-        const visibleImages = images.slice(start, start + perPage);
+    // --- Amazon Image Library Modal Management ---
+    const IMAGES_PER_TAB_PAGE = 10;
+    let allLibraryImages = [];
+    let currentLibraryPage = 1;
+    let modalSelectedMap = new Map(); // url => { url, name, id, path }
+    let currentAmazonImageTarget = null; // { fieldName, input }
 
-        const html = visibleImages.map(function(image) {
-            return `
-                <div class="col-6 col-sm-4 col-md-3">
-                    <div class="position-relative rounded overflow-hidden shadow-sm border image-picker-hover-card" style="height: 82px; background: #f8f9fa;">
-                        <img src="${image.url}" alt="${image.name}" style="width: 100%; height: 100%; object-fit: cover;">
-                        <button type="button"
-                            class="btn btn-sm btn-primary position-absolute top-50 start-50 translate-middle opacity-0 select-image-item image-picker-select-btn"
-                            style="transition: opacity 0.2s ease; padding: 2px 8px; font-size: 11px;"
-                            data-field-name="${fieldName}"
-                            data-image-url="${image.url}">Select</button>
-                    </div>
-                </div>`;
-        }).join('');
+    const libraryModalEl = document.getElementById('imageLibraryModal');
+    const libraryModal = libraryModalEl ? bootstrap.Modal.getOrCreateInstance(libraryModalEl) : null;
+    const libraryImagesGrid = document.getElementById('libraryImagesGrid');
+    const libraryImagesLoading = document.getElementById('libraryImagesLoading');
+    const libraryEmptyState = document.getElementById('libraryEmptyState');
+    const selectedLibraryCount = document.getElementById('selectedLibraryCount');
+    const confirmLibrarySelectionBtn = document.getElementById('confirmLibrarySelectionBtn');
+    const libraryPagination = document.getElementById('libraryPagination');
+    const libraryPaginationInfo = document.getElementById('libraryPaginationInfo');
+    const libraryPrevPageBtn = document.getElementById('libraryPrevPageBtn');
+    const libraryNextPageBtn = document.getElementById('libraryNextPageBtn');
 
-        itemsEl.innerHTML = html;
+    const modalDeviceUploadBtn = document.getElementById('modalDeviceUploadBtn');
+    const modalDeviceUploadInput = document.getElementById('modalDeviceUploadInput');
+    const modalUploadBtnText = document.getElementById('modalUploadBtnText');
+    const modalUploadIcon = document.getElementById('modalUploadIcon');
+    const modalUploadBtnSpinner = document.getElementById('modalUploadBtnSpinner');
+    const modalAlertMessage = document.getElementById('modalAlertMessage');
 
-        if (totalPages > 1) {
-            const pageNumbers = [];
-
-            for (let i = 1; i <= totalPages; i++) {
-                pageNumbers.push(`<button type="button" class="btn btn-sm ${i === safePage ? 'btn-primary' : 'btn-outline-secondary'} image-picker-page" data-page="${i}">${i}</button>`);
-            }
-
-            paginationEl.innerHTML = `<div class="d-flex justify-content-center gap-2 mt-3">${pageNumbers.join('')}</div>`;
-        } else {
-            paginationEl.innerHTML = '';
-        }
+    function showModalAlert(message, type = 'danger') {
+        if (!modalAlertMessage) return;
+        modalAlertMessage.textContent = message;
+        modalAlertMessage.className = `alert alert-${type} py-2 px-3 small mb-3`;
     }
 
-    function loadImagePickerImages(fieldName, pickerUrl, itemsEl, loadingEl, paginationEl) {
-        loadingEl.style.display = 'block';
-        itemsEl.innerHTML = '';
-        paginationEl.innerHTML = '';
+    function updateModalCounter() {
+        if (!selectedLibraryCount) return;
+        const count = modalSelectedMap.size;
+        selectedLibraryCount.textContent = `Selected: ${count} image${count === 1 ? '' : 's'}`;
+    }
 
-        $.ajax({
-            url: pickerUrl,
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                if (!response.success || !response.images || !response.images.length) {
-                    itemsEl.innerHTML = '<div class="col-12 text-center text-muted py-3">No saved images found. Upload images first.</div>';
-                    loadingEl.style.display = 'none';
-                    return;
-                }
+    function fetchLibraryImages() {
+        if (!libraryImagesLoading || !libraryImagesGrid) return;
+        libraryImagesLoading.classList.remove('d-none');
+        libraryImagesGrid.innerHTML = '';
+        if (libraryEmptyState) libraryEmptyState.classList.add('d-none');
+        if (libraryPagination) libraryPagination.classList.add('d-none');
 
-                const images = response.images;
-                window.imagePickerImages = images;
-                renderImagePickerPage(images, fieldName, 1, itemsEl, paginationEl);
-                loadingEl.style.display = 'none';
-            },
-            error: function() {
-                itemsEl.innerHTML = '<div class="col-12 text-center text-danger py-3">Unable to load images.</div>';
-                loadingEl.style.display = 'none';
+        fetch("{{ route('shopify.image-picker-images') }}", {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            libraryImagesLoading.classList.add('d-none');
+            if (data.success && Array.isArray(data.images) && data.images.length > 0) {
+                allLibraryImages = data.images;
+                currentLibraryPage = 1;
+                renderLibraryTabPage();
+            } else {
+                if (libraryEmptyState) libraryEmptyState.classList.remove('d-none');
+            }
+        })
+        .catch(err => {
+            console.error('Failed to load library images:', err);
+            libraryImagesLoading.classList.add('d-none');
+            if (libraryEmptyState) {
+                libraryEmptyState.textContent = 'Unable to load images. Please try again.';
+                libraryEmptyState.classList.remove('d-none');
             }
         });
     }
 
+    function renderLibraryTabPage() {
+        if (!libraryImagesGrid) return;
+        libraryImagesGrid.innerHTML = '';
+
+        if (!allLibraryImages || allLibraryImages.length === 0) {
+            if (libraryEmptyState) libraryEmptyState.classList.remove('d-none');
+            if (libraryPagination) libraryPagination.classList.add('d-none');
+            return;
+        }
+
+        if (libraryEmptyState) libraryEmptyState.classList.add('d-none');
+
+        const totalImages = allLibraryImages.length;
+        const totalPages = Math.max(1, Math.ceil(totalImages / IMAGES_PER_TAB_PAGE));
+        if (currentLibraryPage > totalPages) currentLibraryPage = totalPages;
+        if (currentLibraryPage < 1) currentLibraryPage = 1;
+
+        const startIndex = (currentLibraryPage - 1) * IMAGES_PER_TAB_PAGE;
+        const pageImages = allLibraryImages.slice(startIndex, startIndex + IMAGES_PER_TAB_PAGE);
+
+        pageImages.forEach(img => {
+            const card = document.createElement('div');
+            const isSelected = modalSelectedMap.has(img.url);
+            card.className = 'library-image-card' + (isSelected ? ' is-selected' : '');
+            card.setAttribute('data-url', img.url);
+
+            card.innerHTML = `
+                <div class="image-library-preview-wrapper">
+                    <img src="${img.url}" alt="${img.name || ''}" class="image-library-preview">
+                </div>
+                <span class="select-badge">${isSelected ? '✓' : '+'}</span>
+            `;
+
+            card.addEventListener('click', function() {
+                // Single image selection mode for Amazon field
+                if (modalSelectedMap.has(img.url)) {
+                    modalSelectedMap.clear();
+                    card.classList.remove('is-selected');
+                    card.querySelector('.select-badge').textContent = '+';
+                } else {
+                    modalSelectedMap.clear();
+                    modalSelectedMap.set(img.url, img);
+                    document.querySelectorAll('#libraryImagesGrid .library-image-card').forEach(c => {
+                        c.classList.remove('is-selected');
+                        const b = c.querySelector('.select-badge');
+                        if (b) b.textContent = '+';
+                    });
+                    card.classList.add('is-selected');
+                    card.querySelector('.select-badge').textContent = '✓';
+                }
+                updateModalCounter();
+            });
+
+            libraryImagesGrid.appendChild(card);
+        });
+
+        // Update Pagination Controls
+        if (libraryPagination && libraryPaginationInfo && libraryPrevPageBtn && libraryNextPageBtn) {
+            if (totalImages > IMAGES_PER_TAB_PAGE) {
+                libraryPagination.classList.remove('d-none');
+                const endCount = Math.min(startIndex + IMAGES_PER_TAB_PAGE, totalImages);
+                libraryPaginationInfo.textContent = `Showing ${startIndex + 1} - ${endCount} of ${totalImages} images (Page ${currentLibraryPage} of ${totalPages})`;
+                libraryPrevPageBtn.disabled = (currentLibraryPage <= 1);
+                libraryNextPageBtn.disabled = (currentLibraryPage >= totalPages);
+            } else {
+                libraryPagination.classList.add('d-none');
+            }
+        }
+    }
+
+    if (libraryPrevPageBtn) {
+        libraryPrevPageBtn.addEventListener('click', function() {
+            if (currentLibraryPage > 1) {
+                currentLibraryPage--;
+                renderLibraryTabPage();
+            }
+        });
+    }
+
+    if (libraryNextPageBtn) {
+        libraryNextPageBtn.addEventListener('click', function() {
+            const totalPages = Math.ceil(allLibraryImages.length / IMAGES_PER_TAB_PAGE);
+            if (currentLibraryPage < totalPages) {
+                currentLibraryPage++;
+                renderLibraryTabPage();
+            }
+        });
+    }
+
+    // Modal Upload from Device
+    if (modalDeviceUploadBtn && modalDeviceUploadInput) {
+        modalDeviceUploadBtn.addEventListener('click', function() {
+            modalDeviceUploadInput.value = '';
+            if (modalAlertMessage) modalAlertMessage.className = 'alert d-none py-2 px-3 small mb-3';
+            modalDeviceUploadInput.click();
+        });
+
+        modalDeviceUploadInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showModalAlert('Please select a valid image file (JPG, PNG, or WEBP).', 'danger');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                showModalAlert('Image size must not exceed 10 MB.', 'danger');
+                return;
+            }
+
+            modalDeviceUploadBtn.disabled = true;
+            if (modalUploadIcon) modalUploadIcon.classList.add('d-none');
+            if (modalUploadBtnSpinner) modalUploadBtnSpinner.classList.remove('d-none');
+            if (modalUploadBtnText) modalUploadBtnText.textContent = 'Uploading...';
+            if (modalAlertMessage) modalAlertMessage.className = 'alert d-none py-2 px-3 small mb-3';
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('_token', '{{ csrf_token() }}');
+
+            fetch("{{ route('shopify.imgupload.store') }}", {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: formData
+            })
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Failed to upload image.');
+                }
+                return data;
+            })
+            .then(data => {
+                const newImg = data.image;
+                allLibraryImages.unshift(newImg);
+                currentLibraryPage = 1;
+
+                modalSelectedMap.clear();
+                modalSelectedMap.set(newImg.url, newImg);
+
+                renderLibraryTabPage();
+                updateModalCounter();
+                showModalAlert('Image uploaded successfully and selected.', 'success');
+            })
+            .catch(err => {
+                console.error('Modal upload failed:', err);
+                showModalAlert(err.message || 'Failed to upload image. Please try again.', 'danger');
+            })
+            .finally(() => {
+                modalDeviceUploadBtn.disabled = false;
+                if (modalUploadIcon) modalUploadIcon.classList.remove('d-none');
+                if (modalUploadBtnSpinner) modalUploadBtnSpinner.classList.add('d-none');
+                if (modalUploadBtnText) modalUploadBtnText.textContent = 'Upload from Device';
+                modalDeviceUploadInput.value = '';
+            });
+        });
+    }
+
+    // Open Modal for Amazon Image Field
     $(document).on('click', '.image-picker-btn', function(e) {
         e.preventDefault();
 
         const button = $(this);
-        const originalHtml = button.html();
         const fieldName = button.data('field');
-        const pickerUrl = button.data('picker-url') || "{{ route('shopify.image-picker-images') }}";
         const field = $('[name="attributes[' + fieldName + ']"]');
 
-        if (!field.length) {
+        if (!field.length || !libraryModal) {
             return;
         }
 
-        let modalElement = document.getElementById('image-picker-modal');
+        currentAmazonImageTarget = {
+            fieldName: fieldName,
+            input: field[0]
+        };
 
-        if (!modalElement) {
-            modalElement = document.createElement('div');
-            modalElement.id = 'image-picker-modal';
-            modalElement.className = 'modal fade';
-            modalElement.tabIndex = -1;
-            modalElement.innerHTML = `
-                <style>
-                    .image-picker-hover-card:hover .image-picker-select-btn { opacity: 1 !important; }
-                    .image-picker-select-btn { pointer-events: none; }
-                    .image-picker-hover-card:hover .image-picker-select-btn { pointer-events: auto; }
-                </style>
-                <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header py-2">
-                            <h5 class="modal-title small fw-bold">Select an image</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body p-3">
-                            <form id="image-picker-upload-form" class="border rounded p-2 mb-3" enctype="multipart/form-data">
-                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                                <div class="row g-2 align-items-end">
-                                    <div class="col-md-8">
-                                        <label class="form-label small mb-1">Upload a new image</label>
-                                        <input type="file" name="image" class="form-control form-control-sm" accept="image/jpeg,image/png,image/webp" required>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">Upload</button>
-                                    </div>
-                                </div>
-                                <div id="image-picker-upload-status" class="small mt-2"></div>
-                            </form>
-                            <div id="image-picker-loading" class="text-center py-3">
-                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                                <div class="mt-2 small">Loading images...</div>
-                            </div>
-                            <div id="image-picker-items" class="row g-2"></div>
-                            <div id="image-picker-pagination"></div>
-                        </div>
-                        <div class="modal-footer py-2">
-                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
-                        </div>
-                    </div>
-                </div>`;
-            document.body.appendChild(modalElement);
+        const modalTitle = document.getElementById('imageLibraryModalLabel');
+        if (modalTitle) {
+            modalTitle.textContent = 'Select Image';
+        }
+        const modalSubtitle = document.getElementById('imageLibraryModalSubtitle');
+        if (modalSubtitle) {
+            modalSubtitle.textContent = 'Choose an image from your library or upload from device';
+        }
+        if (confirmLibrarySelectionBtn) {
+            confirmLibrarySelectionBtn.textContent = 'Select Image';
+        }
+        if (modalAlertMessage) {
+            modalAlertMessage.className = 'alert d-none py-2 px-3 small mb-3';
         }
 
-        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
-        const loadingEl = document.getElementById('image-picker-loading');
-        const itemsEl = document.getElementById('image-picker-items');
-        const paginationEl = document.getElementById('image-picker-pagination');
-        const uploadForm = $('#image-picker-upload-form');
-
-        uploadForm.data('field-name', fieldName);
-
-        button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Loading...');
-        loadImagePickerImages(fieldName, pickerUrl, itemsEl, loadingEl, paginationEl);
-
-        modal.show();
-        button.prop('disabled', false).html(originalHtml);
-    });
-
-    $(document).on('click', '.image-picker-page', function(e) {
-        e.preventDefault();
-
-        const button = $(this);
-        const page = parseInt(button.data('page'), 10);
-        const fieldName = $('#image-picker-upload-form').data('field-name') || '';
-        const itemsEl = document.getElementById('image-picker-items');
-        const paginationEl = document.getElementById('image-picker-pagination');
-        const allImages = window.imagePickerImages || [];
-
-        if (!allImages.length) {
-            return;
+        modalSelectedMap.clear();
+        const currentVal = $(field[0]).val() ? String($(field[0]).val()).trim() : '';
+        if (currentVal !== '') {
+            modalSelectedMap.set(currentVal, { url: currentVal, name: '' });
         }
+        updateModalCounter();
 
-        renderImagePickerPage(allImages, fieldName, page, itemsEl, paginationEl);
+        libraryModal.show();
+
+        if (allLibraryImages.length === 0) {
+            fetchLibraryImages();
+        } else {
+            renderLibraryTabPage();
+        }
     });
 
-    $(document).on('submit', '#image-picker-upload-form', function(e) {
-        e.preventDefault();
-
-        const form = $(this);
-        const statusEl = $('#image-picker-upload-status');
-        const itemsEl = $('#image-picker-items');
-        const loadingEl = $('#image-picker-loading');
-        const paginationEl = $('#image-picker-pagination');
-        const submitButton = form.find('button[type="submit"]');
-        const originalText = submitButton.html();
-
-        const formData = new FormData(this);
-
-        statusEl.text('Uploading...');
-        submitButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Uploading...');
-
-        $.ajax({
-            url: "{{ route('shopify.imgupload.store') }}",
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            dataType: 'json',
-            success: function(response) {
-                if (!response.success) {
-                    statusEl.html('<span class="text-danger">' + (response.message || 'Upload failed.') + '</span>');
-                    return;
+    // Confirm selection from modal
+    if (confirmLibrarySelectionBtn) {
+        confirmLibrarySelectionBtn.addEventListener('click', function() {
+            if (currentAmazonImageTarget && currentAmazonImageTarget.input) {
+                if (modalSelectedMap.size > 0) {
+                    const selectedImg = Array.from(modalSelectedMap.values())[0];
+                    currentAmazonImageTarget.input.value = selectedImg.url;
+                } else {
+                    currentAmazonImageTarget.input.value = '';
                 }
+                $(currentAmazonImageTarget.input).trigger('input').trigger('change');
+            }
+            if (libraryModal) {
+                libraryModal.hide();
+            }
+            currentAmazonImageTarget = null;
+            modalSelectedMap.clear();
+        });
+    }
 
-                statusEl.html('<span class="text-success">Image uploaded successfully.</span>');
-                form[0].reset();
-                loadImagePickerImages(form.data('field-name') || $('[name="attributes[main_product_image_locator]"]').attr('name')?.replace(/^attributes\[/, '').replace(/\]$/, '') || '', "{{ route('shopify.image-picker-images') }}", itemsEl[0], loadingEl[0], paginationEl[0]);
-            },
-            error: function(xhr) {
-                const message = xhr.responseJSON?.message || 'Unable to upload image.';
-                statusEl.html('<span class="text-danger">' + message + '</span>');
-            },
-            complete: function() {
-                submitButton.prop('disabled', false).html(originalText);
+    // Clear target reference on modal close without changing input
+    if (libraryModalEl) {
+        libraryModalEl.addEventListener('hidden.bs.modal', function() {
+            currentAmazonImageTarget = null;
+            modalSelectedMap.clear();
+            if (modalAlertMessage) {
+                modalAlertMessage.className = 'alert d-none py-2 px-3 small mb-3';
             }
         });
-    });
-
-    $(document).on('click', '.select-image-item', function(e) {
-        e.preventDefault();
-
-        const button = $(this);
-        const fieldName = button.data('field-name');
-        const imageUrl = button.data('image-url');
-        const field = $('[name="attributes[' + fieldName + ']"]');
-
-        if (field.length) {
-            field.val(imageUrl);
-            field.trigger('input');
-            field.trigger('change');
-        }
-
-        const modalElement = document.getElementById('image-picker-modal');
-
-        if (modalElement) {
-            bootstrap.Modal.getInstance(modalElement)?.hide();
-        }
-    });
+    }
 
 </script>
 @endpush
