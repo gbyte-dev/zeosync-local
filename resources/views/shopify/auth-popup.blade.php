@@ -81,6 +81,7 @@
             ].join(',');
 
             let popup = window.open(redirectUrl, 'shopifyAuth', features);
+            window.activeActivationPopup = popup;
 
             if (popup) {
                 popup.focus();
@@ -91,6 +92,7 @@
 
             openButton.addEventListener('click', function() {
                 popup = window.open(redirectUrl, 'shopifyAuth', features);
+                window.activeActivationPopup = popup;
                 if (popup) {
                     popup.focus();
                     statusEl.textContent = 'Shopify auth window opened. Complete the authorization there.';
@@ -116,6 +118,10 @@
                     if (data.redirect_url && (data.redirect_url.includes('/dashboard') || data.type === 'shopify_activated') && !hasRedirected) {
                         hasRedirected = true;
                         if (setupCheckInterval) clearInterval(setupCheckInterval);
+                        statusEl.textContent = 'Store activated successfully. Redirecting...';
+                        if (window.activeActivationPopup && !window.activeActivationPopup.closed) {
+                            try { window.activeActivationPopup.close(); } catch(e) {}
+                        }
                         if (popup && !popup.closed) {
                             try { popup.close(); } catch(e) {}
                         }

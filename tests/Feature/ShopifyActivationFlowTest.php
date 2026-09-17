@@ -762,3 +762,37 @@ it('17. Activation page blade contains polling loop, DB confirmation logic, time
     $response->assertSee('Activation is still processing. Please refresh and try again.');
     $response->assertSee('statusData.activated === true');
 });
+
+it('18. Activation page blade contains structured debug logging and reliable popup detection', function () {
+    $shop = Shop::create([
+        'shop' => 'logs-blade.myshopify.com',
+        'access_token' => 'shpat_tok_logs_blade',
+        'is_active' => 1,
+    ]);
+
+    $response = $this->withSession([
+        '_shopify_verified_shop' => $shop->shop,
+        'active_shop' => $shop->shop,
+        'active_shop_id' => $shop->id,
+    ])->get('/activate?shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+    $response->assertSee('[Activation Context]');
+    $response->assertSee('[Activation Polling Status]');
+    $response->assertSee('[Activation Action]');
+    $response->assertSee('hasPopupQuery');
+    $response->assertSee('isNamedPopup');
+    $response->assertSee('popup_fallback_shown');
+    $response->assertSee('Store activated successfully. You can close this window or <a href=', false);
+});
+
+it('19. Parent auth popup and layout blades manage window.activeActivationPopup and close it on shopify_activated event', function () {
+    $response = $this->view('shopify.auth-popup', [
+        'shop' => 'parent-view.myshopify.com',
+        'redirectUrl' => 'https://parent-view.myshopify.com/activate?shop=parent-view.myshopify.com&popup=1',
+    ]);
+
+    $response->assertSee('window.activeActivationPopup = popup;');
+    $response->assertSee('window.activeActivationPopup.close()');
+    $response->assertSee('shopify_activated');
+});

@@ -538,7 +538,7 @@ class ShopifyController extends Controller
             $shopModel->shop . ' connected successfully.'
         );
 
-        $setupUrl = route('setup.form', ['shop' => $shop]);
+        $setupUrl = route('setup.form', ['shop' => $shop, 'popup' => 1]);
         return response()->view('shopify.auth-callback', [
             'shop' => $shopModel->shop,
             'redirectUrl' => $setupUrl,

@@ -744,6 +744,7 @@
         })();
     </script>
     <script>
+        window.activeActivationPopup = window.activeActivationPopup || null;
         window.addEventListener('message', function(event) {
             if (event.origin && window.location.origin && event.origin !== 'null' && event.origin !== window.location.origin && !event.origin.includes('myshopify.com')) {
                 return;
@@ -756,7 +757,22 @@
                     return;
                 }
 
+                // Close stored popup reference if open
+                const popupRef = window.activeActivationPopup || window.activationPopup;
+                if (popupRef && !popupRef.closed) {
+                    try {
+                        popupRef.close();
+                    } catch (e) {
+                        console.warn('Could not close popup reference from parent:', e);
+                    }
+                }
+
                 if (data.status === 'activated' || data.type === 'shopify_activated') {
+                    if (window._hasHandledActivationEvent) {
+                        return; // Prevent duplicate event handling
+                    }
+                    window._hasHandledActivationEvent = true;
+
                     if (typeof showToast === 'function') {
                         showToast('Store activated successfully.', 'success');
                     } else if (typeof Swal !== 'undefined') {

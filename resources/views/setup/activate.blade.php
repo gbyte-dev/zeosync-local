@@ -150,6 +150,27 @@
     const errorAlert = document.getElementById('activationErrorAlert');
     const errorMsg = document.getElementById('activationErrorMessage');
 
+    // Detect execution context
+    const isInsideIframe = (window.self !== window.top);
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasPopupQuery = urlParams.get('popup') === '1' || urlParams.has('popup');
+    const isNamedPopup = (window.name === 'shopifyAuth' || window.name === 'shopifyActivationPopup');
+    const hasOpener = Boolean(window.opener && !window.opener.closed);
+    const isPopup = !isInsideIframe && (hasOpener || isNamedPopup || hasPopupQuery);
+
+    // Initial structured debug logging
+    console.log('[Activation Context]', {
+        isTop: window.self === window.top,
+        hasOpener: Boolean(window.opener),
+        openerNotClosed: Boolean(window.opener && !window.opener.closed),
+        currentUrl: window.location.href,
+        isInsideIframe: isInsideIframe,
+        isPopup: isPopup,
+        hasPopupQuery: hasPopupQuery,
+        isNamedPopup: isNamedPopup,
+        windowName: window.name || ''
+    });
+
     function stopPolling() {
         if (pollInterval) {
             clearInterval(pollInterval);
@@ -218,7 +239,6 @@
             isSubmitting = false;
             isPolling = true;
 
-            const startTime = Date.now();
             const maxPollDuration = 30000; // 30 seconds timeout
 
             // Start 30s timeout guard
@@ -256,6 +276,13 @@
 
                     const statusData = await statusRes.json();
 
+                    // Structured logging of polling status response
+                    console.log('[Activation Polling Status]', {
+                        activated: Boolean(statusData && statusData.activated),
+                        shop: statusData?.shop || null,
+                        message: statusData?.message || null
+                    });
+
                     if (statusData && statusData.activated === true) {
                         // DB CONFIRMED ACTIVATION
                         stopPolling();
@@ -271,10 +298,6 @@
                         if (typeof showToast === 'function') {
                             showToast('Store activated successfully.', 'success');
                         }
-
-                        // Detect if opened as popup or inside iframe
-                        const isInsideIframe = (window.self !== window.top);
-                        const isPopup = Boolean(window.opener && !window.opener.closed && !isInsideIframe);
 
                         // Secure message target origin
                         const targetOrigin = window.location.origin && window.location.origin !== 'null'
@@ -295,7 +318,8 @@
                             status: 'activated'
                         };
 
-                        if (isPopup) {
+                        // 2. Send activation event to opener/parent
+                        if (window.opener && !window.opener.closed) {
                             try {
                                 window.opener.postMessage(messagePayload, targetOrigin);
                                 window.opener.postMessage(legacyPayload, targetOrigin);
@@ -305,29 +329,45 @@
                                     window.opener.postMessage(legacyPayload, '*');
                                 } catch (err) {}
                             }
+                        }
 
-                            // Automatically close the popup window after DB confirmation
+                        if (isPopup) {
+                            // 3. Structured logging before window.close() attempt
+                            console.log('[Activation Action]', {
+                                action: 'window.close()',
+                                attempted: true,
+                                isPopup: true,
+                                hasOpener: Boolean(window.opener && !window.opener.closed)
+                            });
+
+                            // Immediately call window.close()
                             try {
                                 window.close();
                             } catch (e) {
                                 console.warn('window.close() error:', e);
                             }
 
-                            // If browser blocked window.close():
+                            // If browser blocks window.close(): show fallback message without auto-redirecting
                             setTimeout(function () {
                                 if (!window.closed) {
+                                    console.log('[Activation Action]', {
+                                        action: 'popup_fallback_shown',
+                                        fallback_branch_executed: true,
+                                        windowClosed: window.closed
+                                    });
+
                                     successSubtext.style.display = 'block';
                                     successSubtext.innerHTML = 'Store activated successfully. You can close this window or <a href="' + redirectUrl + '" class="fw-bold text-decoration-underline">click here to open Dashboard</a>.';
-
-                                    setTimeout(function() {
-                                        if (!window.closed) {
-                                            window.location.href = redirectUrl;
-                                        }
-                                    }, 1500);
                                 }
-                            }, 300);
+                            }, 400);
 
                         } else if (isInsideIframe && window.parent && window.parent !== window) {
+                            console.log('[Activation Action]', {
+                                action: 'iframe_redirect',
+                                fallback_branch_executed: false,
+                                redirectUrl: redirectUrl
+                            });
+
                             try {
                                 window.parent.postMessage(messagePayload, targetOrigin);
                                 window.parent.postMessage(legacyPayload, targetOrigin);
@@ -341,6 +381,11 @@
                             window.location.href = redirectUrl;
                         } else {
                             // Standalone direct navigation
+                            console.log('[Activation Action]', {
+                                action: 'standalone_redirect',
+                                fallback_branch_executed: false,
+                                redirectUrl: redirectUrl
+                            });
                             window.location.href = redirectUrl;
                         }
                     }
