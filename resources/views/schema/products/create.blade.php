@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@push('styles')
+@push('css')
 <style>
     .form-control-sm::placeholder {
         font-size: 10px;
@@ -1638,10 +1638,23 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             const isSelected = modalSelectedMap.has(img.url);
             card.className = 'library-image-card' + (isSelected ? ' is-selected' : '');
             card.setAttribute('data-url', img.url);
+            card.style.width = '100px';
+            card.style.height = '100px';
+            card.style.minWidth = '100px';
+            card.style.minHeight = '100px';
+            card.style.maxWidth = '100px';
+            card.style.maxHeight = '100px';
+            card.style.flex = '0 0 100px';
+            card.style.display = 'flex';
+            card.style.alignItems = 'center';
+            card.style.justifyContent = 'center';
+            card.style.overflow = 'hidden';
+            card.style.position = 'relative';
+            card.style.boxSizing = 'border-box';
 
             card.innerHTML = `
-                <div class="image-library-preview-wrapper">
-                    <img src="${img.url}" alt="${img.name || ''}" class="image-library-preview">
+                <div class="image-library-preview-wrapper" style="width: 100px; height: 100px; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; display: flex; align-items: center; justify-content: center; overflow: hidden; box-sizing: border-box; background: transparent;">
+                    <img src="${img.url}" alt="${img.name || ''}" class="image-library-preview" style="width: 100px; height: 100px; min-width: 100px; min-height: 100px; max-width: 100px; max-height: 100px; object-fit: contain; display: block; margin: auto;">
                 </div>
                 <span class="select-badge">${isSelected ? '✓' : '+'}</span>
             `;
