@@ -283,36 +283,7 @@
                     @endif
 
                 </div>
-                    {{-- Notifications --}}
-                    <div class="pro-card mt-4">
-                        <div class="pro-card-header">
-                            <h5>Notifications</h5>
-                        </div>
-                        @if(isset($notifications) && $notifications->count())
-                        <div class="list-group list-group-flush">
-                            @foreach($notifications as $note)
-                            <div class="list-group-item d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="fw-bold">{{ $note->title }}</div>
-                                    <div class="text-muted small">{{ $note->message }}</div>
-                                </div>
-                                <div class="text-end">
-                                    <div class="small text-muted">{{ optional($note->created_at)->diffForHumans() }}</div>
-                                    @if($note->is_read)
-                                    <span class="badge bg-secondary">Read</span>
-                                    @else
-                                    <span class="badge bg-warning text-dark">Unread</span>
-                                    @endif
-                                </div>
-                            </div>
-                            @endforeach
-                        </div>
-                        @else
-                        <div class="empty-box">No notifications for this shop.</div>
-                        @endif
-                    </div>
-
-                <!-- Add Plan to Shop Modal -->
+            </div>
             @if($shop->subscription)
             <div class="info-row">
                 <div class="info-label">Plan ID</div>
@@ -356,6 +327,35 @@
             </div>
             @endif
         </div>
+    </div>
+
+      {{-- Notifications --}}
+    <div class="pro-card mt-4">
+        <div class="pro-card-header">
+            <h5>Notifications</h5>
+        </div>
+        @if(isset($notifications) && $notifications->count())
+        <div class="list-group list-group-flush">
+            @foreach($notifications as $note)
+            <div class="list-group-item d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="fw-bold">{{ $note->title }}</div>
+                    <div class="text-muted small">{{ $note->message }}</div>
+                </div>
+                <div class="text-end">
+                    <div class="small text-muted">{{ optional($note->created_at)->diffForHumans() }}</div>
+                    @if($note->is_read)
+                    <span class="badge bg-secondary">Read</span>
+                    @else
+                    <span class="badge bg-warning text-dark">Unread</span>
+                    @endif
+                </div>
+            </div>
+            @endforeach
+        </div>
+        @else
+        <div class="empty-box">No notifications for this shop.</div>
+        @endif
     </div>
     {{-- System Info --}}
     <!-- <div class="pro-card mt-4">
