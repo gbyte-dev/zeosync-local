@@ -18,6 +18,8 @@ use App\Models\ProductMarketplaceMapping;
 use App\Services\UserNotificationService;
 use App\Models\AmazonSchema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use App\Services\ShopifyBillingService;
 
 class AdminController extends Controller
 {
@@ -442,6 +444,16 @@ class AdminController extends Controller
             return back()->with('error', 'No active Shopify subscription found.');
         }
 
+        if (empty($shop->access_token) || empty($shop->shop)) {
+            Log::error('Admin cancellation failed: Shop access token or domain is missing', [
+                'shop_id' => $shop->id,
+                'has_shop' => !empty($shop->shop),
+                'has_token' => !empty($shop->access_token),
+            ]);
+
+            return back()->with('error', 'Shop access token or domain is missing.');
+        }
+
         try {
             $billingService = app(ShopifyBillingService::class);
 
@@ -451,34 +463,49 @@ class AdminController extends Controller
             );
 
             if (!$result) {
-                return back()->with('error', 'Shopify subscription cancellation failed.');
+                Log::error('Admin Shopify Subscription Cancellation Failed via API', [
+                    'shop_id' => $shop->id,
+                    'subscription_id' => $subscription->id,
+                    'has_gid' => !empty($subscription->shopify_subscription_gid),
+                ]);
+
+                return back()->with('error', 'Shopify subscription cancellation failed. Please check Shopify connection and credentials.');
             }
 
-            $subscription->update([
-                'status' => 'cancelled',
-                'price' => 0,
-                'trial_ends_at' => null,
-                'current_period_end' => null,
-                'cancelled_at' => now(),
-                'ended_at' => now(),
-            ]);
+            DB::transaction(function () use ($subscription) {
+                $subscription->update([
+                    'status' => 'cancelled',
+                    'price' => 0,
+                    'trial_ends_at' => null,
+                    'current_period_end' => null,
+                    'cancelled_at' => now(),
+                    'ended_at' => now(),
+                ]);
+            });
 
-            $template = MailTemplate::active()
-                ->where('slug', 'payment-cancelled')
-                ->first();
+            try {
+                $template = MailTemplate::active()
+                    ->where('slug', 'payment-cancelled')
+                    ->first();
 
-            if ($template) {
-                app(EmailService::class)->sendDynamicEmail(
-                    $template,
-                    (object) [
-                        'name' => $shop->shop,
-                        'first_name' => explode('.', $shop->shop)[0],
-                        'email' => $shop->email,
-                    ]
-                );
-            } else {
-                Log::warning('Payment cancel template not found', [
+                if ($template) {
+                    app(EmailService::class)->sendDynamicEmail(
+                        $template,
+                        (object) [
+                            'name' => $shop->shop,
+                            'first_name' => $shop->shop ? explode('.', $shop->shop)[0] : 'Shop',
+                            'email' => $shop->email,
+                        ]
+                    );
+                } else {
+                    Log::warning('Payment cancel template not found', [
+                        'shop_id' => $shop->id,
+                    ]);
+                }
+            } catch (\Throwable $mailException) {
+                Log::warning('Payment cancellation email dispatch failed', [
                     'shop_id' => $shop->id,
+                    'error' => $mailException->getMessage(),
                 ]);
             }
 
@@ -492,14 +519,14 @@ class AdminController extends Controller
         } catch (\Throwable $e) {
             Log::error('Admin Shopify Subscription Cancellation Failed', [
                 'shop_id' => $shop->id,
-                'subscription_id' => $subscription->id,
-                'shopify_subscription_gid' => $subscription->shopify_subscription_gid,
+                'subscription_id' => $subscription->id ?? null,
+                'shopify_subscription_gid' => $subscription->shopify_subscription_gid ?? null,
                 'message' => $e->getMessage(),
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),
             ]);
 
-            return back()->with('error', 'Unable to cancel Shopify subscription.');
+            return back()->with('error', 'Unable to cancel Shopify subscription: ' . $e->getMessage());
         }
     }
 }
