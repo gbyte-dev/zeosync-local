@@ -1185,40 +1185,62 @@ $subscriptionStatus = 'Trialing';
                 </div>
 
                 <div class="modal-body">
+                    @if ($errors->any() && old('enquiry_type') === 'enterprise_plan_enquiry')
+                        <div class="alert alert-danger">
+                            <ul class="mb-0 ps-3">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label"> Full Name </label>
 
-                            <input type="text" name="name" class="form-control"
+                            <input type="text" name="name" class="form-control @if($errors->has('name') && old('enquiry_type') === 'enterprise_plan_enquiry') is-invalid @endif"
                                 maxlength="100"
                                 value="{{ old('name', $shop->shop_name ?? '') }}"
                                 required>
+                            @if($errors->has('name') && old('enquiry_type') === 'enterprise_plan_enquiry')
+                                <div class="invalid-feedback">{{ $errors->first('name') }}</div>
+                            @endif
                         </div>
 
                         <div class="col-md-6 mb-3">
                             <label class="form-label"> Email Address </label>
 
-                            <input type="email" name="email" class="form-control"
+                            <input type="email" name="email" class="form-control @if($errors->has('email') && old('enquiry_type') === 'enterprise_plan_enquiry') is-invalid @endif"
                                 maxlength="255"
                                 value="{{ old('email', $shop->email ?? '') }}"
                                 required>
+                            @if($errors->has('email') && old('enquiry_type') === 'enterprise_plan_enquiry')
+                                <div class="invalid-feedback">{{ $errors->first('email') }}</div>
+                            @endif
                         </div>
 
                         <div class="col-12 mb-3">
                             <label class="form-label"> Subject </label>
-                            <input type="text" name="subject" class="form-control"
+                            <input type="text" name="subject" class="form-control @if($errors->has('subject') && old('enquiry_type') === 'enterprise_plan_enquiry') is-invalid @endif"
                                 maxlength="255"
                                 value="{{ old('subject') }}"
                                 placeholder="Example: Need higher product and sync limits"
                                 required>
+                            @if($errors->has('subject') && old('enquiry_type') === 'enterprise_plan_enquiry')
+                                <div class="invalid-feedback">{{ $errors->first('subject') }}</div>
+                            @endif
                         </div>
 
                         <div class="col-12">
                             <label class="form-label"> Describe Your Requirements </label>
-                            <textarea name="message" rows="5" class="form-control"
+                            <textarea name="message" rows="5" class="form-control @if($errors->has('message') && old('enquiry_type') === 'enterprise_plan_enquiry') is-invalid @endif"
                                 maxlength="5000"
                                 placeholder="Describe your enterprise requirements, such as higher product limits, sync limits, mapping limits, dedicated support, custom integrations, or any other business requirements."
                                 required>{{ old('message') }}</textarea>
+                            @if($errors->has('message') && old('enquiry_type') === 'enterprise_plan_enquiry')
+                                <div class="invalid-feedback">{{ $errors->first('message') }}</div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -1300,25 +1322,19 @@ $subscriptionStatus = 'Trialing';
                 });
         }, 3000);
     });
-
-    // this is for test
-
-    document.addEventListener('DOMContentLoaded', function() {
-
-        document.querySelectorAll('[data-bs-target="#enterpriseModal"]')
-            .forEach(function(button) {
-
-                button.addEventListener('click', function() {
-
-                    document.getElementById('enterprise_plan_id').value =
-                        this.dataset.planId;
-
-                });
-
-            });
-
-    });
 </script>
 @endif
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        @if ($errors->any() && old('enquiry_type') === 'enterprise_plan_enquiry')
+            var enterpriseModalEl = document.getElementById('enterpriseModal');
+            if (enterpriseModalEl && typeof bootstrap !== 'undefined') {
+                var modal = new bootstrap.Modal(enterpriseModalEl);
+                modal.show();
+            }
+        @endif
+    });
+</script>
 
 @endsection
