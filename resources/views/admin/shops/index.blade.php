@@ -51,9 +51,9 @@
                             <td class="ps-4 text-muted fw-semibold">#{{ ++$i }}</td>
                             <td>
                                 <a href="{{ route('admin.shops.show', $shop->id) }}" class="text-dark text-decoration-none fw-bold d-flex align-items-center">
-                                    <span class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary fw-bold me-2" style="width: 38px; height: 38px;">
+                                    <!-- <span class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary fw-bold me-2" style="width: 38px; height: 38px;">
                                         {{ strtoupper(substr($shop->shop, 0, 1)) }}
-                                    </span>
+                                    </span> -->
                                     <span>{{ $shop->shop }}</span>
                                 </a>
                             </td>
@@ -90,7 +90,7 @@
             </div>
             @endif
 
-            <div class="d-block d-md-none p-3">
+            <div class="d-block d-md-none">
                 <div class="input-group mb-3">
                     <span class="input-group-text bg-white">Search</span>
                     <input type="text" id="mobile-shop-search" class="form-control" placeholder="Find a shop">
