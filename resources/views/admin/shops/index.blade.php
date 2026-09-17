@@ -44,9 +44,11 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @php $i=0; @endphp
+
                         @foreach($shops as $shop)
                         <tr>
-                            <td class="ps-4 text-muted fw-semibold">#{{ $shop->id }}</td>
+                            <td class="ps-4 text-muted fw-semibold">#{{ ++$i }}</td>
                             <td>
                                 <a href="{{ route('admin.shops.show', $shop->id) }}" class="text-dark text-decoration-none fw-bold d-flex align-items-center">
                                     <span class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary fw-bold me-2" style="width: 38px; height: 38px;">
