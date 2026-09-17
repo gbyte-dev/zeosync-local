@@ -3338,8 +3338,7 @@ class ShopifyController extends Controller
             return response('Invalid webhook', 401);
         }
         try {
-            // For the uninstall webhook we intentionally search including soft-deleted records
-            // so that a re-sent uninstall webhook for an already-deactivated shop still
+
             // acknowledges cleanly. We do NOT restore the shop — we only deactivate it.
             $normalizedDomain = strtolower(trim(
                 preg_replace('#^www\.#i', '',

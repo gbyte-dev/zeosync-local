@@ -126,70 +126,94 @@
 
     @section('styles')
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
     @endsection
 
     @section('scripts')
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
+    <!-- Buttons extension -->
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.colVis.min.js"></script>
 
     <script>
         $(document).ready(function() {
-                    // Desktop DataTable — pagination + search + sorting, styled for Bootstrap 5
-                    if ($('#shops-table tbody tr').length > 0 &&
-                        $('#shops-table tbody tr td[colspan]').length === 0) {
-
-                        if ($('#shops-table').length) {
-
-                            $('#shops-table').DataTable({
-                                pagingType: 'simple_numbers',
-                                pageLength: 10,
-                                lengthChange: true,
-                                lengthMenu: [10, 25, 50, 100],
-                                searching: true,
-                                ordering: true,
-                                info: true,
-                                columnDefs: [{
-                                    orderable: false,
-                                    targets: [1, 2, 3, 4]
-                                }],
-                                language: {
-                                    search: "Search:",
-                                    searchPlaceholder: "Find a shop",
-                                    emptyTable: "No shops found",
-                                    zeroRecords: "No matching shops found",
-                                    info: "Showing _START_ to _END_ of _TOTAL_ shops",
-                                    infoEmpty: "Showing 0 shops",
-                                    infoFiltered: "(filtered from _MAX_ total shops)",
-                                    lengthMenu: "Show _MENU_ shops",
-                                    paginate: {
-                                        previous: "Previous",
-                                        next: "Next"
-                                    }
-                                }
-                            });
-                        }
-
-                        // Mobile card search (simple client-side filter, mirrors desktop search behavior)
-                        const mobileSearch = document.getElementById('mobile-shop-search');
-                        const mobileCards = Array.from(document.querySelectorAll('[data-shop-card]'));
-                        const mobileNoResults = document.getElementById('mobile-shop-no-results');
-
-                        if (mobileSearch) {
-                            mobileSearch.addEventListener('input', function() {
-                                const query = mobileSearch.value.trim().toLowerCase();
-                                let visibleCount = 0;
-
-                                mobileCards.forEach(function(card) {
-                                    const isVisible = card.textContent.toLowerCase().includes(query);
-                                    card.style.display = isVisible ? '' : 'none';
-                                    if (isVisible) visibleCount++;
-                                });
-
-                                if (mobileNoResults) {
-                                    mobileNoResults.classList.toggle('d-none', visibleCount !== 0 || mobileCards.length === 0);
-                                }
-                            });
+            // Desktop DataTable — pagination + search + sorting, styled for Bootstrap 5
+            if ($('#shops-table tbody tr').length > 0 && $('#shops-table tbody tr td[colspan]').length === 0) {
+                if ($('#shops-table').length) {
+                    $('#shops-table').DataTable({
+                        dom: "<'row'<'col-sm-12 col-md-6'B><'col-sm-12 col-md-6'f>>" +
+                            "<'row'<'col-sm-12'tr>>" +
+                            "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+                        buttons: [
+                            { extend: 'copy', className: 'btn btn-sm btn-outline-secondary' },
+                            { extend: 'csv', className: 'btn btn-sm btn-outline-secondary' },
+                            { extend: 'excel', className: 'btn btn-sm btn-outline-secondary' },
+                            { extend: 'pdf', className: 'btn btn-sm btn-outline-secondary' },
+                            { extend: 'print', className: 'btn btn-sm btn-outline-secondary' },
+                            { extend: 'colvis', className: 'btn btn-sm btn-outline-secondary' }
+                        ],
+                        responsive: true,
+                        pagingType: 'simple_numbers',
+                        pageLength: 10,
+                        lengthChange: true,
+                        lengthMenu: [10, 25, 50, 100],
+                        searching: true,
+                        ordering: true,
+                        info: true,
+                        columnDefs: [{
+                            orderable: false,
+                            targets: [1, 2, 3, 4]
+                        }],
+                        language: {
+                            search: "Search:",
+                            searchPlaceholder: "Find a shop",
+                            emptyTable: "No shops found",
+                            zeroRecords: "No matching shops found",
+                            info: "Showing _START_ to _END_ of _TOTAL_ shops",
+                            infoEmpty: "Showing 0 shops",
+                            infoFiltered: "(filtered from _MAX_ total shops)",
+                            lengthMenu: "Show _MENU_ shops",
+                            paginate: {
+                                previous: "Previous",
+                                next: "Next"
+                            }
                         }
                     });
+                }
+
+                // Mobile card search (simple client-side filter, mirrors desktop search behavior)
+                const mobileSearch = document.getElementById('mobile-shop-search');
+                const mobileCards = Array.from(document.querySelectorAll('[data-shop-card]'));
+                const mobileNoResults = document.getElementById('mobile-shop-no-results');
+
+                if (mobileSearch) {
+                    mobileSearch.addEventListener('input', function() {
+                        const query = mobileSearch.value.trim().toLowerCase();
+                        let visibleCount = 0;
+
+                        mobileCards.forEach(function(card) {
+                            const isVisible = card.textContent.toLowerCase().includes(query);
+                            card.style.display = isVisible ? '' : 'none';
+                            if (isVisible) visibleCount++;
+                        });
+
+                        if (mobileNoResults) {
+                            mobileNoResults.classList.toggle('d-none', visibleCount !== 0 || mobileCards.length === 0);
+                        }
+                    });
+                }
+            }
+        });
     </script>
     @endsection
