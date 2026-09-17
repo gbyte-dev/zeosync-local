@@ -103,9 +103,7 @@ class AdminController extends Controller
 
     public function categoryserchedChildren(Request $req)
     {
-        $req->validate([
-            'category' => 'required',
-        ]);
+        $req->validate([ 'category' => 'required' ]);
 
         $category = Category::with('parent')->where('name', 'like', '%' . $req->category . '%')->first();
         if (!$category) {
@@ -321,16 +319,13 @@ class AdminController extends Controller
                     $shop->id,
                     'amazon_reconnect',
                     'Amazon Reconnection Required',
-                    'We have updated our Amazon integration credentials. Please disconnect your Amazon account and reconnect it to continue using Amazon features without interruption.'
+                    'We have updated our Amazon integration . Please disconnect your Amazon account and reconnect it to continue using Amazon features without interruption.'
                 );
 
                 // Dynamic Email
-                if (
-                    $notificationSetting &&
-                    $notificationSetting->mail_enabled &&
-                    $template &&
-                    !empty($shop->email)
-                ) {
+                if ($notificationSetting &&  $notificationSetting->mail_enabled &&
+                    $template && !empty($shop->email)) 
+                {
 
                     app(EmailService::class)->sendDynamicEmail(
                         $template,

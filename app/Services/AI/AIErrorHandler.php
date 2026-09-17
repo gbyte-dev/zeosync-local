@@ -36,42 +36,14 @@ class AIErrorHandler
         $message = $error['message'];
 
         /*
-         * Technical information goes ONLY into logs.
-         * Never expose credentials or raw provider responses to admins/users.
-         */
-        Log::error('AI Error', [
-            'trace_id' => $traceId,
-            'category' => $category,
-            'title' => $title,
-            'exception' => get_class($exception),
-            'technical_message' => $exception->getMessage(),
-            'provider' => $context['provider'] ?? null,
-            'model' => $context['model'] ?? null,
-            'feature' => $context['feature'] ?? null,
-            'shop_id' => $context['shop_id'] ?? null,
-            'http_status' => $context['http_status'] ?? null,
-            'provider_error' => $this->sanitizeProviderError(
-                $context['provider_error'] ?? null
-            ),
-        ]);
-
-        /*
          * Admin-facing notification contains only
          * human-readable information.
          */
         $adminNotificationSent = $this->createAdminNotification(
-            $category,
-            $title,
-            $message
-        );
+            $category, $title, $message );
 
-
-        return [
-            'success' => false,
-            'category' => $category,
-            'title' => $title,
-            'message' => $message,
-            'trace_id' => $traceId,
+        return [  'success' => false,  'category' => $category,
+            'title' => $title, 'message' => $message,  'trace_id' => $traceId,
             'admin_notification_sent' => $adminNotificationSent,
         ];
     }
@@ -98,8 +70,7 @@ class AIErrorHandler
         /*
          * Configuration errors
          */
-        if (
-            str_contains($combinedError, 'api key') ||
+        if ( str_contains($combinedError, 'api key') ||
             str_contains($combinedError, 'api_key') ||
             str_contains($combinedError, 'endpoint') ||
             str_contains($combinedError, 'configuration') ||
@@ -115,9 +86,7 @@ class AIErrorHandler
         /*
          * Authentication / authorization
          */
-        if (
-            $status === 401 ||
-            $status === 403 ||
+        if ( $status === 401 || $status === 403 ||
             str_contains($combinedError, 'unauthorized') ||
             str_contains($combinedError, 'authentication') ||
             str_contains($combinedError, 'invalid api key') ||
@@ -137,8 +106,7 @@ class AIErrorHandler
          * Keep this before generic rate-limit handling because
          * providers commonly return quota errors using HTTP 429.
          */
-        if (
-            str_contains($combinedError, 'quota') ||
+        if ( str_contains($combinedError, 'quota') ||
             str_contains($combinedError, 'insufficient_quota') ||
             str_contains($combinedError, 'billing') ||
             str_contains($combinedError, 'usage limit') ||
@@ -154,9 +122,7 @@ class AIErrorHandler
         /*
          * Rate limiting
          */
-        if (
-            $status === 429 ||
-            str_contains($combinedError, 'rate limit') ||
+        if ($status === 429 || str_contains($combinedError, 'rate limit') ||
             str_contains($combinedError, 'rate_limit') ||
             str_contains($combinedError, 'too many requests')
         ) {
@@ -170,8 +136,7 @@ class AIErrorHandler
         /*
          * Timeout / network problems
          */
-        if (
-            $this->isTimeoutException($exception) ||
+        if ( $this->isTimeoutException($exception) ||
             str_contains($combinedError, 'timeout') ||
             str_contains($combinedError, 'timed out') ||
             str_contains($combinedError, 'connection refused') ||
@@ -188,10 +153,7 @@ class AIErrorHandler
         /*
          * Invalid request / bad payload
          */
-        if (
-            $status === 400 ||
-            $status === 422 ||
-            str_contains($combinedError, 'invalid request') ||
+        if ( $status === 400 || $status === 422 || str_contains($combinedError, 'invalid request') ||
             str_contains($combinedError, 'invalid_request') ||
             str_contains($combinedError, 'invalid parameter') ||
             str_contains($combinedError, 'bad request')
@@ -206,8 +168,7 @@ class AIErrorHandler
         /*
          * JSON / response parsing
          */
-        if (
-            $exception instanceof \JsonException ||
+        if ( $exception instanceof \JsonException ||
             str_contains($combinedError, 'json') ||
             str_contains($combinedError, 'malformed json') ||
             str_contains($combinedError, 'invalid json')
@@ -222,11 +183,8 @@ class AIErrorHandler
         /*
          * Provider-side server errors
          */
-        if (
-            is_int($status) &&
-            $status >= 500 &&
-            $status <= 599
-        ) {
+        if ( is_int($status) &&  $status >= 500 &&  $status <= 599   )
+        {
             return [
                 'category' => 'provider_error',
                 'title' => 'AI Provider Error',
@@ -266,31 +224,20 @@ class AIErrorHandler
     /**
      * Create the admin in-app notification.
      */
-    private function createAdminNotification(
-        string $category,
-        string $title,
-        string $message
-    ): bool {
+    private function createAdminNotification( string $category, string $title,  string $message  ): bool 
+    {
         try {
             $cacheKey = 'ai_error_notification_throttle_' . $category;
-
-            if (Cache::has($cacheKey)) {
-                return true;
-            }
+            if (Cache::has($cacheKey)) {  return true; }
 
             // In-app notification
-            NotificationService::send(
-                self::NOTIFICATION_KEY,
-                $title,
-                $message
-            );
+            NotificationService::send( self::NOTIFICATION_KEY, $title, $message );
 
             // Admin email
             $adminEmail = \App\Models\AdminSetting::get('admin_email');
 
             if ($adminEmail) {
-                $template = \App\Models\MailTemplate::active()
-                    ->where('slug', 'ai-error')
+                $template = \App\Models\MailTemplate::active()->where('slug', 'ai-error')
                     ->first();
 
                 if ($template) {
@@ -310,11 +257,7 @@ class AIErrorHandler
                 }
             }
 
-            Cache::put(
-                $cacheKey,
-                true,
-                now()->addHours(2)
-            );
+            Cache::put( $cacheKey, true, now()->addHours(2) );
 
             return true;
         } catch (Throwable $exception) {

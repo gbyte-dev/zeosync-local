@@ -44,9 +44,11 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @php $i=0; @endphp
+
                         @foreach($shops as $shop)
                         <tr>
-                            <td class="ps-4 text-muted fw-semibold">#{{ $shop->id }}</td>
+                            <td class="ps-4 text-muted fw-semibold">#{{ ++$i }}</td>
                             <td>
                                 <a href="{{ route('admin.shops.show', $shop->id) }}" class="text-dark text-decoration-none fw-bold d-flex align-items-center">
                                     <span class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary fw-bold me-2" style="width: 38px; height: 38px;">
@@ -94,6 +96,7 @@
                     <input type="text" id="mobile-shop-search" class="form-control" placeholder="Find a shop">
                 </div>
 
+                <div id="mobile-shop-list">
                 @forelse($shops as $shop)
                 <div class="border rounded-4 p-3 mb-3 bg-white shadow-sm" data-shop-card>
                     <div class="d-flex justify-content-between align-items-start mb-3">
@@ -116,8 +119,15 @@
                 @empty
                 <div class="text-center text-muted py-5">No shops found.</div>
                 @endforelse
+                </div>
 
                 <div id="mobile-shop-no-results" class="text-center text-muted py-5 d-none">No matching shops found</div>
+
+                <div class="d-flex justify-content-between align-items-center mt-2" id="mobile-pagination" style="display:none">
+                    <button class="btn btn-sm btn-outline-secondary" id="mobile-prev">Previous</button>
+                    <div class="small text-muted" id="mobile-page-info"></div>
+                    <button class="btn btn-sm btn-outline-secondary" id="mobile-next">Next</button>
+                </div>
             </div>
         </div>
     </div>
@@ -126,70 +136,154 @@
 
     @section('styles')
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
     @endsection
 
     @section('scripts')
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
+    <!-- Buttons extension -->
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.colVis.min.js"></script>
 
     <script>
         $(document).ready(function() {
-                    // Desktop DataTable — pagination + search + sorting, styled for Bootstrap 5
-                    if ($('#shops-table tbody tr').length > 0 &&
-                        $('#shops-table tbody tr td[colspan]').length === 0) {
-
-                        if ($('#shops-table').length) {
-
-                            $('#shops-table').DataTable({
-                                pagingType: 'simple_numbers',
-                                pageLength: 10,
-                                lengthChange: true,
-                                lengthMenu: [10, 25, 50, 100],
-                                searching: true,
-                                ordering: true,
-                                info: true,
-                                columnDefs: [{
-                                    orderable: false,
-                                    targets: [1, 2, 3, 4]
-                                }],
-                                language: {
-                                    search: "Search:",
-                                    searchPlaceholder: "Find a shop",
-                                    emptyTable: "No shops found",
-                                    zeroRecords: "No matching shops found",
-                                    info: "Showing _START_ to _END_ of _TOTAL_ shops",
-                                    infoEmpty: "Showing 0 shops",
-                                    infoFiltered: "(filtered from _MAX_ total shops)",
-                                    lengthMenu: "Show _MENU_ shops",
-                                    paginate: {
-                                        previous: "Previous",
-                                        next: "Next"
-                                    }
-                                }
-                            });
-                        }
-
-                        // Mobile card search (simple client-side filter, mirrors desktop search behavior)
-                        const mobileSearch = document.getElementById('mobile-shop-search');
-                        const mobileCards = Array.from(document.querySelectorAll('[data-shop-card]'));
-                        const mobileNoResults = document.getElementById('mobile-shop-no-results');
-
-                        if (mobileSearch) {
-                            mobileSearch.addEventListener('input', function() {
-                                const query = mobileSearch.value.trim().toLowerCase();
-                                let visibleCount = 0;
-
-                                mobileCards.forEach(function(card) {
-                                    const isVisible = card.textContent.toLowerCase().includes(query);
-                                    card.style.display = isVisible ? '' : 'none';
-                                    if (isVisible) visibleCount++;
-                                });
-
-                                if (mobileNoResults) {
-                                    mobileNoResults.classList.toggle('d-none', visibleCount !== 0 || mobileCards.length === 0);
-                                }
-                            });
+            // Desktop DataTable — pagination + search + sorting, styled for Bootstrap 5
+            if ($('#shops-table tbody tr').length > 0 && $('#shops-table tbody tr td[colspan]').length === 0) {
+                if ($('#shops-table').length) {
+                    $('#shops-table').DataTable({
+                        dom: "<'row'<'col-sm-12 col-md-6'B><'col-sm-12 col-md-6'f>>" +
+                            "<'row'<'col-sm-12'tr>>" +
+                            "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+                        buttons: [
+                            { extend: 'copy', className: 'btn btn-sm btn-outline-primary text-white' },
+                            { extend: 'csv', className: 'btn btn-sm btn-outline-primary text-white' },
+                            { extend: 'excel', className: 'btn btn-sm btn-outline-primary text-white' },
+                            { extend: 'pdf', className: 'btn btn-sm btn-outline-primary text-white' },
+                            { extend: 'print', className: 'btn btn-sm btn-outline-primary text-white' },
+                            { extend: 'colvis', className: 'btn btn-sm btn-outline-primary text-white' }
+                        ],
+                        responsive: true,
+                        pagingType: 'simple_numbers',
+                        pageLength: 10,
+                        lengthChange: true,
+                        lengthMenu: [10, 25, 50, 100],
+                        searching: true,
+                        ordering: true,
+                        info: true,
+                        columnDefs: [{
+                            orderable: false,
+                            targets: [1, 2, 3, 4]
+                        }],
+                        language: {
+                            search: "Search:",
+                            searchPlaceholder: "Find a shop",
+                            emptyTable: "No shops found",
+                            zeroRecords: "No matching shops found",
+                            info: "Showing _START_ to _END_ of _TOTAL_ shops",
+                            infoEmpty: "Showing 0 shops",
+                            infoFiltered: "(filtered from _MAX_ total shops)",
+                            lengthMenu: "Show _MENU_ shops",
+                            paginate: {
+                                previous: "Previous",
+                                next: "Next"
+                            }
                         }
                     });
+                }
+
+                // Mobile card search + pagination (client-side)
+                const mobileSearch = document.getElementById('mobile-shop-search');
+                const mobileCards = Array.from(document.querySelectorAll('[data-shop-card]'));
+                const mobileNoResults = document.getElementById('mobile-shop-no-results');
+                const mobilePagination = document.getElementById('mobile-pagination');
+                const mobilePrev = document.getElementById('mobile-prev');
+                const mobileNext = document.getElementById('mobile-next');
+                const mobilePageInfo = document.getElementById('mobile-page-info');
+
+                const perPage = 5;
+                let currentPage = 1;
+
+                function renderMobilePage() {
+                    const matched = mobileCards.filter(c => c.dataset.match === '1');
+                    const total = matched.length;
+                    const totalPages = Math.max(1, Math.ceil(total / perPage));
+
+                    if (total === 0) {
+                        mobileNoResults.classList.remove('d-none');
+                        mobilePagination.style.display = 'none';
+                        return;
+                    }
+
+                    mobileNoResults.classList.add('d-none');
+
+                    // show only current page items
+                    matched.forEach((card, i) => {
+                        const start = (currentPage - 1) * perPage;
+                        const end = currentPage * perPage;
+                        card.style.display = (i >= start && i < end) ? '' : 'none';
+                    });
+
+                    // hide non-matched
+                    mobileCards.forEach(c => {
+                        if (c.dataset.match !== '1') c.style.display = 'none';
+                    });
+
+                    mobilePagination.style.display = (totalPages > 1) ? 'flex' : 'none';
+                    const showingStart = Math.min((currentPage - 1) * perPage + 1, total);
+                    const showingEnd = Math.min(currentPage * perPage, total);
+                    mobilePageInfo.textContent = `${showingStart}-${showingEnd} of ${total}`;
+
+                    mobilePrev.disabled = currentPage <= 1;
+                    mobileNext.disabled = currentPage >= totalPages;
+                }
+
+                function applySearchAndPaginate() {
+                    const query = mobileSearch.value.trim().toLowerCase();
+                    mobileCards.forEach(function(card) {
+                        const isVisible = card.textContent.toLowerCase().includes(query);
+                        card.dataset.match = isVisible ? '1' : '0';
+                    });
+                    currentPage = 1;
+                    renderMobilePage();
+                }
+
+                if (mobileSearch) {
+                    // initialize matches
+                    mobileCards.forEach(c => c.dataset.match = '1');
+                    renderMobilePage();
+
+                    mobileSearch.addEventListener('input', function() {
+                        applySearchAndPaginate();
+                    });
+
+                    mobilePrev.addEventListener('click', function() {
+                        if (currentPage > 1) {
+                            currentPage--;
+                            renderMobilePage();
+                        }
+                    });
+
+                    mobileNext.addEventListener('click', function() {
+                        const matched = mobileCards.filter(c => c.dataset.match === '1');
+                        const totalPages = Math.max(1, Math.ceil(matched.length / perPage));
+                        if (currentPage < totalPages) {
+                            currentPage++;
+                            renderMobilePage();
+                        }
+                    });
+                }
+            }
+        });
     </script>
     @endsection

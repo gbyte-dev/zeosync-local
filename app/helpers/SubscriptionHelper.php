@@ -51,15 +51,6 @@ if (!function_exists('isSubscriptionActive')) {
                 : true;
         }
 
-        Log::info('EXPIRY CHECK', [
-            'status' => $subscription->status,
-            'is_trial' => $subscription->is_trial,
-            'trial_ends_at' => $subscription->trial_ends_at,
-            'current_period_end' => $subscription->current_period_end,
-            'is_expired' => $isExpired,
-            'now' => now(),
-        ]);
-
         // Expired → update DB (only once safely)
         if ($isExpired) {
 
