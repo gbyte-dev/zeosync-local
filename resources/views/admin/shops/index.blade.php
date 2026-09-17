@@ -4,16 +4,6 @@
 
 @section('content')
 
-<style>
-    #datatable-table_filter { float: inline-end; }
-    #datatable-table_paginate { float: inline-end; margin-top: 10px; }
-    #datatable-table { margin-bottom: 10px; }
-    #datatable-table_info { float: inline-start; margin-top: 10px; }
-    #datatable-table_length { width: fit-content; }
-    .dataTables_length>label,
-    .dataTables_filter>label { display: flex; align-items: center; gap: 10px; }
-</style>
-
 <div class="container-fluid px-0">
     <div class="card border-0 shadow-sm overflow-hidden mb-4">
         <div class="card-header bg-white border-0 py-3">

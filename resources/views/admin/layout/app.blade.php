@@ -232,6 +232,15 @@
             border-radius: 22px 22px 0 0;
             border-top: 1px solid gray;
         }
+
+    #datatable-table_filter { float: inline-end; }
+    #datatable-table_paginate { float: inline-end; margin-top: 10px; }
+    #datatable-table { margin-bottom: 10px; }
+    #datatable-table_info { float: inline-start; margin-top: 10px; }
+    #datatable-table_length { width: fit-content; }
+    .dataTables_length>label,
+    .dataTables_filter>label { display: flex; align-items: center; gap: 10px; }
+
     </style>
     @stack('css')
 </head>
