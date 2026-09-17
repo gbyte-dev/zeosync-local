@@ -27,6 +27,7 @@ beforeEach(function () {
             $table->integer('selected_location_index')->nullable();
             $table->string('amazon_marketplace_id')->nullable();
             $table->string('amazon_mws_region')->nullable();
+            $table->string('amazon_seller_id')->nullable();
             $table->text('amazon_refresh_token')->nullable();
             $table->boolean('is_active')->default(1);
             $table->softDeletes();
@@ -640,11 +641,13 @@ it('D: existing Amazon refresh lock in InventoryCacheService prevents duplicate 
         'id'                    => 404,
         'shop'                  => 'refresh-lock.myshopify.com',
         'access_token'          => 'token-404',
+        'amazon_seller_id'      => 'SELLER-404',
+        'amazon_refresh_token'  => 'refresh-token-404',
         'amazon_marketplace_id' => 'ATVPDKIKX0DER',
         'is_active'             => 1,
     ]);
 
-    $refreshLockKey = "amazon_inventory_lock_{$shop->id}_ATVPDKIKX0DER";
+    $refreshLockKey = "amazon_inventory_lock_{$shop->id}_{$shop->amazon_seller_id}";
     $lock = Cache::lock($refreshLockKey, 300);
     expect($lock->get())->toBeTrue();
 
@@ -745,12 +748,14 @@ it('H: authoritative DB quantity overlays onto cached Amazon inventory in Invent
         'id'                    => 408,
         'shop'                  => 'authoritative-overlay.myshopify.com',
         'access_token'          => 'token-408',
+        'amazon_seller_id'      => 'SELLER-408',
+        'amazon_refresh_token'  => 'refresh-token-408',
         'amazon_marketplace_id' => 'ATVPDKIKX0DER',
         'is_active'             => 1,
     ]);
 
     // 1. Put cached Amazon inventory with stale quantity 10
-    Cache::forever("amazon_inventory_{$shop->id}_ATVPDKIKX0DER", [
+    Cache::forever("amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}", [
         [
             'sku'                       => 'SKU-OVERLAY-1',
             'title'                     => 'Cached Product',
@@ -761,7 +766,7 @@ it('H: authoritative DB quantity overlays onto cached Amazon inventory in Invent
             'mapping_id'                => null,
         ]
     ]);
-    Cache::forever("amazon_inventory_status_{$shop->id}_ATVPDKIKX0DER", [
+    Cache::forever("amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}", [
         'refreshing'     => false,
         'sync_completed' => true,
         'cache_version'  => 1,

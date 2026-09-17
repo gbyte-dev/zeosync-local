@@ -11,7 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-
 use Illuminate\Support\Facades\RateLimiter;
 
 class AIController extends Controller
@@ -24,8 +23,7 @@ class AIController extends Controller
 
     public function __construct(
         private readonly AIConfigurationService $configService
-    ) {
-    }
+    ) {}
 
     public function index(Request $request)
     {
@@ -52,7 +50,7 @@ class AIController extends Controller
         if (!$shop) {
             if ($request->wantsJson()) {
                 return response()->json([
-                    'error'   => 'Unauthorized',
+                    'error' => 'Unauthorized',
                     'message' => 'Unauthenticated Shopify request.',
                 ], 401);
             }
@@ -68,7 +66,7 @@ class AIController extends Controller
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'error'   => $errorMessage,
+                    'error' => $errorMessage,
                 ], 429);
             }
 
@@ -81,10 +79,13 @@ class AIController extends Controller
 
         if (!empty($shop->amazon_refresh_token)) {
             $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
-            $cacheKey = "amazon_inventory_{$shop->id}_{$marketplaceId}";
+            $sellerId = $shop->amazon_seller_id;
+
+            $cacheKey = !empty($sellerId) ? "amazon_inventory_{$shop->id}_{$sellerId}" : null;
+
             $inventoryService = app(InventoryCacheService::class);
             $status = $inventoryService->getStatus($shop, $marketplaceId);
-            $hasCache = Cache::has($cacheKey);
+            $hasCache = $cacheKey ? Cache::has($cacheKey) : false;
             $syncCompleted = (bool) ($status['sync_completed'] ?? false);
 
             if (!$hasCache || !$syncCompleted) {
@@ -95,7 +96,7 @@ class AIController extends Controller
                 if ($request->wantsJson()) {
                     return response()->json([
                         'success' => true,
-                        'status'  => 'inventory_syncing',
+                        'status' => 'inventory_syncing',
                         'message' => 'Synchronizing Amazon inventory...',
                     ]);
                 }
@@ -105,7 +106,7 @@ class AIController extends Controller
         $context = $this->buildShopContext($shop);
         $prompt = $request->input('prompt');
 
-        $systemPrompt = "You are Zeosync AI. Answer user questions about the current Shopify store, product performance, Amazon order cache, and marketplace pricing based on the data provided below. Be concise and factual. If exact data is unavailable, say so clearly. If the user asks for product details, provide the exact product detail link from the store context.";
+        $systemPrompt = 'You are Zeosync AI. Answer user questions about the current Shopify store, product performance, Amazon order cache, and marketplace pricing based on the data provided below. Be concise and factual. If exact data is unavailable, say so clearly. If the user asks for product details, provide the exact product detail link from the store context.';
         $userPrompt = "Store context:\n{$context}\n\nUser question: {$prompt}";
 
         $response = $this->sendAiRequest($systemPrompt, $userPrompt);
@@ -205,7 +206,7 @@ class AIController extends Controller
             $amazonLink = $product->amazon_product_id ? route('user.product.amazonView', ['sku' => $product->amazon_product_id, 'shop' => $shop->shop]) : 'Not available';
             $amazonId = $product->amazon_product_id ? $product->amazon_product_id : 'Not available';
 
-            $productLines[] = "{$product->title} | Shopify price: ".($price === 'N/A' ? $price : '$'.$price)." | Amazon SKU: {$amazonId} | Shopify details: {$shopifyLink} | Amazon details: {$amazonLink}";
+            $productLines[] = "{$product->title} | Shopify price: " . ($price === 'N/A' ? $price : '$' . $price) . " | Amazon SKU: {$amazonId} | Shopify details: {$shopifyLink} | Amazon details: {$amazonLink}";
         }
 
         $topProductsLines = [];
@@ -221,7 +222,7 @@ class AIController extends Controller
             ->all();
 
         $catalogSummary = count($products) < $totalProducts
-            ? "Sample products (showing " . count($products) . " of {$totalProducts}): " . implode(' ; ', $productLines)
+            ? 'Sample products (showing ' . count($products) . " of {$totalProducts}): " . implode(' ; ', $productLines)
             : 'Product catalog lines: ' . ($productLines ? implode(' ; ', $productLines) : 'No products available');
 
         $contextLines = array_filter([
@@ -262,13 +263,16 @@ class AIController extends Controller
 
     private function getAmazonInventoryCache(?Shop $shop): array
     {
-        if (!$shop || empty($shop->amazon_refresh_token)) {
+        if (!$shop || empty($shop->amazon_refresh_token) || empty($shop->amazon_seller_id)) {
             return [];
         }
 
-        $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
+        $sellerId = $shop->amazon_seller_id;
 
-        return Cache::get("amazon_inventory_{$shop->id}_{$marketplaceId}", []);
+        return Cache::get(
+            "amazon_inventory_{$shop->id}_{$sellerId}",
+            []
+        );
     }
 
     private function sendAiRequest(string $systemPrompt, string $userPrompt): array

@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
-use SellingPartnerApi\Seller\ReportsV20210630\Dto\CreateReportSpecification;
 use App\Models\ProductMarketplaceMapping;
 use App\Models\Shop;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use SellingPartnerApi\Seller\ReportsV20210630\Dto\CreateReportSpecification;
 
 class AmazonInventoryReportService
 {
@@ -23,7 +23,6 @@ class AmazonInventoryReportService
     public function createReport($shop, string $marketplaceId)
     {
         try {
-
             $connector = $this->amazonService->getSellerConnector($shop);
 
             $request = new CreateReportSpecification(
@@ -41,7 +40,6 @@ class AmazonInventoryReportService
 
             return $data;
         } catch (\Throwable $e) {
-
             Log::error('Create Report Failed', [
                 'error' => $e->getMessage()
             ]);
@@ -56,7 +54,6 @@ class AmazonInventoryReportService
     public function getReport($shop, string $reportId)
     {
         try {
-
             $connector = $this->amazonService->getSellerConnector($shop);
 
             $response = $connector
@@ -69,10 +66,9 @@ class AmazonInventoryReportService
 
             return $data;
         } catch (\Throwable $e) {
-
             Log::error('Get Report Failed', [
                 'reportId' => $reportId,
-                'error'    => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
 
             throw $e;
@@ -111,7 +107,7 @@ class AmazonInventoryReportService
 
         return [
             'compression' => $document['compressionAlgorithm'] ?? null,
-            'content'     => $content,
+            'content' => $content,
         ];
     }
 
@@ -121,8 +117,8 @@ class AmazonInventoryReportService
             throw new \Exception('Amazon report content is empty.');
         }
 
-        $isGzip = (strtoupper((string) $compression) === 'GZIP')
-            || (strlen($content) >= 2 && substr($content, 0, 2) === "\x1f\x8b");
+        $isGzip = (strtoupper((string) $compression) === 'GZIP') ||
+            (strlen($content) >= 2 && substr($content, 0, 2) === "\x1f\x8b");
 
         if ($isGzip) {
             $decompressed = @gzdecode($content);
@@ -164,19 +160,17 @@ class AmazonInventoryReportService
         $products = [];
 
         foreach ($lines as $line) {
-
             if (trim($line) === '') {
                 continue;
             }
 
             $values = str_getcsv($line, "\t");
             if (count($header) !== count($values)) {
-
                 Log::error('Header / Value count mismatch', [
                     'header_count' => count($header),
-                    'value_count'  => count($values),
-                    'line'         => $line,
-                    'values'       => $values,
+                    'value_count' => count($values),
+                    'line' => $line,
+                    'values' => $values,
                 ]);
 
                 continue;
@@ -185,9 +179,9 @@ class AmazonInventoryReportService
             $row = array_combine($header, $values);
 
             $mapping = $mappings[$row['seller-sku'] ?? ''] ?? null;
-            $isMapped = $mapping
-                && !empty($mapping->shopify_variant_id)
-                && !empty($mapping->amazon_sku);
+            $isMapped = $mapping &&
+                !empty($mapping->shopify_variant_id) &&
+                !empty($mapping->amazon_sku);
 
             $reportQty = (int) ($row['quantity'] ?? 0);
             $finalQty = $reportQty;
@@ -198,11 +192,11 @@ class AmazonInventoryReportService
                     if ($lastSynced->greaterThan($reportSnapshotTime) && $mapping->quantity !== null && $mapping->quantity !== '') {
                         $finalQty = (int) $mapping->quantity;
                         Log::info('Stale Amazon report quantity overridden by more recent manual DB sync', [
-                            'shop_id'              => $shop->id,
-                            'sku'                  => $row['seller-sku'] ?? null,
-                            'report_quantity'      => $reportQty,
-                            'mapping_quantity'     => $finalQty,
-                            'last_synced_at'       => $mapping->last_synced_at,
+                            'shop_id' => $shop->id,
+                            'sku' => $row['seller-sku'] ?? null,
+                            'report_quantity' => $reportQty,
+                            'mapping_quantity' => $finalQty,
+                            'last_synced_at' => $mapping->last_synced_at,
                             'report_snapshot_time' => $reportSnapshotTime->toDateTimeString(),
                         ]);
                     }
@@ -214,19 +208,17 @@ class AmazonInventoryReportService
             }
 
             $products[] = [
-                'listing_id'          => $row['listing-id'] ?? null,
-                'sku'                 => $row['seller-sku'] ?? null,
-                'title'               => $row['item-name'] ?? null,
-                'description'         => $row['item-description'] ?? null,
-                'asin'                => $row['asin1'] ?? null,
-                'price'               => $row['price'] ?? null,
-                'quantity'            => $finalQty,
-                'status'              => $row['status'] ?? null,
+                'listing_id' => $row['listing-id'] ?? null,
+                'sku' => $row['seller-sku'] ?? null,
+                'title' => $row['item-name'] ?? null,
+                'description' => $row['item-description'] ?? null,
+                'asin' => $row['asin1'] ?? null,
+                'price' => $row['price'] ?? null,
+                'quantity' => $finalQty,
+                'status' => $row['status'] ?? null,
                 'fulfillment_channel' => $row['fulfillment-channel'] ?? null,
-                'shipping_group'      => $row['merchant-shipping-group'] ?? null,
-
+                'shipping_group' => $row['merchant-shipping-group'] ?? null,
                 'is_mapped' => $isMapped,
-
                 'mapped_shopify_product_id' => $isMapped ? $mapping->shopify_product_id : null,
                 'mapped_shopify_variant_id' => $isMapped ? $mapping->shopify_variant_id : null,
                 'mapping_id' => $isMapped ? $mapping->id : null,
@@ -235,6 +227,7 @@ class AmazonInventoryReportService
 
         return $products;
     }
+
     /**
      * Step 5
      */
@@ -275,28 +268,28 @@ class AmazonInventoryReportService
 
             if (in_array($processingStatus, ['CANCELLED', 'FATAL', 'FAILED'], true)) {
                 Log::error('Amazon report processing failed with terminal status', [
-                    'shop_id'           => $shop->id ?? null,
-                    'report_id'         => $reportId,
+                    'shop_id' => $shop->id ?? null,
+                    'report_id' => $reportId,
                     'processing_status' => $processingStatus,
-                    'attempt'           => $attempt,
+                    'attempt' => $attempt,
                 ]);
                 throw new \Exception("Amazon report processing failed with status: {$processingStatus}");
             }
 
             if (!in_array($processingStatus, ['SUBMITTED', 'IN_QUEUE', 'IN_PROGRESS'], true)) {
                 Log::warning('Amazon report returned unknown processing status', [
-                    'shop_id'           => $shop->id ?? null,
-                    'report_id'         => $reportId,
+                    'shop_id' => $shop->id ?? null,
+                    'report_id' => $reportId,
                     'processing_status' => $processingStatus,
-                    'attempt'           => $attempt,
+                    'attempt' => $attempt,
                 ]);
-                throw new \Exception("Amazon report returned unexpected status: " . ($processingStatus ?? 'null'));
+                throw new \Exception('Amazon report returned unexpected status: ' . ($processingStatus ?? 'null'));
             }
 
             if ($attempt >= $maxAttempts) {
                 Log::error('Amazon report polling timed out', [
-                    'shop_id'      => $shop->id ?? null,
-                    'report_id'    => $reportId,
+                    'shop_id' => $shop->id ?? null,
+                    'report_id' => $reportId,
                     'max_attempts' => $maxAttempts,
                 ]);
                 throw new \Exception("Amazon report polling timed out after {$maxAttempts} attempts.");
@@ -333,32 +326,49 @@ class AmazonInventoryReportService
 
         $rows = $this->parseReport($content, $shop, $reportSnapshotTime);
 
-        $inventoryCacheKey = "amazon_inventory_{$shop->id}_{$marketplaceId}";
-        $statusCacheKey = "amazon_inventory_status_{$shop->id}_{$marketplaceId}";
-        $currentStatus = Cache::get($statusCacheKey, ['cache_version' => 0]);
-
-        if (empty($rows) && Cache::has($inventoryCacheKey) && !empty(Cache::get($inventoryCacheKey))) {
-            Log::warning('Amazon report produced 0 rows while existing inventory cache is non-empty. Preserving existing cache.', [
-                'shop_id'        => $shop->id,
+        $sellerId = $shop->amazon_seller_id;
+        if (empty($sellerId)) {
+            Log::warning('Amazon inventory cache write skipped: seller ID missing', [
+                'shop_id' => $shop->id,
                 'marketplace_id' => $marketplaceId,
             ]);
-            $rows = Cache::get($inventoryCacheKey, []);
         } else {
+            $inventoryCacheKey = "amazon_inventory_{$shop->id}_{$sellerId}";
+            $statusCacheKey = "amazon_inventory_status_{$shop->id}_{$sellerId}";
+            $currentStatus = Cache::get($statusCacheKey, ['cache_version' => 0]);
+
+            Log::info('Writing Amazon inventory to seller-based cache', [
+                'shop_id' => $shop->id,
+                'seller_id' => $sellerId,
+                'marketplace_id' => $marketplaceId,
+                'cache_key' => $inventoryCacheKey,
+                'count' => count($rows),
+            ]);
+
+            if (empty($rows) && Cache::has($inventoryCacheKey) && !empty(Cache::get($inventoryCacheKey))) {
+                Log::warning('Amazon report produced 0 rows while existing inventory cache is non-empty. Preserving existing cache.', [
+                    'shop_id' => $shop->id,
+                    'seller_id' => $sellerId,
+                    'marketplace_id' => $marketplaceId,
+                ]);
+                $rows = Cache::get($inventoryCacheKey, []);
+            } else {
+                Cache::forever(
+                    $inventoryCacheKey,
+                    $rows
+                );
+            }
+
             Cache::forever(
-                $inventoryCacheKey,
-                $rows
+                $statusCacheKey,
+                [
+                    'refreshing' => false,
+                    'sync_completed' => true,
+                    'last_synced_at' => now()->toDateTimeString(),
+                    'cache_version' => (int) ($currentStatus['cache_version'] ?? 0) + 1,
+                ]
             );
         }
-
-        Cache::forever(
-            $statusCacheKey,
-            [
-                'refreshing'     => false,
-                'sync_completed' => true,
-                'last_synced_at' => now()->toDateTimeString(),
-                'cache_version'  => (int) ($currentStatus['cache_version'] ?? 0) + 1,
-            ]
-        );
 
         $this->updateProgress($shop, 100, 'Completed');
 

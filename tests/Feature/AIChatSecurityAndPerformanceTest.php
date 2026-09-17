@@ -165,8 +165,8 @@ function createAiTestShop(int $id, string $domain, bool $primeInventoryCache = t
     ]);
 
     if ($primeInventoryCache) {
-        Cache::forever("amazon_inventory_{$id}_ATVPDKIKX0DER", []);
-        Cache::forever("amazon_inventory_status_{$id}_ATVPDKIKX0DER", [
+        Cache::forever("amazon_inventory_{$id}_{$shop->amazon_seller_id}", []);
+        Cache::forever("amazon_inventory_status_{$id}_{$shop->amazon_seller_id}", [
             'refreshing'     => false,
             'sync_completed' => true,
             'last_synced_at' => now()->toDateTimeString(),
@@ -510,7 +510,7 @@ it('Test I: When Amazon inventory cache is missing and Amazon is connected, AI C
 
 it('Test J: When Amazon inventory is already refreshing, AI Chat returns inventory_syncing without dispatching duplicate job', function () {
     $shop = createAiTestShop(1, 'refreshing-cache.myshopify.com', false);
-    Cache::forever("amazon_inventory_status_{$shop->id}_ATVPDKIKX0DER", [
+    Cache::forever("amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}", [
         'refreshing'     => true,
         'sync_completed' => false,
     ]);
@@ -568,11 +568,11 @@ it('Test K: When Amazon is NOT connected, AI Chat does not trigger inventory syn
 
 it('Test L: When Amazon inventory cache is populated, AI context includes live Amazon inventory count', function () {
     $shop = createAiTestShop(1, 'populated-cache.myshopify.com', false);
-    Cache::forever("amazon_inventory_{$shop->id}_ATVPDKIKX0DER", [
+    Cache::forever("amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}", [
         ['sku' => 'AMZ-SKU-1', 'quantity' => 15],
         ['sku' => 'AMZ-SKU-2', 'quantity' => 40],
     ]);
-    Cache::forever("amazon_inventory_status_{$shop->id}_ATVPDKIKX0DER", [
+    Cache::forever("amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}", [
         'refreshing'     => false,
         'sync_completed' => true,
         'last_synced_at' => now()->toDateTimeString(),

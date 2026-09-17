@@ -2,25 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\ShopifyController;
+use App\Models\Log as SyncLog;
+use App\Models\Plan;
+use App\Models\Product;
+use App\Models\ProductMarketplaceMapping;
+use App\Models\ReturnItem;
+use App\Models\Setting;
+use App\Models\Shop;
+use App\Models\ShopifyOrder;
+use App\Models\ShopSubscription;
+use App\Services\ShopifyInventoryService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Models\Shop;
-use App\Models\Plan;
-use App\Models\ShopSubscription;
-use App\Http\Controllers\ShopifyController;
-use App\Models\Setting;
-use App\Models\Log as SyncLog;
-use App\Models\ReturnItem;
-use App\Models\Product;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
-use Carbon\Carbon;
-use App\Models\ShopifyOrder;
-use App\Models\ProductMarketplaceMapping;
-use App\Services\ShopifyInventoryService;
 use Illuminate\Support\Collection;
-
 
 class DashboardController extends ShopifyController
 {
@@ -66,14 +65,14 @@ class DashboardController extends ShopifyController
         $amazonInventory = [];
         $amazonInventoryCacheExists = false;
 
-        if (!empty($shop->amazon_marketplace_id)) {
-            $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_marketplace_id}";
+        if (!empty($shop->amazon_seller_id)) {
+            $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}";
 
             $amazonInventoryCacheExists = Cache::has($cacheKey);
             $amazonInventory = Cache::get($cacheKey, []);
         }
         $thirtyDaysAgo = \Carbon\Carbon::today()->subDays(30);
-        $cacheTtl = 300; // Cache heavy charts for 5 minutes
+        $cacheTtl = 300;  // Cache heavy charts for 5 minutes
 
         // 1. Top KPI Aggregates (Eager & efficient counts)
         $totalProducts = Product::where('shop_id', $shopId)->count();
@@ -81,14 +80,16 @@ class DashboardController extends ShopifyController
         $totalMapped = ProductMarketplaceMapping::where('shop_id', $shopId)->count();
 
         // System Health Status
-        $isShopConnected = true; // Replace with actual OAuth token check
+        $isShopConnected = true;  // Replace with actual OAuth token check
 
         // 2. Chart.js Data Generation (Cached)
         $ordersTimeline = Cache::remember("shop_{$shopId}_orders_timeline", $cacheTtl, function () use ($shopId, $thirtyDaysAgo) {
             return ShopifyOrder::where('shop_id', $shopId)
                 ->where('created_at', '>=', $thirtyDaysAgo)
                 ->selectRaw('DATE(created_at) as date, count(*) as total')
-                ->groupBy('date')->orderBy('date')->get();
+                ->groupBy('date')
+                ->orderBy('date')
+                ->get();
         });
 
         // B. Product Creation Trend (Last 30 Days)
@@ -96,7 +97,9 @@ class DashboardController extends ShopifyController
             return Product::where('shop_id', $shopId)
                 ->where('created_at', '>=', $thirtyDaysAgo)
                 ->selectRaw('DATE(created_at) as date, count(*) as total')
-                ->groupBy('date')->orderBy('date')->get();
+                ->groupBy('date')
+                ->orderBy('date')
+                ->get();
         });
 
         // 3. Recent Activity Logs
@@ -108,12 +111,10 @@ class DashboardController extends ShopifyController
             "shop_{$shopId}_top_selling_products",
             $cacheTtl,
             function () use ($shopId) {
-
                 return ShopifyOrder::where('shop_id', $shopId)
                     ->where('order_created_at', '>=', now()->subDay())
                     ->get()
                     ->flatMap(function ($order) {
-
                         $items = is_array($order->line_items)
                             ? $order->line_items
                             : json_decode($order->line_items, true);
@@ -122,7 +123,6 @@ class DashboardController extends ShopifyController
                     })
                     ->groupBy('product_id')
                     ->map(function ($items) {
-
                         return [
                             'title' => $items->first()['title'] ?? 'Unknown Product',
                             'quantity' => collect($items)->sum('quantity'),
@@ -161,8 +161,6 @@ class DashboardController extends ShopifyController
             ->sortBy('quantity')
             ->take(7)
             ->values();
-
-
 
         // Return only the exact variables required by the frontend
         return view('dashboard', compact(
@@ -206,8 +204,8 @@ class DashboardController extends ShopifyController
         $amazonInventory = [];
         $amazonInventoryCacheExists = false;
 
-        if (!empty($shop->amazon_marketplace_id)) {
-            $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_marketplace_id}";
+        if (!empty($shop->amazon_seller_id)) {
+            $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}";
             $amazonInventoryCacheExists = Cache::has($cacheKey);
             $amazonInventory = Cache::get($cacheKey, []);
         }

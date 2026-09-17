@@ -51,6 +51,7 @@ beforeEach(function () {
             $table->integer('selected_location_index')->nullable();
             $table->string('amazon_marketplace_id')->nullable();
             $table->string('amazon_mws_region')->nullable();
+            $table->string('amazon_seller_id')->nullable();
             $table->text('amazon_refresh_token')->nullable();
             $table->boolean('is_active')->default(1);
             $table->softDeletes();
@@ -136,6 +137,8 @@ function createMappingTestShop(string $domain = 'test-mapping.myshopify.com'): S
         'access_token'             => 'shp_valid_token_123',
         'access_token_expires_at'  => now()->addDays(30),
         'is_active'                => 1,
+        'amazon_seller_id'         => 'SELLER_TEST_123',
+        'amazon_refresh_token'     => 'amz_refresh_token_123',
         'amazon_marketplace_id'    => 'ATVPDKIKX0DER',
         'amazon_mws_region'        => 'us-east-1',
         'selected_location_index'  => 0,
@@ -194,8 +197,8 @@ test('Test 1: Cached Amazon product with is_mapped=false overlays DB mapping dyn
         ]
     ];
 
-    Cache::forever("amazon_inventory_{$shop->id}_{$marketplaceId}", $cachedProducts);
-    Cache::forever("amazon_inventory_status_{$shop->id}_{$marketplaceId}", [
+    Cache::forever("amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}", $cachedProducts);
+    Cache::forever("amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}", [
         'refreshing'     => false,
         'sync_completed' => true,
         'cache_version'  => 1,
@@ -330,7 +333,7 @@ test('Test 2: Cached Shopify product with is_mapped=false overlays DB mapping dy
 test('Test 3: Unmapped products return clean unmapped structure', function () {
     $shop = createMappingTestShop('unmapped-clean.myshopify.com');
 
-    Cache::forever("amazon_inventory_{$shop->id}_ATVPDKIKX0DER", [
+    Cache::forever("amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}", [
         [
             'sku'                       => 'AMZ-RAW-SKU',
             'title'                     => 'Raw Product',
@@ -340,7 +343,7 @@ test('Test 3: Unmapped products return clean unmapped structure', function () {
             'mapping_id'                => null,
         ]
     ]);
-    Cache::forever("amazon_inventory_status_{$shop->id}_ATVPDKIKX0DER", [
+    Cache::forever("amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}", [
         'refreshing'     => false,
         'sync_completed' => true,
         'cache_version'  => 1,
@@ -448,8 +451,7 @@ test('Test 6: Existing Amazon and Shopify product/inventory retrieval contracts 
     $shop = createMappingTestShop('contracts-intact.myshopify.com');
 
     // 1. Amazon Contract Validation
-    $marketplaceId = 'ATVPDKIKX0DER';
-    Cache::forever("amazon_inventory_{$shop->id}_{$marketplaceId}", [
+    Cache::forever("amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}", [
         [
             'listing_id'          => 'LST-CONTRACT',
             'sku'                 => 'AMZ-CONTRACT-SKU',
@@ -467,7 +469,7 @@ test('Test 6: Existing Amazon and Shopify product/inventory retrieval contracts 
             'mapping_id'          => null,
         ]
     ]);
-    Cache::forever("amazon_inventory_status_{$shop->id}_{$marketplaceId}", [
+    Cache::forever("amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}", [
         'refreshing'     => false,
         'sync_completed' => true,
         'cache_version'  => 1,

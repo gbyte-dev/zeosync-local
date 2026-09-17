@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\ShopifyController;
+use App\Models\AdminSetting;
+use App\Models\MailTemplate;
+use App\Models\Plan;
+use App\Models\Shop;
+use App\Models\ShopSubscription;
+use App\Models\Store;
+use App\Services\EmailService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Models\Store;
-use App\Models\Shop;
-use App\Models\Plan;
-use App\Models\ShopSubscription;
-use App\Services\NotificationService;
-use App\Http\Controllers\ShopifyController;
-use Illuminate\Support\Facades\Crypt;
-use App\Models\MailTemplate;
-use App\Services\EmailService;
-use Illuminate\Support\Facades\Cache;
-use App\Models\AdminSetting;
 
 class AmazonConnect extends ShopifyController
 {
@@ -44,32 +44,32 @@ class AmazonConnect extends ShopifyController
         $state = bin2hex(random_bytes(16));
 
         $shop->update([
-            'amazon_oauth_state'    => $state,
+            'amazon_oauth_state' => $state,
             'amazon_marketplace_id' => $config['id'],
-            'amazon_mws_region'     => $config['region'],
-            'amazon_endpoint'       => $config['endpoint'],
+            'amazon_mws_region' => $config['region'],
+            'amazon_endpoint' => $config['endpoint'],
         ]);
 
         session([
-            'amazon_oauth_state'     => $state,
-            'amazon_pending_id'      => $config['id'],
-            'amazon_pending_region'  => $config['region'],
+            'amazon_oauth_state' => $state,
+            'amazon_pending_id' => $config['id'],
+            'amazon_pending_region' => $config['region'],
             'amazon_pending_endpoint' => $config['endpoint'],
         ]);
 
         $app_id = AdminSetting::get('amazon_app_id', config('amazon.app_id'));
 
         $authUrl = match ($config['region']) {
-            'eu'    => 'https://sellercentral-europe.amazon.com',
-            'fe'    => 'https://sellercentral.amazon.co.jp',
+            'eu' => 'https://sellercentral-europe.amazon.com',
+            'fe' => 'https://sellercentral.amazon.co.jp',
             default => 'https://sellercentral.amazon.com',
         };
 
         $query = http_build_query([
             'application_id' => $app_id,
-            'state'          => $state,
-            'version'        => 'beta',
-            'redirect_uri'   => route('amazon.callback'),
+            'state' => $state,
+            'version' => 'beta',
+            'redirect_uri' => route('amazon.callback'),
         ]);
 
         session([
@@ -121,18 +121,17 @@ class AmazonConnect extends ShopifyController
         }
         $state = $shop->amazon_oauth_state ?? bin2hex(random_bytes(16));
         session([
-            'amazon_oauth_state'        => $shop->amazon_oauth_state,
-            'amazon_pending_id'         => $shop->amazon_marketplace_id,
-            'amazon_pending_region'     => $shop->amazon_mws_region,
-            'amazon_pending_endpoint'   => $shop->amazon_pending_endpoint,
-
+            'amazon_oauth_state' => $shop->amazon_oauth_state,
+            'amazon_pending_id' => $shop->amazon_marketplace_id,
+            'amazon_pending_region' => $shop->amazon_mws_region,
+            'amazon_pending_endpoint' => $shop->amazon_pending_endpoint,
             // ADD THIS
-            'amazon_is_iframe'          => true,
+            'amazon_is_iframe' => true,
         ]);
 
         $authUrl = match ($shop->amazon_mws_region) {
-            'eu'    => 'https://sellercentral-europe.amazon.com',
-            'fe'    => 'https://sellercentral.amazon.co.jp',
+            'eu' => 'https://sellercentral-europe.amazon.com',
+            'fe' => 'https://sellercentral.amazon.co.jp',
             default => 'https://sellercentral.amazon.com',
         };
 
@@ -140,9 +139,9 @@ class AmazonConnect extends ShopifyController
 
         $query = http_build_query([
             'application_id' => $app_id,
-            'state'          => $state,
-            'version'        => 'beta',
-            'redirect_uri'   => route('amazon.callback'),
+            'state' => $state,
+            'version' => 'beta',
+            'redirect_uri' => route('amazon.callback'),
         ]);
         cache()->put(
             "amazon_connect_progress_{$shop->id}",
@@ -178,9 +177,9 @@ class AmazonConnect extends ShopifyController
         $client_secret = AdminSetting::get('production_client_secret', config('amazon.client_secret'));
 
         $response = Http::asForm()->post('https://api.amazon.com/auth/o2/token', [
-            'grant_type'    => 'authorization_code',
-            'code'          => $request->spapi_oauth_code,
-            'client_id'     => $client_id,
+            'grant_type' => 'authorization_code',
+            'code' => $request->spapi_oauth_code,
+            'client_id' => $client_id,
             'client_secret' => $client_secret,
         ]);
 
@@ -200,8 +199,8 @@ class AmazonConnect extends ShopifyController
             );
 
             $shop->update([
-                'amazon_refresh_token'  => $data['refresh_token'],
-                'amazon_seller_id'      => $request->selling_partner_id ?? ''
+                'amazon_refresh_token' => $data['refresh_token'],
+                'amazon_seller_id' => $request->selling_partner_id ?? ''
             ]);
 
             $request->session()->forget([
@@ -232,7 +231,6 @@ class AmazonConnect extends ShopifyController
             $request->session()->forget('amazon_is_iframe');
 
             if ($isIframe) {
-
                 return redirect()->route('amazon.connect.success', [
                     'shop' => $shop->shop,
                 ]);
@@ -254,7 +252,7 @@ class AmazonConnect extends ShopifyController
     {
         $shopModel = $this->getActiveShop($request);
         if (!$shopModel) {
-            return response()->json(['percent' => 0, 'message' => 'Shop not found.',  'completed' => false]);
+            return response()->json(['percent' => 0, 'message' => 'Shop not found.', 'completed' => false]);
         }
 
         return response()->json(
@@ -268,7 +266,6 @@ class AmazonConnect extends ShopifyController
             )
         );
     }
-
 
     public function syncOrders(Request $request)
     {
@@ -292,9 +289,9 @@ class AmazonConnect extends ShopifyController
 
         // 1. Get Access Token
         $auth = Http::asForm()->post('https://api.amazon.com/auth/o2/token', [
-            'grant_type'    => 'refresh_token',
+            'grant_type' => 'refresh_token',
             'refresh_token' => $shop->amazon_refresh_token,
-            'client_id'     => $client_id,
+            'client_id' => $client_id,
             'client_secret' => $client_secret,
         ])->json();
 
@@ -315,20 +312,20 @@ class AmazonConnect extends ShopifyController
         $response = Http::withHeaders([
             'x-amz-access-token' => $accessToken,
         ])->get('https://sellingpartnerapi-na.amazon.com/orders/v0/orders', [
-            'CreatedAfter'   => now()->subDays(1)->toIso8601String(),
-            'MarketplaceIds' => [$shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER'], // Marketplace ID
+            'CreatedAfter' => now()->subDays(1)->toIso8601String(),
+            'MarketplaceIds' => [$shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER'],  // Marketplace ID
         ]);
 
         $orders = $response->json()['payload']['Orders'] ?? [];
 
         foreach ($orders as $amzOrder) {
             // Logic to insert into your local DB or push to Shopify via Admin API
-            Log::info("Found Amazon Order: " . ($amzOrder['AmazonOrderId'] ?? 'N/A'));
+            Log::info('Found Amazon Order: ' . ($amzOrder['AmazonOrderId'] ?? 'N/A'));
         }
 
         return response()->json([
             'success' => true,
-            'orders'  => $orders,
+            'orders' => $orders,
         ]);
     }
 
@@ -343,16 +340,30 @@ class AmazonConnect extends ShopifyController
             return redirect()->back()->with('info', 'Amazon account is already disconnected.');
         }
 
+        $sellerId = $shop->amazon_seller_id;
+        $marketplaceId = $shop->amazon_marketplace_id;
+
         $shop->update([
-            'amazon_refresh_token'  => null,
-            'amazon_seller_id'      => null,
-            'amazon_oauth_state'    => null,
+            'amazon_refresh_token' => null,
+            'amazon_seller_id' => null,
+            'amazon_oauth_state' => null,
         ]);
+
         $this->reassignProductsOwner($shop);
-        Cache::forget('amazon_orders_' . $shop->shop.'_' . $shop->seller_id);
+        Cache::forget('amazon_orders_' . $shop->shop);
         Cache::forget("amazon_connect_progress_{$shop->id}");
-        $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_marketplace_id}";
-        Cache::forget($cacheKey);
+
+        if (!empty($sellerId)) {
+            Cache::forget("amazon_inventory_{$shop->id}_{$sellerId}");
+            Cache::forget("amazon_inventory_status_{$shop->id}_{$sellerId}");
+            Cache::forget("amazon_inventory_lock_{$shop->id}_{$sellerId}");
+        }
+
+        if (!empty($marketplaceId)) {
+            Cache::forget("amazon_inventory_{$shop->id}_{$marketplaceId}");
+            Cache::forget("amazon_inventory_status_{$shop->id}_{$marketplaceId}");
+            Cache::forget("amazon_inventory_lock_{$shop->id}_{$marketplaceId}");
+        }
 
         $shopName = str_replace('.myshopify.com', '', $shop->shop);
         NotificationService::send(

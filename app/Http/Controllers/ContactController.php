@@ -34,8 +34,13 @@ class ContactController extends Controller
 
         // Allow requests only from your website
         $origin = $request->header('Origin');
+        $allowedOrigins = array_filter([
+            'https://zeosync.app',
+            rtrim((string) config('app.url'), '/'),
+            $request->getSchemeAndHttpHost(),
+        ]);
 
-        if (($origin !== 'https://zeosync.app')) {
+        if ($origin && !in_array(rtrim($origin, '/'), $allowedOrigins, true) && !str_ends_with(parse_url($origin, PHP_URL_HOST) ?? '', 'zeosync.app')) {
             abort(403, 'Unauthorized request.');
         }
 
@@ -44,7 +49,7 @@ class ContactController extends Controller
                 'required',
                 'string',
                 'max:100',
-                'regex:/^[\pL\s\'-]+$/u',
+                'regex:/^(?=.*[\pL\pN])[\pL\pN\s\'-]+$/u',
             ],
             'email' => [
                 'required',
@@ -56,24 +61,32 @@ class ContactController extends Controller
                 'required',
                 'string',
                 'max:255',
-                'regex:/^[\pL\pN\s.,!?_-]+$/u',
+                'regex:/^(?=.*[\pL\pN])[\pL\pN\s.,!?_-]+$/u',
             ],
             'message' => [
                 'required',
                 'string',
                 'max:5000',
+                'regex:/[\pL\pN]/u',
                 'not_regex:/<[^>]*>|<script|javascript\s*:|vbscript\s*:|on\w+\s*=|on\w+\/|<\?php|<\?|<\%|\?>|\%>/i',
             ],
             'enquiry_type' => 'nullable|string|max:50',
-            'store_url' => 'nullable|url|max:255',
+            'store' => 'nullable|string|max:255',
+            'store_url' => 'nullable|string|max:255',
             'marketplace' => 'nullable|string|max:100',
             'plan' => 'nullable|string|max:100',
             'volume' => 'nullable|string|max:100',
         ], [
-            'name.regex' => 'Please use only letters, spaces, hyphens, and apostrophes.',
+            'name.regex' => 'Please use only letters, numbers, spaces, hyphens, and apostrophes.',
             'subject.regex' => 'Please use only letters, numbers, spaces, and basic punctuation.',
+            'message.regex' => 'Please provide descriptive text containing letters or numbers.',
             'message.not_regex' => 'HTML, JavaScript, PHP code, and executable script content are not allowed.',
         ]);
+
+        if (!empty($data['store']) && empty($data['store_url'])) {
+            $data['store_url'] = $data['store'];
+        }
+        unset($data['store']);
 
         $data['enquiry_type'] = $request->input('enquiry_type', 'general_enquiry');
 

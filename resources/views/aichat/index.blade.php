@@ -96,7 +96,7 @@
         max-height: 62vh;
         overflow-y: auto;
         padding-right: 6px;
-        min-height: 420px;
+        min-height: 407px;
     }
 
     .ai-chat-message {
