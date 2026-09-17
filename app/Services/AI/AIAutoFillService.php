@@ -30,18 +30,11 @@ readonly class AIAutoFillService
      * @param string $category      The target Amazon product category.
      * @return array{success: bool, data: array, errors: array, warnings: array, trace_id?: string, usage?: array|null, classification?: array}
      */
-    public function generate(
-        array $shopifyProduct,
-        array $resolvedSchema,
-        array $currentValues = [],
-        string $category = ''
+    public function generate( array $shopifyProduct, array $resolvedSchema,
+        array $currentValues = [], string $category = ''
     ): array {
         $traceId   = (string) Str::uuid();
         $startTime = microtime(true);
-
-        Log::info("AI Auto-Fill Pipeline Started [{$traceId}]", [
-            'category' => $category,
-        ]);
 
         try {
             // 1. Classify Schema
@@ -62,8 +55,7 @@ readonly class AIAutoFillService
             );
 
             if (!$aiResponse['success']) {
-                return $this->handleError(
-                    $traceId,
+                return $this->handleError(  $traceId,
                     $aiResponse['error'] ?? 'Unknown API Error',
                     $startTime,
                     ['classification' => $classification]
@@ -90,11 +82,6 @@ readonly class AIAutoFillService
             // 5. Return Validated Payload with Metadata
             $duration = round((microtime(true) - $startTime) * 1000, 2);
 
-            Log::info("AI Auto-Fill Pipeline Completed [{$traceId}]", [
-                'duration_ms' => $duration,
-                'warnings'    => count($validated['warnings']),
-            ]);
-
             return [
                 'success'        => true,
                 'data'           => $validated['data'],
@@ -113,10 +100,8 @@ readonly class AIAutoFillService
         }
     }
 
-    public function generateSingleField(
-        string $productName,
-        string $category,
-        string $field,
+    public function generateSingleField( string $productName,
+        string $category, string $field,
         ?string $fieldDescription = null,
         ?string $fieldHint = null
     ): array {
@@ -187,11 +172,8 @@ readonly class AIAutoFillService
         ];
     }
 
-    public function generateGenericListing(
-        string $productName,
-        ?string $productDescription,
-        string $category
-    ): array {
+    public function generateGenericListing( string $productName,  ?string $productDescription, string $category  ): array 
+    {
 
         $prompts = $this->promptService->buildGenericPrompt(
             productName: $productName,
@@ -225,11 +207,8 @@ readonly class AIAutoFillService
     }
 
 
-    public function generateErrorAutoFill(
-        string $productName,
-        ?string $productDescription,
-        string $category,
-        array $errors
+    public function generateErrorAutoFill( string $productName,
+        ?string $productDescription, string $category, array $errors
     ): array {
         $prompts = $this->promptService->buildErrorAutoFillPrompt(
             productName: $productName,

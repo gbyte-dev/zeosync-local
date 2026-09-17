@@ -3118,10 +3118,8 @@ class ShopifyController extends Controller
 
     public function show($id)
     {
-	   $shop = Shop::with('subscription.plan')->findOrFail($id);
-
+	    $shop = Shop::with('subscription.plan')->findOrFail($id);
         $customPlan = Plan::where('shop_id', $shop->id)->first();
-
         $productCount = $shop->products()->count();
         $logCount = ProductSyncLog::where('shop_id', $shop->id)->count();
         $orderCount = $shop->orders()->count();
@@ -3129,9 +3127,7 @@ class ShopifyController extends Controller
         // Revenue stats
         $totalRevenue = $shop->orders()->where('financial_status', '!=', 'refunded')
             ->sum('total_price');
-        $averageOrderValue = $orderCount > 0
-            ? $totalRevenue / $orderCount
-            : 0;
+        $averageOrderValue = $orderCount > 0 ? $totalRevenue / $orderCount : 0;
 
         // Orders by status
         $ordersByStatus = ShopifyOrder::where('shop_id', $shop->id)
@@ -3160,26 +3156,14 @@ class ShopifyController extends Controller
             ->get();
 
         // Admin notifications for this shop (includes global notifications with null shop_id)
-        $notifications = \App\Models\AdminNotification::where(function($q) use ($shop) {
+        $notifications = \App\Models\UserNotification::where(function($q) use ($shop) {
                 $q->whereNull('shop_id')->orWhere('shop_id', $shop->id);
-            })
-            ->orderBy('created_at', 'desc')
-            ->limit(20)
-            ->get();
+            })->orderBy('created_at', 'desc')->limit(20)->get();
 
-        return view('admin.shops.view', compact(
-            'shop',
-            'customPlan',
-            'productCount',
-            'logCount',
-            'orderCount',
-            'totalRevenue',
-            'averageOrderValue',
-            'ordersByStatus',
-            'recentOrders',
-            'syncStatusCounts',
-            'recentSyncLogs'
-            ,'notifications'
+        return view('admin.shops.view', compact( 'shop',    'customPlan',  'productCount',
+            'logCount',    'orderCount',  'totalRevenue',
+            'averageOrderValue',   'ordersByStatus',   'recentOrders',
+            'syncStatusCounts',  'recentSyncLogs'   ,'notifications'
         ));
     }
     public function getSellerIdFull()
@@ -3187,24 +3171,18 @@ class ShopifyController extends Controller
         try {
             //   STEP 1: CONNECTOR
             $connector = \SellingPartnerApi\SellingPartnerApi::seller(
-                clientId: AdminSetting::get(
-                    'production_client_id',
+                clientId: AdminSetting::get('production_client_id',
                     config('amazon.client_id')
                 ),
-                clientSecret: AdminSetting::get(
-                    'production_client_secret',
+                clientSecret: AdminSetting::get( 'production_client_secret',
                     config('amazon.client_secret')
                 ),
-                refreshToken: AdminSetting::get(
-                    'amazon_refresh_token',
+                refreshToken: AdminSetting::get( 'amazon_refresh_token',
                     config('amazon.refresh_token')
                 ),
                 endpoint: \SellingPartnerApi\Enums\Endpoint::NA_SANDBOX
             );
-            // ,
-            //     awsAccessKeyId: config('amazon.aws_access_key_id'),
-            //     awsSecretAccessKey: config('amazon.aws_secret_access_key'),
-            Log::info('🟢 CONNECTOR CREATED');
+
             //   STEP 2: API CALL
             $res = $connector->sellersV1()->getMarketplaceParticipations();
             //   STEP 3: RAW RESPONSE (MOST IMPORTANT)
@@ -3257,16 +3235,14 @@ class ShopifyController extends Controller
 
         if ($shop) {
             $createdAfter = \Carbon\Carbon::parse(
-                $shop->created_at,
-                'UTC'
+                $shop->created_at, 'UTC'
             )->toAtomString();
         } else {
             $createdAfter = now()->subDays(30)->toDateTimeString();
         }
 
         return Cache::remember(
-            $cacheKey,
-            now()->addHours(24),
+            $cacheKey, now()->addHours(24),
             function () use ($shop, $createdAfter) {
                 try {
 
@@ -3478,10 +3454,8 @@ class ShopifyController extends Controller
             }
             // Collect all matched type names
             $matchedTypes = collect($productTypes)
-                ->pluck('name')
-                ->filter()
-                ->values()
-                ->toArray();
+                ->pluck('name')->filter()->values()->toArray();
+
             $matchedType = $matchedTypes[0]; // primary match
             // ── Step 2: Fetch full schema for primary match ───────────────────
             $schemaResponse = $definitions->getDefinitionsProductType(
@@ -3552,98 +3526,17 @@ class ShopifyController extends Controller
         $shopModel = getActiveShopModel($request);
         if (!$shopModel) {
             return response()->json(['error' => 'Shop not found'], 403);
-        }
-
-        $amazonService = new \App\Services\AmazonService();
-        $attributes = [
-            "item_name" => [["value" => "Wireless Bluetooth Earbuds", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "brand" => [["value" => "MyBrand", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "manufacturer" => [["value" => "MyBrand", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "model_name" => [["value" => "TWS-100", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "model_number" => [["value" => "TWS-100", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "item_type_keyword" => [["value" => "earbuds", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "product_description" => [["value" => "High quality wireless earbuds with Bluetooth 5.0", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "bullet_point" => [
-                ["value" => "Bluetooth 5.0 for stable wireless connection", "marketplace_id" => "ATVPDKIKX0DER"],
-                ["value" => "Active Noise Cancellation", "marketplace_id" => "ATVPDKIKX0DER"]
-            ],
-            "color" => [["value" => "black", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "connectivity_technology" => [["value" => "wireless", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "headphones_form_factor" => [["value" => "in_ear", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "headphones_ear_placement" => [["value" => "in_ear", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "included_components" => [
-                ["value" => "earbuds", "marketplace_id" => "ATVPDKIKX0DER"],
-                ["value" => "charging case", "marketplace_id" => "ATVPDKIKX0DER"]
-            ],
-            "number_of_items" => [["value" => 1, "marketplace_id" => "ATVPDKIKX0DER"]],
-            "main_product_image_locator" => [
-                ["media_location" => "https://m.media-amazon.com/images/I/61CGHv6kmWL._SL1500_.jpg", "marketplace_id" => "ATVPDKIKX0DER"]
-            ],
-            "country_of_origin" => [["value" => "CN", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "batteries_required" => [["value" => false, "marketplace_id" => "ATVPDKIKX0DER"]],
-            "batteries_included" => [["value" => false, "marketplace_id" => "ATVPDKIKX0DER"]],
-            "externally_assigned_product_identifier" => [
-                ["type" => "ean", "value" => "8901234567890", "marketplace_id" => "ATVPDKIKX0DER"]
-            ],
-            "unit_count" => [
-                [
-                    "value" => 1, // or 20 if actual pack
-                    "type" => [
-                        "value" => "Count",
-                        "language_tag" => "en_US"
-                    ],
-                    "marketplace_id" => "ATVPDKIKX0DER"
-                ]
-            ],
-            // ✅ Required missing fields add kiye
-            "item_package_weight" => [
-                ["value" => 0.5, "unit" => "kilograms", "marketplace_id" => "ATVPDKIKX0DER"]
-            ],
-            "item_package_dimensions" => [
-                [
-                    "length" => ["value" => 10, "unit" => "centimeters"],
-                    "width"  => ["value" => 5, "unit" => "centimeters"],
-                    "height" => ["value" => 3, "unit" => "centimeters"],
-                    "marketplace_id" => "ATVPDKIKX0DER"
-                ]
-            ],
-            "supplier_declared_dg_hz_regulation" => [["value" => "not_applicable", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "warranty_description" => [["value" => "1 year warranty", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "condition_type" => [["value" => "new_new", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "list_price" => [["value" => 49.99, "currency" => "USD", "marketplace_id" => "ATVPDKIKX0DER"]],
-            "fulfillment_availability" => [
-                ["fulfillment_channel_code" => "DEFAULT", "quantity" => 10]
-            ],
-        ];
-        // ✅ Correct order: productType, attributes, requirements
-        $payload = new \SellingPartnerApi\Seller\ListingsItemsV20210801\Dto\ListingsItemPutRequest(
-            productType: 'HEADPHONES',
-            attributes: $attributes,
-            requirements: 'LISTING',
-        );
-        $sku = 'earbuds-static-' . time();
-        try {
-            $connector = $amazonService->getDbConnectorFromCredentials($shopModel);
-            // ✅ Correct order: sellerId, sku, listingsItemPutRequest, marketplaceIds
-            $response = $connector->putListingsItem(
-                $shopModel->amazon_seller_id,
-                $sku,
-                $payload,
-                ['ATVPDKIKX0DER'],
-            );
+        }else{
             return response()->json([
-                'sku'      => $sku,
-                'status'   => $response->status(),
-                'response' => $response->json(),
+                'sku'      => 'test-sku-123',
+                'status'   => 200,
+                'response' => [],
             ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'error' => $e->getMessage(),
-                'line'  => $e->getLine(),
-                'file'  => $e->getFile(),
-            ], 500);
         }
+        $amazonService = new \App\Services\AmazonService();
+        
     }
+    
     private function UploadImageProvideUrl($request)
     {
         $paths = [];
