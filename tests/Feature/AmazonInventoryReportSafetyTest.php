@@ -192,8 +192,8 @@ function createReportMockSetup($createResponse, $getStatusResponses, $getDocumen
 // -------------------------------------------------------------------------
 test('1. Existing Amazon cache remains available while refresh is running', function () {
     $shop = createSafetyTestShop();
-    $cacheKey = "amazon_inventory_{$shop->id}_ATVPDKIKX0DER";
-    $statusKey = "amazon_inventory_status_{$shop->id}_ATVPDKIKX0DER";
+    $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}";
+    $statusKey = "amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}";
 
     $existingProducts = [
         ['sku' => 'SKU-OLD-1', 'quantity' => 50, 'status' => 'Active'],
@@ -218,8 +218,8 @@ test('1. Existing Amazon cache remains available while refresh is running', func
 // -------------------------------------------------------------------------
 test('2. Report creation failure preserves old inventory', function () {
     $shop = createSafetyTestShop();
-    $cacheKey = "amazon_inventory_{$shop->id}_ATVPDKIKX0DER";
-    $statusKey = "amazon_inventory_status_{$shop->id}_ATVPDKIKX0DER";
+    $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}";
+    $statusKey = "amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}";
 
     Cache::forever($cacheKey, [['sku' => 'SKU-PRESERVED', 'quantity' => 10]]);
     Cache::forever($statusKey, ['sync_completed' => true, 'last_synced_at' => now()->toDateTimeString()]);
@@ -257,7 +257,7 @@ test('2. Report creation failure preserves old inventory', function () {
 // -------------------------------------------------------------------------
 test('3. Report download failure preserves old inventory', function () {
     $shop = createSafetyTestShop();
-    $cacheKey = "amazon_inventory_{$shop->id}_ATVPDKIKX0DER";
+    $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}";
 
     Cache::forever($cacheKey, [['sku' => 'SKU-OLD-DATA', 'quantity' => 99]]);
 
@@ -459,7 +459,7 @@ test('11. GZIP-compressed TSV content is decompressed and parsed successfully', 
 // -------------------------------------------------------------------------
 test('12. Corrupt GZIP data throws exception and preserves active cache', function () {
     $shop = createSafetyTestShop();
-    $cacheKey = "amazon_inventory_{$shop->id}_ATVPDKIKX0DER";
+    $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}";
     Cache::forever($cacheKey, [['sku' => 'SKU-ORIGINAL', 'quantity' => 77]]);
 
     $amazonServiceMock = Mockery::mock(AmazonService::class);
@@ -479,7 +479,7 @@ test('12. Corrupt GZIP data throws exception and preserves active cache', functi
 // -------------------------------------------------------------------------
 test('13. Empty parsed rows do not wipe existing non-empty inventory', function () {
     $shop = createSafetyTestShop();
-    $cacheKey = "amazon_inventory_{$shop->id}_ATVPDKIKX0DER";
+    $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}";
     Cache::forever($cacheKey, [
         ['sku' => 'SKU-PERSISTENT-1', 'quantity' => 10],
         ['sku' => 'SKU-PERSISTENT-2', 'quantity' => 20],
@@ -517,7 +517,7 @@ test('14. Manual Amazon refresh does not delete existing inventory cache', funct
     \Illuminate\Support\Facades\Queue::fake();
 
     $shop = createSafetyTestShop();
-    $cacheKey = "amazon_inventory_{$shop->id}_ATVPDKIKX0DER";
+    $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}";
     Cache::forever($cacheKey, [['sku' => 'SKU-KEPT-ALIVE', 'quantity' => 88]]);
 
     $validator = Mockery::mock(ShopifySessionTokenValidator::class)->makePartial();

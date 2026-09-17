@@ -341,6 +341,7 @@ class AmazonConnect extends ShopifyController
         }
 
         $sellerId = $shop->amazon_seller_id;
+        $marketplaceId = $shop->amazon_marketplace_id;
 
         $shop->update([
             'amazon_refresh_token' => null,
@@ -355,6 +356,13 @@ class AmazonConnect extends ShopifyController
         if (!empty($sellerId)) {
             Cache::forget("amazon_inventory_{$shop->id}_{$sellerId}");
             Cache::forget("amazon_inventory_status_{$shop->id}_{$sellerId}");
+            Cache::forget("amazon_inventory_lock_{$shop->id}_{$sellerId}");
+        }
+
+        if (!empty($marketplaceId)) {
+            Cache::forget("amazon_inventory_{$shop->id}_{$marketplaceId}");
+            Cache::forget("amazon_inventory_status_{$shop->id}_{$marketplaceId}");
+            Cache::forget("amazon_inventory_lock_{$shop->id}_{$marketplaceId}");
         }
 
         $shopName = str_replace('.myshopify.com', '', $shop->shop);

@@ -81,11 +81,11 @@ class AIController extends Controller
             $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
             $sellerId = $shop->amazon_seller_id;
 
-            $cacheKey = "amazon_inventory_{$shop->shop}_{$sellerId}";
+            $cacheKey = !empty($sellerId) ? "amazon_inventory_{$shop->id}_{$sellerId}" : null;
 
             $inventoryService = app(InventoryCacheService::class);
             $status = $inventoryService->getStatus($shop, $marketplaceId);
-            $hasCache = Cache::has($cacheKey);
+            $hasCache = $cacheKey ? Cache::has($cacheKey) : false;
             $syncCompleted = (bool) ($status['sync_completed'] ?? false);
 
             if (!$hasCache || !$syncCompleted) {
@@ -263,15 +263,14 @@ class AIController extends Controller
 
     private function getAmazonInventoryCache(?Shop $shop): array
     {
-        if (!$shop || empty($shop->amazon_refresh_token)) {
+        if (!$shop || empty($shop->amazon_refresh_token) || empty($shop->amazon_seller_id)) {
             return [];
         }
 
         $sellerId = $shop->amazon_seller_id;
-        $shopName = $shop->shop;
 
         return Cache::get(
-            "amazon_inventory_{$shopName}_{$sellerId}",
+            "amazon_inventory_{$shop->id}_{$sellerId}",
             []
         );
     }

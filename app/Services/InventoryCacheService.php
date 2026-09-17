@@ -37,7 +37,24 @@ class InventoryCacheService
         Log::info('getAmazonInventory START', [
             'shop_id' => $shop->id,
             'marketplace' => $marketplaceId,
+            'seller_id' => $shop->amazon_seller_id,
         ]);
+
+        if (empty($shop->amazon_seller_id)) {
+            Log::warning('Amazon inventory cache skipped: seller ID missing', [
+                'shop_id' => $shop->id,
+                'marketplace' => $marketplaceId,
+            ]);
+
+            return [
+                'products' => [],
+                'status' => [
+                    'refreshing' => false,
+                    'sync_completed' => false,
+                    'error' => 'seller_id_missing',
+                ],
+            ];
+        }
 
         $cacheKey = $this->getInventoryCacheKey($shop, $marketplaceId);
         $status = $this->getStatus($shop, $marketplaceId);
@@ -47,6 +64,7 @@ class InventoryCacheService
         Log::info('[AMAZON_DEBUG] Initial state calculated', [
             'shop_id' => $shop->id,
             'shop_domain' => $shop->shop,
+            'seller_id' => $shop->amazon_seller_id,
             'marketplace_id' => $marketplaceId,
             'cache_key' => $cacheKey,
             'has_cache' => $hasCache,
@@ -91,6 +109,7 @@ class InventoryCacheService
         Log::info('Inventory cache loaded', [
             'count' => is_array($inventory) ? count($inventory) : 0,
             'status' => $status,
+            'cache_key' => $cacheKey,
         ]);
 
         $expired = $this->isExpired($shop, $marketplaceId);
@@ -144,6 +163,15 @@ class InventoryCacheService
     ): array {
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
 
+        if (empty($shop->amazon_seller_id)) {
+            Log::warning('Amazon inventory refresh skipped: seller ID missing', [
+                'shop_id' => $shop->id,
+                'marketplace' => $marketplaceId,
+            ]);
+
+            return [];
+        }
+
         $lock = Cache::lock(
             $this->getLockCacheKey($shop, $marketplaceId),
             300
@@ -152,6 +180,7 @@ class InventoryCacheService
         if (!$lock->get()) {
             Log::info('Amazon inventory refresh already running.', [
                 'shop_id' => $shop->id,
+                'seller_id' => $shop->amazon_seller_id,
             ]);
 
             return Cache::get(
@@ -182,6 +211,7 @@ class InventoryCacheService
         } catch (\Throwable $exception) {
             Log::error('Amazon inventory refresh failed.', [
                 'shop_id' => $shop->id,
+                'seller_id' => $shop->amazon_seller_id,
                 'message' => $exception->getMessage(),
             ]);
 
@@ -208,8 +238,18 @@ class InventoryCacheService
     {
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
 
+        if (empty($shop->amazon_seller_id)) {
+            Log::warning('Amazon inventory dispatchRefresh skipped: seller ID missing', [
+                'shop_id' => $shop->id,
+                'marketplace' => $marketplaceId,
+            ]);
+
+            return;
+        }
+
         Log::info('dispatchRefresh ENTERED', [
             'shop_id' => $shop->id,
+            'seller_id' => $shop->amazon_seller_id,
             'marketplace' => $marketplaceId,
         ]);
 
@@ -237,6 +277,7 @@ class InventoryCacheService
 
         Log::info('Dispatching SyncAmazonInventoryJob', [
             'shop_id' => $shop->id,
+            'seller_id' => $shop->amazon_seller_id,
         ]);
 
         SyncAmazonInventoryJob::dispatch($shop->id);
@@ -249,6 +290,10 @@ class InventoryCacheService
      */
     public function isExpired(Shop $shop, ?string $marketplaceId = null): bool
     {
+        if (empty($shop->amazon_seller_id)) {
+            return true;
+        }
+
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
         $status = $this->getStatus($shop, $marketplaceId);
         if (empty($status['last_synced_at']) || !($status['sync_completed'] ?? false)) {
@@ -265,6 +310,15 @@ class InventoryCacheService
      */
     public function getStatus(Shop $shop, ?string $marketplaceId = null): array
     {
+        if (empty($shop->amazon_seller_id)) {
+            return [
+                'refreshing' => false,
+                'sync_completed' => false,
+                'cache_version' => 0,
+                'last_synced_at' => null,
+            ];
+        }
+
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
         return Cache::get(
             $this->getStatusCacheKey($shop, $marketplaceId),
@@ -282,9 +336,19 @@ class InventoryCacheService
      */
     public function updateStatus(
         Shop $shop,
-        string $marketplaceId,
+        ?string $marketplaceId,
         array $data
     ): void {
+        if (empty($shop->amazon_seller_id)) {
+            Log::warning('Amazon inventory updateStatus skipped: seller ID missing', [
+                'shop_id' => $shop->id,
+            ]);
+
+            return;
+        }
+
+        $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
+
         $status = array_merge(
             $this->getStatus($shop, $marketplaceId),
             $data
@@ -301,21 +365,21 @@ class InventoryCacheService
      */
     protected function getInventoryCacheKey(
         Shop $shop,
-        string $marketplaceId
+        ?string $marketplaceId = null
     ): string {
         return self::INVENTORY_CACHE_PREFIX . "_{$shop->id}_{$shop->amazon_seller_id}";
     }
 
     protected function getStatusCacheKey(
         Shop $shop,
-        string $marketplaceId
+        ?string $marketplaceId = null
     ): string {
         return self::STATUS_CACHE_PREFIX . "_{$shop->id}_{$shop->amazon_seller_id}";
     }
 
     protected function getLockCacheKey(
         Shop $shop,
-        string $marketplaceId
+        ?string $marketplaceId = null
     ): string {
         return self::LOCK_CACHE_PREFIX . "_{$shop->id}_{$shop->amazon_seller_id}";
     }

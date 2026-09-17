@@ -115,10 +115,14 @@ class InventoryController extends ShopifyController
             unset($item);
         }
 
+        $amazonInventory = !empty($shopModel->amazon_seller_id)
+            ? Cache::get("amazon_inventory_{$shopModel->id}_{$shopModel->amazon_seller_id}", [])
+            : [];
+
         app(AutoSkuMappingService::class)->handle(
             $shopModel,
             $data,
-            Cache::get("amazon_inventory_{$shopModel->id}_" . ($shopModel->amazon_seller_id), [])
+            $amazonInventory
         );
 
         return response()->json($data);

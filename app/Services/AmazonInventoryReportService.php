@@ -326,32 +326,49 @@ class AmazonInventoryReportService
 
         $rows = $this->parseReport($content, $shop, $reportSnapshotTime);
 
-        $inventoryCacheKey = "amazon_inventory_{$shop->id}_{$marketplaceId}";
-        $statusCacheKey = "amazon_inventory_status_{$shop->id}_{$marketplaceId}";
-        $currentStatus = Cache::get($statusCacheKey, ['cache_version' => 0]);
-
-        if (empty($rows) && Cache::has($inventoryCacheKey) && !empty(Cache::get($inventoryCacheKey))) {
-            Log::warning('Amazon report produced 0 rows while existing inventory cache is non-empty. Preserving existing cache.', [
+        $sellerId = $shop->amazon_seller_id;
+        if (empty($sellerId)) {
+            Log::warning('Amazon inventory cache write skipped: seller ID missing', [
                 'shop_id' => $shop->id,
                 'marketplace_id' => $marketplaceId,
             ]);
-            $rows = Cache::get($inventoryCacheKey, []);
         } else {
+            $inventoryCacheKey = "amazon_inventory_{$shop->id}_{$sellerId}";
+            $statusCacheKey = "amazon_inventory_status_{$shop->id}_{$sellerId}";
+            $currentStatus = Cache::get($statusCacheKey, ['cache_version' => 0]);
+
+            Log::info('Writing Amazon inventory to seller-based cache', [
+                'shop_id' => $shop->id,
+                'seller_id' => $sellerId,
+                'marketplace_id' => $marketplaceId,
+                'cache_key' => $inventoryCacheKey,
+                'count' => count($rows),
+            ]);
+
+            if (empty($rows) && Cache::has($inventoryCacheKey) && !empty(Cache::get($inventoryCacheKey))) {
+                Log::warning('Amazon report produced 0 rows while existing inventory cache is non-empty. Preserving existing cache.', [
+                    'shop_id' => $shop->id,
+                    'seller_id' => $sellerId,
+                    'marketplace_id' => $marketplaceId,
+                ]);
+                $rows = Cache::get($inventoryCacheKey, []);
+            } else {
+                Cache::forever(
+                    $inventoryCacheKey,
+                    $rows
+                );
+            }
+
             Cache::forever(
-                $inventoryCacheKey,
-                $rows
+                $statusCacheKey,
+                [
+                    'refreshing' => false,
+                    'sync_completed' => true,
+                    'last_synced_at' => now()->toDateTimeString(),
+                    'cache_version' => (int) ($currentStatus['cache_version'] ?? 0) + 1,
+                ]
             );
         }
-
-        Cache::forever(
-            $statusCacheKey,
-            [
-                'refreshing' => false,
-                'sync_completed' => true,
-                'last_synced_at' => now()->toDateTimeString(),
-                'cache_version' => (int) ($currentStatus['cache_version'] ?? 0) + 1,
-            ]
-        );
 
         $this->updateProgress($shop, 100, 'Completed');
 

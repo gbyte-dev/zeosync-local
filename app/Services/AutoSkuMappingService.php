@@ -87,9 +87,11 @@ class AutoSkuMappingService
 
     private function loadAmazonInventory(Shop $shop): array
     {
-        $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
+        if (empty($shop->amazon_seller_id)) {
+            return [];
+        }
 
-        return Cache::get("amazon_inventory_{$shop->id}_{$marketplaceId}", []);
+        return Cache::get("amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}", []);
     }
 
     private function findMatchingSku(string $sku, array $amazonInventory): ?array
