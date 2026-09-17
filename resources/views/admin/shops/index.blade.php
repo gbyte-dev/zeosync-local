@@ -118,51 +118,9 @@
 
     <script>
         $(document).ready(function() {
-            // Initialize reusable datatable for this page
-            function initDatatable(selector, opts = {}) {
-                const $el = $(selector);
-                if (!$el.length) return null;
-
-                const defaults = {
-                    dom: "<'row'<'col-sm-12 col-md-6'B><'col-sm-12 col-md-6'f>>" +
-                        "<'row'<'col-sm-12'tr>>" +
-                        "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
-                    buttons: [
-                        { extend: 'copy', className: 'btn btn-sm btn-outline-primary' },
-                        { extend: 'csv', className: 'btn btn-sm btn-outline-primary' },
-                        { extend: 'excel', className: 'btn btn-sm btn-outline-primary' },
-                        { extend: 'pdf', className: 'btn btn-sm btn-outline-primary' },
-                        { extend: 'print', className: 'btn btn-sm btn-outline-primary' },
-                        { extend: 'colvis', className: 'btn btn-sm btn-outline-primary' }
-                    ],
-                    responsive: true,
-                    pagingType: 'simple_numbers',
-                    pageLength: 10,
-                    lengthChange: true,
-                    lengthMenu: [10, 25, 50, 100],
-                    searching: true,
-                    ordering: true,
-                    info: true,
-                    order: [[0, 'asc']],
-                    columnDefs: [{ orderable: false, targets: [1,2,3,4] }],
-                    language: {
-                        search: "Search:",
-                        searchPlaceholder: "Find a shop",
-                        emptyTable: "No shops found",
-                        zeroRecords: "No matching shops found",
-                        info: "Showing _START_ to _END_ of _TOTAL_ shops",
-                        infoEmpty: "Showing 0 shops",
-                        infoFiltered: "(filtered from _MAX_ total shops)",
-                        lengthMenu: "Show _MENU_ shops",
-                        paginate: { previous: "Previous", next: "Next" }
-                    }
-                };
-
-                const config = $.extend(true, {}, defaults, opts);
-                return $el.DataTable(config);
-            }
-
             initDatatable('#datatable-table');
         });
+
+        
     </script>
     @endsection
