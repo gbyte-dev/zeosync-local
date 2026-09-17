@@ -38,12 +38,19 @@
             fetch('/api/shop-status?shop=' + encodeURIComponent(shop), {
                 method: 'GET',
                 headers: {
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => response.json())
+            .then(async response => {
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    throw new Error('Non-JSON response received');
+                }
+                return response.json();
+            })
             .then(data => {
-                if (data.shop_name && data.email && !hasRedirected) {
+                if (data.is_active && data.shop_name && data.email && !hasRedirected) {
                     hasRedirected = true;
                     const statusEl = document.getElementById('status');
                     if (statusEl) statusEl.textContent = 'Setup complete. Redirecting to dashboard...';
@@ -105,7 +112,13 @@
 
             window.addEventListener('message', function(event) {
                 const data = event.data || {};
-                if (data.type === 'shopify_authenticated') {
+                if (data.type === 'shopify_authenticated' || data.type === 'shopify_activated') {
+                    if (data.redirect_url && (data.redirect_url.includes('/dashboard') || data.type === 'shopify_activated') && !hasRedirected) {
+                        hasRedirected = true;
+                        if (setupCheckInterval) clearInterval(setupCheckInterval);
+                        window.location.href = data.redirect_url;
+                        return;
+                    }
                     statusEl.textContent = 'Authorization successful. Waiting for setup completion...';
                     // Start polling for shop setup
                     if (!setupCheckInterval) {

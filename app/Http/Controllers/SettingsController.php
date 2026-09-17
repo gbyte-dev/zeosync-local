@@ -207,13 +207,18 @@ class SettingsController extends ShopifyController
 
             $shopUrl = strtolower(trim((string) $validated['shop_url']));
 
-            $shop = Shop::whereRaw('LOWER(shop) = ?', [ $shopUrl  ])->first();
+            $shop = Shop::whereRaw('LOWER(shop) = ?', [$shopUrl])->first();
 
             if (!$shop) {
+                Log::warning('SETUP_STORE: Shop not found', [
+                    'request_id' => $requestId,
+                    'input_shop_url' => $shopUrl,
+                ]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Shop not found.',
-                ], 319);
+                ], 404);
             }
 
             $shop->update([
@@ -224,7 +229,18 @@ class SettingsController extends ShopifyController
 
             $shop->fresh();
 
-            session(['active_shop' => $shop->shop]);
+            session([
+                'active_shop' => $shop->shop,
+                'active_shop_id' => $shop->id,
+                '_shopify_verified_shop' => $shop->shop,
+            ]);
+
+            Log::info('SETUP_STORE: Shop activated successfully', [
+                'request_id' => $requestId,
+                'shop_id' => $shop->id,
+                'shop' => $shop->shop,
+                'status' => 'activated',
+            ]);
 
             try {
                 $template = MailTemplate::active()
@@ -239,16 +255,26 @@ class SettingsController extends ShopifyController
                         ]);
                 }
             } catch (\Throwable $e) {
-                // Email fail hone par activation fail nahi hogi
+                // Email failure should not block activation
             }
+
+            $dashboardUrl = route('dashboard', [
+                'shop' => $shop->shop,
+            ]);
 
             return response()->json([
                 'success' => true,
+                'redirect_url' => $dashboardUrl,
                 'message' => 'App activated successfully!',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
+            Log::error('SETUP_STORE: Exception during activation', [
+                'request_id' => $requestId,
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Something went wrong. Request ID: ' . $requestId,

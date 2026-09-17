@@ -109,33 +109,49 @@ document.getElementById('activateForm').addEventListener('submit', async functio
             body: new FormData(form)
         });
 
-        const data = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        let data = null;
 
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Activation failed.');
+        if (contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            throw new Error('Server returned an unexpected response format. Please try again.');
         }
 
-        // Activation successful hone ke baad window close
-        window.close();
+        if (!response.ok || !data.success) {
+            let errorMsg = data.message || 'Activation failed.';
+            if (data.errors && typeof data.errors === 'object') {
+                const firstErr = Object.values(data.errors)[0];
+                if (Array.isArray(firstErr) && firstErr.length > 0) {
+                    errorMsg = firstErr[0];
+                }
+            }
+            throw new Error(errorMsg);
+        }
+
+        const redirectUrl = data.redirect_url || '{{ route("dashboard", ["shop" => $shopModel?->shop]) }}';
+
+        // Notify opener if popup window
+        if (window.opener && !window.opener.closed) {
+            try {
+                window.opener.postMessage({
+                    type: 'shopify_authenticated',
+                    shop: '{{ $shopModel?->shop }}',
+                    redirect_url: redirectUrl
+                }, '*');
+            } catch (e) {}
+
+            setTimeout(function () {
+                try { window.close(); } catch (e) {}
+            }, 500);
+        } else {
+            // Direct navigation in embedded/standalone window
+            window.location.href = redirectUrl;
+        }
 
     } catch (error) {
         console.error('Activation error:', error);
-
-        const isHtmlJsonSyntaxError = (error instanceof SyntaxError) &&
-            (error.message.includes('<!DOCTYPE') ||
-             error.message.includes('Unexpected token \'<\'') ||
-             error.message.includes('Unexpected token <') ||
-             (error.message.includes('<') && error.message.includes('is not valid JSON')));
-
-        if (isHtmlJsonSyntaxError) {
-            try {
-                window.close();
-            } catch (e) {}
-            return;
-        }
-
-        alert(error.message);
-
+        alert(error.message || 'An error occurred during activation.');
         button.disabled = false;
         button.innerText = 'Activate App';
     }

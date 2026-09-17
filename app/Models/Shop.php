@@ -46,6 +46,7 @@ class Shop extends Model
         'shopify_locations',
         'selected_location_index',
         'selected_location_id',
+        'previous_activation_details',
     ];
 
     protected $hidden = [
@@ -65,6 +66,7 @@ class Shop extends Model
         'last_status_check_at' => 'datetime',
         'shopify_locations' => 'array',
         'selected_location_index' => 'integer',
+        'previous_activation_details' => 'array',
     ];
 
     /**

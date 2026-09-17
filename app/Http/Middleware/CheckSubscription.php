@@ -27,10 +27,20 @@ class CheckSubscription
         $shop = $request->attributes->get('active_shop_model');
 
         if (!$shop) {
-
             Log::warning('NO ACTIVE SHOP FOUND', [
                 'route' => optional($request->route())->getName(),
+                'is_ajax' => $request->ajax() || $request->expectsJson(),
             ]);
+
+            if ($request->ajax() || $request->expectsJson()) {
+                $shopParam = $request->get('shop') ?? $request->query('shop');
+                return response()->json([
+                    'success' => false,
+                    'requires_reauth' => true,
+                    'redirect_url' => route('shopify.install', array_filter(['shop' => $shopParam])),
+                    'message' => 'Shopify authentication required.',
+                ], 401);
+            }
 
             return redirect()->route('plans.index', [
                 'shop' => $request->get('shop')
@@ -43,11 +53,22 @@ class CheckSubscription
         ]);
 
         if (!isSubscriptionActive($shop->id)) {
-
             Log::warning('SUBSCRIPTION NOT ACTIVE', [
                 'shop_id' => $shop->id,
                 'shop' => $shop->shop,
+                'is_ajax' => $request->ajax() || $request->expectsJson(),
             ]);
+
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'requires_subscription' => true,
+                    'redirect_url' => route('plans.index', [
+                        'shop' => $shop->shop,
+                    ]),
+                    'message' => 'Please activate a subscription plan.',
+                ], 403);
+            }
 
             return redirect()->route('plans.index', [
                 'shop' => $shop->shop
