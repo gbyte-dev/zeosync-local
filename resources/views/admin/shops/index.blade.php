@@ -31,7 +31,7 @@
 
         <div class="card-body border-0">
             @if($shops->count() > 0)
-            <div class="table-responsive  d-md-block">
+            <div class="table-responsive d-none d-md-block">
                 <table id="shops-table" class="table table-hover align-middle mb-0 w-100">
                     <thead class="table-light">
                         <tr>
@@ -94,6 +94,7 @@
                     <input type="text" id="mobile-shop-search" class="form-control" placeholder="Find a shop">
                 </div>
 
+                <div id="mobile-shop-list">
                 @forelse($shops as $shop)
                 <div class="border rounded-4 p-3 mb-3 bg-white shadow-sm" data-shop-card>
                     <div class="d-flex justify-content-between align-items-start mb-3">
@@ -116,8 +117,15 @@
                 @empty
                 <div class="text-center text-muted py-5">No shops found.</div>
                 @endforelse
+                </div>
 
                 <div id="mobile-shop-no-results" class="text-center text-muted py-5 d-none">No matching shops found</div>
+
+                <div class="d-flex justify-content-between align-items-center mt-2" id="mobile-pagination" style="display:none">
+                    <button class="btn btn-sm btn-outline-secondary" id="mobile-prev">Previous</button>
+                    <div class="small text-muted" id="mobile-page-info"></div>
+                    <button class="btn btn-sm btn-outline-secondary" id="mobile-next">Next</button>
+                </div>
             </div>
         </div>
     </div>
@@ -192,24 +200,84 @@
                     });
                 }
 
-                // Mobile card search (simple client-side filter, mirrors desktop search behavior)
-                const mobileSearch = '';// document.getElementById('mobile-shop-search');
+                // Mobile card search + pagination (client-side)
+                const mobileSearch = document.getElementById('mobile-shop-search');
                 const mobileCards = Array.from(document.querySelectorAll('[data-shop-card]'));
                 const mobileNoResults = document.getElementById('mobile-shop-no-results');
+                const mobilePagination = document.getElementById('mobile-pagination');
+                const mobilePrev = document.getElementById('mobile-prev');
+                const mobileNext = document.getElementById('mobile-next');
+                const mobilePageInfo = document.getElementById('mobile-page-info');
+
+                const perPage = 5;
+                let currentPage = 1;
+
+                function renderMobilePage() {
+                    const matched = mobileCards.filter(c => c.dataset.match === '1');
+                    const total = matched.length;
+                    const totalPages = Math.max(1, Math.ceil(total / perPage));
+
+                    if (total === 0) {
+                        mobileNoResults.classList.remove('d-none');
+                        mobilePagination.style.display = 'none';
+                        return;
+                    }
+
+                    mobileNoResults.classList.add('d-none');
+
+                    // show only current page items
+                    matched.forEach((card, i) => {
+                        const start = (currentPage - 1) * perPage;
+                        const end = currentPage * perPage;
+                        card.style.display = (i >= start && i < end) ? '' : 'none';
+                    });
+
+                    // hide non-matched
+                    mobileCards.forEach(c => {
+                        if (c.dataset.match !== '1') c.style.display = 'none';
+                    });
+
+                    mobilePagination.style.display = (totalPages > 1) ? 'flex' : 'none';
+                    const showingStart = Math.min((currentPage - 1) * perPage + 1, total);
+                    const showingEnd = Math.min(currentPage * perPage, total);
+                    mobilePageInfo.textContent = `${showingStart}-${showingEnd} of ${total}`;
+
+                    mobilePrev.disabled = currentPage <= 1;
+                    mobileNext.disabled = currentPage >= totalPages;
+                }
+
+                function applySearchAndPaginate() {
+                    const query = mobileSearch.value.trim().toLowerCase();
+                    mobileCards.forEach(function(card) {
+                        const isVisible = card.textContent.toLowerCase().includes(query);
+                        card.dataset.match = isVisible ? '1' : '0';
+                    });
+                    currentPage = 1;
+                    renderMobilePage();
+                }
 
                 if (mobileSearch) {
+                    // initialize matches
+                    mobileCards.forEach(c => c.dataset.match = '1');
+                    renderMobilePage();
+
                     mobileSearch.addEventListener('input', function() {
-                        const query = mobileSearch.value.trim().toLowerCase();
-                        let visibleCount = 0;
+                        applySearchAndPaginate();
+                    });
 
-                        mobileCards.forEach(function(card) {
-                            const isVisible = card.textContent.toLowerCase().includes(query);
-                            card.style.display = isVisible ? '' : 'none';
-                            if (isVisible) visibleCount++;
-                        });
+                    mobilePrev.addEventListener('click', function() {
+                        if (currentPage > 1) {
+                            currentPage--;
+                            renderMobilePage();
+                        }
+                    });
 
-                        if (mobileNoResults) {
-                            mobileNoResults.classList.toggle('d-none', visibleCount !== 0 || mobileCards.length === 0);
+                    mobileNext.addEventListener('click', function() {
+                        const matched = mobileCards.filter(c => c.dataset.match === '1');
+                        const totalPages = Math.max(1, Math.ceil(matched.length / perPage));
+                        if (currentPage < totalPages) {
+                            currentPage++;
+                            renderMobilePage();
                         }
                     });
                 }
