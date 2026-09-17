@@ -3159,6 +3159,12 @@ class ShopifyController extends Controller
             ->limit(10)
             ->get();
 
+        // Notifications for this shop
+        $notifications = \App\Models\UserNotification::where('shop_id', $shop->id)
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get();
+
         return view('admin.shops.view', compact(
             'shop',
             'customPlan',
@@ -3171,6 +3177,7 @@ class ShopifyController extends Controller
             'recentOrders',
             'syncStatusCounts',
             'recentSyncLogs'
+            ,'notifications'
         ));
     }
     public function getSellerIdFull()
