@@ -21,16 +21,16 @@
     <meta name="description" content="@yield('meta_description', 'Connect Amazon and Shopify with clearer product, inventory, order and returns workflows.')">
     <meta name="theme-color" content="#111c25">
     <meta name="shopify-api-key" content="{{ $shopifyclient_id }}">
-    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
-    <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
-    <link href="{{ asset('css/style.css') }}?v={{ time() }}" rel="stylesheet">
+    <script nonce="{{ $cspNonce }}" src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+    <link nonce="{{ $cspNonce }}" rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
+    <link nonce="{{ $cspNonce }}" rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
+    <link nonce="{{ $cspNonce }}" rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
+    <link nonce="{{ $cspNonce }}" href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
+    <link nonce="{{ $cspNonce }}" href="{{ asset('css/style.css') }}?v={{ time() }}" rel="stylesheet">
 
-    <link rel="stylesheet" href="{{ asset('css/guest.css') }}">
+    <link nonce="{{ $cspNonce }}" rel="stylesheet" href="{{ asset('css/guest.css') }}">
     @stack('styles')
-    <script src="{{ asset('js/zeosync-site.js') }}" defer></script>
+    <script nonce="{{ $cspNonce }}" src="{{ asset('js/zeosync-site.js') }}" defer></script>
     @stack('head-scripts')
 </head>
 <body>
@@ -57,9 +57,9 @@
     @include('partials.footer')
 
     @stack('scripts')
-    <script src="{{ asset('js/bootstrap.bundle.min.js') }}" defer></script>
+    <script nonce="{{ $cspNonce }}" src="{{ asset('js/bootstrap.bundle.min.js') }}" defer></script>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         (function() {
             function isInIframe() {
                 try {

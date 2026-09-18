@@ -7,7 +7,9 @@ class SecurityHeaders
     public function handle(Request $request, Closure $next)
     {
         $response = $next($request);
-
+        $nonce = base64_encode(random_bytes(16));
+         view()->share('cspNonce', $nonce);
+         
         $csp = implode('; ', [
             "default-src 'self'",
             "base-uri 'self'",
