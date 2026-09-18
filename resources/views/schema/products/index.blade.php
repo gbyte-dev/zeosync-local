@@ -129,8 +129,7 @@
         color: #FFFFFF;
     }
 
-    .sp-btn:disabled,
-    .sp-btn[disabled] {
+    .sp-btn:disabled, .sp-btn[disabled] {
         opacity: 0.5;
         cursor: not-allowed !important;
         pointer-events: none;
@@ -447,27 +446,27 @@
                         @foreach($products as $product)
                         @php
                         if(isset($product->filled_json)){
-                        $proddata = json_decode($product->filled_json, true);
-                        $item_name = $proddata['item_name'] ?? '';
-                        $main_product_image = $proddata['main_product_image_locator'] ?? '';
-                        $schema_id = $product->schema_id ?? '';
-                        $quantity = $proddata['number_of_items'] ?? 0;
-                        $category = $product->schema->product_type ?? 'Uncategorized';
-                        $status = $product['status'] ?? 'draft';
-                        $manufacturer = $proddata['manufacturer'] ?? '';
-                        $price = $proddata['price'] ?? 0;
-                        $parentage_level = $proddata['parentage_level']??'';
+                            $proddata = json_decode($product->filled_json, true);
+                            $item_name = $proddata['item_name'] ?? '';
+                            $main_product_image = $proddata['main_product_image_locator'] ?? '';
+                            $schema_id = $product->schema_id ?? '';
+                            $quantity = $proddata['number_of_items'] ?? 0;
+                            $category = $product->schema->product_type ?? 'Uncategorized';
+                            $status = $product['status'] ?? 'draft';
+                            $manufacturer = $proddata['manufacturer'] ?? '';
+                            $price = $proddata['price'] ?? 0;
+                            $parentage_level = $proddata['parentage_level']??'';
                         }
                         elseif(isset($product->attributes)){
-                        $item_name = optional($product->attributes->firstWhere('attribute_name', 'item_name'))->attribute_value;
-                        $main_product_image = optional($product->attributes->firstWhere('attribute_name', 'main_product_image_locator'))->attribute_value;
-                        $schema_id = $product->schema_id ?? '';
-                        $quantity = optional($product->attributes->firstWhere('attribute_name', 'number_of_items'))->attribute_value ?? 0;
-                        $category = $product->schema->product_type ?? 'Uncategorized';
-                        $status = $product['status'] ?? 'draft';
-                        $manufacturer = optional($product->attributes->firstWhere('attribute_name', 'manufacturer'))->attribute_value ?? '';
-                        $price = optional($product->attributes->firstWhere('attribute_name', 'price'))->attribute_value ?? 0;
-                        $parentage_level = optional($product->attributes->firstWhere('attribute_name', 'parentage_level'))->attribute_value ?? '';
+                            $item_name = optional($product->attributes->firstWhere('attribute_name', 'item_name'))->attribute_value;
+                            $main_product_image = optional($product->attributes->firstWhere('attribute_name', 'main_product_image_locator'))->attribute_value;
+                            $schema_id = $product->schema_id ?? '';
+                            $quantity = optional($product->attributes->firstWhere('attribute_name', 'number_of_items'))->attribute_value ?? 0;
+                            $category = $product->schema->product_type ?? 'Uncategorized';
+                            $status = $product['status'] ?? 'draft';
+                            $manufacturer = optional($product->attributes->firstWhere('attribute_name', 'manufacturer'))->attribute_value ?? '';
+                            $price = optional($product->attributes->firstWhere('attribute_name', 'price'))->attribute_value ?? 0;
+                            $parentage_level = optional($product->attributes->firstWhere('attribute_name', 'parentage_level'))->attribute_value ?? '';
 
                         }
 
@@ -479,10 +478,8 @@
                         @endphp
                         <tr data-product-id="{{ $product['id'] }}">
                             <td>
-                                <img
-                                    src="{{ $main_product_image ?: asset('b6.png') }}"
-                                    alt="{{ $item_name ?? '' }}"
-                                    class="sp-product-img"
+                                <img src="{{ $main_product_image ?: asset('b6.png') }}"
+                                    alt="{{ $item_name ?? '' }}" class="sp-product-img"
                                     onerror="this.onerror=null; this.src='{{ asset('b6.png') }}';">
                             </td>
                             <td>
@@ -526,14 +523,11 @@
                                         <i class="bi bi-eye"></i>
                                         <span class="d-none d-md-inline">Show Variation</span>
                                     </a> -->
-
-
+                                    
                                     <a href="{{ route('user.product.amazonView', ['sku' => $product->sku, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Show Variation">
                                         <i class="bi bi-eye"></i>
                                         <span class="d-none d-md-inline">View</span>
                                     </a>
-
-
 
                                     @if(!checkIsProductSynced($product->sku,'amazon'))
                                     <a href="{{ route('user.product.syncAmazonToShopify', ['sku' => $product->sku, 'shop' => request('shop')]) }}" class="sp-btn sp-btn-sm sp-btn-secondary" title="Add to Shopify">
@@ -602,7 +596,7 @@
 @push('scripts')
 <!-- DataTables JS & Bootstrap 5 Integration -->
 <script nonce="{{ $cspNonce??'' }}" src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script nonce="{{ $cspNonce??'' }}" nonce="{{ $cspNonce??'' }}" src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script nonce="{{ $cspNonce??'' }}"  src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script nonce="{{ $cspNonce??'' }}" src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
 <script nonce="{{ $cspNonce??'' }}" src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 
