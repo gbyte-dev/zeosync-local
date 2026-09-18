@@ -136,13 +136,13 @@
 @endsection
 
 @section('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <!-- Include Summernote CSS -->
-<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.css" rel="stylesheet">
+<link nonce="{{ $cspNonce }}" href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.css" rel="stylesheet">
 <!-- Include Summernote JS -->
-<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.js"></script>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize Summernote
         $('#bodyEditor').summernote({

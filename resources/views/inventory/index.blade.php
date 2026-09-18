@@ -6,11 +6,11 @@
 @include('inventory.partials.map-amazon-product-modal')
 
 <!-- Bootstrap Icons -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <!-- DataTables CSS -->
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 
-<style>
+<style nonce="{{ $cspNonce }}">
     /* Page Header & Usage Card */
     .saas-page-header {
         background: #FFFFFF;
@@ -793,11 +793,11 @@
 
 @push('scripts')
 <!-- DataTables JS Files -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     const amazonConnected = @json(!empty($shop -> amazon_refresh_token));
     let selectedAmazonSku = null;
     let selectedShopifyVariantId = null;

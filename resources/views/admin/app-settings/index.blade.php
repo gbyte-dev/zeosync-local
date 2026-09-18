@@ -4,7 +4,7 @@
 
 @section('content')
 
-<style>
+<style nonce="{{ $cspNonce }}">
     /* FULL WIDTH WRAPPER */
     .container-settings {
         width: 100%;
@@ -329,7 +329,7 @@
     </form>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     const toggle = document.getElementById('testModeToggle');
     const hiddenInput = document.getElementById('is_testmode');
 

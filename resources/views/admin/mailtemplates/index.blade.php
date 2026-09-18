@@ -1,7 +1,7 @@
 @extends('admin.layout.app')
 @section('title', 'Mail Templates')
 @section('content')
-<style>
+<style nonce="{{ $cspNonce }}">
     #mailtemplates-table_filter { float: inline-end; padding: 10px; }
     #mailtemplates-table_paginate { float: inline-end; margin-top: 10px; }
     #mailtemplates-table { margin-bottom: 10px; }
@@ -111,12 +111,12 @@
 </div>
 @endsection
 @section('styles')
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
 @endsection
 @section('scripts')
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
-<script>
+<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script nonce="{{ $cspNonce }}">
     $(document).ready(function() {
 
         if ($('#mailtemplates-table').length) {

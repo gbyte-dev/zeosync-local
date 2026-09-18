@@ -5,7 +5,7 @@
 @section('content')
 
 <!-- Include Summernote CSS -->
-<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.css" rel="stylesheet">
+<link nonce="{{ $cspNonce }}" href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.css" rel="stylesheet">
 <div class="container-fluid px-0">
     <div class="card border-0 shadow-sm overflow-hidden mb-4">
         <div class="card-header bg-white border-0 py-3">
@@ -147,11 +147,11 @@
 @endsection
 
 @section('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <!-- Include Summernote JS -->
-<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.js"></script>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize Summernote
         $('#bodyEditor').summernote({

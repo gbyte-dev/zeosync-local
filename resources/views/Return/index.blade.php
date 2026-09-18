@@ -2,13 +2,9 @@
 
 @section('content')
 
-<style>
-    body {
-        background: #f5f7fb;
-    }
+<style nonce="{{ $cspNonce??'' }}">
 
     .returns-page {
-        
         padding: 24px;
     }
 
@@ -346,7 +342,7 @@
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce??'' }}">
     let returnsData = [];
     let filteredData = [];
     let activeTab = 'shopify';

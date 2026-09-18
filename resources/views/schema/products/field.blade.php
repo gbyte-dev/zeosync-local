@@ -165,7 +165,7 @@ $showAsterisk = !empty($field['required'])
     || in_array($field['name'], $commonRequiredFields, true);
 @endphp
 
-<style>
+<style nonce="{{ $cspNonce??'' }}">
     .amazon-field-suggestions {
         display: flex;
         align-items: center;
@@ -388,7 +388,7 @@ $showAsterisk = !empty($field['required'])
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ $cspNonce??'' }}">
         document.addEventListener('DOMContentLoaded', function() {
             let tooltip = null;
 

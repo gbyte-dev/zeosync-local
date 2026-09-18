@@ -2,7 +2,7 @@
 
 @section('content')
 
-<style>
+<style nonce="{{ $cspNonce??'' }}">
 .product-page {
     display:grid;
     grid-template-columns:1fr 1fr;
@@ -205,7 +205,7 @@
 
 </div>
 
-<script>
+<script nonce="{{ $cspNonce??'' }}">
 let selectedColor='', selectedSize='';
 const variants = @json($product['variants']);
 

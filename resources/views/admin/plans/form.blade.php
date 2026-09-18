@@ -1,4 +1,4 @@
-<style>
+<style nonce="{{ $cspNonce }}">
     .section-title {
         font-size: 16px;
         font-weight: 700;
@@ -467,7 +467,7 @@
             </div>
         </div>
 
-        <script>
+        <script nonce="{{ $cspNonce }}">
             function addFeature() {
                 let html = `
                 <div class="feature-row">

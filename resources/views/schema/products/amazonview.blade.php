@@ -2,7 +2,7 @@
 @section('content')
 
 @push('css')
-<style>
+<style nonce="{{ $cspNonce??'' }}">
     /* ── Page Base ── */
     .amz-page {
         background-color: #eaeded;
@@ -899,7 +899,7 @@
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce??'' }}">
     function switchImage(el) {
         document.querySelectorAll('.amz-thumbnail').forEach(t => t.classList.remove('active'));
         el.classList.add('active');

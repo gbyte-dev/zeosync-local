@@ -1,4 +1,4 @@
-<style>
+<style nonce="{{ $cspNonce }}">
     .saas-modal-content {
         border-radius: 16px;
         overflow: hidden;

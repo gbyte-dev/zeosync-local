@@ -1,7 +1,7 @@
 @extends('admin.layout.app')
 @section('title', 'Category')
 @section('content')
-<style>
+<style nonce="{{ $cspNonce }}">
     #category-table_filter { float: inline-end; }
     #category-table_paginate { float: inline-end; }
     #category-table_length { float: left; margin-bottom: 10px; width: fit-content; }
@@ -87,12 +87,12 @@
 {{-- Include Category Form Modal --}}
 @include('admin.category.form')
 @section('styles')
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
 @endsection
 @section('scripts')
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
-<script>
+<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script nonce="{{ $cspNonce }}">
     $(document).ready(function() {
         if ($('#category-table').length) {
             $('#category-table').DataTable({

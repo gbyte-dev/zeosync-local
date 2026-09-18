@@ -4,7 +4,7 @@
 
 @section('content')
 
-<style>
+<style nonce="{{ $cspNonce }}">
     #subcategory-table_filter{
         float: inline-end;
         padding: 10px;
@@ -204,15 +204,15 @@
 @endsection
 
 @section('styles')
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
 @endsection
 
 @section('scripts')
 
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     $(document).ready(function () {
         // Desktop DataTable — pagination + search + sorting, styled for Bootstrap 5
         var initialStatus = '{{ request()->get('status','all') }}';
@@ -315,9 +315,7 @@
         //     });
         // }
     });
-</script>
 
-<script>
     // Select all checkbox handler
     document.addEventListener('DOMContentLoaded', function () {
         const selectAll = document.getElementById('select-all-subcats');

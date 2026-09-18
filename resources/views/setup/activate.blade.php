@@ -2,7 +2,7 @@
 
 @section('content')
 
-<style>
+<style nonce="{{ $cspNonce??'' }}">
 .setup-container {
     min-height: 80vh;
     display: flex;
@@ -134,7 +134,7 @@
 
 @endsection
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce??'' }}">
 (function() {
     let isSubmitting = false;
     let isPolling = false;

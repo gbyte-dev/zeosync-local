@@ -1,7 +1,7 @@
 @extends('admin.layout.app')
 @section('title', 'Shop Dashboard')
 @section('content')
-<style>
+<style nonce="{{ $cspNonce }}">
     .shop-dashboard {
         max-width: 1400px;
     }

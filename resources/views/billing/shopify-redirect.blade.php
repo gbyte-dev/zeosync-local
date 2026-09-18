@@ -8,7 +8,7 @@
 
 <body>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         window.top.location.href = @json($pricingUrl);
     </script>
 
