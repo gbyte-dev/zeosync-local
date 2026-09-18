@@ -9,7 +9,7 @@
     @endphp
     <meta name="shopify-api-key" content="{{ $apiKey }}">
     <script  nonce="{{ $cspNonce }}" src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
-    <style>
+    <style nonce="{{ $cspNonce }}">
         * {
             margin: 0;
             padding: 0;

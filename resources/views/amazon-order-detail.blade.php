@@ -2,7 +2,7 @@
 
 @section('content')
 
-<style>
+<style nonce="{{ $cspNonce }}">
 
     .order-hero {
         color: #000000;

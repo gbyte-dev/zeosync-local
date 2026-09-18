@@ -18,7 +18,7 @@
 
 @section('content')
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
+<style nonce="{{ $cspNonce }}">
     .page-429, .page-429 * { margin: 0; padding: 0; box-sizing: border-box; }
     .page-429 { font-family: "Inter", -apple-system, sans-serif; background: #F4F6F8; color: #111827; width: 100%; height: 100%; min-height: 80vh; flex: 1; display: flex; align-items: center; justify-content: center; -webkit-font-smoothing: antialiased; }
     .page-429 .error-container { text-align: center; padding: 40px 24px; max-width: 480px; width: 100%; }

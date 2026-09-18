@@ -2,7 +2,7 @@
 
 @section('content')
 
-<style>
+<style nonce="{{ $cspNonce }}">
     table td {
         vertical-align: middle;
     }

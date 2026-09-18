@@ -8,7 +8,7 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <style>
+    <style nonce="{{ $cspNonce }}">
         body {
             margin: 0;
             min-height: 100vh;

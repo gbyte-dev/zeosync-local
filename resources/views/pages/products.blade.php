@@ -6,7 +6,7 @@
     <!-- Bootstrap CSS -->
     <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
 
-    <style>
+    <style nonce="{{ $cspNonce }}">
         body {
             background: #f3f3f3;
         }

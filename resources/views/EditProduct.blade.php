@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('content')
-<style>
+<style nonce="{{ $cspNonce }}">
     /* 
      * Shopify Admin Inspired UI - Ultra Tight & Compact
      */

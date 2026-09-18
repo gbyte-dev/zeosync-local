@@ -4,7 +4,7 @@
 <!-- Bootstrap 5 DataTables 1.13.8 CSS -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
 
-<style>
+<style nonce="{{ $cspNonce }}">
     /* Global Clean SaaS Environment - Tighter Density */
     body {
         background-color: #F4F6F8;

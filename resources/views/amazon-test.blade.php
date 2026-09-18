@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('content')
 @push('css')
-<style>
+<style nonce="{{ $cspNonce }}">
     /* ============================================= */
     /* MODERN ADMIN THEME - RESPONSIVE LAYOUT        */
     /* ============================================= */

@@ -45,7 +45,7 @@ $colorSizeMap[$color] = [];
 }
 @endphp
 
-<style>
+<style nonce="{{ $cspNonce }}">
     /* Shopify Admin Inspired UI - Ultra Tight & Compact */
     .sp-page {
         background-color: #F6F6F7;

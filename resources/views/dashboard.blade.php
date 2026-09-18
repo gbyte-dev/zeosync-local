@@ -3,7 +3,7 @@
 $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
 @endphp
 @section('content')
-<style>
+<style nonce="{{ $cspNonce }}">
     .shopify-dashboard {
         font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         color: #111827;

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('content')
 @push('css')
-<style>
+<style nonce="{{ $cspNonce }}">
     /* Shopify Admin Inspired UI - Ultra Tight Spacing */
     .pg-wrap {
         background-color: #F6F6F7;

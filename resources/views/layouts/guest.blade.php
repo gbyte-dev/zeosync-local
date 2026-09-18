@@ -27,7 +27,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
 
-    <style>
+    <style nonce="{{ $cspNonce }}">
         /* Enterprise SaaS App Layout - Tight Density */
         html, body {
             min-height: 100%;

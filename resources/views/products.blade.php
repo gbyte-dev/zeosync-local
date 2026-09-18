@@ -8,7 +8,7 @@
 <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
 @endpush
 
-<style>
+<style nonce="{{ $cspNonce }}">
     /* Shopify Admin Inspired UI - Ultra Compact & Premium */
     .sp-page {
         background-color: #F6F6F7;
