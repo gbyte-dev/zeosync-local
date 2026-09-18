@@ -9,68 +9,17 @@ class SecurityHeaders
         $response = $next($request);
 
         $csp = implode('; ', [
-            // Default fallback
             "default-src 'self'",
-
-            // Prevent <base> tag and plugins
             "base-uri 'self'",
             "object-src 'none'",
-
-            // Shopify embedded app
             "frame-ancestors 'self' https://admin.shopify.com https://*.myshopify.com",
-
-            // JavaScript
-            "script-src 'self'
-                https://cdn.shopify.com
-                https://cdn.jsdelivr.net
-                https://code.jquery.com
-                https://cdn.datatables.net
-                https://cdnjs.cloudflare.com",
-
-            // CSS
-            "style-src 'self'
-                'unsafe-inline'
-                https://cdn.jsdelivr.net
-                https://cdnjs.cloudflare.com
-                https://fonts.googleapis.com
-                https://cdn.datatables.net",
-
-            // Images
-            "img-src 'self'
-                data:
-                blob:
-                https://*.shopify.com
-                https://*.myshopify.com
-                https://shopify.com
-                https://cdn.shopify.com
-                https://*.amazonaws.com
-                https://cdn.jsdelivr.net
-                https://cdnjs.cloudflare.com",
-
-            // Fonts
-            "font-src 'self'
-                data:
-                https://fonts.gstatic.com
-                https://fonts.googleapis.com
-                https://cdn.jsdelivr.net
-                https://cdnjs.cloudflare.com",
-
-            // AJAX / fetch / WebSocket connections
-            "connect-src 'self'
-                https://api.stripe.com
-                https://*.shopify.com
-                https://*.myshopify.com",
-
-            // Iframes
-            "frame-src 'self'
-                https://*.shopify.com
-                https://*.myshopify.com",
-
-            // Form submissions
-            "form-action 'self'
-                https://*.myshopify.com",
-
-            // Force HTTPS resources
+            "script-src 'self' https://cdn.shopify.com https://cdn.jsdelivr.net https://code.jquery.com https://cdn.datatables.net https://cdnjs.cloudflare.com",
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://cdn.datatables.net",
+            "img-src 'self' data: blob: https://*.shopify.com https://*.myshopify.com https://shopify.com https://cdn.shopify.com https://*.amazonaws.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+            "font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+            "connect-src 'self' https://api.stripe.com https://*.shopify.com https://*.myshopify.com",
+            "frame-src 'self' https://*.shopify.com https://*.myshopify.com",
+            "form-action 'self' https://*.myshopify.com",
             "upgrade-insecure-requests",
         ]);
 
@@ -101,7 +50,7 @@ class SecurityHeaders
             $csp
         );
 
-        // HSTS - only when HTTPS is actually being used
+        // HSTS
         if ($request->isSecure()) {
             $response->headers->set(
                 'Strict-Transport-Security',
