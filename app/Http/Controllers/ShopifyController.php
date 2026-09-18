@@ -1162,14 +1162,14 @@ class ShopifyController extends Controller
                 $attributes,
                 $product
             );
-            Log::info('FINAL AMAZON ATTRIBUTES', $attributes);
-            Log::info('🚀 AMAZON REQUEST START', [
-                'seller_id' => 'handled_by_service',
-                'sku' => $sku,
-                'product_id' => $product->id,
-                'shop_id' => $shopModel->id,
-                'payload_preview' => $attributes
-            ]);
+            // Log::info('FINAL AMAZON ATTRIBUTES', $attributes);
+            // Log::info('🚀 AMAZON REQUEST START', [
+            //     'seller_id' => 'handled_by_service',
+            //     'sku' => $sku,
+            //     'product_id' => $product->id,
+            //     'shop_id' => $shopModel->id,
+            //     'payload_preview' => $attributes
+            // ]);
             // ✅ FIXED: no inner try
             if (!is_object($response)) {
                 Log::error('AMAZON RESPONSE INVALID', [
@@ -1186,15 +1186,15 @@ class ShopifyController extends Controller
             $status = $responseBody->status ?? null;
             $issues = $responseBody->issues ?? [];
             $isAccepted = $status === 'ACCEPTED';
-            Log::info('✅ AMAZON RESPONSE', [
-                'http_status' => method_exists($response, 'status') ? $response->status() : null,
-                'submission_status' => $status,
-                'is_accepted' => $isAccepted,
-                'sku' => $sku,
-                'product_id' => $product->id,
-                'shop_id' => $shopModel->id,
-                'issues_count' => is_array($issues) ? count($issues) : 0,
-            ]);
+            // Log::info('✅ AMAZON RESPONSE', [
+            //     'http_status' => method_exists($response, 'status') ? $response->status() : null,
+            //     'submission_status' => $status,
+            //     'is_accepted' => $isAccepted,
+            //     'sku' => $sku,
+            //     'product_id' => $product->id,
+            //     'shop_id' => $shopModel->id,
+            //     'issues_count' => is_array($issues) ? count($issues) : 0,
+            // ]);
             if (!empty($issues)) {
                 Log::warning('⚠️ AMAZON VALIDATION ISSUES', [
                     'sku' => $sku,

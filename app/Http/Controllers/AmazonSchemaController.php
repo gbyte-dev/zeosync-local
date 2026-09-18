@@ -2,26 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use App\DTOs\AmazonTransformerConfig;
+use App\Models\AmazonProduct;
+use App\Models\AmazonSchema;
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\ProductSyncLog;
 use App\Models\Shop;
+use App\Services\Amazon\AmazonIssueNormalizer;
+use App\Services\AmazonPayloadAnalyzer;
+use App\Services\AmazonPayloadTransformer;
+use App\Services\AmazonPayloadTransformerV2;
 use App\Services\AmazonSchemaService;
 use App\Services\AmazonService;
-use App\Services\AmazonPayloadTransformer;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use SellingPartnerApi\Seller\ListingsItemsV20210801\Dto\ListingsItemPutRequest;
-use App\Models\Category;
-use App\Models\AmazonSchema;
-use App\Models\Product;
-use App\Models\AmazonProduct;
-use App\Models\ProductSyncLog;
-use App\Services\AmazonPayloadAnalyzer;
-use App\Services\Amazon\AmazonIssueNormalizer;
-use App\Services\AmazonPayloadTransformerV2;
-use App\DTOs\AmazonTransformerConfig;
 
 class AmazonSchemaController extends Controller
 {
-
     public function __construct(
         AmazonPayloadTransformerV2 $payloadTransformerV2,
         AmazonService $amazonService
@@ -33,19 +32,21 @@ class AmazonSchemaController extends Controller
     public function index()
     {
         $categories = Category::whereNull('parent_id')
-            ->orderBy('name')->get();
-        return view( 'amazon-schema', compact('categories'));
+            ->orderBy('name')
+            ->get();
+        return view('amazon-schema', compact('categories'));
     }
 
     public function getSubcategories($categoryId)
     {
-        $subcategories = Category::where( 'parent_id', $categoryId )->orderBy('name')->get();
+        $subcategories = Category::where('parent_id', $categoryId)->orderBy('name')->get();
         return response()->json([
             'success' => true,
             'subcategories' =>
-            $subcategories
+                $subcategories
         ]);
     }
+
     // private function getPayloadFields(string $productType): array
     // {
     //     $productType = strtoupper($productType);
@@ -91,44 +92,44 @@ class AmazonSchemaController extends Controller
                 ]);
             }
             $amazonService = new AmazonSchemaService();
-            $storedSchema = AmazonSchema::where('category_slug', $slug )->first();
-            if ( $storedSchema && $storedSchema->last_synced_at &&
-                $storedSchema->last_synced_at->gt(now()->subDays(7))
-            ) {
+            $storedSchema = AmazonSchema::where('category_slug', $slug)->first();
+            if ($storedSchema &&
+                    $storedSchema->last_synced_at &&
+                    $storedSchema->last_synced_at->gt(now()->subDays(7))) {
                 Log::info('SCHEMA LOADED FROM DB', [
                     'slug' => $slug
                 ]);
-                $schema = json_decode($storedSchema->schema_json, true );
+                $schema = json_decode($storedSchema->schema_json, true);
                 $rules = json_decode($storedSchema->rules_json, true) ?? [];
-             
-                if ( empty($schema) ||  !is_array($schema) ) {
 
+                if (empty($schema) || !is_array($schema)) {
                     $storedSchema->delete();
                     $schema = $amazonService->getProductTypeDefinition(
-                            $shop,  $slug );
+                        $shop, $slug
+                    );
                     $ruleParser = app(\App\Services\Amazon\AmazonSchemaRuleParser::class);
-                    $rules =  $ruleParser->extract($schema);
+                    $rules = $ruleParser->extract($schema);
                     AmazonSchema::updateOrCreate(
                         [
                             'category_slug' => $slug
                         ],
                         [
-                            'schema_json'  => json_encode($schema),
-                            'rules_json'   => json_encode($rules),
+                            'schema_json' => json_encode($schema),
+                            'rules_json' => json_encode($rules),
                             'last_synced_at' => now()
                         ]
                     );
                 }
             } else {
                 $schema = $amazonService->getProductTypeDefinition(
-                        $shop,  $slug );
-                if ( empty($schema) || isset($schema['message']) ||
-                    !isset($schema['real_schema']['properties'])
-                ) {
-                    return response()->json([  'success' => false,
-                        'message' => $schema['message']  ?? 'Schema fetch failed',
-                        'fields' => []
-                    ]);
+                    $shop, $slug
+                );
+                if (empty($schema) ||
+                        isset($schema['message']) ||
+                        !isset($schema['real_schema']['properties'])) {
+                    return response()->json(['success' => false,
+                        'message' => $schema['message'] ?? 'Schema fetch failed',
+                        'fields' => []]);
                 }
                 $ruleParser =
                     app(\App\Services\Amazon\AmazonSchemaRuleParser::class);
@@ -138,8 +139,8 @@ class AmazonSchemaController extends Controller
                         'category_slug' => $slug
                     ],
                     [
-                        'schema_json'  => json_encode($schema),
-                        'rules_json'   => json_encode($rules),
+                        'schema_json' => json_encode($schema),
+                        'rules_json' => json_encode($rules),
                         'last_synced_at' => now()
                     ]
                 );
@@ -148,9 +149,8 @@ class AmazonSchemaController extends Controller
                     ->update([
                         'status' => 'Active'
                     ]);
-          
             }
-  
+
             $fields = $amazonService->extractFields($schema);
             // $payloadFields = $this->getPayloadFields($slug);
             $payloadAnalyzer = app(AmazonPayloadAnalyzer::class);
@@ -174,7 +174,7 @@ class AmazonSchemaController extends Controller
                 'shirt',
                 'cotton'
             ]);
-          
+
             $payloadFields =
                 $payloadAnalyzer->getPayloadFields(
                     $amazonPayloadService,
@@ -187,9 +187,14 @@ class AmazonSchemaController extends Controller
             $payloadRoots = collect($payloadFields)
                 ->map(function ($field) {
                     return explode('.', $field)[0];
-                })->unique()->values()->toArray();
-            $fields = collect($fields)->whereIn('key', $payloadRoots)
-                ->values()->toArray();
+                })
+                ->unique()
+                ->values()
+                ->toArray();
+            $fields = collect($fields)
+                ->whereIn('key', $payloadRoots)
+                ->values()
+                ->toArray();
             $fieldMap = [];
             foreach ($payloadFields as $payloadField) {
                 $root = explode('.', $payloadField)[0];
@@ -198,13 +203,13 @@ class AmazonSchemaController extends Controller
             $fieldData = [];
             foreach ($fields as &$field) {
                 $field['payload_fields'] = $fieldMap[$field['key']] ?? [];
-                if ( isset( $field['schema']['items']['properties'] )) {
-                    $field['nested_fields'] = array_keys( $field['schema']['items']['properties']);
+                if (isset($field['schema']['items']['properties'])) {
+                    $field['nested_fields'] = array_keys($field['schema']['items']['properties']);
                 }
             }
 
-            $evaluator = app( \App\Services\Amazon\AmazonRuleEvaluator::class );
-            $result = $evaluator->validate( $rules,  []  );
+            $evaluator = app(\App\Services\Amazon\AmazonRuleEvaluator::class);
+            $result = $evaluator->validate($rules, []);
 
             Log::info('VALIDATOR ERRORS', [
                 'errors' => $result['errors'] ?? []
@@ -237,11 +242,11 @@ class AmazonSchemaController extends Controller
                 [
                     'slug' => $slug,
                     'error' =>
-                    $e->getMessage(),
+                        $e->getMessage(),
                     'line' =>
-                    $e->getLine(),
+                        $e->getLine(),
                     'file' =>
-                    $e->getFile()
+                        $e->getFile()
                 ]
             );
             return response()->json([
@@ -251,6 +256,7 @@ class AmazonSchemaController extends Controller
             ], 500);
         }
     }
+
     public function validateRules(Request $request)
     {
         $slug = $request->slug;
@@ -288,9 +294,10 @@ class AmazonSchemaController extends Controller
             'success' => true,
             'errors' => $result['errors'] ?? [],
             'dynamic_options' =>
-            $result['dynamic_options'] ?? []
+                $result['dynamic_options'] ?? []
         ]);
     }
+
     public function amazonTest(Request $request)
     {
         $categories = Category::whereNull('parent_id')
@@ -365,26 +372,23 @@ class AmazonSchemaController extends Controller
                     )->first();
                 if ($amazonProduct) {
                     foreach (
-                        $amazonProduct->getAttributes()
-                        as $key => $value
+                        $amazonProduct->getAttributes() as $key => $value
                     ) {
-                        if (  in_array( $key, [  'id',   'product_id',  'created_at',   'updated_at'  ]   )
-                        ) {
+                        if (in_array($key, ['id', 'product_id', 'created_at', 'updated_at'])) {
                             continue;
                         }
-                        if ( is_null($value) ||    $value === ''  ) {
+                        if (is_null($value) || $value === '') {
                             continue;
                         }
-                        $decoded =   json_decode(  $value, true );
-                        if ( is_string($decoded)  ) {
-                            $decoded =  json_decode( $decoded, true );
+                        $decoded = json_decode($value, true);
+                        if (is_string($decoded)) {
+                            $decoded = json_decode($decoded, true);
                         }
                         if (is_array($decoded)) {
                             $cleanValues = [];
                             array_walk_recursive(
                                 $decoded,
-                                function ($item)
-                                use (&$cleanValues) {
+                                function ($item) use (&$cleanValues) {
                                     if (
                                         !is_null($item) &&
                                         $item !== ''
@@ -394,10 +398,10 @@ class AmazonSchemaController extends Controller
                                     }
                                 }
                             );
-                            $finalValue =   implode(
-                                    ', ',
-                                    $cleanValues
-                                );
+                            $finalValue = implode(
+                                ', ',
+                                $cleanValues
+                            );
                         } else {
                             $finalValue =
                                 $decoded ?: $value;
@@ -450,9 +454,9 @@ class AmazonSchemaController extends Controller
             )
         );
     }
+
     public function manualSync(Request $request)
     {
-
         Log::info('ENV DEBUG', [
             'env' => env('AMAZON_PAYLOAD_TRANSFORMER'),
             'config' => config('amazon.payload_transformer'),
@@ -525,11 +529,11 @@ class AmazonSchemaController extends Controller
             // }
             $config = AmazonTransformerConfig::fromStore($shop);
 
-            Log::info('Payload Transformer Config', [
-                'driver' => config('amazon.payload_transformer'),
-                'marketplace' => $config->marketplaceId,
-                'language' => $config->languageTag,
-            ]);
+            // Log::info('Payload Transformer Config', [
+            //     'driver' => config('amazon.payload_transformer'),
+            //     'marketplace' => $config->marketplaceId,
+            //     'language' => $config->languageTag,
+            // ]);
 
             $type = null;
 
@@ -542,9 +546,7 @@ class AmazonSchemaController extends Controller
                 : 'PRODUCT';
 
             try {
-
                 if (config('amazon.payload_transformer') === 'v2') {
-
                     Log::info('USING AMAZON PAYLOAD TRANSFORMER V2');
 
                     $payload = $this->payloadTransformerV2->build(
@@ -554,7 +556,6 @@ class AmazonSchemaController extends Controller
                         $config
                     );
                 } else {
-
                     Log::info('USING AMAZON PAYLOAD TRANSFORMER V1');
 
                     $transformer = new AmazonPayloadTransformer();
@@ -564,17 +565,16 @@ class AmazonSchemaController extends Controller
                     );
                 }
 
-                Log::info('FINAL GENERATED PAYLOAD', [
-                    'payload' => $payload,
-                ]);
+                // Log::info('FINAL GENERATED PAYLOAD', [
+                //     'payload' => $payload,
+                // ]);
             } catch (\Throwable $e) {
-
-                Log::error('PAYLOAD GENERATION FAILED', [
-                    'driver' => config('amazon.payload_transformer'),
-                    'message' => $e->getMessage(),
-                    'line' => $e->getLine(),
-                    'file' => $e->getFile(),
-                ]);
+                // Log::error('PAYLOAD GENERATION FAILED', [
+                //     'driver' => config('amazon.payload_transformer'),
+                //     'message' => $e->getMessage(),
+                //     'line' => $e->getLine(),
+                //     'file' => $e->getFile(),
+                // ]);
 
                 throw $e;
             }
@@ -599,21 +599,16 @@ class AmazonSchemaController extends Controller
             //     unset($payload['outer']);
             // }
 
-
-
-
             // 6. Execute required debugging logs
-            Log::info('PRODUCT TYPE', [
-                'product_type' => $productType
-            ]);
-            Log::info('PAYLOAD KEYS', [
-                'keys' => array_keys($payload)
-            ]);
-            Log::info('FINAL AMAZON PAYLOAD', [
-                'payload' => $payload
-            ]);
-
-
+            // Log::info('PRODUCT TYPE', [
+            //     'product_type' => $productType
+            // ]);
+            // Log::info('PAYLOAD KEYS', [
+            //     'keys' => array_keys($payload)
+            // ]);
+            // Log::info('FINAL AMAZON PAYLOAD', [
+            //     'payload' => $payload
+            // ]);
 
             // 7. Send to Amazon SP-API
             // $amazonService = new AmazonService();
@@ -641,12 +636,12 @@ class AmazonSchemaController extends Controller
                 $normalizer = app(AmazonIssueNormalizer::class);
                 $errors = $normalizer->normalize($issues);
 
-                Log::warning('AMAZON LISTING INVALID', [
-                    'product_id' => $product->id,
-                    'sku' => $sku,
-                    'issues' => $issues,
-                    'errors' => $errors
-                ]);
+                // Log::warning('AMAZON LISTING INVALID', [
+                //     'product_id' => $product->id,
+                //     'sku' => $sku,
+                //     'issues' => $issues,
+                //     'errors' => $errors
+                // ]);
 
                 return response()->json([
                     'success' => false,
@@ -668,24 +663,24 @@ class AmazonSchemaController extends Controller
                     'synced_to_amazon' => 1
                 ]);
 
-            Log::info('SYNC UPDATE DEBUG', [
-                'product_id'   => $product->id,
-                'updated_rows' => $updated,
-            ]);
+            // Log::info('SYNC UPDATE DEBUG', [
+            //     'product_id'   => $product->id,
+            //     'updated_rows' => $updated,
+            // ]);
 
             $freshProduct = Product::find($product->id);
 
-            Log::info('SYNC UPDATE VERIFY', [
-                'product_id'       => $product->id,
-                'synced_to_amazon' => $freshProduct?->synced_to_amazon,
-            ]);
+            // Log::info('SYNC UPDATE VERIFY', [
+            //     'product_id'       => $product->id,
+            //     'synced_to_amazon' => $freshProduct?->synced_to_amazon,
+            // ]);
             ProductSyncLog::create([
-                'product_id'    => $product->id,
-                'shop_id'       => $shop->id,
-                'platform'      => 'amazon',
-                'status'        => 'success',
-                'message'       => 'Amazon listing accepted',
-                'type'          => 'manual_sync',
+                'product_id' => $product->id,
+                'shop_id' => $shop->id,
+                'platform' => 'amazon',
+                'status' => 'success',
+                'message' => 'Amazon listing accepted',
+                'type' => 'manual_sync',
             ]);
 
             unset($payload['merchant_shipping_group']);
@@ -696,12 +691,12 @@ class AmazonSchemaController extends Controller
                 'amazon_response' => $dto
             ]);
         } catch (\Throwable $e) {
-            Log::error('MANUAL AMAZON SYNC FAILED', [
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // Log::error('MANUAL AMAZON SYNC FAILED', [
+            //     'message' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
 
             return response()->json([
                 'success' => false,
@@ -717,9 +712,9 @@ class AmazonSchemaController extends Controller
     {
         return match ($productType) {
             'HEADPHONES' => $this->prepareHeadphonesPayload($payload),
-            'SHIRT'      => $this->prepareShirtPayload($payload),
+            'SHIRT' => $this->prepareShirtPayload($payload),
             // Add future types here (e.g., 'PANTS' => $this->preparePantsPayload($payload))
-            default      => $payload,
+            default => $payload,
         };
     }
 
@@ -816,10 +811,10 @@ class AmazonSchemaController extends Controller
         $slug = $request->slug;
         $fields = $request->fields ?? [];
 
-        Log::info('LOAD MISSING FIELDS START', [
-            'slug' => $slug,
-            'requested_fields' => $fields
-        ]);
+        // Log::info('LOAD MISSING FIELDS START', [
+        //     'slug' => $slug,
+        //     'requested_fields' => $fields
+        // ]);
 
         $schema = AmazonSchema::where(
             'category_slug',
@@ -827,7 +822,6 @@ class AmazonSchemaController extends Controller
         )->first();
 
         if (!$schema) {
-
             Log::warning('SCHEMA NOT FOUND', [
                 'slug' => $slug
             ]);
@@ -852,19 +846,17 @@ class AmazonSchemaController extends Controller
         $allFields = $amazonService
             ->extractFields($schemaData);
 
-        Log::info('EXTRACTED FIELDS', [
-            'total' => count($allFields),
-            'keys' => collect($allFields)
-                ->pluck('key')
-                ->values()
-                ->toArray()
-        ]);
+        // Log::info('EXTRACTED FIELDS', [
+        //     'total' => count($allFields),
+        //     'keys' => collect($allFields)
+        //         ->pluck('key')
+        //         ->values()
+        //         ->toArray()
+        // ]);
 
         $missing = collect($allFields)
             ->filter(function ($field) use ($fields) {
-
                 foreach ($fields as $missingField) {
-
                     if (
                         $field['key'] === $missingField ||
                         str_starts_with(
@@ -880,24 +872,23 @@ class AmazonSchemaController extends Controller
             })
             ->values();
 
-        Log::info('FILTER RESULT', [
-            'requested' => $fields,
-            'found_count' => $missing->count(),
-            'found_keys' => $missing
-                ->pluck('key')
-                ->values()
-                ->toArray()
-        ]);
+        // Log::info('FILTER RESULT', [
+        //     'requested' => $fields,
+        //     'found_count' => $missing->count(),
+        //     'found_keys' => $missing
+        //         ->pluck('key')
+        //         ->values()
+        //         ->toArray()
+        // ]);
 
         if ($missing->isEmpty()) {
-
-            Log::warning('NO MATCH FOUND', [
-                'requested_fields' => $fields,
-                'available_fields' => collect($allFields)
-                    ->pluck('key')
-                    ->values()
-                    ->toArray()
-            ]);
+            // Log::warning('NO MATCH FOUND', [
+            //     'requested_fields' => $fields,
+            //     'available_fields' => collect($allFields)
+            //         ->pluck('key')
+            //         ->values()
+            //         ->toArray()
+            // ]);
         }
 
         return response()->json([
@@ -911,7 +902,7 @@ class AmazonSchemaController extends Controller
         \App\Services\Amazon\AmazonConditionalEvaluator $evaluator
     ): \Illuminate\Http\JsonResponse {
         $validated = $request->validate([
-            'slug'    => 'required|string',
+            'slug' => 'required|string',
             'payload' => 'nullable|array',
         ]);
 
@@ -944,7 +935,7 @@ class AmazonSchemaController extends Controller
 
         return response()->json([
             'success' => true,
-            'state'   => $uiState,
+            'state' => $uiState,
         ]);
     }
 }

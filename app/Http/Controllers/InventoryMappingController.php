@@ -2,20 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessInventoryUpdateJob;
+use App\Models\InventorySyncOperation;
 use App\Models\Product;
 use App\Models\ProductMarketplaceMapping;
-use App\Models\InventorySyncOperation;
-use App\Jobs\ProcessInventoryUpdateJob;
-use Illuminate\Http\Request;
+use App\Models\Shop;
+use App\Services\AmazonService;
 use App\Services\ShopifyService;
+use App\Services\SyncLimitService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Services\AmazonService;
-use App\Services\SyncLimitService;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
-use App\Models\Shop;
-
 
 class InventoryMappingController extends Controller
 {
@@ -123,7 +122,6 @@ class InventoryMappingController extends Controller
         $response = [];
 
         foreach ($variants as $variant) {
-
             if (in_array((string) $variant['id'], $mapped)) {
                 continue;
             }
@@ -141,7 +139,6 @@ class InventoryMappingController extends Controller
             'shopify_product_id' => $product->shopify_id,
         ]);
     }
-
 
     public function saveProductMapping(Request $request)
     {
@@ -245,7 +242,7 @@ class InventoryMappingController extends Controller
             throw $e;
         }
 
-        Log::info('Saved Record', $mapping->fresh()->toArray());
+        // Log::info('Saved Record', $mapping->fresh()->toArray());
 
         $latestSyncLimit = app(SyncLimitService::class)->canMap($shop);
 
@@ -285,7 +282,6 @@ class InventoryMappingController extends Controller
         ]);
     }
 
-
     public function saveAmazonMapping(Request $request)
     {
         $request->validate([
@@ -317,7 +313,6 @@ class InventoryMappingController extends Controller
         $variants = is_array($product->variants)
             ? $product->variants
             : json_decode($product->variants, true);
-
 
         $variant = collect($variants)->firstWhere(
             'id',
@@ -355,12 +350,10 @@ class InventoryMappingController extends Controller
         ]);
 
         if (!$existingMapping) {
-
             $syncLimit = app(SyncLimitService::class)->canMap($shop);
             Log::info('Sync Limit', $syncLimit);
 
             if (!$syncLimit['allowed']) {
-
                 return response()->json([
                     'success' => false,
                     'message' => $syncLimit['message'],
@@ -382,7 +375,7 @@ class InventoryMappingController extends Controller
             'quantity' => (string) ($variant['inventory_quantity'] ?? 0),
         ];
 
-        Log::info('UpdateOrCreate Payload', $updateData);
+        // Log::info('UpdateOrCreate Payload', $updateData);
 
         try {
             $mapping = ProductMarketplaceMapping::updateOrCreate(
@@ -417,28 +410,27 @@ class InventoryMappingController extends Controller
         ]);
     }
 
-
     public function updateShopifyInventory(Request $request)
     {
         Log::info('Shopify inventory update: 1. Request received', [
-            'shop'              => $request->shop ?? $request->query('shop'),
+            'shop' => $request->shop ?? $request->query('shop'),
             'inventory_item_id' => $request->inventory_item_id,
-            'quantity'          => $request->quantity,
+            'quantity' => $request->quantity,
         ]);
 
         try {
             $request->validate([
-                'shop'               => 'nullable',
-                'inventory_item_id'  => 'required',
-                'quantity'           => 'required|integer|min:0',
+                'shop' => 'nullable',
+                'inventory_item_id' => 'required',
+                'quantity' => 'required|integer|min:0',
                 'shopify_variant_id' => 'nullable',
-                'mapping_id'         => 'nullable|integer',
-                'baseline_quantity'  => 'nullable|integer',
+                'mapping_id' => 'nullable|integer',
+                'baseline_quantity' => 'nullable|integer',
             ]);
 
             Log::info('Shopify inventory update: 2. Request validation passed', [
                 'inventory_item_id' => $request->inventory_item_id,
-                'quantity'          => $request->quantity,
+                'quantity' => $request->quantity,
             ]);
 
             $shop = $this->getActiveShopModel($request);
@@ -455,7 +447,7 @@ class InventoryMappingController extends Controller
 
             Log::info('Shopify inventory update: 3. Active shop resolved', [
                 'shop_id' => $shop->id,
-                'shop'    => $shop->shop,
+                'shop' => $shop->shop,
             ]);
 
             // Use currently selected Shopify Location
@@ -477,7 +469,7 @@ class InventoryMappingController extends Controller
                             ? (int) $shop->selected_location_index
                             : 0;
                         $shop->update([
-                            'shopify_locations'       => $fetchedLocations,
+                            'shopify_locations' => $fetchedLocations,
                             'selected_location_index' => $effectiveIndex,
                         ]);
                         $shop->refresh();
@@ -489,16 +481,16 @@ class InventoryMappingController extends Controller
                 } catch (\Throwable $e) {
                     Log::warning('SHOPIFY LOCATIONS SELF-HEAL FAILED', [
                         'shop_id' => $shop->id,
-                        'error'   => $e->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
 
             if (!$locationId) {
                 Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
-                    'shop_id'                 => $shop->id,
+                    'shop_id' => $shop->id,
                     'selected_location_index' => $shop->selected_location_index,
-                    'effective_index'         => $selectedIndex,
+                    'effective_index' => $selectedIndex,
                 ]);
 
                 return response()->json([
@@ -508,9 +500,9 @@ class InventoryMappingController extends Controller
             }
 
             Log::info('Shopify inventory update: 4. Shopify location resolved', [
-                'shop_id'     => $shop->id,
+                'shop_id' => $shop->id,
                 'location_id' => $locationId,
-                'index'       => $selectedIndex,
+                'index' => $selectedIndex,
             ]);
 
             // Check existing mapping scoped strictly to active shop
@@ -528,7 +520,7 @@ class InventoryMappingController extends Controller
             }
 
             Log::info('Shopify inventory update: 5. Inventory mapping found', [
-                'shop_id'    => $shop->id,
+                'shop_id' => $shop->id,
                 'mapping_id' => $mapping?->id,
                 'amazon_sku' => $mapping?->amazon_sku,
             ]);
@@ -548,7 +540,7 @@ class InventoryMappingController extends Controller
                         'inventory_levels.json',
                         [
                             'inventory_item_ids' => (string) $request->inventory_item_id,
-                            'location_ids'       => (string) $locationId,
+                            'location_ids' => (string) $locationId,
                         ]
                     );
 
@@ -570,7 +562,7 @@ class InventoryMappingController extends Controller
                 } catch (\Throwable $e) {
                     Log::warning('Shopify inventory update: Failed to fetch live baseline', [
                         'shop_id' => $shop->id,
-                        'error'   => $e->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
 
@@ -580,9 +572,9 @@ class InventoryMappingController extends Controller
             }
 
             Log::info('Shopify inventory update: 6. InventorySyncOperation database record creation started', [
-                'shop_id'           => $shop->id,
+                'shop_id' => $shop->id,
                 'inventory_item_id' => $request->inventory_item_id,
-                'desired_quantity'  => (int) $request->quantity,
+                'desired_quantity' => (int) $request->quantity,
             ]);
 
             // -------------------------------------------------------------
@@ -594,84 +586,84 @@ class InventoryMappingController extends Controller
                     ->where('shopify_inventory_item_id', (string) $request->inventory_item_id)
                     ->where('status', 'pending')
                     ->update([
-                        'status'     => 'superseded',
+                        'status' => 'superseded',
                         'last_error' => 'Superseded by newer manual update.',
                     ]);
 
                 return InventorySyncOperation::create([
-                    'operation_uuid'             => (string) Str::uuid(),
-                    'source_key'                 => 'manual:' . Str::uuid(),
-                    'shop_id'                    => $shop->id,
-                    'mapping_id'                 => $mapping?->id,
-                    'shopify_inventory_item_id'  => (string) $request->inventory_item_id,
-                    'shopify_location_id'        => (string) $locationId,
-                    'amazon_sku'                 => $mapping?->amazon_sku,
-                    'desired_quantity'           => (int) $request->quantity,
-                    'baseline_quantity'          => $baselineQuantity,
+                    'operation_uuid' => (string) Str::uuid(),
+                    'source_key' => 'manual:' . Str::uuid(),
+                    'shop_id' => $shop->id,
+                    'mapping_id' => $mapping?->id,
+                    'shopify_inventory_item_id' => (string) $request->inventory_item_id,
+                    'shopify_location_id' => (string) $locationId,
+                    'amazon_sku' => $mapping?->amazon_sku,
+                    'desired_quantity' => (int) $request->quantity,
+                    'baseline_quantity' => $baselineQuantity,
                     'expected_inventory_version' => $expectedVersion,
-                    'source'                     => 'manual_ui',
-                    'status'                     => 'pending',
-                    'stage'                      => 'pending',
-                    'attempts'                   => 0,
-                    'max_attempts'               => 4,
-                    'last_dispatched_at'         => now(),
+                    'source' => 'manual_ui',
+                    'status' => 'pending',
+                    'stage' => 'pending',
+                    'attempts' => 0,
+                    'max_attempts' => 4,
+                    'last_dispatched_at' => now(),
                 ]);
             });
 
-            Log::info('Shopify inventory update: 7. InventorySyncOperation database record created', [
-                'shop_id'        => $shop->id,
-                'operation_id'   => $operation->id,
-                'operation_uuid' => $operation->operation_uuid,
-            ]);
+            // Log::info('Shopify inventory update: 7. InventorySyncOperation database record created', [
+            //     'shop_id'        => $shop->id,
+            //     'operation_id'   => $operation->id,
+            //     'operation_uuid' => $operation->operation_uuid,
+            // ]);
 
-            Log::info('Shopify inventory update: 8. ProcessInventoryUpdateJob dispatch started', [
-                'shop_id'      => $shop->id,
-                'operation_id' => $operation->id,
-            ]);
+            // Log::info('Shopify inventory update: 8. ProcessInventoryUpdateJob dispatch started', [
+            //     'shop_id'      => $shop->id,
+            //     'operation_id' => $operation->id,
+            // ]);
 
             // Dispatch background processing job after DB transaction has committed
             ProcessInventoryUpdateJob::dispatch($operation->id);
 
             Log::info('Shopify inventory update: 9. ProcessInventoryUpdateJob dispatched', [
-                'shop_id'      => $shop->id,
+                'shop_id' => $shop->id,
                 'operation_id' => $operation->id,
             ]);
 
             // Invalidate cache
             Cache::forget("shopify_inventory_{$shop->shop}_location_{$selectedIndex}");
 
-            Log::info('Shopify inventory update: 10. Cache invalidation completed', [
-                'shop'      => $shop->shop,
-                'cache_key' => "shopify_inventory_{$shop->shop}_location_{$selectedIndex}",
-            ]);
+            // Log::info('Shopify inventory update: 10. Cache invalidation completed', [
+            //     'shop'      => $shop->shop,
+            //     'cache_key' => "shopify_inventory_{$shop->shop}_location_{$selectedIndex}",
+            // ]);
 
-            Log::info('Shopify inventory update: 11. Shopify inventory update flow completed', [
-                'shop_id'      => $shop->id,
-                'operation_id' => $operation->id,
-            ]);
+            // Log::info('Shopify inventory update: 11. Shopify inventory update flow completed', [
+            //     'shop_id'      => $shop->id,
+            //     'operation_id' => $operation->id,
+            // ]);
 
             return response()->json([
-                'success'      => true,
-                'status'       => 'pending',
+                'success' => true,
+                'status' => 'pending',
                 'operation_id' => $operation->id,
-                'message'      => 'Inventory update queued successfully.',
+                'message' => 'Inventory update queued successfully.',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            Log::error('Shopify inventory update failed', [
-                'shop'              => $shop->shop ?? $request->shop ?? $request->query('shop'),
-                'inventory_item_id' => $request->inventory_item_id ?? null,
-                'quantity'          => $request->quantity ?? null,
-                'error'             => $e->getMessage(),
-                'file'              => $e->getFile(),
-                'line'              => $e->getLine(),
-            ]);
+            // Log::error('Shopify inventory update failed', [
+            //     'shop'              => $shop->shop ?? $request->shop ?? $request->query('shop'),
+            //     'inventory_item_id' => $request->inventory_item_id ?? null,
+            //     'quantity'          => $request->quantity ?? null,
+            //     'error'             => $e->getMessage(),
+            //     'file'              => $e->getFile(),
+            //     'line'              => $e->getLine(),
+            // ]);
 
             if (isset($operation) && $operation instanceof InventorySyncOperation) {
                 try {
                     $operation->update([
-                        'status'     => 'failed',
+                        'status' => 'failed',
                         'last_error' => $e->getMessage(),
                     ]);
                 } catch (\Throwable $ignored) {
@@ -684,7 +676,6 @@ class InventoryMappingController extends Controller
             ], 422);
         }
     }
-
 
     public function unmap(Request $request, ProductMarketplaceMapping $mapping)
     {
@@ -703,19 +694,19 @@ class InventoryMappingController extends Controller
             ], 403);
         }
 
-        Log::info('========== UNMAP START ==========', [
-            'shop_id' => $shop->id,
-            'mapping_id' => $mapping->id,
-            'amazon_sku' => $mapping->amazon_sku,
-            'shopify_variant_id' => $mapping->shopify_variant_id,
-        ]);
+        // Log::info('========== UNMAP START ==========', [
+        //     'shop_id' => $shop->id,
+        //     'mapping_id' => $mapping->id,
+        //     'amazon_sku' => $mapping->amazon_sku,
+        //     'shopify_variant_id' => $mapping->shopify_variant_id,
+        // ]);
 
         $mapping->delete();
 
-        Log::info('========== UNMAP SUCCESS ==========', [
-            'shop_id' => $shop->id,
-            'mapping_id' => $mapping->id,
-        ]);
+        // Log::info('========== UNMAP SUCCESS ==========', [
+        //     'shop_id' => $shop->id,
+        //     'mapping_id' => $mapping->id,
+        // ]);
 
         $syncUsage = app(SyncLimitService::class)->canMap($shop);
 

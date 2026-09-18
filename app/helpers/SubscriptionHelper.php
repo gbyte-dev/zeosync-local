@@ -1,22 +1,20 @@
 <?php
 
-use App\Models\ShopSubscription;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use App\Models\AdminNotification;
 use App\Models\ContactInquiry;
+use App\Models\ShopSubscription;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 if (!function_exists('isSubscriptionActive')) {
-
     function isSubscriptionActive($shopId)
     {
-
         $subscription = ShopSubscription::where('shop_id', $shopId)
             ->latest()
             ->first();
 
-        // ❌ No subscription
+        //  No subscription
         if (!$subscription) {
             Log::warning('NO SUBSCRIPTION FOUND');
             return false;
@@ -39,13 +37,11 @@ if (!function_exists('isSubscriptionActive')) {
         //  Expiry check
         $isExpired = false;
 
-        if ( $subscription->status === 'trialing' &&  $subscription->is_trial) 
-        {
+        if ($subscription->status === 'trialing' && $subscription->is_trial) {
             $isExpired = $subscription->trial_ends_at
                 ? Carbon::parse($subscription->trial_ends_at)->isPast()
                 : true;
         } else {
-
             $isExpired = $subscription->current_period_end
                 ? Carbon::parse($subscription->current_period_end)->isPast()
                 : true;
@@ -53,10 +49,8 @@ if (!function_exists('isSubscriptionActive')) {
 
         // Expired → update DB (only once safely)
         if ($isExpired) {
-
             // only update if still active/trialing (avoid multiple updates)
             if (in_array($subscription->status, $allowedStatuses)) {
-
                 Log::warning('SUBSCRIPTION EXPIRED → UPDATING');
 
                 $subscription->update([
@@ -80,27 +74,29 @@ if (!function_exists('isSubscriptionActive')) {
     {
         $shops = DB::table('shops')->where('shop_id', $shopId)->latest()->first();
 
-        if (!$shops) {  return false;  }
+        if (!$shops) {
+            return false;
+        }
 
-        if( $shops->shop_name && $shops->email){
+        if ($shops->shop_name && $shops->email) {
             return true;
         }
 
         return false;
-
     }
-
 }
 
 if (!function_exists('getAdminNotificationUnread')) {
-    function getAdminNotificationUnread(){
+    function getAdminNotificationUnread()
+    {
         $notifications = AdminNotification::where('is_read', 0)->orderBy('created_at', 'desc')->get();
         return $notifications;
     }
 }
 
 if (!function_exists('getContactInquiryUnread')) {
-    function getContactInquiryUnread(){
+    function getContactInquiryUnread()
+    {
         $contacts = ContactInquiry::where('is_read', 0)->orderBy('created_at', 'desc')->get();
         return $contacts;
     }

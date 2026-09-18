@@ -21,19 +21,19 @@ class ShopifyComplianceWebhookController extends Controller
     private function accept(Request $request, string $type)
     {
         $payload = $request->getContent();
-        if (! app(\App\Services\ShopifyWebhookService::class)->isValidWebhook($payload, (string) $request->header('X-Shopify-Hmac-Sha256'))) {
+        if (!app(\App\Services\ShopifyWebhookService::class)->isValidWebhook($payload, (string) $request->header('X-Shopify-Hmac-Sha256'))) {
             Log::warning('Rejected Shopify compliance webhook with invalid HMAC.', ['type' => $type]);
 
             return response()->json(['success' => false, 'error' => 'invalid_webhook_signature'], 401);
         }
         $data = json_decode($payload, true);
-        if (! is_array($data)) {
+        if (!is_array($data)) {
             return response()->json(['success' => false, 'error' => 'invalid_payload'], 400);
         }
         $shopDomain = strtolower(trim((string) ($request->header('X-Shopify-Shop-Domain') ?: ($data['shop_domain'] ?? ''))));
         $shop = $shopDomain !== '' ? Shop::withTrashed()->where('shop', $shopDomain)->first() : null;
         $transportId = trim((string) ($request->header('X-Shopify-Event-Id') ?: $request->header('X-Shopify-Webhook-Id')));
-        $eventId = $transportId !== '' ? $transportId : hash('sha256', $type.'|'.$shopDomain.'|'.$payload);
+        $eventId = $transportId !== '' ? $transportId : hash('sha256', $type . '|' . $shopDomain . '|' . $payload);
         $customerId = data_get($data, 'customer.id');
         $customerEmail = strtolower(trim((string) data_get($data, 'customer.email', '')));
         $record = ComplianceRequest::firstOrCreate(['event_id' => $eventId], [
@@ -45,7 +45,7 @@ class ShopifyComplianceWebhookController extends Controller
             'status' => 'received',
             'request_payload' => $data,
         ]);
-        if (! in_array($record->status, ['completed', 'revoked'], true)) {
+        if (!in_array($record->status, ['completed', 'revoked'], true)) {
             ProcessShopifyComplianceWebhook::dispatch($record->id);
         }
 
@@ -68,9 +68,9 @@ class ShopifyComplianceWebhookController extends Controller
             $payload,
             $request->header('X-Shopify-Hmac-Sha256')
         )) {
-            Log::warning('Invalid Shopify Customer Data Request HMAC', [
-                'shop' => $request->header('X-Shopify-Shop-Domain'),
-            ]);
+            // Log::warning('Invalid Shopify Customer Data Request HMAC', [
+            //     'shop' => $request->header('X-Shopify-Shop-Domain'),
+            // ]);
 
             return response()->json([
                 'success' => false,
@@ -150,9 +150,9 @@ class ShopifyComplianceWebhookController extends Controller
             ], 401);
         }
 
-        Log::info('Shopify Customer Redact Webhook', [
-            'shop' => $request->header('X-Shopify-Shop-Domain'),
-        ]);
+        // Log::info('Shopify Customer Redact Webhook', [
+        //     'shop' => $request->header('X-Shopify-Shop-Domain'),
+        // ]);
 
         return response()->json([
             'success' => true,
@@ -170,11 +170,11 @@ class ShopifyComplianceWebhookController extends Controller
 
     public function legacyShopRedact(Request $request)
     {
-        Log::info('COMPLIANCE WEBHOOK HIT - SHOP REDACT', [
-            'method' => $request->method(),
-            'url' => $request->fullUrl(),
-            'shop' => $request->header('X-Shopify-Shop-Domain'),
-        ]);
+        // Log::info('COMPLIANCE WEBHOOK HIT - SHOP REDACT', [
+        //     'method' => $request->method(),
+        //     'url' => $request->fullUrl(),
+        //     'shop' => $request->header('X-Shopify-Shop-Domain'),
+        // ]);
 
         $payload = $request->getContent();
 
@@ -184,9 +184,9 @@ class ShopifyComplianceWebhookController extends Controller
             $payload,
             $request->header('X-Shopify-Hmac-Sha256')
         )) {
-            Log::warning('Invalid Shopify Shop Redact HMAC', [
-                'shop' => $request->header('X-Shopify-Shop-Domain'),
-            ]);
+            // Log::warning('Invalid Shopify Shop Redact HMAC', [
+            //     'shop' => $request->header('X-Shopify-Shop-Domain'),
+            // ]);
 
             return response()->json([
                 'success' => false,

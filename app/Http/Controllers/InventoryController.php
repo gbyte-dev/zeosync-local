@@ -465,11 +465,11 @@ class InventoryController extends ShopifyController
             ]);
 
             if (!$response->successful()) {
-                Log::error('TOKEN REFRESH FAILED', [
-                    'shop' => $shopModel->shop,
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
+                // Log::error('TOKEN REFRESH FAILED', [
+                //     'shop' => $shopModel->shop,
+                //     'status' => $response->status(),
+                //     'body' => $response->body(),
+                // ]);
 
                 // Shopify signals a dead refresh token with 401 invalid_request
                 if ($response->status() === 401) {
@@ -491,7 +491,7 @@ class InventoryController extends ShopifyController
             $data = $response->json();
 
             if (!isset($data['access_token'])) {
-                Log::error('REFRESH RESPONSE MISSING TOKEN', ['shop' => $shopModel->shop, 'body' => $data]);
+                // Log::error('REFRESH RESPONSE MISSING TOKEN', ['shop' => $shopModel->shop, 'body' => $data]);
                 return [
                     'success' => false,
                     'access_token' => null,
