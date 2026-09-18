@@ -8,7 +8,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link nonce="{{ $cspNonce??'' }}" href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
-    <link nonce="{{ $cspNonce??'' }}" nonce="{{ $cspNonce??'' }}"href="{{ asset('css/sidebar.css') }}?v={{ time() }}" rel="stylesheet">
+    <link nonce="{{ $cspNonce??'' }}" href="{{ asset('css/sidebar.css') }}?v={{ time() }}" rel="stylesheet">
     <link nonce="{{ $cspNonce??'' }}" href="{{ asset('css/style.css') }}?v={{ time() }}" rel="stylesheet">
     @php
     $favicon = \App\Models\AdminSetting::where('option_key', 'app_favicon')->value('option_value');
