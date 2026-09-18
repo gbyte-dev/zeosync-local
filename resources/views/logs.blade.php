@@ -4,7 +4,7 @@
 <!-- Bootstrap 5 DataTables 1.13.8 CSS -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
 
-<style>
+<style nonce="{{ $cspNonce }}">
     /* Global Clean SaaS Environment - Tighter Density */
     body {
         background-color: #F4F6F8;
@@ -412,10 +412,10 @@
 
 @push('scripts')
 <!-- DataTables 1.13.8 Client-Side Initialisation pushed to layout stack -->
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     $(function() {
         $('#sync-logs-table').DataTable({
             "paging": true,

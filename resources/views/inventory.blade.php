@@ -2,7 +2,7 @@
 
 @section('content')
 
-<style>
+<style nonce="{{ $cspNonce }}">
     table td {
         vertical-align: middle;
     }
@@ -266,7 +266,7 @@
 
     @push('scripts')
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         let shopifyData = [];
         let amazonData = [];
         let filteredData = [];

@@ -45,7 +45,7 @@ $subscriptionStatus = 'Trialing';
 <!-- Optionally include Bootstrap Icons CDN if not already in your app.blade.php layout -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
-<style>
+<style nonce="{{ $cspNonce }}">
     /* Global Clean SaaS Environment - Tighter Density */
     body {
         background-color: #F4F6F8;
@@ -1288,7 +1288,7 @@ $subscriptionStatus = 'Trialing';
 
 {{-- Polling Script --}}
 @if(session('success') && str_contains(session('success'), 'activation initiated'))
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener("DOMContentLoaded", function() {
         let loader = document.getElementById('paymentLoader');
         let pendingBox = document.getElementById('paymentPendingBox');
@@ -1325,7 +1325,7 @@ $subscriptionStatus = 'Trialing';
 </script>
 @endif
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         @if ($errors->any() && old('enquiry_type') === 'enterprise_plan_enquiry')
             var enterpriseModalEl = document.getElementById('enterpriseModal');

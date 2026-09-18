@@ -45,7 +45,7 @@ $colorSizeMap[$color] = [];
 }
 @endphp
 
-<style>
+<style nonce="{{ $cspNonce }}">
     /* Shopify Admin Inspired UI - Ultra Tight & Compact */
     .sp-page {
         background-color: #F6F6F7;
@@ -629,7 +629,7 @@ $colorSizeMap[$color] = [];
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce }}">
     let selectedColor = @json(isset($colors[0]) ? $colors[0] : (isset($variants[0]["option1"]) ? $variants[0]["option1"] : ""));
     let selectedSize = @json($allSizes[0] ?? "");
     let isDescriptionExpanded = false;

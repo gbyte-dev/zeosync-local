@@ -4,7 +4,7 @@
 
 @section('content')
 
-<style>
+<style nonce="{{ $cspNonce }}">
     .custom-pagination {
         display: flex;
         background: #f6f6f7;
@@ -289,7 +289,7 @@
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<style>
+<style nonce="{{ $cspNonce }}">
     .table th,
     .table td {
 
@@ -322,7 +322,7 @@
 
 @push('scripts')
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('click', function(e) {
 
         // ✅ EDIT BUTTON

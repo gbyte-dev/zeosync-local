@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Shopify Authorization Complete</title>
-    <style>
+    <style nonce="{{ $cspNonce }}">
         body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f7f8fb; color: #202124; margin: 0; }
         .page { max-width: 640px; margin: 0 auto; padding: 48px 24px; text-align: center; }
         .card { background: #fff; border-radius: 16px; box-shadow: 0 16px 40px rgba(16,24,40,.08); padding: 32px; }
@@ -22,7 +22,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         (function() {
             const payload = {
                 type: 'shopify_authenticated',

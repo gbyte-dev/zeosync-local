@@ -2,7 +2,7 @@
 
 @section('content')
 
-<style>
+<style nonce="{{ $cspNonce }}">
 /* Card */
 .return-card {
     border:1px solid #e5e5e5;
@@ -109,7 +109,7 @@
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce }}">
 
 let returnsData = [];
 let filteredData = [];

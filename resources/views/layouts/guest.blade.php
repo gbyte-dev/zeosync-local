@@ -27,7 +27,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
 
-    <style>
+    <style nonce="{{ $cspNonce }}">
         /* Enterprise SaaS App Layout - Tight Density */
         html, body {
             min-height: 100%;
@@ -338,11 +338,11 @@
 
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
+    <script nonce="{{ $cspNonce }}" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
     @stack('scripts')
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         // Set up CSRF token for all AJAX requests
         $.ajaxSetup({
             headers: {

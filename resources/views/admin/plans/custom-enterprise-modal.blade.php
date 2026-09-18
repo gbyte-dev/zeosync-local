@@ -173,7 +173,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize Select2 strictly inside the modal context
         if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {

@@ -14,7 +14,7 @@
         <p>Please complete the installation in the popup window.</p>
     </div>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         const shop = @json($shop);
         const shopStatusUrl = @json(route('api.shop.status'));
         const dashboardUrl = @json(route('dashboard'));

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('content')
-<style>
+<style nonce="{{ $cspNonce }}">
     /* 
      * Shopify Admin Inspired UI - Ultra Tight & Compact
      */
@@ -952,7 +952,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce }}">
     const productForm = document.getElementById('productForm');
     const updateProductBtn = document.getElementById('updateProductBtn');
     const productTitleInput = document.querySelector('input[name="title"]');
