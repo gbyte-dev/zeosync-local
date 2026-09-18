@@ -27,7 +27,7 @@ class SecurityHeaders
 
             "font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
 
-            "connect-src 'self' https://api.stripe.com https://*.shopify.com https://*.myshopify.com https://cdn.jsdelivr.net",
+            "connect-src 'self' https://api.stripe.com https://*.shopify.com https://*.myshopify.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
 
             "frame-src 'self' https://*.shopify.com https://*.myshopify.com",
 
