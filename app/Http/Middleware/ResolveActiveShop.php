@@ -82,11 +82,23 @@ class ResolveActiveShop
                 if (
                     !$isActivated &&
                     !$request->routeIs('setup.form') &&
-                    !$request->routeIs('setup.store')
+                    !$request->routeIs('setup.store') &&
+                    !$request->routeIs('setup.activation.status')
                 ) {
+                    Log::info('RESOLVE_ACTIVE_SHOP: Activation required', [
+                        'shop_id' => $shop->id,
+                        'shop' => $shop->shop,
+                        'route' => $request->route()?->getName(),
+                        'is_ajax' => $request->ajax() || $request->expectsJson(),
+                    ]);
+
                     if ($request->ajax() || $request->expectsJson()) {
                         return response()->json([
                             'success' => false,
+                            'requires_activation' => true,
+                            'redirect_url' => route('setup.form', [
+                                'shop' => $shop->shop,
+                            ]),
                             'code' => 'SHOP_ACTIVATION_REQUIRED',
                             'message' => 'Shop activation is required.',
                         ], 403);
@@ -109,8 +121,10 @@ class ResolveActiveShop
             $request->routeIs('shopify.app.launch*') ||
             $request->routeIs('shopify.install') ||
             $request->routeIs('shopify.callback') ||
+            $request->routeIs('api.shop.status') ||
             $request->routeIs('setup.form') ||
             $request->routeIs('setup.store') ||
+            $request->routeIs('setup.activation.status') ||
             $request->routeIs('about') ||
             $request->routeIs('pricing') ||
             $request->routeIs('contact') ||
@@ -145,24 +159,17 @@ class ResolveActiveShop
                 'session_verified_shop' => session('_shopify_verified_shop'),
             ]);
 
-            if (
-                $shop &&
-                filled($shop->shop_name) &&
-                filled($shop->email) &&
-                $request->routeIs('setup.store')
-            ) {
-                return redirect()->route('dashboard', [
-                    'shop' => $shop->shop,
-                ]);
-            }
-
             View::share('activeShop', $activeShop);
             return $next($request);
         }
 
         // 4. Protected tenant route without verified identity
         if ($request->ajax() || $request->expectsJson()) {
+            $resolvedShop = $this->resolveShopDomain($request);
             return response()->json([
+                'success' => false,
+                'requires_reauth' => true,
+                'redirect_url' => route('shopify.install', array_filter(['shop' => $resolvedShop])),
                 'error' => 'Unauthorized',
                 'message' => 'Shopify authentication required.',
             ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');

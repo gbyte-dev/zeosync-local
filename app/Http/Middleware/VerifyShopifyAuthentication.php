@@ -143,9 +143,13 @@ class VerifyShopifyAuthentication
             ]);
 
             if ($request->ajax() || $request->expectsJson()) {
+                $requestedShop = $this->extractRequestedShop($request);
                 return response()->json([
-                    'error'   => 'Unauthorized',
-                    'message' => 'Invalid, expired, or untrusted Shopify session token.',
+                    'success'         => false,
+                    'requires_reauth' => true,
+                    'redirect_url'    => route('shopify.install', array_filter(['shop' => $requestedShop])),
+                    'error'           => 'Unauthorized',
+                    'message'         => 'Invalid, expired, or untrusted Shopify session token.',
                 ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');
             }
         }
@@ -251,9 +255,13 @@ class VerifyShopifyAuthentication
                 'url' => $request->fullUrl(),
             ]);
 
+            $requestedShop = $this->extractRequestedShop($request);
             return response()->json([
-                'error'   => 'Unauthorized',
-                'message' => 'Shopify authentication required.',
+                'success'         => false,
+                'requires_reauth' => true,
+                'redirect_url'    => route('shopify.install', array_filter(['shop' => $requestedShop])),
+                'error'           => 'Unauthorized',
+                'message'         => 'Shopify authentication required.',
             ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');
         }
 
@@ -400,8 +408,10 @@ class VerifyShopifyAuthentication
             $request->routeIs('crm.entry') ||
             $request->routeIs('shopify.install') ||
             $request->routeIs('shopify.callback') ||
+            $request->routeIs('api.shop.status') ||
             $request->routeIs('setup.form') ||
             $request->routeIs('setup.store') ||
+            $request->routeIs('setup.activation.status') ||
             $request->routeIs('about') ||
             $request->routeIs('pricing') ||
             $request->routeIs('contact') ||

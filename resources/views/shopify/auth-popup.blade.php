@@ -38,12 +38,19 @@
             fetch('/api/shop-status?shop=' + encodeURIComponent(shop), {
                 method: 'GET',
                 headers: {
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => response.json())
+            .then(async response => {
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    throw new Error('Non-JSON response received');
+                }
+                return response.json();
+            })
             .then(data => {
-                if (data.shop_name && data.email && !hasRedirected) {
+                if (data.is_active && data.shop_name && data.email && !hasRedirected) {
                     hasRedirected = true;
                     const statusEl = document.getElementById('status');
                     if (statusEl) statusEl.textContent = 'Setup complete. Redirecting to dashboard...';
@@ -74,6 +81,7 @@
             ].join(',');
 
             let popup = window.open(redirectUrl, 'shopifyAuth', features);
+            window.activeActivationPopup = popup;
 
             if (popup) {
                 popup.focus();
@@ -84,6 +92,7 @@
 
             openButton.addEventListener('click', function() {
                 popup = window.open(redirectUrl, 'shopifyAuth', features);
+                window.activeActivationPopup = popup;
                 if (popup) {
                     popup.focus();
                     statusEl.textContent = 'Shopify auth window opened. Complete the authorization there.';
@@ -105,7 +114,20 @@
 
             window.addEventListener('message', function(event) {
                 const data = event.data || {};
-                if (data.type === 'shopify_authenticated') {
+                if (data.type === 'shopify_authenticated' || data.type === 'shopify_activated') {
+                    if (data.redirect_url && (data.redirect_url.includes('/dashboard') || data.type === 'shopify_activated') && !hasRedirected) {
+                        hasRedirected = true;
+                        if (setupCheckInterval) clearInterval(setupCheckInterval);
+                        statusEl.textContent = 'Store activated successfully. Redirecting...';
+                        if (window.activeActivationPopup && !window.activeActivationPopup.closed) {
+                            try { window.activeActivationPopup.close(); } catch(e) {}
+                        }
+                        if (popup && !popup.closed) {
+                            try { popup.close(); } catch(e) {}
+                        }
+                        window.location.href = data.redirect_url;
+                        return;
+                    }
                     statusEl.textContent = 'Authorization successful. Waiting for setup completion...';
                     // Start polling for shop setup
                     if (!setupCheckInterval) {

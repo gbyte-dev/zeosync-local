@@ -1,27 +1,26 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ShopifyController;
-use App\Http\Middleware\ResolveActiveShop;
-use App\Http\Controllers\PlanController;
-use App\Http\Controllers\SubscriptionController;
-use App\Http\Controllers\AmazonSandboxController;
-use App\Http\Controllers\InventoryController;
-use App\Http\Controllers\SettingsController;
-use App\Http\Controllers\ReturnController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ImageController;
-use App\Http\Controllers\AIController;
-use App\Http\Controllers\ContactController;
-use Illuminate\Support\Facades\Artisan;
-use App\Http\Controllers\ProductSchemaController;
-use App\Http\Controllers\TestController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AIController;
+use App\Http\Controllers\AmazonSandboxController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ImageController;
+use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PlanController;
+use App\Http\Controllers\ProductSchemaController;
+use App\Http\Controllers\ReturnController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShopifyComplianceWebhookController;
+use App\Http\Controllers\ShopifyController;
+use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\TestController;
+use App\Http\Middleware\ResolveActiveShop;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Route;
 use Shopify\App\ShopifyApp;
-
 
 require base_path('routes/webShopify.php');
 require base_path('routes/webnotification.php');
@@ -43,12 +42,11 @@ Route::get('/api/shop-status', [ShopifyController::class, 'checkShopStatus'])->n
 Route::view('/about', 'about')->name('about')->middleware('shopify.session');
 Route::get('/pricing', [PlanController::class, 'pricing'])->name('pricing')->middleware('shopify.session');
 Route::view('/contact', 'contact')->name('contact')->middleware('shopify.session');
-Route::post('/contact', [ContactController::class, 'store'])->middleware('ip.rate:5,60')->name('contact.store'); 
+Route::post('/contact', [ContactController::class, 'store'])->middleware('ip.rate:5,60')->name('contact.store');
 Route::view('/terms', 'terms')->name('terms')->middleware('shopify.session');
 Route::view('/privacy', 'privacy')->name('privacy')->middleware('shopify.session');
 
-Route::middleware([ ResolveActiveShop::class,  \App\Http\Middleware\CheckSubscription::class
-])->group(function () {
+Route::middleware([ResolveActiveShop::class, \App\Http\Middleware\CheckSubscription::class])->group(function () {
     // Route::get('/products', [ShopifyController::class, 'products'])
     //     ->name('shopify.products');
     Route::get('/product/{id}', [ShopifyController::class, 'viewProduct'])->name('shopify.product.view');
@@ -70,10 +68,9 @@ Route::middleware([ ResolveActiveShop::class,  \App\Http\Middleware\CheckSubscri
     Route::get('/amazon/low-inventory', [DashboardController::class, 'lowInventory'])->name('view-all-amazon-low-inventory');
 });
 
-
 Route::middleware([ResolveActiveShop::class])->group(function () {
-   Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    //  product page route 
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    //  product page route
     Route::get('/products', [ShopifyController::class, 'products'])->name('shopify.products');
     Route::post('/createProduct', [ShopifyController::class, 'createProduct'])->name('shopify.product.create.post');
     // edit product
@@ -82,18 +79,24 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::post('/updateProduct/{id}', [ShopifyController::class, 'updateProduct'])->name('shopify.product.update.post');
     Route::post('/product/delete/{id}', [ShopifyController::class, 'deleteProduct'])->name('shopify.product.delete');
     Route::get('plans', [ShopifyController::class, 'plans'])->name('plans.index');
-    //Route::post('plans/subscribe', [ShopifyController::class, 'subscribeToPlan'])->name('plans.subscribe'); // TO MAKE THIS WORKING REMOVE SAME ROUTE IN WEBSHOPIFY
+    // Route::post('plans/subscribe', [ShopifyController::class, 'subscribeToPlan'])->name('plans.subscribe'); // TO MAKE THIS WORKING REMOVE SAME ROUTE IN WEBSHOPIFY
     Route::get('billing/callback', [ShopifyController::class, 'billingCallback'])->name('shopify.billing.callback');
     Route::get('/image-upload', [ImageController::class, 'index'])->name('shopify.imgupload');
     Route::get('/image-picker-images', [ImageController::class, 'forSelection'])->name('shopify.image-picker-images');
     Route::post('/image-upload', [ImageController::class, 'store'])->name('shopify.imgupload.store');
     Route::delete('/image-upload/{id}', [ImageController::class, 'destroy'])
         ->name('shopify.imgupload.delete');
-    Route::get('/rules', function () {  return view('rules');  })->name('shopify.rules');
-    Route::get('/help', function () { return view('help'); })->name('shopify.help');
-    Route::get('/support', function () { return view('support');  })->name('shopify.support');
+    Route::get('/rules', function () {
+        return view('rules');
+    })->name('shopify.rules');
+    Route::get('/help', function () {
+        return view('help');
+    })->name('shopify.help');
+    Route::get('/support', function () {
+        return view('support');
+    })->name('shopify.support');
     Route::get('/notification', [NotificationController::class, 'usernotification'])->name('user.notification');
-    Route::post('/settings/notifications',  [NotificationController::class, 'updateNotificationSettings'])->name('notification.settings.update');
+    Route::post('/settings/notifications', [NotificationController::class, 'updateNotificationSettings'])->name('notification.settings.update');
     Route::delete('/notification/user/all', [NotificationController::class, 'removeAllUserNotifications'])->name('user.notification.delete.all');
     Route::delete('/notification/user/{id}', [NotificationController::class, 'removeUserNotification'])->name('user.notification.delete');
     Route::post('/notification/user/mark-all-read', [NotificationController::class, 'markAllUserNotificationsRead'])->name('user.notification.markAllRead');
@@ -109,15 +112,13 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
 
     // AJAX: check SKU status on Amazon and update local product status
     Route::post('/amazon/check-sku', [ProductSchemaController::class, 'checkSkuStatus'])->name('amazon.check.sku');
-   
 });
-    
 
 Route::get('/logs_next', [SettingsController::class, 'logs'])->name('dashboard.logs')->middleware('shopify.session');
 Route::get('/api/shopify/patch-id-token', function (Request $request) {
     setShopifySettings();
-    $shopify = new ShopifyApp( config('shopify.api_key'), config('shopify.api_secret') );
-    $req = [ 'url'     => $request->fullUrl(),  'headers' => $request->headers->all()];
+    $shopify = new ShopifyApp(config('shopify.api_key'), config('shopify.api_secret'));
+    $req = ['url' => $request->fullUrl(), 'headers' => $request->headers->all()];
     $result = $shopify->appHomePatchIdToken($req);
     $response = response($result->response->body, $result->response->status);
     foreach ((array) $result->response->headers as $key => $value) {
@@ -142,7 +143,9 @@ Route::post('/inventory/amazon/sync', [InventoryController::class, 'syncAmazonIn
 Route::post('/webhooks/app-uninstalled', [ShopifyController::class, 'handleAppUninstalledWebhook'])
     ->name('shopify.webhooks.app.uninstalled');
 
-Route::get('/support_front', function () {    return view('support_front'); })->name('shopify.support_front');
+Route::get('/support_front', function () {
+    return view('support_front');
+})->name('shopify.support_front');
 Route::get('/test/{type}', [TestController::class, 'test'])->name('test.by.productype');
 
 Route::get('/logout', [SettingsController::class, 'logout'])->name('site.logout');
@@ -169,33 +172,49 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\VerifyAdminRequest::cla
 // webhook routes
 Route::get('/logout', [SettingsController::class, 'logout'])->name('site.logout');
 
-Route::post('customers/data_request', [ShopifyComplianceWebhookController::class, 'customersDataRequest']
-    )->withoutMiddleware([ \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
-    ])->name('shopify.webhooks.customers.data_request');
+Route::post('customers/data_request', [ShopifyComplianceWebhookController::class, 'customersDataRequest'])->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])->name('shopify.webhooks.customers.data_request');
 
-Route::post('customers/redact', [ShopifyComplianceWebhookController::class, 'customersRedact']
-    )->withoutMiddleware([  \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
-    ])->name('shopify.webhooks.customers.redact');
+Route::post('customers/redact', [ShopifyComplianceWebhookController::class, 'customersRedact'])->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])->name('shopify.webhooks.customers.redact');
 
 Route::post('shop/redact', [ShopifyComplianceWebhookController::class, 'shopRedact'])
-    ->withoutMiddleware([  \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
-    ])->name('shopify.webhooks.shop.redact');
-    
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->name('shopify.webhooks.shop.redact');
+
 Route::post('webhooks/shopify/orders/create', [ShopifyController::class, 'handleOrdersCreateWebhook'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('shopify.webhooks.orders.create');
 
-Route::post('webhooks/shopify/orders/updated', [ShopifyController::class, 'handleOrdersUpdateWebhook'])
-    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+// Route::post('webhooks/shopify/orders/updated', [ShopifyController::class, 'handleOrdersUpdateWebhook'])
+//     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+//     ->name('shopify.webhooks.orders.update');
+
+// Route::post('webhooks/shopify/orders/deleted', [ShopifyController::class, 'handleOrdersDeleteWebhook'])
+//     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+//     ->name('shopify.webhooks.orders.delete');
+
+Route::post('webhooks/shopify/orders/update', [
+    ShopifyController::class,
+    'handleOrdersUpdateWebhook'
+])
+    ->withoutMiddleware([
+        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
+    ])
     ->name('shopify.webhooks.orders.update');
 
-Route::post('webhooks/shopify/orders/deleted', [ShopifyController::class, 'handleOrdersDeleteWebhook'])
-    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+Route::post('webhooks/shopify/orders/delete', [
+    ShopifyController::class,
+    'handleOrdersDeleteWebhook'
+])
+    ->withoutMiddleware([
+        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class
+    ])
     ->name('shopify.webhooks.orders.delete');
 
-Route::post('webhooks/shopify/returns/create', [ShopifyController::class, 'returnCreate'])->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+Route::post('webhooks/shopify/returns/create', [ShopifyController::class, 'returnCreate'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('shopify.webhooks.returns.create');
-Route::post('webhooks/shopify/returns/update', [ShopifyController::class, 'returnUpdate'])->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+Route::post('webhooks/shopify/returns/update', [ShopifyController::class, 'returnUpdate'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('shopify.webhooks.returns.update');
 
 // Route::get('/check-mail-test', [TestController::class, 'checkMailTest'])->name('check.mail.test');

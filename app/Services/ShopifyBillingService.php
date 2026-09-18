@@ -584,43 +584,62 @@ GRAPHQL
     }
     private function graphQl(Shop $shop, string $query, array $variables = []): array
     {
+        if (empty($shop->shop) || empty($shop->access_token)) {
+            Log::error('Shopify GraphQL missing shop domain or access token', [
+                'shop_id' => $shop->id ?? null,
+                'has_shop' => !empty($shop->shop),
+                'has_token' => !empty($shop->access_token),
+            ]);
+
+            return [
+                'errors' => [
+                    'message' => 'Shopify shop domain or access token is missing.',
+                ],
+            ];
+        }
+
         $payload = ['query' => $query];
         if (!empty($variables)) {
             $payload['variables'] = (object) $variables;
         }
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'X-Shopify-Access-Token' => $shop->access_token,
-        ])->post(
-            sprintf(
-                'https://%s/admin/api/%s/graphql.json',
-                $shop->shop,
-                config('services.shopify.api_version', '2026-01')
-            ),
-            $payload
-        );
-        Log::info('SHOPIFY GRAPHQL URL', [
-            'url' => sprintf(
-                'https://%s/admin/api/%s/graphql.json',
-                $shop->shop,
-                config('services.shopify.api_version', '2026-01')
-            ),
-        ]);
-        if (!$response->successful()) {
 
+        $apiVersion = config('services.shopify.api_version', '2026-01');
+        $endpoint = sprintf('https://%s/admin/api/%s/graphql.json', $shop->shop, $apiVersion);
+
+        try {
+            $response = Http::timeout(15)->withHeaders([
+                'Content-Type' => 'application/json',
+                'X-Shopify-Access-Token' => $shop->access_token,
+            ])->post($endpoint, $payload);
+        } catch (\Throwable $e) {
+            Log::error('Shopify GraphQL connection exception', [
+                'shop_id' => $shop->id ?? null,
+                'shop' => $shop->shop,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'errors' => [
+                    'message' => 'Shopify connection failed: ' . $e->getMessage(),
+                ],
+            ];
+        }
+
+        if (!$response->successful()) {
             Log::error('SHOPIFY BILLING FAILED', [
+                'shop_id' => $shop->id ?? null,
                 'shop' => $shop->shop ?? null,
                 'status' => $response->status(),
-                'headers' => $response->headers(),
                 'body' => $response->body(),
             ]);
+
             return [
                 'errors' => [
                     'message' => 'Shopify billing request failed with HTTP ' . $response->status() . '.',
                 ],
             ];
-            //  throw new RuntimeException('Shopify billing request failed with HTTP ' . $response->status() . '.');
         }
+
         $payload = $response->json();
         if (!empty($payload['errors'])) {
             $message = collect($payload['errors'])
@@ -631,13 +650,21 @@ GRAPHQL
                     return (string) $error;
                 })
                 ->implode(' ');
+
+            Log::error('Shopify GraphQL response returned errors', [
+                'shop_id' => $shop->id ?? null,
+                'shop' => $shop->shop ?? null,
+                'message' => $message,
+            ]);
+
             return [
                 'errors' => [
                     'message' => $message !== '' ? $message : 'Shopify billing request failed.',
                 ],
             ];
         }
-        return $payload;
+
+        return $payload ?? [];
     }
     private function publicAppUrl(): string
     {
@@ -665,6 +692,19 @@ GRAPHQL
         Shop $shop,
         string $subscriptionGid
     ): bool {
+        $trimmedGid = trim($subscriptionGid);
+        if ($trimmedGid === '') {
+            Log::error('SHOPIFY SUBSCRIPTION CANCEL FAILED: GID IS EMPTY', [
+                'shop_id' => $shop->id ?? null,
+                'shop' => $shop->shop ?? null,
+            ]);
+            return false;
+        }
+
+        $gid = str_starts_with($trimmedGid, 'gid://shopify/AppSubscription/')
+            ? $trimmedGid
+            : 'gid://shopify/AppSubscription/' . ltrim($trimmedGid, '#');
+
         $response = $this->graphQl(
             $shop,
             <<<'GRAPHQL'
@@ -688,28 +728,59 @@ mutation CancelSubscription(
 }
 GRAPHQL,
             [
-                'id' => $subscriptionGid,
+                'id' => $gid,
                 'prorate' => false,
             ]
         );
 
+        if (!empty($response['errors'])) {
+            Log::error('SHOPIFY SUBSCRIPTION CANCEL GRAPHQL ERROR', [
+                'shop_id' => $shop->id ?? null,
+                'shop' => $shop->shop ?? null,
+                'subscription_gid' => $gid,
+                'errors' => $response['errors'],
+            ]);
+            return false;
+        }
+
         $payload = data_get($response, 'data.appSubscriptionCancel');
+        if (!$payload) {
+            Log::error('SHOPIFY SUBSCRIPTION CANCEL NO PAYLOAD', [
+                'shop_id' => $shop->id ?? null,
+                'shop' => $shop->shop ?? null,
+                'subscription_gid' => $gid,
+                'response' => $response,
+            ]);
+            return false;
+        }
 
         $errors = data_get($payload, 'userErrors', []);
-
         if (!empty($errors)) {
-
-            Log::error('SHOPIFY SUBSCRIPTION CANCEL FAILED', [
-                'shop' => $shop->shop,
+            Log::error('SHOPIFY SUBSCRIPTION CANCEL FAILED USER ERRORS', [
+                'shop_id' => $shop->id ?? null,
+                'shop' => $shop->shop ?? null,
+                'subscription_gid' => $gid,
                 'errors' => $errors,
             ]);
+            return false;
+        }
 
+        $subscriptionData = data_get($payload, 'appSubscription');
+        if (!$subscriptionData || empty($subscriptionData['id'])) {
+            Log::error('SHOPIFY SUBSCRIPTION CANCEL MISSING APP SUBSCRIPTION', [
+                'shop_id' => $shop->id ?? null,
+                'shop' => $shop->shop ?? null,
+                'subscription_gid' => $gid,
+                'payload' => $payload,
+            ]);
             return false;
         }
 
         Log::info('SHOPIFY SUBSCRIPTION CANCEL SUCCESS', [
-            'shop' => $shop->shop,
-            'subscription_gid' => $subscriptionGid,
+            'shop_id' => $shop->id ?? null,
+            'shop' => $shop->shop ?? null,
+            'subscription_gid' => $gid,
+            'status' => $subscriptionData['status'] ?? null,
         ]);
 
         return true;

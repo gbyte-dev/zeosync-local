@@ -18,12 +18,15 @@
     padding: 30px;
     background: #fff;
     text-align: center;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
 }
 
 .setup-title {
     font-size: 24px;
     font-weight: 600;
     margin-bottom: 10px;
+    color: #202223;
 }
 
 .setup-subtitle {
@@ -36,7 +39,35 @@
     padding: 12px;
 }
 
+.activation-success-banner {
+    display: none;
+    background-color: #ecfdf5;
+    border: 1px solid #10b981;
+    color: #065f46;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    font-size: 16px;
+    font-weight: 600;
+    animation: fadeIn 0.3s ease-in-out;
+}
 
+.activation-error-banner {
+    display: none;
+    background-color: #fef2f2;
+    border: 1px solid #ef4444;
+    color: #991b1b;
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    text-align: left;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 </style>
 
 <div class="container setup-container">
@@ -46,6 +77,21 @@
         <div class="setup-title">Connect Your Shopify Store</div>
         <div class="setup-subtitle">
             Enter your store details to activate the app
+        </div>
+
+        <!-- Success Banner -->
+        <div id="activationSuccessAlert" class="activation-success-banner text-center" role="alert">
+            <div class="d-flex align-items-center justify-content-center gap-2">
+                <i class="bi bi-check-circle-fill fs-5 text-success"></i>
+                <span id="activationSuccessMessage">Store activated successfully.</span>
+            </div>
+            <div id="activationSuccessSubtext" class="small text-muted mt-1 fw-normal" style="display: none;"></div>
+        </div>
+
+        <!-- Error Banner -->
+        <div id="activationErrorAlert" class="activation-error-banner" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span id="activationErrorMessage"></span>
         </div>
 
         <form method="POST" action="{{ route('setup.store', ['shop' => $shopModel?->shop]) }}" id="activateForm">
@@ -76,7 +122,7 @@
             <input type="hidden" name="access_token" value="{{$shopModel?->access_token}}">
 
             <!-- Button -->
-            <button type="submit" class="btn-activate btn btn-primary float-end">
+            <button type="submit" class="btn-activate btn btn-primary float-end" id="submitBtn">
                 Activate App
             </button>
 
@@ -89,56 +135,280 @@
 @endsection
 @push('scripts')
 <script>
-document.getElementById('activateForm').addEventListener('submit', async function (event) {
-    event.preventDefault();
+(function() {
+    let isSubmitting = false;
+    let isPolling = false;
+    let pollInterval = null;
+    let pollTimeout = null;
+    let hasCompletedSuccessFlow = false;
 
-    const form = this;
-    const button = form.querySelector('button[type="submit"]');
+    const form = document.getElementById('activateForm');
+    const button = document.getElementById('submitBtn');
+    const successAlert = document.getElementById('activationSuccessAlert');
+    const successMsg = document.getElementById('activationSuccessMessage');
+    const successSubtext = document.getElementById('activationSuccessSubtext');
+    const errorAlert = document.getElementById('activationErrorAlert');
+    const errorMsg = document.getElementById('activationErrorMessage');
 
-    button.disabled = true;
-    button.innerText = 'Activating...';
+    // Detect execution context
+    const isInsideIframe = (window.self !== window.top);
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasPopupQuery = urlParams.get('popup') === '1' || urlParams.has('popup');
+    const isNamedPopup = (window.name === 'shopifyAuth' || window.name === 'shopifyActivationPopup');
+    const hasOpener = Boolean(window.opener && !window.opener.closed);
+    const isPopup = !isInsideIframe && (hasOpener || isNamedPopup || hasPopupQuery);
 
-    try {
-        const response = await fetch(form.action, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': form.querySelector('input[name="_token"]').value,
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: new FormData(form)
-        });
+    // Initial structured debug logging
+    console.log('[Activation Context]', {
+        isTop: window.self === window.top,
+        hasOpener: Boolean(window.opener),
+        openerNotClosed: Boolean(window.opener && !window.opener.closed),
+        currentUrl: window.location.href,
+        isInsideIframe: isInsideIframe,
+        isPopup: isPopup,
+        hasPopupQuery: hasPopupQuery,
+        isNamedPopup: isNamedPopup,
+        windowName: window.name || ''
+    });
 
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Activation failed.');
+    function stopPolling() {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
         }
+        if (pollTimeout) {
+            clearTimeout(pollTimeout);
+            pollTimeout = null;
+        }
+        isPolling = false;
+    }
 
-        // Activation successful hone ke baad window close
-        window.close();
+    form.addEventListener('submit', async function (event) {
+        event.preventDefault();
 
-    } catch (error) {
-        console.error('Activation error:', error);
-
-        const isHtmlJsonSyntaxError = (error instanceof SyntaxError) &&
-            (error.message.includes('<!DOCTYPE') ||
-             error.message.includes('Unexpected token \'<\'') ||
-             error.message.includes('Unexpected token <') ||
-             (error.message.includes('<') && error.message.includes('is not valid JSON')));
-
-        if (isHtmlJsonSyntaxError) {
-            try {
-                window.close();
-            } catch (e) {}
+        if (isSubmitting || isPolling || hasCompletedSuccessFlow) {
             return;
         }
 
-        alert(error.message);
+        isSubmitting = true;
+        button.disabled = true;
+        button.innerText = 'Activating...';
+        errorAlert.style.display = 'none';
+        successAlert.style.display = 'none';
 
-        button.disabled = false;
-        button.innerText = 'Activate App';
-    }
-});
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': form.querySelector('input[name="_token"]').value,
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new FormData(form)
+            });
+
+            const contentType = response.headers.get('content-type') || '';
+            let data = null;
+
+            if (contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                throw new Error('Server returned an unexpected response format. Please try again.');
+            }
+
+            if (!response.ok || !data.success) {
+                let msg = data.message || 'Activation failed.';
+                if (data.errors && typeof data.errors === 'object') {
+                    const firstErr = Object.values(data.errors)[0];
+                    if (Array.isArray(firstErr) && firstErr.length > 0) {
+                        msg = firstErr[0];
+                    }
+                }
+                throw new Error(msg);
+            }
+
+            // Form submitted successfully: now start DB-confirmed polling
+            const shopDomain = data.shop || '{{ $shopModel?->shop }}';
+            const pollUrl = data.poll_url || '{{ route("setup.activation.status") }}?shop=' + encodeURIComponent(shopDomain);
+            const redirectUrl = data.redirect_url || '{{ route("dashboard", ["shop" => $shopModel?->shop]) }}';
+
+            // Disable form inputs during polling
+            Array.from(form.elements).forEach(function(el) { el.disabled = true; });
+            button.innerText = 'Verifying activation...';
+
+            isSubmitting = false;
+            isPolling = true;
+
+            const maxPollDuration = 30000; // 30 seconds timeout
+
+            // Start 30s timeout guard
+            pollTimeout = setTimeout(function() {
+                stopPolling();
+                if (!hasCompletedSuccessFlow) {
+                    errorMsg.textContent = 'Activation is still processing. Please refresh and try again.';
+                    errorAlert.style.display = 'block';
+                    button.disabled = false;
+                    button.innerText = 'Activate App';
+                    Array.from(form.elements).forEach(function(el) {
+                        if (el.name !== 'shop_url') el.disabled = false;
+                    });
+                }
+            }, maxPollDuration);
+
+            // Polling function
+            async function checkActivationStatus() {
+                if (hasCompletedSuccessFlow || !isPolling) {
+                    return;
+                }
+
+                try {
+                    const statusRes = await fetch(pollUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (!statusRes.ok) {
+                        return;
+                    }
+
+                    const statusData = await statusRes.json();
+
+                    // Structured logging of polling status response
+                    console.log('[Activation Polling Status]', {
+                        activated: Boolean(statusData && statusData.activated),
+                        shop: statusData?.shop || null,
+                        message: statusData?.message || null
+                    });
+
+                    if (statusData && statusData.activated === true) {
+                        // DB CONFIRMED ACTIVATION
+                        stopPolling();
+                        hasCompletedSuccessFlow = true;
+
+                        // 1. Display "Store activated successfully."
+                        successMsg.textContent = 'Store activated successfully.';
+                        successAlert.style.display = 'block';
+                        button.innerText = 'Activated ✓';
+                        button.classList.remove('btn-primary');
+                        button.classList.add('btn-success');
+
+                        if (typeof showToast === 'function') {
+                            showToast('Store activated successfully.', 'success');
+                        }
+
+                        // Secure message target origin
+                        const targetOrigin = window.location.origin && window.location.origin !== 'null'
+                            ? window.location.origin
+                            : '*';
+
+                        const messagePayload = {
+                            type: 'shopify_activated',
+                            shop: shopDomain,
+                            redirect_url: redirectUrl,
+                            status: 'activated'
+                        };
+
+                        const legacyPayload = {
+                            type: 'shopify_authenticated',
+                            shop: shopDomain,
+                            redirect_url: redirectUrl,
+                            status: 'activated'
+                        };
+
+                        // 2. Send activation event to opener/parent
+                        if (window.opener && !window.opener.closed) {
+                            try {
+                                window.opener.postMessage(messagePayload, targetOrigin);
+                                window.opener.postMessage(legacyPayload, targetOrigin);
+                            } catch (e) {
+                                try {
+                                    window.opener.postMessage(messagePayload, '*');
+                                    window.opener.postMessage(legacyPayload, '*');
+                                } catch (err) {}
+                            }
+                        }
+
+                        if (isPopup) {
+                            // 3. Structured logging before window.close() attempt
+                            console.log('[Activation Action]', {
+                                action: 'window.close()',
+                                attempted: true,
+                                isPopup: true,
+                                hasOpener: Boolean(window.opener && !window.opener.closed)
+                            });
+
+                            // Immediately call window.close()
+                            try {
+                                window.close();
+                            } catch (e) {
+                                console.warn('window.close() error:', e);
+                            }
+
+                            // If browser blocks window.close(): show fallback message without auto-redirecting
+                            setTimeout(function () {
+                                if (!window.closed) {
+                                    console.log('[Activation Action]', {
+                                        action: 'popup_fallback_shown',
+                                        fallback_branch_executed: true,
+                                        windowClosed: window.closed
+                                    });
+
+                                    successSubtext.style.display = 'block';
+                                    successSubtext.innerHTML = 'Store activated successfully. You can close this window or <a href="' + redirectUrl + '" class="fw-bold text-decoration-underline">click here to open Dashboard</a>.';
+                                }
+                            }, 400);
+
+                        } else if (isInsideIframe && window.parent && window.parent !== window) {
+                            console.log('[Activation Action]', {
+                                action: 'iframe_redirect',
+                                fallback_branch_executed: false,
+                                redirectUrl: redirectUrl
+                            });
+
+                            try {
+                                window.parent.postMessage(messagePayload, targetOrigin);
+                                window.parent.postMessage(legacyPayload, targetOrigin);
+                            } catch (e) {
+                                try {
+                                    window.parent.postMessage(messagePayload, '*');
+                                    window.parent.postMessage(legacyPayload, '*');
+                                } catch (err) {}
+                            }
+                            // Inside iframe: never call window.close(), redirect safely
+                            window.location.href = redirectUrl;
+                        } else {
+                            // Standalone direct navigation
+                            console.log('[Activation Action]', {
+                                action: 'standalone_redirect',
+                                fallback_branch_executed: false,
+                                redirectUrl: redirectUrl
+                            });
+                            window.location.href = redirectUrl;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Polling check error:', err);
+                }
+            }
+
+            // Poll every 750ms
+            pollInterval = setInterval(checkActivationStatus, 750);
+            // Also run one immediate poll
+            checkActivationStatus();
+
+        } catch (error) {
+            console.error('Activation error:', error);
+            stopPolling();
+            errorMsg.textContent = error.message || 'An error occurred during activation.';
+            errorAlert.style.display = 'block';
+            button.disabled = false;
+            button.innerText = 'Activate App';
+            isSubmitting = false;
+        }
+    });
+})();
 </script>
 @endpush

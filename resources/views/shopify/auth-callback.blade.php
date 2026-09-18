@@ -37,6 +37,10 @@
                     } catch (e) {
                         console.error('Failed to post message:', e);
                     }
+                    if (payload.redirect_url && (payload.redirect_url.includes('activate') || payload.redirect_url.includes('setup'))) {
+                        window.location.href = payload.redirect_url;
+                        return;
+                    }
                     // Delay before closing to ensure message is received
                     setTimeout(function() {
                         try { window.close(); } catch (e) {}

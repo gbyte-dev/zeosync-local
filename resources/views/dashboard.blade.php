@@ -692,11 +692,30 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                     fetch("{{ route('shopify.inventory.amazon') }}", {
                             method: 'GET',
                             headers: {
-                                'Accept': 'application/json'
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
                             }
                         })
-                        .then(response => response.json())
+                        .then(async response => {
+                            const contentType = response.headers.get('content-type') || '';
+                            if (!contentType.includes('application/json')) {
+                                throw new Error('Non-JSON response received');
+                            }
+                            return response.json();
+                        })
                         .then(data => {
+                            if (data.requires_activation && data.redirect_url) {
+                                window.location.href = data.redirect_url;
+                                return;
+                            }
+                            if (data.requires_reauth && data.redirect_url) {
+                                window.location.href = data.redirect_url;
+                                return;
+                            }
+                            if (data.requires_subscription && data.redirect_url) {
+                                window.location.href = data.redirect_url;
+                                return;
+                            }
 
                             const isNotConnected = data.connected === false || data.status?.error === 'amazon_not_connected';
 
@@ -1007,10 +1026,5 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                 }
             });
         });
-    </script>
-    <script>
-        if (window.opener) {
-            window.close();
-        }
     </script>
     @endsection

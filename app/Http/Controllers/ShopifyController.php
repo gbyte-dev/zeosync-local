@@ -431,18 +431,46 @@ class ShopifyController extends Controller
         $expiresIn         = $data['expires_in'] ?? 3600;                 // access token, ~60 min
         $refreshExpiresIn  = $data['refresh_token_expires_in'] ?? (90 * 86400); // refresh token, ~90 days
 
+        $existingShop = \App\Models\Shop::withTrashed()->where('shop', $shop)->first();
+        $isReinstall = false;
+        if ($existingShop) {
+            if ($existingShop->trashed()) {
+                $existingShop->restore();
+            }
+            if ((int) $existingShop->is_active !== 1 || empty($existingShop->access_token)) {
+                $isReinstall = true;
+            }
+        }
+
+        $shopData = [
+            'access_token' => $accessToken,
+            'refresh_token' => $refreshToken,
+            'access_token_expires_at' => now()->addSeconds($expiresIn),
+            'refresh_token_expires_at' => now()->addSeconds($refreshExpiresIn),
+            'installed_at' => now(),
+            'hmac' => $request->hmac,
+            'is_active' => 1,
+            'store_status' => 'active',
+            'shopify_connection_status' => 'connected',
+        ];
+
+        // If newly installing or reinstalling after deactivation/uninstallation, clear stale activation details
+        if (!$existingShop || $isReinstall) {
+            $shopData['shop_name'] = null;
+            $shopData['email'] = null;
+        }
+
         $shopModel = \App\Models\Shop::updateOrCreate(
             ['shop' => $shop],
-            [
-                'access_token' => $accessToken,
-                'refresh_token' => $refreshToken,
-                'access_token_expires_at' => now()->addSeconds($expiresIn),
-                'refresh_token_expires_at' => now()->addSeconds($refreshExpiresIn),
-                'installed_at' => now(),
-                'hmac' => $request->hmac,
-                'is_active' => 1
-            ]
+            $shopData
         );
+
+        Log::info('SHOPIFY_OAUTH_CALLBACK: Shop authenticated', [
+            'shop' => $shop,
+            'shop_id' => $shopModel->id,
+            'is_reinstall' => $isReinstall,
+            'activation_required' => empty($shopModel->shop_name) || empty($shopModel->email),
+        ]);
 
         // Fetch and store all Shopify locations
         try {
@@ -510,7 +538,7 @@ class ShopifyController extends Controller
             $shopModel->shop . ' connected successfully.'
         );
 
-        $setupUrl = route('setup.form', ['shop' => $shop]);
+        $setupUrl = route('setup.form', ['shop' => $shop, 'popup' => 1]);
         return response()->view('shopify.auth-callback', [
             'shop' => $shopModel->shop,
             'redirectUrl' => $setupUrl,
@@ -523,12 +551,17 @@ class ShopifyController extends Controller
             return response()->json(['error' => 'Shop parameter required'], 400);
         }
         $shopModel = Shop::where('shop', $shop)->first();
-        if (!$shopModel) {
-            return response()->json(['shop_name' => null, 'email' => null], 200);
+        if (!$shopModel || (int) $shopModel->is_active !== 1 || empty($shopModel->access_token)) {
+            return response()->json([
+                'shop_name' => null,
+                'email' => null,
+                'is_active' => false,
+            ], 200);
         }
         return response()->json([
             'shop_name' => $shopModel->shop_name,
             'email' => $shopModel->email,
+            'is_active' => true,
         ], 200);
     }
     public function plans(Request $request)
@@ -3361,24 +3394,50 @@ class ShopifyController extends Controller
                 ]);
                 return response('OK', 200);
             }
+
+            $recipientEmail = $shop->email;
+            $shopDomainName = $shop->shop;
+
             $template = \App\Models\MailTemplate::active()
                 ->where('slug', 'app-uninstalled')
                 ->first();
-            if ($template) {
-                dispatch(function () use ($template, $shop) {
+            if ($template && !empty($recipientEmail)) {
+                dispatch(function () use ($template, $shopDomainName, $recipientEmail) {
                     app(\App\Services\EmailService::class)
                         ->sendDynamicEmail($template, (object)[
-                            'name' => $shop->shop,
-                            'first_name' => explode('.', $shop->shop)[0],
-                            'email' => $shop->email
+                            'name' => $shopDomainName,
+                            'first_name' => explode('.', $shopDomainName)[0],
+                            'email' => $recipientEmail
                         ]);
                 });
             }
-            $shop->update([
-                'is_active' => 0,
-                'access_token' => '',
+
+            // Capture latest activation details before clearing
+            $previousDetails = $shop->previous_activation_details;
+            if (!empty($shop->shop_name) || !empty($shop->email)) {
+                $previousDetails = [
+                    'shop_name' => $shop->shop_name,
+                    'email'     => $shop->email,
+                    'saved_at'  => now()->toIso8601String(),
+                ];
+            }
+
+            \Illuminate\Support\Facades\DB::transaction(function () use ($shop, $previousDetails) {
+                $shop->update([
+                    'is_active' => 0,
+                    'access_token' => null,
+                    'shop_name' => null,
+                    'email' => null,
+                    'previous_activation_details' => $previousDetails,
+                    'shopify_connection_status' => 'uninstalled',
+                    'store_status' => 'uninstalled',
+                ]);
+            });
+
+            Log::info('App uninstalled handled', [
+                'shop' => $shopDomain,
+                'shop_id' => $shop->id,
             ]);
-            Log::info('App uninstalled handled', ['shop' => $shopDomain]);
             return response('OK', 200);
         } catch (\Exception $e) {
             Log::error('UNINSTALL ERROR', [

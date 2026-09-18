@@ -743,6 +743,52 @@
             }
         })();
     </script>
+    <script>
+        window.activeActivationPopup = window.activeActivationPopup || null;
+        window.addEventListener('message', function(event) {
+            if (event.origin && window.location.origin && event.origin !== 'null' && event.origin !== window.location.origin && !event.origin.includes('myshopify.com')) {
+                return;
+            }
+
+            const data = event.data || {};
+            if (data.type === 'shopify_activated' || data.type === 'shopify_authenticated') {
+                const currentShop = "{{ $activeShop ?? session('active_shop') ?? request('shop') ?? '' }}";
+                if (data.shop && currentShop && data.shop.toLowerCase() !== currentShop.toLowerCase()) {
+                    return;
+                }
+
+                // Close stored popup reference if open
+                const popupRef = window.activeActivationPopup || window.activationPopup;
+                if (popupRef && !popupRef.closed) {
+                    try {
+                        popupRef.close();
+                    } catch (e) {
+                        console.warn('Could not close popup reference from parent:', e);
+                    }
+                }
+
+                if (data.status === 'activated' || data.type === 'shopify_activated') {
+                    if (window._hasHandledActivationEvent) {
+                        return; // Prevent duplicate event handling
+                    }
+                    window._hasHandledActivationEvent = true;
+
+                    if (typeof showToast === 'function') {
+                        showToast('Store activated successfully.', 'success');
+                    } else if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Store activated successfully.',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                    }
+                }
+            }
+        });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 
