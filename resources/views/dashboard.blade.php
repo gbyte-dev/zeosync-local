@@ -679,8 +679,8 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
         </div>
     </div>
     <!-- Include Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script nonce="{{ $cspNonce }}">
         document.addEventListener("DOMContentLoaded", function() {
 
             const amazonInventoryCacheExists = @json($amazonInventoryCacheExists ?? false);

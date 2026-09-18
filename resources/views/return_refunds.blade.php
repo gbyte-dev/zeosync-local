@@ -109,7 +109,7 @@
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce }}">
 
 let returnsData = [];
 let filteredData = [];

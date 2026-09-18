@@ -132,7 +132,7 @@
 </div>
 
 <!-- JS -->
-<script>
+<script nonce="{{ $cspNonce }}">
 function changeImage(id, src) {
     document.getElementById('mainImage' + id).src = src;
 }

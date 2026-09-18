@@ -1288,7 +1288,7 @@ $subscriptionStatus = 'Trialing';
 
 {{-- Polling Script --}}
 @if(session('success') && str_contains(session('success'), 'activation initiated'))
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener("DOMContentLoaded", function() {
         let loader = document.getElementById('paymentLoader');
         let pendingBox = document.getElementById('paymentPendingBox');
@@ -1325,7 +1325,7 @@ $subscriptionStatus = 'Trialing';
 </script>
 @endif
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         @if ($errors->any() && old('enquiry_type') === 'enterprise_plan_enquiry')
             var enterpriseModalEl = document.getElementById('enterpriseModal');

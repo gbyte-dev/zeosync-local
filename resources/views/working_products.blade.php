@@ -322,7 +322,7 @@
 
 @push('scripts')
 
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('click', function(e) {
 
         // ✅ EDIT BUTTON

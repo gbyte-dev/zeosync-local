@@ -20,7 +20,7 @@
 @push('scripts')
 <script nonce="{{ $cspNonce??'' }}" src="https://unpkg.com/@shopify/app-bridge@3"></script>
 <script nonce="{{ $cspNonce??'' }}" src="https://unpkg.com/@shopify/app-bridge-utils@3"></script>
-<script>
+<script nonce="{{ $cspNonce }}">
 
   const AppBridge = window['app-bridge'];
   const AppBridgeUtils = window['app-bridge-utils']; // This is what was likely undefined

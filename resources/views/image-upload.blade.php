@@ -493,7 +493,7 @@
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce }}">
     document.addEventListener('DOMContentLoaded', function() {
 
         document.querySelectorAll('.preview-image').forEach(function(img) {

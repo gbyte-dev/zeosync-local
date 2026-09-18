@@ -338,11 +338,11 @@
 
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
+    <script nonce="{{ $cspNonce }}" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
     @stack('scripts')
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         // Set up CSRF token for all AJAX requests
         $.ajaxSetup({
             headers: {

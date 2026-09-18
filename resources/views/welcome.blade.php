@@ -162,7 +162,7 @@
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce }}">
     $(document).ready(function() {
         // Handle form submission
      try {

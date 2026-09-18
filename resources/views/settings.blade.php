@@ -553,7 +553,7 @@
 
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
     function confirmDisconnect() {
         if (confirm('Are you sure you want to disconnect Amazon?')) {
             window.location.href = "{{ route('amazon.disconnect') }}";

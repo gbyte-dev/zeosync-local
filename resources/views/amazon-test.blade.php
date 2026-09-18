@@ -277,7 +277,7 @@
 </div>
 @endsection
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce }}">
     window.validateRulesUrl = '/zeosync/amazon/validate-rules';
     window.evaluateConditionsUrl = "{{ route('amazon.evaluate.conditions') }}";
 

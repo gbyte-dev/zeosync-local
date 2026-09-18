@@ -26,7 +26,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         const shop = @json($shop ?? null);
         let setupCheckInterval;
         let hasRedirected = false;

@@ -22,7 +22,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         (function() {
             const payload = {
                 type: 'shopify_authenticated',

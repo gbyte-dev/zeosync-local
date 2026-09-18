@@ -8,7 +8,7 @@
         $apiKey = \App\Models\AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key'));
     @endphp
     <meta name="shopify-api-key" content="{{ $apiKey }}">
-    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+    <script  nonce="{{ $cspNonce }}" src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
     <style>
         * {
             margin: 0;
@@ -68,7 +68,7 @@
         <div class="reauth-desc">Refreshing your session. Please wait a moment.</div>
     </div>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         (function() {
             const rawTarget = @json($targetUrl ?? request()->fullUrl());
             const shopParam = @json($shop ?? request('shop') ?? '');

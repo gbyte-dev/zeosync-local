@@ -913,7 +913,7 @@
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce }}">
     const productForm = document.getElementById('productForm');
     const productTitleInput = document.querySelector('input[name="title"]');
     const amazonTitleInput = document.getElementById('amazonTitle');
