@@ -6,11 +6,11 @@
     <title>@yield('title', 'Admin Dashboard') | Amazon Sync</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {{-- Bootstrap 5 --}}
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+    <link nonce="{{ $cspNonce }}" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+    <link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
+    <link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
     @php
     $favicon = \App\Models\AdminSetting::where('option_key', 'app_favicon')->value('option_value');
 
@@ -23,11 +23,11 @@
     }   
     @endphp
 
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
+    <link nonce="{{ $cspNonce }}" rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
+    <link nonce="{{ $cspNonce }}" rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
+    <link nonce="{{ $cspNonce }}" rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
 
-    <style>
+    <style nonce="{{ $cspNonce }}">
         body {
             background: #f5f7fb;
         }
@@ -449,24 +449,24 @@
             </a>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 
     <!-- Buttons extension -->
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.colVis.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.colVis.min.js"></script>
 
-    <script>
+    <script nonce="{{ $cspNonce }}">
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.toast').forEach(function(toastEl) {
                 let toast = new bootstrap.Toast(toastEl, {
