@@ -985,46 +985,50 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
 
             });
             // --- 3. Product Creation Trend (Line Graph) ---
-            const ctxLineProducts = document.getElementById('productTrendChart').getContext('2d');
-            const gradientProducts = ctxLineProducts.createLinearGradient(0, 0, 0, 200);
-            gradientProducts.addColorStop(0, 'rgba(16, 185, 129, 0.25)'); // Emerald Green Fade
-            gradientProducts.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
-            new Chart(ctxLineProducts, {
-                type: 'line',
-                data: {
-                    labels: productLabels.length > 0 ? productLabels : ['No Data'],
-                    datasets: [{
-                        label: 'Products Added',
-                        data: productTotals.length > 0 ? productTotals : [0],
-                        borderColor: '#10B981', // Emerald Green
-                        backgroundColor: gradientProducts,
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#ffffff',
-                        pointBorderColor: '#10B981',
-                        pointBorderWidth: 2,
-                        pointRadius: 0,
-                        pointHoverRadius: 5,
-                        pointHitRadius: 10
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
+            const ctxLineProduct =  document.getElementById('productTrendChart').getContext('2d');
+             if(ctxLineProduct) {
+                const ctxLineProducts =  document.getElementById('productTrendChart').getContext('2d');
+                const gradientProducts = ctxLineProducts.createLinearGradient(0, 0, 0, 200);
+                gradientProducts.addColorStop(0, 'rgba(16, 185, 129, 0.25)'); // Emerald Green Fade
+                gradientProducts.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+                
+                new Chart(ctxLineProducts, {
+                    type: 'line',
+                    data: {
+                        labels: productLabels.length > 0 ? productLabels : ['No Data'],
+                        datasets: [{
+                            label: 'Products Added',
+                            data: productTotals.length > 0 ? productTotals : [0],
+                            borderColor: '#10B981', // Emerald Green
+                            backgroundColor: gradientProducts,
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#10B981',
+                            pointBorderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 5,
+                            pointHitRadius: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: commonTooltipConfig
                         },
-                        tooltip: commonTooltipConfig
-                    },
-                    scales: commonScaleConfig,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index',
-                    },
-                }
-            });
+                        scales: commonScaleConfig,
+                        interaction: {
+                            intersect: false,
+                            mode: 'index',
+                        },
+                    }
+                });
+            }
         });
     </script>
     @endsection
