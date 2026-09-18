@@ -103,6 +103,24 @@ class ShopifyOrderSyncService
             $isNew = false;
 
             if (!$order) {
+                if ($action === 'update') {
+                    Log::info('Shopify order update skipped: order does not exist in local database.', [
+                        'shop_id' => $shop->id,
+                        'shopify_order_id' => $orderId,
+                        'action' => $action,
+                    ]);
+
+                    return [
+                        'result' => 'not_found',
+                        'order' => null,
+                        'is_new' => false,
+                        'status_changed' => false,
+                        'fulfillment_transition' => false,
+                        'delivered_transition' => false,
+                        'inventory_deducted' => false,
+                    ];
+                }
+
                 try {
                     $order = ShopifyOrder::create([
                         'shop_id' => $shop->id,
