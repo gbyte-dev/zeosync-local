@@ -48,10 +48,10 @@ class DashboardController extends ShopifyController
                 ->first();
 
             if (!$shop) {
-                Log::info('DASHBOARD WAITING FOR SHOP INSTALLATION', [
-                    'shop' => $activeShop,
-                    'url' => $request->fullUrl(),
-                ]);
+                // Log::info('DASHBOARD WAITING FOR SHOP INSTALLATION', [
+                //     'shop' => $activeShop,
+                //     'url' => $request->fullUrl(),
+                // ]);
 
                 return view('dashboard-waiting', [
                     'shop' => $activeShop,
