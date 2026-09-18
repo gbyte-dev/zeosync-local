@@ -59,6 +59,22 @@ class XssSecurityTest extends TestCase
         $this->assertStringContainsString('Click Me', $output);
     }
 
+    public function test_security_headers_hide_server_version_and_require_a_restrictive_csp(): void
+    {
+        $response = $this->get('/');
+
+        $this->assertNotNull($response->headers->get('Content-Security-Policy'));
+
+        $csp = (string) $response->headers->get('Content-Security-Policy');
+
+        $this->assertStringContainsString("default-src 'self'", $csp);
+        $this->assertStringContainsString("object-src 'none'", $csp);
+        $this->assertStringContainsString("frame-ancestors 'self'", $csp);
+        $this->assertMatchesRegularExpression('/script-src .*\'nonce-[A-Za-z0-9+\/=_-]+\'/i', $csp);
+        $this->assertMatchesRegularExpression('/style-src .*\'nonce-[A-Za-z0-9+\/=_-]+\'/i', $csp);
+        $this->assertFalse($response->headers->has('X-Powered-By'));
+    }
+
     public function test_html_sanitizer_preserves_legitimate_rich_formatting(): void
     {
         $input = '<h3>Features</h3><p>Soft cotton fabric <em>(100%)</em></p><ul><li>Breathable</li><li>Durable</li></ul><a href="https://example.com" target="_blank">View Guide</a>';
