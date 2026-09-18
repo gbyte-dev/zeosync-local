@@ -2,40 +2,39 @@
 
 namespace App\Http\Controllers;
 
+use App\Amazon\Requests\PutListingItemRequest;
+use App\Http\Controllers\ProductSchemaController;
+use App\Models\AdminSetting;
 use App\Models\AmazonProduct;
-use App\Services\NotificationService;
-use App\Services\UserNotificationService;
+use App\Models\Category;
 use App\Models\Plan;
 use App\Models\Product;
+use App\Models\ProductMarketplaceMapping;
+use App\Models\ProductSchema;
+use App\Models\ProductSyncLog;
 use App\Models\Shop;
 use App\Models\ShopifyOrder;
 use App\Models\ShopSubscription;
+use App\Services\Amazon\ShopifyAmazonMapper;
+use App\Services\AmazonService;
+use App\Services\NotificationService;
 use App\Services\ShopifyBillingService;
+use App\Services\ShopifyOrderSyncService;
 use App\Services\ShopifyWebhookService;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Services\UserNotificationService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use App\Models\ProductSyncLog;
-use SellingPartnerApi\SellingPartnerApi;
-use App\Models\AdminSetting;
+use Illuminate\Support\Carbon;
 use SellingPartnerApi\Enums\Endpoint;
-use App\Models\ProductMarketplaceMapping;
-use App\Services\AmazonService;
-use App\Amazon\Requests\PutListingItemRequest;
-use SellingPartnerApi\Seller\SellerConnector;
-use SellingPartnerApi\Seller\OrdersV0\Requests\GetOrdersRequest;
-use RuntimeException;
 use SellingPartnerApi\Seller\ListingsItemsV20210801\Dto\ListingsItemPutRequest;
-use App\Models\Category;
-use App\Services\Amazon\ShopifyAmazonMapper;
-use App\Models\ProductSchema;
-use App\Http\Controllers\ProductSchemaController;
-use App\Services\ShopifyOrderSyncService;
-
+use SellingPartnerApi\Seller\OrdersV0\Requests\GetOrdersRequest;
+use SellingPartnerApi\Seller\SellerConnector;
+use SellingPartnerApi\SellingPartnerApi;
+use RuntimeException;
 
 class ShopifyController extends Controller
 {
@@ -44,7 +43,6 @@ class ShopifyController extends Controller
     protected AmazonService $amazonService;
     protected ShopifyOrderSyncService $orderSyncService;
 
-
     public function __construct()
     {
         $this->shopifyBilling = app(ShopifyBillingService::class);
@@ -52,6 +50,7 @@ class ShopifyController extends Controller
         $this->amazonService = app(AmazonService::class);
         $this->orderSyncService = app(ShopifyOrderSyncService::class);
     }
+
     public function entry(Request $request)
     {
         // 1. Authenticated Shopify Launch:
@@ -77,10 +76,10 @@ class ShopifyController extends Controller
                 }
 
                 session([
-                    'active_shop'            => $shop,
-                    'active_shop_id'         => $shopModel->id,
+                    'active_shop' => $shop,
+                    'active_shop_id' => $shopModel->id,
                     '_shopify_verified_shop' => $shop,
-                    '_shopify_verified_at'   => session('_shopify_verified_at', time()),
+                    '_shopify_verified_at' => session('_shopify_verified_at', time()),
                 ]);
 
                 if ($request->filled('charge_id')) {
@@ -158,9 +157,9 @@ class ShopifyController extends Controller
 
                 session([
                     '_shopify_verified_shop' => $cryptResult['shop'],
-                    '_shopify_verified_at'   => time(),
-                    'active_shop'            => $cryptResult['shop'],
-                    'active_shop_id'         => $cryptResult['shop_model']->id,
+                    '_shopify_verified_at' => time(),
+                    'active_shop' => $cryptResult['shop'],
+                    'active_shop_id' => $cryptResult['shop_model']->id,
                 ]);
             }
         }
@@ -195,10 +194,10 @@ class ShopifyController extends Controller
         }
 
         session([
-            'active_shop'            => $verifiedShop,
-            'active_shop_id'         => $shopModel->id,
+            'active_shop' => $verifiedShop,
+            'active_shop_id' => $shopModel->id,
             '_shopify_verified_shop' => $verifiedShop,
-            '_shopify_verified_at'   => session('_shopify_verified_at', time()),
+            '_shopify_verified_at' => session('_shopify_verified_at', time()),
         ]);
 
         $redirectParams = $request->query();
@@ -224,6 +223,7 @@ class ShopifyController extends Controller
     {
         return $this->appLaunch($request, $token);
     }
+
     private function isShopActive(Shop $shop): bool
     {
         try {
@@ -248,7 +248,6 @@ class ShopifyController extends Controller
                     ]
                 );
 
-
             // Token revoked / invalid
             if (in_array($response->status(), [401, 402], true)) {
                 return false;
@@ -262,7 +261,6 @@ class ShopifyController extends Controller
             // 403, 429, 500 etc ko uninstall mat samjho
             return true;
         } catch (\Throwable $e) {
-
             Log::error('SHOP STATUS CHECK FAILED', [
                 'shop_id' => $shop->id,
                 'shop' => $shop->shop,
@@ -273,6 +271,7 @@ class ShopifyController extends Controller
             return true;
         }
     }
+
     protected function isValidShopifyHmac(array $query, string $apiSecret): bool
     {
         $providedHmac = $query['hmac'] ?? null;
@@ -290,7 +289,7 @@ class ShopifyController extends Controller
             urldecode(http_build_query($canonicalized)),
         ];
 
-        foreach (array_unique(array_filter($candidates, static fn ($candidate) => $candidate !== '')) as $candidate) {
+        foreach (array_unique(array_filter($candidates, static fn($candidate) => $candidate !== '')) as $candidate) {
             if (hash_equals($providedHmac, hash_hmac('sha256', $candidate, $apiSecret))) {
                 return true;
             }
@@ -315,7 +314,6 @@ class ShopifyController extends Controller
 
     public function install(Request $request)
     {
-
         $shop = $request->query('shop');
         //   fallback from host (IMPORTANT)
         if (!$shop && $request->has('host')) {
@@ -326,7 +324,7 @@ class ShopifyController extends Controller
         }
 
         if (!$shop) {
-            if($request->expectsJson() || $request->ajax()){
+            if ($request->expectsJson() || $request->ajax()) {
                 return response()->json(['error' => 'Missing shop parameter'], 400);
             }
             return redirect()->route('crm.entry')->with('error', 'Shopify store information is missing. Please provide your store domain.');
@@ -345,13 +343,14 @@ class ShopifyController extends Controller
             'time' => time()
         ]));
 
-   
         // ⚡ build query safely
-        $shopifyApiKey = AdminSetting::get( 'SHOPIFY_API_KEY', config('services.shopify.api_key'));
-        $shopifyRedirectUri = AdminSetting::get( 'SHOPIFY_REDIRECT_URI',  config('services.shopify.redirect_uri'));
-        $query = http_build_query([ 'client_id'    => $shopifyApiKey, 
-            'scope'  => $this->oauthScopes(), 'redirect_uri' => $shopifyRedirectUri,
-            'state'        => $state,
+        $shopifyApiKey = AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key'));
+        $shopifyRedirectUri = AdminSetting::get('SHOPIFY_REDIRECT_URI', config('services.shopify.redirect_uri'));
+        $query = http_build_query([
+            'client_id' => $shopifyApiKey,
+            'scope' => $this->oauthScopes(),
+            'redirect_uri' => $shopifyRedirectUri,
+            'state' => $state,
         ]);
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
 
@@ -363,6 +362,7 @@ class ShopifyController extends Controller
             'shop' => $shop,
         ]);
     }
+
     public function callback(Request $request)
     {
         // =========================
@@ -430,9 +430,9 @@ class ShopifyController extends Controller
         }
         $accessToken = $data['access_token'];
         Log::info('TOKEN RECEIVED');
-        $refreshToken      = $data['refresh_token'] ?? null;
-        $expiresIn         = $data['expires_in'] ?? 3600;                 // access token, ~60 min
-        $refreshExpiresIn  = $data['refresh_token_expires_in'] ?? (90 * 86400); // refresh token, ~90 days
+        $refreshToken = $data['refresh_token'] ?? null;
+        $expiresIn = $data['expires_in'] ?? 3600;  // access token, ~60 min
+        $refreshExpiresIn = $data['refresh_token_expires_in'] ?? (90 * 86400);  // refresh token, ~90 days
 
         $existingShop = \App\Models\Shop::withTrashed()->where('shop', $shop)->first();
         $isReinstall = false;
@@ -515,8 +515,8 @@ class ShopifyController extends Controller
 
         // verified session
         session([
-            'active_shop'            => $shop,
-            'active_shop_id'         => $shopModel->id,
+            'active_shop' => $shop,
+            'active_shop_id' => $shopModel->id,
             '_shopify_verified_shop' => $shop,
         ]);
         // =========================
@@ -547,6 +547,7 @@ class ShopifyController extends Controller
             'redirectUrl' => $setupUrl,
         ]);
     }
+
     public function checkShopStatus(Request $request)
     {
         $shop = $request->query('shop');
@@ -567,6 +568,7 @@ class ShopifyController extends Controller
             'is_active' => true,
         ], 200);
     }
+
     public function plans(Request $request)
     {
         $shopModel = $this->getActiveShop($request);
@@ -583,7 +585,8 @@ class ShopifyController extends Controller
         $plans = Plan::query()
             ->where('is_active', true)
             ->where(function ($query) use ($activeShopId) {
-                $query->where('is_custom', 0)
+                $query
+                    ->where('is_custom', 0)
                     ->orWhere('shop_id', $activeShopId);
             })
             ->orderBy('sort_order')
@@ -616,6 +619,7 @@ class ShopifyController extends Controller
         ];
         return view('plans', compact('plans', 'subscription', 'activeShop', 'billingOptions') + ['billingProvider' => app(\App\Services\Billing\BillingProvider::class)->provider()]);
     }
+
     public function subscribeToPlan(Request $request)
     {
         Log::info('Controller shopifycontroller called');
@@ -720,6 +724,7 @@ class ShopifyController extends Controller
         );
         return redirect()->away($createdSubscription['confirmation_url']);
     }
+
     public function billingCallback(Request $request)
     {
         $shopModel = $this->getActiveShop($request);
@@ -779,8 +784,8 @@ class ShopifyController extends Controller
                 $this->shopAwareUrl('/plans', $shopModel->shop)
             )->with(
                 'error',
-                'Shopify billing confirmation failed: ' .
-                    $exception->getMessage()
+                'Shopify billing confirmation failed: '
+                    . $exception->getMessage()
             );
         }
 
@@ -802,12 +807,13 @@ class ShopifyController extends Controller
             $this->shopAwareUrl('/plans', $shopModel->shop)
         )->with(
             'success',
-            ($subscription->plan?->name ?? 'Selected') .
-                ' plan is now active for ' .
-                $shopModel->shop .
-                '.'
+            ($subscription->plan?->name ?? 'Selected')
+                . ' plan is now active for '
+                . $shopModel->shop
+                . '.'
         );
     }
+
     public function orders(Request $request)
     {
         $shopModel = $this->getActiveShop($request);
@@ -817,7 +823,7 @@ class ShopifyController extends Controller
             return redirect($this->shopAwareUrl('/', $request->query('shop') ?? $request->input('shop')))
                 ->with('error', 'No shop connected.');
         }
-        $source = $request->get('source', 'shopify'); //   IMPORTANT
+        $source = $request->get('source', 'shopify');  //   IMPORTANT
         $refresh = $request->get('refresh');
         $search = $request->input('search');
         $status = $request->input('status');
@@ -863,7 +869,6 @@ class ShopifyController extends Controller
             //     );
             // }
 
-
             return view('orders', [
                 'source' => 'amazon',
                 'orders' => $amazonOrders,
@@ -883,7 +888,8 @@ class ShopifyController extends Controller
         $query = ShopifyOrder::query()->where('shop_id', $shopModel->id);
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%")
+                $q
+                    ->where('name', 'LIKE', "%{$search}%")
                     ->orWhere('email', 'LIKE', "%{$search}%")
                     ->orWhere('customer_first_name', 'LIKE', "%{$search}%")
                     ->orWhere('customer_last_name', 'LIKE', "%{$search}%")
@@ -919,6 +925,7 @@ class ShopifyController extends Controller
             'amazonConnected' => $amazonConnected,
         ]);
     }
+
     public function showOrder(Request $request, ShopifyOrder $order)
     {
         $source = $request->query('source', 'shopify');
@@ -945,8 +952,8 @@ class ShopifyController extends Controller
         $order = $this->refreshOrderFromShopify($shopModel, $order);
         // dd($order->toArray());
         return view('order-details', [
-            'order'      => $order,
-            'source'     => $source,
+            'order' => $order,
+            'source' => $source,
             'activeShop' => $shopModel->shop,
         ]);
     }
@@ -959,13 +966,12 @@ class ShopifyController extends Controller
      */
     protected function refreshOrderFromShopify(Shop $shopModel, ShopifyOrder $order): ShopifyOrder
     {
-
         try {
-                $shopifyService = app(ShopifyService::class, [
-                    'shop'  => $shopModel->shop,
-                    'token' => $shopModel->access_token
-                ]);
-                $data = $shopifyService->getOrder($order->shopify_order_id);
+            $shopifyService = app(ShopifyService::class, [
+                'shop' => $shopModel->shop,
+                'token' => $shopModel->access_token
+            ]);
+            $data = $shopifyService->getOrder($order->shopify_order_id);
         } catch (\Throwable $e) {
             Log::warning('Failed to refresh order from Shopify; showing cached data.', [
                 'shop_id' => $shopModel->id,
@@ -985,35 +991,35 @@ class ShopifyController extends Controller
 
         $order->fill([
             'admin_graphql_api_id' => data_get($data, 'admin_graphql_api_id', $order->admin_graphql_api_id),
-            'order_number'         => data_get($data, 'order_number', $order->order_number),
-            'name'                 => data_get($data, 'name', $order->name),
-            'email'                => data_get($data, 'email', $order->email),
-            'customer_first_name'  => data_get($customer, 'first_name', $order->customer_first_name),
-            'customer_last_name'   => data_get($customer, 'last_name', $order->customer_last_name),
-            'customer_phone'       => data_get($customer, 'phone', $order->customer_phone),
-            'phone'                => data_get($data, 'phone', $order->phone),
-            'financial_status'     => data_get($data, 'financial_status', $order->financial_status),
-            'fulfillment_status'   => data_get($data, 'fulfillment_status', $order->fulfillment_status),
-            'currency'             => data_get($data, 'currency', $order->currency),
-            'subtotal_price'       => (float) data_get($data, 'subtotal_price', $order->subtotal_price),
-            'total_tax'            => (float) data_get($data, 'total_tax', $order->total_tax),
-            'total_discounts'      => (float) data_get($data, 'total_discounts', $order->total_discounts),
-            'total_price'          => (float) data_get($data, 'total_price', $order->total_price),
-            'line_items_count'     => $lineItems ? count($lineItems) : $order->line_items_count,
-            'source_name'          => data_get($data, 'source_name', $order->source_name),
-            'tags'                 => data_get($data, 'tags', $order->tags),
-            'note'                 => data_get($data, 'note', $order->note),
-            'customer'             => $customer ?: $order->customer,
-            'billing_address'      => data_get($data, 'billing_address', $order->billing_address),
-            'shipping_address'     => data_get($data, 'shipping_address', $order->shipping_address),
-            'line_items'           => $lineItems ?: $order->line_items,
-            'discount_codes'       => data_get($data, 'discount_codes', $order->discount_codes),
-            'shipping_lines'       => data_get($data, 'shipping_lines', $order->shipping_lines),
-            'tax_lines'            => data_get($data, 'tax_lines', $order->tax_lines),
-            'raw_payload'          => $data,
-            'order_created_at'     => $this->parseNullableDate(data_get($data, 'created_at')) ?? $order->order_created_at,
-            'processed_at'         => $this->parseNullableDate(data_get($data, 'processed_at')) ?? $order->processed_at,
-            'cancelled_at'         => $this->parseNullableDate(data_get($data, 'cancelled_at')) ?? $order->cancelled_at,
+            'order_number' => data_get($data, 'order_number', $order->order_number),
+            'name' => data_get($data, 'name', $order->name),
+            'email' => data_get($data, 'email', $order->email),
+            'customer_first_name' => data_get($customer, 'first_name', $order->customer_first_name),
+            'customer_last_name' => data_get($customer, 'last_name', $order->customer_last_name),
+            'customer_phone' => data_get($customer, 'phone', $order->customer_phone),
+            'phone' => data_get($data, 'phone', $order->phone),
+            'financial_status' => data_get($data, 'financial_status', $order->financial_status),
+            'fulfillment_status' => data_get($data, 'fulfillment_status', $order->fulfillment_status),
+            'currency' => data_get($data, 'currency', $order->currency),
+            'subtotal_price' => (float) data_get($data, 'subtotal_price', $order->subtotal_price),
+            'total_tax' => (float) data_get($data, 'total_tax', $order->total_tax),
+            'total_discounts' => (float) data_get($data, 'total_discounts', $order->total_discounts),
+            'total_price' => (float) data_get($data, 'total_price', $order->total_price),
+            'line_items_count' => $lineItems ? count($lineItems) : $order->line_items_count,
+            'source_name' => data_get($data, 'source_name', $order->source_name),
+            'tags' => data_get($data, 'tags', $order->tags),
+            'note' => data_get($data, 'note', $order->note),
+            'customer' => $customer ?: $order->customer,
+            'billing_address' => data_get($data, 'billing_address', $order->billing_address),
+            'shipping_address' => data_get($data, 'shipping_address', $order->shipping_address),
+            'line_items' => $lineItems ?: $order->line_items,
+            'discount_codes' => data_get($data, 'discount_codes', $order->discount_codes),
+            'shipping_lines' => data_get($data, 'shipping_lines', $order->shipping_lines),
+            'tax_lines' => data_get($data, 'tax_lines', $order->tax_lines),
+            'raw_payload' => $data,
+            'order_created_at' => $this->parseNullableDate(data_get($data, 'created_at')) ?? $order->order_created_at,
+            'processed_at' => $this->parseNullableDate(data_get($data, 'processed_at')) ?? $order->processed_at,
+            'cancelled_at' => $this->parseNullableDate(data_get($data, 'cancelled_at')) ?? $order->cancelled_at,
         ]);
 
         if ($order->isDirty()) {
@@ -1026,7 +1032,6 @@ class ShopifyController extends Controller
     public function syncToAmazon(Request $request, $id)
     {
         try {
-
             $shopModel = $this->getActiveShop($request);
             $this->ensureFreshAccessToken($shopModel);
             if (!$shopModel) {
@@ -1045,7 +1050,8 @@ class ShopifyController extends Controller
             }
             $product = Product::where('shop_id', $shopModel->id)
                 ->where(function ($q) use ($id) {
-                    $q->where('id', $id)
+                    $q
+                        ->where('id', $id)
                         ->orWhere('shopify_id', $id);
                 })
                 ->first();
@@ -1089,7 +1095,7 @@ class ShopifyController extends Controller
             $bulletPoints = json_decode($amazon->bullet_points, true) ?? [];
             $keywords = json_decode($amazon->platinum_keywords, true) ?? [];
             $searchTerms = json_decode($amazon->search_terms, true) ?? [];
-            $images = is_array($product->images) ? $product->images  : json_decode($product->images, true) ?? [];
+            $images = is_array($product->images) ? $product->images : json_decode($product->images, true) ?? [];
             $mainImage = $images[0]['src'] ?? 'https://via.placeholder.com/500';
             Log::info('🟢 STEP 6 IMAGES', [
                 'images_count' => count($images),
@@ -1097,14 +1103,16 @@ class ShopifyController extends Controller
             ]);
             $otherImages = [];
             foreach ($images as $index => $img) {
-                if ($index == 0) continue;
+                if ($index == 0)
+                    continue;
                 $otherImages[] = $img['src'];
             }
-            $variants = is_array($product->variants) ? $product->variants
+            $variants = is_array($product->variants)
+                ? $product->variants
                 : json_decode($product->variants, true) ?? [];
             if (count($variants) > 1) {
                 $amazonService = new \App\Services\AmazonService();
-                $response = $amazonService->buildPayload($shopModel, $product,  $amazon);
+                $response = $amazonService->buildPayload($shopModel, $product, $amazon);
                 // If service already returned JSON response
                 if ($response instanceof \Illuminate\Http\JsonResponse) {
                     $data = $response->getData(true);
@@ -1144,7 +1152,7 @@ class ShopifyController extends Controller
                 $amazon
             );
             if ($product->sub_category_id) {
-                $productType =  getCategoryData($product->sub_category_id, 'slug');
+                $productType = getCategoryData($product->sub_category_id, 'slug');
             } else {
                 $productType = $product->product_type ?? 'HEADPHONES';
             }
@@ -1259,13 +1267,12 @@ class ShopifyController extends Controller
         }
     }
 
-
     /**
      * orders/create — new order. Runs full sync: upsert row, adjust inventory, notify.
      */
     public function handleOrdersCreateWebhook(Request $request)
     {
-        return $this->upsertOrderFromWebhook($request,'create');
+        return $this->upsertOrderFromWebhook($request, 'create');
     }
 
     /**
@@ -1274,7 +1281,7 @@ class ShopifyController extends Controller
      */
     public function handleOrdersUpdateWebhook(Request $request)
     {
-        return $this->upsertOrderFromWebhook($request,'update');
+        return $this->upsertOrderFromWebhook($request, 'update');
     }
 
     /**
@@ -1285,36 +1292,81 @@ class ShopifyController extends Controller
     public function handleOrdersDeleteWebhook(Request $request)
     {
         $payload = $request->getContent();
-        $shopDomain = strtolower(trim((string) $request->header('X-Shopify-Shop-Domain')));
 
-        if (!$this->shopifyWebhook->isValidWebhook($payload, $request->header('X-Shopify-Hmac-Sha256'))) {
-            Log::warning('Rejected Shopify order delete webhook because HMAC validation failed.', [
-                'shop' => $shopDomain,
-            ]);
+        $shopDomain = strtolower(
+            trim((string) $request->header('X-Shopify-Shop-Domain'))
+        );
+
+        if (!$this->shopifyWebhook->isValidWebhook(
+            $payload,
+            $request->header('X-Shopify-Hmac-Sha256')
+        )) {
+            Log::warning(
+                'Rejected Shopify order delete webhook because HMAC validation failed.',
+                [
+                    'shop' => $shopDomain,
+                ]
+            );
+
             return response('Invalid webhook signature', 401);
         }
 
         $shopModel = $this->findShopByIdentifier($shopDomain);
 
         if (!$shopModel) {
-            return response('OK', 200);
+            Log::warning('Shopify order delete webhook shop not found.', [
+                'shop_domain' => $shopDomain,
+            ]);
+
+            return response('Shop not found', 404);
         }
 
         $data = json_decode($payload, true);
 
         if (!is_array($data) || empty($data['id'])) {
+            Log::warning('Invalid Shopify order delete payload.', [
+                'shop_domain' => $shopDomain,
+                'payload' => $data,
+            ]);
+
             return response('Invalid order payload', 400);
         }
 
+        $rawOrderId = (string) $data['id'];
+
+        // Convert GraphQL ID to numeric Shopify order ID if required
+        $orderId = $rawOrderId;
+
+        if (str_starts_with($orderId, 'gid://shopify/Order/')) {
+            $orderId = basename($orderId);
+        }
+
+        Log::info('Shopify order delete matching started.', [
+            'shop_domain' => $shopDomain,
+            'shop_id' => $shopModel->id,
+            'raw_order_id' => $rawOrderId,
+            'normalized_order_id' => $orderId,
+        ]);
+
         $deleted = ShopifyOrder::where('shop_id', $shopModel->id)
-            ->where('shopify_order_id', (string) $data['id'])
+            ->where('shopify_order_id', $orderId)
             ->delete();
 
-        return response('OK', 200);
+        Log::info('Shopify order delete completed.', [
+            'shop_domain' => $shopDomain,
+            'shop_id' => $shopModel->id,
+            'shopify_order_id' => $orderId,
+            'deleted_rows' => $deleted,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'deleted_rows' => $deleted,
+        ], 200);
     }
 
-
-    public function returnCreate(Request $request){
+    public function returnCreate(Request $request)
+    {
         $payload = $request->getContent();
         $shopDomain = strtolower(trim((string) $request->header('X-Shopify-Shop-Domain')));
         $eventId = trim((string) $request->header('X-Shopify-Event-Id'));
@@ -1338,7 +1390,8 @@ class ShopifyController extends Controller
         return response('OK', 200);
     }
 
-    public function returnUpdate(Request $request){
+    public function returnUpdate(Request $request)
+    {
         $payload = $request->getContent();
         $shopDomain = strtolower(trim((string) $request->header('X-Shopify-Shop-Domain')));
         $eventId = trim((string) $request->header('X-Shopify-Event-Id'));
@@ -1409,7 +1462,7 @@ class ShopifyController extends Controller
         return $nonNullStatuses[0] ?? null;
     }
 
-    public function upsertOrderFromWebhook(Request $request, string $action='create')
+    public function upsertOrderFromWebhook(Request $request, string $action = 'create')
     {
         $payload = $request->getContent();
         $shopDomain = strtolower(trim((string) $request->header('X-Shopify-Shop-Domain')));
@@ -1429,8 +1482,8 @@ class ShopifyController extends Controller
             // Shop — that would manufacture unauthorized tenant state.
             Log::warning('Shopify order webhook received for unknown/inactive shop — acknowledged without processing.', [
                 'shop_domain' => $shopDomain,
-                'topic'       => 'orders/' . $action,
-                'reason'      => 'shop_not_found_or_inactive',
+                'topic' => 'orders/' . $action,
+                'reason' => 'shop_not_found_or_inactive',
             ]);
 
             return response('OK', 200);
@@ -1439,9 +1492,9 @@ class ShopifyController extends Controller
         $data = json_decode($payload, true);
 
         Log::info('Shopify order webhook received.', [
-            'shop'     => $shopDomain,
+            'shop' => $shopDomain,
             'order_id' => $data['id'] ?? null,
-            'topic'    => 'orders/' . $action,
+            'topic' => 'orders/' . $action,
         ]);
 
         if (!is_array($data) || empty($data['id'])) {
@@ -1509,6 +1562,7 @@ class ShopifyController extends Controller
 
         return response('OK', 200);
     }
+
     public function products(Request $request)
     {
         Log::info('PRODUCTS METHOD START', [
@@ -1550,7 +1604,6 @@ class ShopifyController extends Controller
             $cacheKey,
             now()->addMinutes(15),
             function () use ($shopModel) {
-
                 Log::info('PRODUCT CACHE MISS → SYNCING FROM SHOPIFY', [
                     'shop_id' => $shopModel->id,
                     'shop' => $shopModel->shop,
@@ -1585,7 +1638,6 @@ class ShopifyController extends Controller
         $productUsed = 0;
 
         if ($shopSubscription && $shopSubscription->plan) {
-
             $productLimit = $shopSubscription->plan->product_limit;
 
             $productUsed = Product::where('shop_id', $shopModel->id)
@@ -1614,6 +1666,7 @@ class ShopifyController extends Controller
             'outOfStockProducts'
         ));
     }
+
     public function syncProductsToDB($shopModel)
     {
         $this->ensureFreshAccessToken($shopModel);
@@ -1621,7 +1674,8 @@ class ShopifyController extends Controller
             $response = $this->shopifyRest($shopModel, 'get', 'products.json', [
                 'limit' => 250
             ]);
-            if (!empty($response['error'])) return;
+            if (!empty($response['error']))
+                return;
             $products = $response['products'] ?? [];
             foreach ($products as $product) {
                 //  ADD THIS HERE (TOP)
@@ -1670,7 +1724,7 @@ class ShopifyController extends Controller
                 $existingProduct = Product::where('shopify_id', $product['id'])->where('shop_id', $shopModel->id)->first();
 
                 Log::info('EXISTING PRODUCT CHECK', [
-                    'shopify_id' => (string)$product['id'],
+                    'shopify_id' => (string) $product['id'],
                     'shop_id' => $shopModel->id,
                     'found' => $existingProduct?->id,
                     'existing_synced' => $existingProduct?->synced_to_amazon,
@@ -1678,7 +1732,7 @@ class ShopifyController extends Controller
                 ]);
 
                 $productModel = Product::firstOrNew([
-                    'shopify_id' => (string)$product['id'],
+                    'shopify_id' => (string) $product['id'],
                     'shop_id' => $shopModel->id,
                 ]);
 
@@ -1698,7 +1752,7 @@ class ShopifyController extends Controller
 
                 $saved = Product::where(
                     'shopify_id',
-                    (string)$product['id']
+                    (string) $product['id']
                 )->where(
                     'shop_id',
                     $shopModel->id
@@ -1721,6 +1775,7 @@ class ShopifyController extends Controller
             ]);
         }
     }
+
     public function viewProduct(Request $request, $id)
     {
         $shopModel = $this->getActiveShop($request);
@@ -1731,7 +1786,7 @@ class ShopifyController extends Controller
         $this->ensureFreshAccessToken($shopModel);
         try {
             $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
-            //  dd($response); 
+            //  dd($response);
             if (!empty($response['error'])) {
                 return redirect($this->shopAwareUrl('/dashboard', $shopModel->shop))
                     ->with('error', 'Product not found');
@@ -1781,6 +1836,7 @@ class ShopifyController extends Controller
                 ->with('error', 'Product not found');
         }
     }
+
     public function editProduct(Request $request, $id)
     {
         $shopModel = $this->getActiveShop($request);
@@ -1851,11 +1907,9 @@ class ShopifyController extends Controller
 
         return view('createProduct', [
             'activeShop' => $shop->shop,
-            'currency'   => optional($shop->settings)->currency ?? 'INR',
+            'currency' => optional($shop->settings)->currency ?? 'INR',
         ]);
     }
-
-
 
     /**
      * Helper to Upsert Metafields using GraphQL
@@ -1892,11 +1946,11 @@ class ShopifyController extends Controller
 
         foreach ($localMetafields as $key => $value) {
             $metafields[] = [
-                'ownerId'   => "gid://shopify/Product/{$productId}",
-                'namespace' => 'custom', // Default namespace for custom attributes
-                'key'       => $key,
-                'type'      => 'single_line_text_field', // Best default for text/string
-                'value'     => (string)$value,
+                'ownerId' => "gid://shopify/Product/{$productId}",
+                'namespace' => 'custom',  // Default namespace for custom attributes
+                'key' => $key,
+                'type' => 'single_line_text_field',  // Best default for text/string
+                'value' => (string) $value,
             ];
         }
 
@@ -1927,7 +1981,7 @@ class ShopifyController extends Controller
                     'X-Shopify-Access-Token' => $shopModel->access_token,
                     'Content-Type' => 'application/json',
                 ])
-                ->post("https://{$shopModel->shop}/admin/api/" . config('services.shopify.api_version', '2026-01') . "/graphql.json", [
+                ->post("https://{$shopModel->shop}/admin/api/" . config('services.shopify.api_version', '2026-01') . '/graphql.json', [
                     'query' => $query,
                     'variables' => [
                         'metafields' => $metafields
@@ -1937,27 +1991,26 @@ class ShopifyController extends Controller
 
             if (isset($result['data']['metafieldsSet']['userErrors']) && count($result['data']['metafieldsSet']['userErrors']) > 0) {
                 Log::error('GraphQL MetafieldsSet UserErrors', [
-                    'shop'       => $shopModel->shop,
+                    'shop' => $shopModel->shop,
                     'product_id' => $productId,
-                    'errors'     => $result['data']['metafieldsSet']['userErrors']
+                    'errors' => $result['data']['metafieldsSet']['userErrors']
                 ]);
             } else {
                 Log::info('Successfully synced metafields via GraphQL', [
-                    'shop'       => $shopModel->shop,
+                    'shop' => $shopModel->shop,
                     'product_id' => $productId
                 ]);
             }
         } catch (\Exception $e) {
             Log::error('GraphQL Metafields Sync Exception', [
-                'shop'       => $shopModel->shop,
+                'shop' => $shopModel->shop,
                 'product_id' => $productId,
-                'error'      => $e->getMessage()
+                'error' => $e->getMessage()
             ]);
         }
 
         return $localMetafields;
     }
-
 
     public function createProduct(Request $request)
     {
@@ -2096,7 +2149,7 @@ class ShopifyController extends Controller
             // 🔹 Save Product in DB
             $dbProduct = \App\Models\Product::updateOrCreate(
                 [
-                    'shopify_id' => (string)$productData['id'],
+                    'shopify_id' => (string) $productData['id'],
                     'shop_id' => $shopModel->id
                 ],
                 [
@@ -2166,23 +2219,21 @@ class ShopifyController extends Controller
             ->with('success', 'Product created successfully!');
     }
 
-
-
     public function updateProduct(Request $request, $id)
     {
         set_time_limit(120);
         // DEBUG: Log entry into function
-        Log::info("START: updateProduct called for Shopify Product ID: " . $id);
+        Log::info('START: updateProduct called for Shopify Product ID: ' . $id);
 
         $shopModel = $this->getActiveShop($request);
         $this->ensureFreshAccessToken($shopModel);
         if (!$shopModel) {
-            Log::warning("FAIL: No active shop found for request");
+            Log::warning('FAIL: No active shop found for request');
             return back()->with('error', 'No shop connected');
         }
 
         // DEBUG: Log Shop Model state
-        Log::debug("Active Shop found: ID " . $shopModel->id . ", Shop domain: " . $shopModel->shop);
+        Log::debug('Active Shop found: ID ' . $shopModel->id . ', Shop domain: ' . $shopModel->shop);
 
         try {
             // 1. Fetch Local Product
@@ -2191,9 +2242,9 @@ class ShopifyController extends Controller
                 ->first();
 
             if ($dbProduct) {
-                Log::debug("DB Product found: ID " . $dbProduct->id . " (Title: " . $dbProduct->title . ")");
+                Log::debug('DB Product found: ID ' . $dbProduct->id . ' (Title: ' . $dbProduct->title . ')');
             } else {
-                Log::warning("DB Product NOT found for Shopify ID: " . $id);
+                Log::warning('DB Product NOT found for Shopify ID: ' . $id);
             }
 
             // 2. Image Processing & Preservation (Main Gallery ONLY)
@@ -2224,36 +2275,36 @@ class ShopifyController extends Controller
             }
 
             $productPayload = [
-                "product" => [
-                    "id" => (int)$id,
-                    "title" => $request->title,
-                    "body_html" => $request->description,
-                    "vendor" => $request->vendor,
-                    "product_type" => $request->product_type,
-                    "status" => $request->status,
-                    "images" => array_values($imagesdata) // Syncs gallery and deletes removed ones
+                'product' => [
+                    'id' => (int) $id,
+                    'title' => $request->title,
+                    'body_html' => $request->description,
+                    'vendor' => $request->vendor,
+                    'product_type' => $request->product_type,
+                    'status' => $request->status,
+                    'images' => array_values($imagesdata)  // Syncs gallery and deletes removed ones
                 ]
             ];
 
             // 3. Shopify Product API Update
-            Log::info("Sending PUT request to Shopify for Product ID: " . $id);
+            Log::info('Sending PUT request to Shopify for Product ID: ' . $id);
             $sh = $this->shopifyRest($shopModel, 'put', "products/{$id}.json", $productPayload);
-            Log::debug("Shopify Product API Response received", ['response' => $sh]);
+            Log::debug('Shopify Product API Response received', ['response' => $sh]);
 
             // 4 & 5. Update Existing Variants, Create New Variants & Update Inventory
             $variantIds = $request->input('variant_ids', []);
             $variantCombos = $request->input('variant_combo', []);
             $existingVariantImages = $request->input('existing_variant_image', []);
-            $variantImages = $request->file('variant_image', []); // Array of newly uploaded variant images
+            $variantImages = $request->file('variant_image', []);  // Array of newly uploaded variant images
 
-            Log::info("Iterating over variants. Total Count: " . count($variantIds));
+            Log::info('Iterating over variants. Total Count: ' . count($variantIds));
 
             $locationId = $this->getSelectedShopifyLocationId($shopModel);
 
             foreach ($variantIds as $index => $variantId) {
                 $price = $request->input("variant_price.$index");
-                $sku   = $request->input("variant_sku.$index");
-                $qty   = (int)$request->input("variant_quantity.$index", 0);
+                $sku = $request->input("variant_sku.$index");
+                $qty = (int) $request->input("variant_quantity.$index", 0);
 
                 // -------------------------------------------------------------
                 // Deterministic Image ID Assignment [BULLETPROOF FIX]
@@ -2282,13 +2333,13 @@ class ShopifyController extends Controller
 
                 if (!empty($variantId)) {
                     // --- FLOW: UPDATE EXISTING VARIANT ---
-                    Log::info("Updating Existing Variant ID: " . $variantId . " | Price: " . $price);
+                    Log::info('Updating Existing Variant ID: ' . $variantId . ' | Price: ' . $price);
 
                     $variantPayload = [
-                        "variant" => [
-                            "id" => $variantId,
-                            "price" => $price,
-                            "sku"   => $sku,
+                        'variant' => [
+                            'id' => $variantId,
+                            'price' => $price,
+                            'sku' => $sku,
                         ]
                     ];
 
@@ -2301,14 +2352,14 @@ class ShopifyController extends Controller
                     $inventoryItemId = $request->input("inventory_item_id.$index");
                     if ($inventoryItemId && $locationId) {
                         $this->shopifyRest($shopModel, 'post', 'inventory_levels/set.json', [
-                            "location_id" => $locationId,
-                            "inventory_item_id" => $inventoryItemId,
-                            "available" => $qty,
+                            'location_id' => $locationId,
+                            'inventory_item_id' => $inventoryItemId,
+                            'available' => $qty,
                         ]);
                     }
                 } else {
                     // --- FLOW: CREATE NEW VARIANT ---
-                    Log::info("Creating New Variant for Product ID: " . $id);
+                    Log::info('Creating New Variant for Product ID: ' . $id);
 
                     $comboJson = $variantCombos[$index] ?? null;
                     $options = [];
@@ -2322,11 +2373,11 @@ class ShopifyController extends Controller
                     }
 
                     $newVariantPayload = [
-                        "variant" => array_merge([
-                            "price" => $price,
-                            "sku"   => $sku,
-                            "inventory_management" => "shopify",
-                            "inventory_policy" => "deny",
+                        'variant' => array_merge([
+                            'price' => $price,
+                            'sku' => $sku,
+                            'inventory_management' => 'shopify',
+                            'inventory_policy' => 'deny',
                         ], $options)
                     ];
 
@@ -2344,9 +2395,9 @@ class ShopifyController extends Controller
                         $newInventoryItemId = $newVariant['inventory_item_id'] ?? null;
                         if ($newInventoryItemId && $locationId) {
                             $this->shopifyRest($shopModel, 'post', 'inventory_levels/set.json', [
-                                "location_id" => $locationId,
-                                "inventory_item_id" => $newInventoryItemId,
-                                "available" => $qty,
+                                'location_id' => $locationId,
+                                'inventory_item_id' => $newInventoryItemId,
+                                'available' => $qty,
                             ]);
                         }
                     }
@@ -2354,14 +2405,14 @@ class ShopifyController extends Controller
             }
 
             // --- FLOW: SYNC METAFIELDS VIA GRAPHQL ---
-            Log::info("Syncing Metafields for Product ID: " . $id);
+            Log::info('Syncing Metafields for Product ID: ' . $id);
             $metaNames = $request->input('meta_name', []);
             $metaValues = $request->input('meta_value', []);
             $localMetafields = $this->syncProductMetafields($shopModel, $id, $metaNames, $metaValues);
 
             // 6. Determine Category
             $category = Category::where('id', $request->input('category'))->first();
-            $producttype = "";
+            $producttype = '';
             if ($category) {
                 $producttype = $category->category;
                 $category_id = $category->id;
@@ -2382,7 +2433,7 @@ class ShopifyController extends Controller
             // 7. Update Local DB
             if ($dbProduct) {
                 $productdata = [];
-                if ((int)$dbProduct->synced_to_amazon === 1) {
+                if ((int) $dbProduct->synced_to_amazon === 1) {
                     $productdata['needs_resync'] = 1;
                     $productdata['synced_to_amazon'] = 0;
                 }
@@ -2458,7 +2509,7 @@ class ShopifyController extends Controller
             // Sync down to your local DB
             $this->refreshProductsCache($shopModel);
 
-            Log::info("END: updateProduct completed successfully for ID: " . $id);
+            Log::info('END: updateProduct completed successfully for ID: ' . $id);
             return redirect($this->shopAwareUrl('/products', $shopModel->shop))
                 ->with('success', 'Product updated successfully!');
         } catch (\Exception $e) {
@@ -2479,6 +2530,7 @@ class ShopifyController extends Controller
             return back()->with('error', $e->getMessage());
         }
     }
+
     public function deleteProduct(Request $request, $id)
     {
         $shopModel = $this->getActiveShop($request);
@@ -2505,7 +2557,8 @@ class ShopifyController extends Controller
         Product::withTrashed()
             ->where('shop_id', $shopModel->id)
             ->where('shopify_id', $id)
-            ->first()?->forceDelete();
+            ->first()
+            ?->forceDelete();
 
         $updatesync = new ProductSchemaController();
         $updatesync->updatelog($id, 'shopify', 'deleted', true);
@@ -2513,6 +2566,7 @@ class ShopifyController extends Controller
         $this->refreshProductsCache($shopModel);
         return response()->json(['success' => true, 'message' => 'Product deleted successfully']);
     }
+
     private function refreshProductsCache($shopModel): void
     {
         $cacheKey = "products_shop_{$shopModel->id}";
@@ -2531,6 +2585,7 @@ class ShopifyController extends Controller
             'products_count' => $products->count()
         ]);
     }
+
     private function oauthScopes(): string
     {
         return collect(explode(',', (string) config('services.shopify.scopes', '')))
@@ -2540,6 +2595,7 @@ class ShopifyController extends Controller
             ->unique()
             ->implode(',');
     }
+
     // private function rememberActiveShop(Shop $shop): Shop
     // {
     //     session(['active_shop' => $shop->shop]);
@@ -2559,7 +2615,6 @@ class ShopifyController extends Controller
         $decodedHost = base64_decode(strtr($host, '-_', '+/'), true);
         return $decodedHost !== false ? $decodedHost : $host;
     }
-
 
     public function extractShopIdentifier(?Request $request = null): ?string
     {
@@ -2597,11 +2652,10 @@ class ShopifyController extends Controller
         foreach (
             [
                 session('active_shop'),
-                session('amazon_shop'), // optional backward compatibility
-                session('shop'),        // optional backward compatibility
+                session('amazon_shop'),  // optional backward compatibility
+                session('shop'),  // optional backward compatibility
             ] as $candidate
         ) {
-
             $candidate = trim((string) $candidate);
 
             if ($candidate !== '') {
@@ -2611,6 +2665,7 @@ class ShopifyController extends Controller
 
         return null;
     }
+
     /**
      * Resolve a Shopify shop identifier (domain, URL variant) to an active, non-deleted Shop.
      *
@@ -2630,7 +2685,7 @@ class ShopifyController extends Controller
         // Normalize: strip protocol, www prefix, and trailing slashes.
         $cleaned = preg_replace('#^https?://#i', '', $raw);
         $cleaned = preg_replace('#^www\.#i', '', $cleaned);
-        $cleaned = strtolower(trim($cleaned, "/ \t\n\r\0\x0B"));
+        $cleaned = strtolower(trim($cleaned, "/ \t\n\r\0\v"));
 
         if ($cleaned === '') {
             return null;
@@ -2643,7 +2698,7 @@ class ShopifyController extends Controller
             str_replace('.myshopify.com', '', $cleaned),
         ]));
 
-        $hasDomainCol   = \Illuminate\Support\Facades\Schema::hasColumn('shops', 'domain');
+        $hasDomainCol = \Illuminate\Support\Facades\Schema::hasColumn('shops', 'domain');
 
         foreach ($candidates as $cand) {
             // Only match active (non-soft-deleted) shops.
@@ -2663,6 +2718,7 @@ class ShopifyController extends Controller
 
         return null;
     }
+
     protected function getActiveShop(?Request $request = null): ?Shop
     {
         $request ??= request();
@@ -2710,6 +2766,7 @@ class ShopifyController extends Controller
         }
         return $shop;
     }
+
     protected function shopAwareUrl(string $path, ?string $shopDomain = null): string
     {
         if (empty($shopDomain)) {
@@ -2717,6 +2774,7 @@ class ShopifyController extends Controller
         }
         return $path . '?shop=' . urlencode($shopDomain);
     }
+
     protected function shopifyRest(Shop $shop, string $method, string $endpoint, array $payload = []): array
     {
         $method = strtolower($method);
@@ -2800,6 +2858,7 @@ class ShopifyController extends Controller
 
         return (int) $locationId;
     }
+
     private function formatDescription($text): string
     {
         if (empty($text)) {
@@ -2813,6 +2872,7 @@ class ShopifyController extends Controller
         }
         return '<p>' . nl2br($text) . '</p>';
     }
+
     private function normalizeStringArray(array $values): array
     {
         return collect($values)
@@ -2821,6 +2881,7 @@ class ShopifyController extends Controller
             ->values()
             ->all();
     }
+
     private function parseSearchTerms(?string $searchTerms): array
     {
         return collect(explode(',', (string) $searchTerms))
@@ -2829,6 +2890,7 @@ class ShopifyController extends Controller
             ->values()
             ->all();
     }
+
     private function saveAmazonProductData(Product $product, Request $request, array $searchTerms): void
     {
         AmazonProduct::updateOrCreate(
@@ -2845,6 +2907,7 @@ class ShopifyController extends Controller
             ]
         );
     }
+
     private function buildProductPayload(Request $request): array
     {
         $status = $request->input('status', 'draft');
@@ -2855,19 +2918,17 @@ class ShopifyController extends Controller
         $images = [];
         $variantImageMap = [];
 
-
         $existingImages = $request->input('existing_images', []);
         $deletedImages = $request->input('deleted_images', []);
         $keptImages = array_diff($existingImages, $deletedImages);
 
         foreach ($keptImages as $img) {
             if (filter_var($img, FILTER_VALIDATE_URL)) {
-                $images[] = ['src' => $img]; // Instructs Shopify to download from Amazon URL
+                $images[] = ['src' => $img];  // Instructs Shopify to download from Amazon URL
             } elseif (is_numeric($img)) {
                 $images[] = ['id' => (int) $img];
             }
         }
-
 
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $galleryImage) {
@@ -2880,7 +2941,6 @@ class ShopifyController extends Controller
                 }
             }
         }
-
 
         if ($request->hasFile('variants')) {
             foreach ($request->file('variants', []) as $index => $variantFiles) {
@@ -2918,7 +2978,6 @@ class ShopifyController extends Controller
             }
         }
 
-
         $variantsInput = $request->input('variants', []);
         $variantNames = $request->input('variant_names', []);
         $variants = [];
@@ -2935,9 +2994,12 @@ class ShopifyController extends Controller
                 'inventory_policy' => 'deny',
             ];
 
-            if (!empty($v['option1'])) $variant['option1'] = trim($v['option1']);
-            if (!empty($v['option2'])) $variant['option2'] = trim($v['option2']);
-            if (!empty($v['option3'])) $variant['option3'] = trim($v['option3']);
+            if (!empty($v['option1']))
+                $variant['option1'] = trim($v['option1']);
+            if (!empty($v['option2']))
+                $variant['option2'] = trim($v['option2']);
+            if (!empty($v['option3']))
+                $variant['option3'] = trim($v['option3']);
 
             // Attach any existing image ID mapped to this variant directly
             if (!empty($v['existing_image_id']) && is_numeric($v['existing_image_id'])) {
@@ -2970,14 +3032,14 @@ class ShopifyController extends Controller
         $options = [];
         if (!empty($variantsInput) && !empty($variantNames)) {
             foreach ($variantNames as $i => $name) {
-                $name = trim((string)$name);
+                $name = trim((string) $name);
                 if (empty($name)) {
                     continue;
                 }
                 $values = collect($variantsInput)
                     ->pluck('option' . ($i + 1))
-                    ->filter(fn($val) => !is_null($val) && trim((string)$val) !== '')
-                    ->map(fn($val) => trim((string)$val))
+                    ->filter(fn($val) => !is_null($val) && trim((string) $val) !== '')
+                    ->map(fn($val) => trim((string) $val))
                     ->unique()
                     ->values()
                     ->all();
@@ -3037,6 +3099,7 @@ class ShopifyController extends Controller
             'payload_index_map' => $payloadIndexToFormIndexMap
         ];
     }
+
     private function parseNullableDate(?string $value): ?Carbon
     {
         if (empty($value)) {
@@ -3044,6 +3107,7 @@ class ShopifyController extends Controller
         }
         return Carbon::parse($value);
     }
+
     // public function show($id)
     // {
     //     $shop = \App\Models\Shop::with('subscription.plan')->findOrFail($id);
@@ -3061,14 +3125,16 @@ class ShopifyController extends Controller
 
     public function show($id)
     {
-	    $shop = Shop::with('subscription.plan')->findOrFail($id);
+        $shop = Shop::with('subscription.plan')->findOrFail($id);
         $customPlan = Plan::where('shop_id', $shop->id)->first();
         $productCount = $shop->products()->count();
         $logCount = ProductSyncLog::where('shop_id', $shop->id)->count();
         $orderCount = $shop->orders()->count();
 
         // Revenue stats
-        $totalRevenue = $shop->orders()->where('financial_status', '!=', 'refunded')
+        $totalRevenue = $shop
+            ->orders()
+            ->where('financial_status', '!=', 'refunded')
             ->sum('total_price');
         $averageOrderValue = $orderCount > 0 ? $totalRevenue / $orderCount : 0;
 
@@ -3099,30 +3165,27 @@ class ShopifyController extends Controller
             ->get();
 
         // Admin notifications for this shop (includes global notifications with null shop_id)
-        $notifications = \App\Models\UserNotification::where(function($q) use ($shop) {
-                $q->whereNull('shop_id')->orWhere('shop_id', $shop->id);
-            })->orderBy('created_at', 'desc')->limit(20)->get();
+        $notifications = \App\Models\UserNotification::where(function ($q) use ($shop) {
+            $q->whereNull('shop_id')->orWhere('shop_id', $shop->id);
+        })->orderBy('created_at', 'desc')->limit(20)->get();
 
-        return view('admin.shops.view', compact( 'shop',    'customPlan',  'productCount',
-            'logCount',    'orderCount',  'totalRevenue',
-            'averageOrderValue',   'ordersByStatus',   'recentOrders',
-            'syncStatusCounts',  'recentSyncLogs'   ,'notifications'
-        ));
+        return view('admin.shops.view', compact('shop', 'customPlan', 'productCount',
+            'logCount', 'orderCount', 'totalRevenue',
+            'averageOrderValue', 'ordersByStatus', 'recentOrders',
+            'syncStatusCounts', 'recentSyncLogs', 'notifications'));
     }
+
     public function getSellerIdFull()
     {
         try {
             //   STEP 1: CONNECTOR
             $connector = \SellingPartnerApi\SellingPartnerApi::seller(
                 clientId: AdminSetting::get('production_client_id',
-                    config('amazon.client_id')
-                ),
-                clientSecret: AdminSetting::get( 'production_client_secret',
-                    config('amazon.client_secret')
-                ),
-                refreshToken: AdminSetting::get( 'amazon_refresh_token',
-                    config('amazon.refresh_token')
-                ),
+                    config('amazon.client_id')),
+                clientSecret: AdminSetting::get('production_client_secret',
+                    config('amazon.client_secret')),
+                refreshToken: AdminSetting::get('amazon_refresh_token',
+                    config('amazon.refresh_token')),
                 endpoint: \SellingPartnerApi\Enums\Endpoint::NA_SANDBOX
             );
 
@@ -3149,7 +3212,6 @@ class ShopifyController extends Controller
                 'marketplace_id' => $json['payload'][0]['marketplace']['id'] ?? null,
             ]);
         } catch (\Exception $e) {
-            
             return response()->json([
                 'status' => 'error',
                 'message' => $e->getMessage(),
@@ -3168,8 +3230,8 @@ class ShopifyController extends Controller
             return [];
         }
 
-        $cacheKey = 'amazon_orders_' . $activeShop.'_' . $shop->seller_id;
-        $cacheKeyai = 'amazon_orders_ai_' . $activeShop.'_' . $shop->seller_id;
+        $cacheKey = 'amazon_orders_' . $activeShop . '_' . $shop->seller_id;
+        $cacheKeyai = 'amazon_orders_ai_' . $activeShop . '_' . $shop->seller_id;
         if ($forceRefresh) {
             Cache::forget($cacheKey);
         }
@@ -3188,10 +3250,9 @@ class ShopifyController extends Controller
             $cacheKey, now()->addHours(24),
             function () use ($shop, $createdAfter) {
                 try {
-
                     $connector = \SellingPartnerApi\SellingPartnerApi::seller(
-                        clientId: AdminSetting::get('production_client_id',  config('amazon.client_id')  ),
-                        clientSecret: AdminSetting::get('production_client_secret',  config('amazon.client_secret')),
+                        clientId: AdminSetting::get('production_client_id', config('amazon.client_id')),
+                        clientSecret: AdminSetting::get('production_client_secret', config('amazon.client_secret')),
                         refreshToken: $shop->amazon_refresh_token,
                         endpoint: \SellingPartnerApi\Enums\Endpoint::NA
                     );
@@ -3215,10 +3276,9 @@ class ShopifyController extends Controller
                             );
                         }
                     }
-                    Cache::put( $cacheKeyai,  $orders, now()->addHours(24) );
+                    Cache::put($cacheKeyai, $orders, now()->addHours(24));
                     return $orders;
                 } catch (\Exception $e) {
-
                     Log::error('Amazon orders fetch failed', [
                         'shop' => $shop->shop,
                         'error' => $e->getMessage(),
@@ -3281,13 +3341,11 @@ class ShopifyController extends Controller
             return response('Invalid webhook', 401);
         }
         try {
-
             // acknowledges cleanly. We do NOT restore the shop — we only deactivate it.
             $normalizedDomain = strtolower(trim(
                 preg_replace('#^www\.#i', '',
-                    preg_replace('#^https?://#i', '', $shopDomain)
-                ),
-                "/ \t\n\r\0\x0B"
+                    preg_replace('#^https?://#i', '', $shopDomain)),
+                "/ \t\n\r\0\v"
             ));
             $shop = \App\Models\Shop::withTrashed()
                 ->where(function ($q) use ($normalizedDomain) {
@@ -3300,7 +3358,7 @@ class ShopifyController extends Controller
             if (!$shop) {
                 Log::info('App uninstalled webhook received for unknown shop — acknowledged.', [
                     'shop_domain' => $shopDomain,
-                    'reason'      => 'shop_not_found',
+                    'reason' => 'shop_not_found',
                 ]);
                 return response('OK', 200);
             }
@@ -3314,7 +3372,7 @@ class ShopifyController extends Controller
             if ($template && !empty($recipientEmail)) {
                 dispatch(function () use ($template, $shopDomainName, $recipientEmail) {
                     app(\App\Services\EmailService::class)
-                        ->sendDynamicEmail($template, (object)[
+                        ->sendDynamicEmail($template, (object) [
                             'name' => $shopDomainName,
                             'first_name' => explode('.', $shopDomainName)[0],
                             'email' => $recipientEmail
@@ -3327,8 +3385,8 @@ class ShopifyController extends Controller
             if (!empty($shop->shop_name) || !empty($shop->email)) {
                 $previousDetails = [
                     'shop_name' => $shop->shop_name,
-                    'email'     => $shop->email,
-                    'saved_at'  => now()->toIso8601String(),
+                    'email' => $shop->email,
+                    'saved_at' => now()->toIso8601String(),
                 ];
             }
 
@@ -3356,7 +3414,8 @@ class ShopifyController extends Controller
             return response('Error', 500);
         }
     }
-    // testing static amazon listing 
+
+    // testing static amazon listing
     public function getAmazonSchema(Request $request)
     {
         $shopModel = getActiveShopModel($request);
@@ -3376,7 +3435,7 @@ class ShopifyController extends Controller
             )->productTypeDefinitionsV20200901();
             //   Fetch schema
             $response = $definitions->getDefinitionsProductType(
-                'KEYBOADRS', //   change category here
+                'KEYBOADRS',  //   change category here
                 ['ATVPDKIKX0DER']
             );
             return response()->json([
@@ -3390,6 +3449,7 @@ class ShopifyController extends Controller
             ], 500);
         }
     }
+
     public function searchAmazonSchema(Request $request, $keyword)
     {
         try {
@@ -3401,7 +3461,7 @@ class ShopifyController extends Controller
                 ], 403);
             }
             $amazonService = new \App\Services\AmazonService();
-            $creds         = $amazonService->getDbCredentials($shopModel);
+            $creds = $amazonService->getDbCredentials($shopModel);
             $definitions = SellingPartnerApi::seller(
                 clientId: $creds['client_id'],
                 clientSecret: $creds['client_secret'],
@@ -3422,9 +3482,12 @@ class ShopifyController extends Controller
             }
             // Collect all matched type names
             $matchedTypes = collect($productTypes)
-                ->pluck('name')->filter()->values()->toArray();
+                ->pluck('name')
+                ->filter()
+                ->values()
+                ->toArray();
 
-            $matchedType = $matchedTypes[0]; // primary match
+            $matchedType = $matchedTypes[0];  // primary match
             // ── Step 2: Fetch full schema for primary match ───────────────────
             $schemaResponse = $definitions->getDefinitionsProductType(
                 $matchedType,
@@ -3450,9 +3513,9 @@ class ShopifyController extends Controller
             // ── Step 4: Extract clean, readable attribute list ────────────────
             $attributes = collect($properties)->map(function ($prop, $name) {
                 return [
-                    'attribute'   => $name,
-                    'type'        => $prop['type'] ?? ($prop['items']['type'] ?? 'object'),
-                    'required'    => isset($prop['minItems']) && $prop['minItems'] > 0,
+                    'attribute' => $name,
+                    'type' => $prop['type'] ?? ($prop['items']['type'] ?? 'object'),
+                    'required' => isset($prop['minItems']) && $prop['minItems'] > 0,
                     'enum_values' => $prop['items']['properties']['value']['enum']
                         ?? $prop['properties']['value']['enum']
                         ?? null,
@@ -3460,51 +3523,52 @@ class ShopifyController extends Controller
                 ];
             })->values()->toArray();
             return response()->json([
-                'success'              => true,
-                'searched_keyword'     => $keyword,
+                'success' => true,
+                'searched_keyword' => $keyword,
                 'matched_product_type' => $matchedType,
-                'all_matched_types'    => $matchedTypes,
-                'total_attributes'     => count($attributes),
-                'attributes'           => $attributes,
+                'all_matched_types' => $matchedTypes,
+                'total_attributes' => count($attributes),
+                'attributes' => $attributes,
                 // Full raw schema if you need to inspect everything
-                'raw_schema'           => $schemaJson,
+                'raw_schema' => $schemaJson,
             ]);
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-                'file'    => $e->getFile(),
-                'line'    => $e->getLine(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ], 500);
         }
     }
-    // ytest function 
+
+    // ytest function
     public function getUnitCountSchema(Request $request)
     {
         // Schema URL jo upar mili thi
-        $schemaUrl = "https://selling-partner-definitions-prod-iad.s3.amazonaws.com/schema/HEADPHONES.json/jXX6LRGtwa9PpAYd2AQCyQ%253D%253D?X-Amz-Security-Token=IQoJb3JpZ2luX2VjEKz%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLWVhc3QtMSJGMEQCIBRvb8CochetD7WR2Semgxp%2BUKc487piUDTInjlRqPkLAiBLAi4DtE%2FzV0WWsHwz2LYRN4%2BEHgc%2FOvRfwrrqPA1F3yrJBAh1EAMaDDUzNTc4OTgyMzgwOCIMxWQ6qA3PSR31lrVyKqYESqXfFZm40qe6QciT%2BtalSH%2FyNG2xic0oZi4Q1ECxUz2t8fXl%2FXMh%2BZnxcHCqnkgXvuRfeELhOQlr5vBRaDWjSQDujPXXtM0kmJbz48Ywmue5PgrxMH2E%2BLCtgOnC5%2FwNuOROoWS0RU%2BSi5u0sPj%2B75DcA3ER84%2FQMgMkBf1ijaLWZJajW0OzDVI53JEruXjX7CZuXMn2aSb9Nfsh8liRWzclSop5zAn96Zk9ODjR1kM0qgE9Gjpf4r7XfGiLHEvbrCe%2Bdk2TahkW1zky%2BraPDFw7UdR7mU7MEmrxnEpzuRwKYZzLC67o%2FLcS02YkR1sbuA%2FoZNEWoYSVk1w6urrGDtQ4cyk0xcZLvqtcSjXMBWf9vKk8eHD4rz6tb4a4NFzyURV2bgUwxaMDMQhcXbWp%2FFLpmC%2FEIfkeSk3I8%2FI6zGmgWwxc7lo780dD%2FGL6zdoq2et8QzNZpt4a6R3pJu%2FnHj4prztBE0M3O32BWnVOFzMIzr903NV%2BdqDe1%2F06PAGhnYVVtnCVrD553SV5AXTOOWNFR5c8lnLfBGYiXk5XiKdW5O%2FiCDFd3IfSZw9duUP46F0csHj8kA5vv3fStqc1Urrmrd8jUJNGgnJDrn31fxk1TR8Rp52FbEbS1Z2vecLaHd6256B3jNOHMMXRftBojXGB64U5MK8YidYRoI1uYtTOs9JXqmcNhNEg1oDs%2Fj3%2Bk5lQhF208zfmjA53aM9mP0SZ3Pz%2BljDlyKvPBjqoAdTJnbJ%2FYK97fusffOYlCp%2FwFf%2FVZNEx1C09LMunTGV8yOQZN05SzMkE0B5HxVyJl%2F%2BK5zU2ThNsB%2BtYJ7caLdQfG%2Bz%2FBlHmG7DePHPazECJysb3QPyRIyqp%2FeXYdhvN8CdVqI8Xioo7SezxZoVmUjUkP7cpVtBQ8SSPxQjRnfnl3xI%2Bbin1D9FMARhrfsx1yT1FWkEM2LkoeqKf6e4ifxoNhzKsMtmulA%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260424T052339Z&X-Amz-SignedHeaders=host&X-Amz-Credential=ASIAXZP4P45AOD3WNEMG%2F20260424%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Expires=604800&X-Amz-Signature=80d1d96f0062ef09ac0a2c4a72d52503ff32330596a92c88f0a3a5aa9be0e6d5"; // poori URL paste karo
+        $schemaUrl = 'https://selling-partner-definitions-prod-iad.s3.amazonaws.com/schema/HEADPHONES.json/jXX6LRGtwa9PpAYd2AQCyQ%253D%253D?X-Amz-Security-Token=IQoJb3JpZ2luX2VjEKz%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLWVhc3QtMSJGMEQCIBRvb8CochetD7WR2Semgxp%2BUKc487piUDTInjlRqPkLAiBLAi4DtE%2FzV0WWsHwz2LYRN4%2BEHgc%2FOvRfwrrqPA1F3yrJBAh1EAMaDDUzNTc4OTgyMzgwOCIMxWQ6qA3PSR31lrVyKqYESqXfFZm40qe6QciT%2BtalSH%2FyNG2xic0oZi4Q1ECxUz2t8fXl%2FXMh%2BZnxcHCqnkgXvuRfeELhOQlr5vBRaDWjSQDujPXXtM0kmJbz48Ywmue5PgrxMH2E%2BLCtgOnC5%2FwNuOROoWS0RU%2BSi5u0sPj%2B75DcA3ER84%2FQMgMkBf1ijaLWZJajW0OzDVI53JEruXjX7CZuXMn2aSb9Nfsh8liRWzclSop5zAn96Zk9ODjR1kM0qgE9Gjpf4r7XfGiLHEvbrCe%2Bdk2TahkW1zky%2BraPDFw7UdR7mU7MEmrxnEpzuRwKYZzLC67o%2FLcS02YkR1sbuA%2FoZNEWoYSVk1w6urrGDtQ4cyk0xcZLvqtcSjXMBWf9vKk8eHD4rz6tb4a4NFzyURV2bgUwxaMDMQhcXbWp%2FFLpmC%2FEIfkeSk3I8%2FI6zGmgWwxc7lo780dD%2FGL6zdoq2et8QzNZpt4a6R3pJu%2FnHj4prztBE0M3O32BWnVOFzMIzr903NV%2BdqDe1%2F06PAGhnYVVtnCVrD553SV5AXTOOWNFR5c8lnLfBGYiXk5XiKdW5O%2FiCDFd3IfSZw9duUP46F0csHj8kA5vv3fStqc1Urrmrd8jUJNGgnJDrn31fxk1TR8Rp52FbEbS1Z2vecLaHd6256B3jNOHMMXRftBojXGB64U5MK8YidYRoI1uYtTOs9JXqmcNhNEg1oDs%2Fj3%2Bk5lQhF208zfmjA53aM9mP0SZ3Pz%2BljDlyKvPBjqoAdTJnbJ%2FYK97fusffOYlCp%2FwFf%2FVZNEx1C09LMunTGV8yOQZN05SzMkE0B5HxVyJl%2F%2BK5zU2ThNsB%2BtYJ7caLdQfG%2Bz%2FBlHmG7DePHPazECJysb3QPyRIyqp%2FeXYdhvN8CdVqI8Xioo7SezxZoVmUjUkP7cpVtBQ8SSPxQjRnfnl3xI%2Bbin1D9FMARhrfsx1yT1FWkEM2LkoeqKf6e4ifxoNhzKsMtmulA%3D%3D&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260424T052339Z&X-Amz-SignedHeaders=host&X-Amz-Credential=ASIAXZP4P45AOD3WNEMG%2F20260424%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Expires=604800&X-Amz-Signature=80d1d96f0062ef09ac0a2c4a72d52503ff32330596a92c88f0a3a5aa9be0e6d5';  // poori URL paste karo
         $schema = file_get_contents($schemaUrl);
         $schema = json_decode($schema, true);
         // unit_count dhundo
         $unitCount = $schema['properties']['unit_count'] ?? 'NOT FOUND';
         return response()->json(['unit_count' => $unitCount]);
     }
+
     public function testSchemaBasedStatic(Request $request)
     {
         $shopModel = getActiveShopModel($request);
         if (!$shopModel) {
             return response()->json(['error' => 'Shop not found'], 403);
-        }else{
+        } else {
             return response()->json([
-                'sku'      => 'test-sku-123',
-                'status'   => 200,
+                'sku' => 'test-sku-123',
+                'status' => 200,
                 'response' => [],
             ]);
         }
         $amazonService = new \App\Services\AmazonService();
-        
     }
-    
+
     private function UploadImageProvideUrl($request)
     {
         $paths = [];
@@ -3558,7 +3622,8 @@ class ShopifyController extends Controller
             $product_type = $product['product_type'] ?? '';
 
             $dbProduct = \App\Models\Product::where('shopify_id', $id)
-                ->where('shop_id', $shopModel->id)->first();
+                ->where('shop_id', $shopModel->id)
+                ->first();
             $amazonData = null;
 
             $inventoryItemIds = [];
@@ -3598,7 +3663,7 @@ class ShopifyController extends Controller
                 $category = Category::where('id', $dbProduct->sub_category_id)->first();
 
                 if ($category) {
-                    $pschema =   ProductSchema::where('product_type', $category->category)->first();
+                    $pschema = ProductSchema::where('product_type', $category->category)->first();
                     $producttype = $category->category ?? '';
                     if ($pschema) {
                         $schema_id = $pschema->id;
@@ -3625,12 +3690,11 @@ class ShopifyController extends Controller
             unset($mappedproduct['price']);
             unset($mappedproduct['quantity']);
 
-            $product_id =  $updatesync->productstoreAmazon($mappedproduct, $schema_id);
+            $product_id = $updatesync->productstoreAmazon($mappedproduct, $schema_id);
 
             $dbProduct = \App\Models\Product::where('shopify_id', $id)
                 ->where('shop_id', $shopModel->id)
                 ->update(['amazon_product_id' => $product_id]);
-
 
             return redirect()->route(
                 'admin.product.productEdit',
@@ -3640,7 +3704,6 @@ class ShopifyController extends Controller
                 ]
             )->with('success', 'Product all information to update');
         } catch (\Exception $e) {
-
             return back()->with('error', $e->getMessage());
         }
     }
@@ -3675,9 +3738,9 @@ class ShopifyController extends Controller
             }
 
             $response = Http::asJson()->post("https://{$shopModel->shop}/admin/oauth/access_token", [
-                'client_id'     => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
+                'client_id' => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
                 'client_secret' => AdminSetting::get('SHOPIFY_API_SECRET', config('services.shopify.api_secret')),
-                'grant_type'    => 'refresh_token',
+                'grant_type' => 'refresh_token',
                 'refresh_token' => $shopModel->refresh_token,
             ]);
 
@@ -3763,7 +3826,8 @@ class ShopifyController extends Controller
         }
 
         return response()->json(
-            $query->orderBy('name')
+            $query
+                ->orderBy('name')
                 ->limit(20)
                 ->get(['id', 'name'])
         );
