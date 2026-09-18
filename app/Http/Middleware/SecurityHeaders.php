@@ -13,7 +13,7 @@ class SecurityHeaders
         // Make nonce available to Blade views
         view()->share('cspNonce', $nonce);
         $response = $next($request);
-        if($isEmbeddedIframe){
+        if($isEmbeddedIframe || $request->is('setup/*') || $request->is('setup') || $request->is('setup/activate') || $request->is('setup/activate/*')){
             $response->headers->set('X-Content-Type-Options','nosniff');
             $response->headers->set('Referrer-Policy','strict-origin-when-cross-origin');
             $response->headers->set('Permissions-Policy','camera=(), microphone=(), geolocation=()');
