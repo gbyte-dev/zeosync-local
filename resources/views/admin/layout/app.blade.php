@@ -476,7 +476,7 @@
             });
         });
     </script>
-    <script>
+    <script nonce="{{ $cspNonce }}">
         document.addEventListener('click', function(e) {
             let item = e.target.closest('.mark-admin-read');
             if (!item) return;
