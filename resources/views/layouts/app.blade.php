@@ -664,8 +664,11 @@
             document.documentElement.classList.add('in-iframe');
         } else {
             document.documentElement.classList.add('normal-page');
-            document.querySelector('s-app-nav').classList.add('d-none');
-            document.querySelector('s-app-nav').style.display = 'none';
+            const appNav = document.querySelector('s-app-nav');
+            if (appNav) {
+                appNav.classList.add('d-none');
+                appNav.style.display = 'none';
+            }
         }
 
         (function() {

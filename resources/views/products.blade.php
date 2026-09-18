@@ -652,37 +652,48 @@
 
         // Initialize DataTables safely only if the table is rendered in the DOM
         if ($table.length > 0) {
-            // Destroy any existing initialization to prevent multiple initialization errors
-            if ($.fn.DataTable.isDataTable('#productsTable')) {
-                $table.DataTable().destroy();
-            }
-
-            const dt = $table.DataTable({
-                responsive: true,
-                autoWidth: false,
-                processing: true,
-                stateSave: true,
-                pageLength: 25,
-                lengthMenu: [
-                    [10, 25, 50, 100],
-                    [10, 25, 50, 100]
-                ],
-                order: [
-                    [1, 'asc']
-                ],
-                language: {
-                    search: "",
-                    searchPlaceholder: "Search products..."
+            let dt = null;
+            try {
+                // Destroy any existing initialization to prevent multiple initialization errors
+                if ($.fn && $.fn.DataTable && $.fn.DataTable.isDataTable('#productsTable')) {
+                    $table.DataTable().destroy();
                 }
-            });
 
-            // Hide in-page loader and show DataTable container immediately
-            $loader.hide();
-            $tableContainer.show();
+                if ($.fn && $.fn.DataTable) {
+                    dt = $table.DataTable({
+                        responsive: true,
+                        autoWidth: false,
+                        processing: true,
+                        stateSave: true,
+                        pageLength: 25,
+                        lengthMenu: [
+                            [10, 25, 50, 100],
+                            [10, 25, 50, 100]
+                        ],
+                        order: [
+                            [1, 'asc']
+                        ],
+                        language: {
+                            search: "",
+                            searchPlaceholder: "Search products..."
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("DataTables initialization error:", err);
+            } finally {
+                // Always hide in-page loader and show DataTable container
+                $loader.hide();
+                $tableContainer.show();
+            }
 
             // Adjust columns for accurate responsive layout
             if (dt && typeof dt.columns === 'function') {
-                dt.columns.adjust().responsive.recalc();
+                try {
+                    dt.columns.adjust().responsive.recalc();
+                } catch (e) {
+                    console.warn("DataTables responsive adjust error:", e);
+                }
             }
         } else {
             // Hide in-page loader and show empty state container
