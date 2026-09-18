@@ -34,6 +34,7 @@ use App\Models\Category;
 use App\Services\Amazon\ShopifyAmazonMapper;
 use App\Models\ProductSchema;
 use App\Http\Controllers\ProductSchemaController;
+use App\Services\ShopifyOrderSyncService;
 
 
 class ShopifyController extends Controller
@@ -41,6 +42,7 @@ class ShopifyController extends Controller
     protected ShopifyBillingService $shopifyBilling;
     protected ShopifyWebhookService $shopifyWebhook;
     protected AmazonService $amazonService;
+    protected ShopifyOrderSyncService $orderSyncService;
 
 
     public function __construct()
@@ -48,6 +50,7 @@ class ShopifyController extends Controller
         $this->shopifyBilling = app(ShopifyBillingService::class);
         $this->shopifyWebhook = app(ShopifyWebhookService::class);
         $this->amazonService = app(AmazonService::class);
+        $this->orderSyncService = app(ShopifyOrderSyncService::class);
     }
     public function entry(Request $request)
     {
@@ -1304,7 +1307,7 @@ class ShopifyController extends Controller
         }
 
         $deleted = ShopifyOrder::where('shop_id', $shopModel->id)
-            ->where('shopify_order_id', (int) $data['id'])
+            ->where('shopify_order_id', (string) $data['id'])
             ->delete();
 
         return response('OK', 200);
@@ -1444,130 +1447,37 @@ class ShopifyController extends Controller
         if (!is_array($data) || empty($data['id'])) {
             return response('Invalid order payload', 400);
         }
-        if ($eventId !== '' && ShopifyOrder::where('shopify_event_id', $eventId)->exists()) {
-            return response('OK', 200);
-        }
 
-        $existingOrder = ShopifyOrder::where('shopify_order_id', (int) $data['id'])->first();
-        $oldFulfillmentStatus = $existingOrder?->fulfillment_status;
-        $oldShipmentStatus = $existingOrder?->shipment_status;
-
-        $newFulfillmentStatus = data_get($data, 'fulfillment_status');
-        $fulfillments = data_get($data, 'fulfillments', []);
-        $newShipmentStatus = is_array($fulfillments) ? $this->resolveAggregateShipmentStatus($fulfillments) : null;
-
-        $customer = data_get($data, 'customer', []);
-        $lineItems = data_get($data, 'line_items', []);
-        $order = ShopifyOrder::updateOrCreate(
-            ['shopify_order_id' => (int) $data['id']],
-            [
-                'shop_id' => $shopModel->id,
-                'admin_graphql_api_id' => data_get($data, 'admin_graphql_api_id'),
-                'shopify_event_id' => $eventId !== '' ? $eventId : null,
-                'shopify_webhook_id' => $webhookId !== '' ? $webhookId : null,
-                'order_number' => data_get($data, 'order_number'),
-                'name' => data_get($data, 'name'),
-                'email' => data_get($data, 'email'),
-                'customer_first_name' => data_get($customer, 'first_name'),
-                'customer_last_name' => data_get($customer, 'last_name'),
-                'customer_phone' => data_get($customer, 'phone'),
-                'phone' => data_get($data, 'phone'),
-                'financial_status' => data_get($data, 'financial_status'),
-                'fulfillment_status' => $newFulfillmentStatus,
-                'shipment_status' => $newShipmentStatus,
-                'currency' => data_get($data, 'currency'),
-                'subtotal_price' => (float) data_get($data, 'subtotal_price', 0),
-                'total_tax' => (float) data_get($data, 'total_tax', 0),
-                'total_discounts' => (float) data_get($data, 'total_discounts', 0),
-                'total_price' => (float) data_get($data, 'total_price', 0),
-                'line_items_count' => count($lineItems),
-                'source_name' => data_get($data, 'source_name'),
-                'tags' => data_get($data, 'tags'),
-                'note' => data_get($data, 'note'),
-                'customer' => $customer ?: null,
-                'billing_address' => data_get($data, 'billing_address'),
-                'shipping_address' => data_get($data, 'shipping_address'),
-                'line_items' => $lineItems ?: null,
-                'discount_codes' => data_get($data, 'discount_codes'),
-                'shipping_lines' => data_get($data, 'shipping_lines'),
-                'tax_lines' => data_get($data, 'tax_lines'),
-                'raw_payload' => $data,
-                'order_created_at' => $this->parseNullableDate(data_get($data, 'created_at')),
-                'processed_at' => $this->parseNullableDate(data_get($data, 'processed_at')),
-                'cancelled_at' => $this->parseNullableDate(data_get($data, 'cancelled_at')),
-            ]
-        );
-
-        // Only deduct Amazon inventory on order creation, never on duplicate/fulfillment/delivery updates
-        if ($order->wasRecentlyCreated) {
-            foreach ($lineItems as $item) {
-
-                $variantId = $item['variant_id'] ?? null;
-                $orderedQty = $item['quantity'] ?? 0;
-
-                if (!$variantId) {
-                    continue;
-                }
-
-                $query = ProductMarketplaceMapping::where('shop_id', $shopModel->id)
-                    ->where('shopify_variant_id', (string) $variantId);
-
-                $mapping = $query->first();
-
-                if (!$mapping) {
-                    Log::info('No marketplace mapping found.', [
-                        'shop_id' => $shopModel->id,
-                        'variant_id' => $variantId,
-                    ]);
-                    continue;
-                }
-
-                if ($mapping->quantity === null || $mapping->quantity === '') {
-                    Log::info('Skipping Amazon inventory sync: mapping quantity is unknown/null.', [
-                        'shop_id' => $shopModel->id,
-                        'variant_id' => $variantId,
-                        'amazon_sku' => $mapping->amazon_sku,
-                    ]);
-                    continue;
-                }
-
-                $newShopifyQuantity = ((int) $mapping->quantity) - ((int) $orderedQty);
-                $amazonTargetQuantity = max(0, $newShopifyQuantity);
-
-                try {
-
-                    $response = $this->amazonService->updateInventory(
-                        $shopModel,
-                        $mapping->amazon_sku,
-                        $amazonTargetQuantity,
-                        false,
-                        $newShopifyQuantity
-                    );
-
-                } catch (\Throwable $e) {
-
-                    Log::error('Webhook inventory sync failed.', [
-                        'variant_id' => $variantId,
-                        'amazon_sku' => $mapping->amazon_sku,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
+        try {
+            $syncResult = $this->orderSyncService->syncOrder(
+                $shopModel,
+                $data,
+                $action,
+                $eventId !== '' ? $eventId : null,
+                $webhookId !== '' ? $webhookId : null
+            );
+        } catch (\Throwable $e) {
+            Log::error('Shopify order sync failed with exception.', [
+                'shop' => $shopDomain,
+                'order_id' => $data['id'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            return response('Internal processing error', 500);
         }
 
         $orderNumber = ltrim((string) ($data['name'] ?? ($data['order_number'] ?? '')), '#');
         $orderDisplay = $data['name'] ?? ('#' . ($data['order_number'] ?? ''));
 
-        if ($order->wasRecentlyCreated && $action === 'create') {
+        if ($syncResult['result'] === 'created') {
             UserNotificationService::send(
                 $shopModel->id,
                 'order_sync',
                 'Shopify Order Received',
                 'Shopify Order ' . $orderDisplay . ' received successfully.'
             );
-        } elseif ($action === 'update' || !$order->wasRecentlyCreated) {
-            $isFulfilledTransition = ($oldFulfillmentStatus !== 'fulfilled' && $newFulfillmentStatus === 'fulfilled');
-            $isDeliveredTransition = ($oldShipmentStatus !== 'delivered' && $newShipmentStatus === 'delivered');
+        } elseif ($syncResult['result'] === 'updated') {
+            $isFulfilledTransition = !empty($syncResult['fulfillment_transition']);
+            $isDeliveredTransition = !empty($syncResult['delivered_transition']);
 
             if ($isFulfilledTransition) {
                 UserNotificationService::send(

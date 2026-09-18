@@ -62,7 +62,8 @@ beforeEach(function () {
         Schema::create('shopify_orders', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('shop_id')->nullable();
-            $table->unsignedBigInteger('shopify_order_id')->unique();
+            $table->string('shopify_order_id')->nullable();
+            $table->unique(['shop_id', 'shopify_order_id']);
             $table->string('admin_graphql_api_id')->nullable();
             $table->string('shopify_event_id')->nullable()->index();
             $table->string('shopify_webhook_id')->nullable();
