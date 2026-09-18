@@ -2,7 +2,7 @@
 
 @section('content')
 
-<style>
+<style nonce="{{ $cspNonce??'' }}">
     /* Shopify Admin Inspired UI - Ultra Compact & Tight */
     .sp-page {
         background-color: #F6F6F7;
@@ -203,8 +203,7 @@
     <!-- Form Container -->
     <div class="sp-card">
         <form id="selectCategoryForm" action="{{ route('user.addProductCategory', [
-    'shop' => $activeShop
-]) }}" method="POST">
+    'shop' => $activeShop]) }}" method="POST">
             @csrf
             <input type="hidden" name="shop" value="{{ $activeShop }}">
 
@@ -245,15 +244,15 @@
 @endsection
 
 @push('css')
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
+<link nonce="{{ $cspNonce??'' }}" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<link nonce="{{ $cspNonce??'' }}" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
 @endpush
 
 @push('scripts')
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script nonce="{{ $cspNonce??'' }}" src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script nonce="{{ $cspNonce??'' }}" src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-<script>
+<script nonce="{{ $cspNonce??'' }}">
     $(document).ready(function() {
         const $select = $('#category_id');
         const $form = $('#selectCategoryForm');

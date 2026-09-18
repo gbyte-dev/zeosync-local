@@ -85,7 +85,7 @@
 @endsection
 
 @section('scripts')
-    <script>
+    <script nonce="{{ $cspNonce }}">
         $(document).ready(function() {
             initDatatable('#datatable-table');
         });

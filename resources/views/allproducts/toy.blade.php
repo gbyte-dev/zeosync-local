@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('content')
 @push('css')
-<style>
+<style nonce="{{ $cspNonce }}">
 .amazon-panel {
     border: 2px solid #f0d9a8;
     border-radius: 8px;

@@ -59,7 +59,7 @@
 </div>
 
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce }}">
 $(document).ready(function () {
 
     // ===== Auto-generate category & slug from name =====

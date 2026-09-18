@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
+    <style nonce="{{ $cspNonce }}">
         /* Client-safe styles */
         body { margin:0; padding:0; -webkit-text-size-adjust:none; -ms-text-size-adjust:none; }
         table { border-collapse:collapse; }

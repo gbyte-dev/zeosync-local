@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @push('css')
-<style>
+<style nonce="{{ $cspNonce??'' }}">
     .form-control-sm::placeholder {
         font-size: 10px;
         color: #9CA3AF;
@@ -890,24 +890,18 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 </div>
 @endsection
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce??'' }}">
     window.amazonFields = @json($fields);
 
     function normalize(text) {
-        return String(text ?? '')
-            .toLowerCase()
-            .replace(/[_-]/g, ' ')
-            .replace(/[^\w\s]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
+        return String(text ?? '').toLowerCase().replace(/[_-]/g, ' ')
+            .replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
     }
 
     function getAmazonFieldMap() {
 
         const map = {};
-
         window.amazonFields.forEach(field => {
-
             if (field.name) {
                 map[normalize(field.name)] = field.name;
             }
@@ -926,8 +920,6 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
     }
 
     window.amazonFieldMap = getAmazonFieldMap();
-
-    
 
     const fieldSynonyms = {
         "product name": "item_name",
@@ -967,9 +959,7 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             ];
 
             candidates.forEach(candidate => {
-
                 candidate = normalize(candidate);
-
                 if (!candidate) {
                     return;
                 }
@@ -979,7 +969,6 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                 if (candidate === aiKey) {
                     score = 100;
                 } else {
-
                     if (candidate.includes(aiKey)) {
                         score += 60;
                     }
@@ -999,9 +988,7 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                     bestScore = score;
                     bestField = field.name;
                 }
-
             });
-
         });
 
         return bestScore >= 50 ? bestField : null;
@@ -1014,7 +1001,7 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
         })
     });
 </script>
-<script>
+<script nonce="{{ $cspNonce??'' }}">
     const requiredFields = @json($requiredFields);
 
     function getFieldInputs(fieldName) {
@@ -1284,31 +1271,21 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
     $('#aiAutofillBtn').click(function() {
 
         let productName = $('[name="attributes[item_name]"]').val().trim();
-
         let productDescription = $('[name="attributes[product_description]"]').val() ?? '';
         productDescription = productDescription.trim();
-
         let category = "{{ $schema->product_type }}";
 
         $('#aiError').addClass('d-none').text('');
 
         if (productName === '') {
-
-            $('#aiError')
-                .removeClass('d-none')
-                .text('Please enter Product Name first.');
-
+            $('#aiError').removeClass('d-none').text('Please enter Product Name first.');
             return;
         }
 
         $.ajax({
-
             url: "{{ route('ai.autofill', ['shop' => request('shop')]) }}",
-
             type: "POST",
-
             dataType: "json",
-
             data: {
                 _token: "{{ csrf_token() }}",
                 product_name: productName,
@@ -1316,20 +1293,13 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                 category: category,
                 shop: "{{ request('shop') }}"
             },
-
             beforeSend: function() {
-
-                $('#aiAutofillBtn')
-                    .prop('disabled', true)
+                $('#aiAutofillBtn').prop('disabled', true)
                     .html('<i class="fas fa-spinner fa-spin me-1"></i> AI Auto Filling...');
-
             },
-
             success: function(response) {
-
                 if (!response.success) {
-                    showToast(
-                        'AI is currently under maintenance. Please try again after some time.',
+                    showToast('AI is currently under maintenance. Please try again after some time.',
                         'danger'
                     );
 
@@ -1338,9 +1308,7 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
                 clearAiError();
 
-                const protectedFields = [
-                    'item_name',
-                ];
+                const protectedFields = [  'item_name',  ];
 
                 $.each(response.data, function(aiKey, value) {
 
@@ -1378,20 +1346,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
 
                     field.trigger('input');
                     field.trigger('change');
-
                 });
-
             },
-
             error: function(xhr) {
-                showToast(
-                    'AI is currently under maintenance. Please try again after some time.',
-                    'danger'
-                );
+                showToast('AI is currently under maintenance. Please try again after some time.', 'danger');
             },
-
             complete: function() {
-
                 $('#aiAutofillBtn')
                     .prop('disabled', false)
                     .html('<i class="fas fa-magic me-1"></i> AI Auto Fill');
@@ -1462,18 +1422,13 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             return;
         }
 
-        button
-            .prop('disabled', true)
+        button.prop('disabled', true)
             .html('<i class="fas fa-spinner fa-spin me-1"></i> Generating...');
 
         $.ajax({
-
             url: "{{ route('ai.generate-field') }}",
-
             type: "POST",
-
             dataType: "json",
-
             data: {
                 _token: "{{ csrf_token() }}",
                 product_name: productName,
@@ -1483,14 +1438,10 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                 field_hint: fieldHint,
                 shop: "{{ request('shop') }}"
             },
-
             success: function(response) {
-
                 if (!response.success) {
-                    showToast(
-                        'AI is currently under maintenance. Please try again after some time.',
-                        'danger'
-                    );
+                    showToast('AI is currently under maintenance. Please try again after some time.',
+                        'danger' );
                     return;
                 }
 
@@ -1508,37 +1459,24 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                 }
 
                 if (Array.isArray(response.data)) {
-
                     field.val(response.data.join("\n"));
-
                 } else {
-
                     field.val(response.data);
-
                 }
 
                 field.trigger('input');
                 field.trigger('change');
 
             },
-
             error: function(xhr) {
-                showToast(
-                    'AI is currently under maintenance. Please try again after some time.',
+                showToast('AI is currently under maintenance. Please try again after some time.',
                     'danger'
                 );
             },
-
             complete: function() {
-
-                button
-                    .prop('disabled', false)
-                    .html(originalHtml);
-
+                button.prop('disabled', false).html(originalHtml);
             }
-
         });
-
     });
 
     // --- Amazon Image Library Modal Management ---

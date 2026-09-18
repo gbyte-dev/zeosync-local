@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('content')
-<style>
+<style nonce="{{ $cspNonce??'' }}">
     /* ── Page Header ── */
     .pg-subtitle {
         font-size: 0.82rem;
@@ -723,7 +723,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 </div>@endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce??'' }}">
 const productForm = document.getElementById('productForm');
 const updateProductBtn = document.getElementById('updateProductBtn');
 

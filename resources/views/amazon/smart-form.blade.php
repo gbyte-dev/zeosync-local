@@ -78,7 +78,7 @@
 
 </div>
 
-<script>
+<script nonce="{{ $cspNonce }}">
 
 function fetchForm()
 {

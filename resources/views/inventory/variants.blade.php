@@ -2,7 +2,7 @@
 
 @section('content')
 
-<style>
+<style nonce="{{ $cspNonce??'' }}">
     body {
         background: #f5f7fb;
     }
@@ -265,7 +265,7 @@
 @endsection
 
 @push('scripts')
-<script>
+<script nonce="{{ $cspNonce??'' }}">
     const shop =
         new URLSearchParams(window.location.search).get('shop') ||
         @json($shop - > shop ?? '');

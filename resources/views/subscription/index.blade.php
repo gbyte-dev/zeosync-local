@@ -1,45 +1,25 @@
 @extends('layouts.app')
-
-
-
 @section('content')
 
-
-
 <div class="container-fluid">
-
     <div class="d-flex justify-content-between align-items-center mb-4">
-
         <h2 class="mb-0">Subscription</h2>
-
-  
-
     </div>
-
-
-
-
-
-
 </div>
-
-
 
 @endsection
 
-
-
 @push('styles')
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link nonce="{{ $cspNonce??'' }}" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 @endpush
 
 
 
 @push('scripts')
-<script src="https://unpkg.com/@shopify/app-bridge@3"></script>
-<script src="https://unpkg.com/@shopify/app-bridge-utils@3"></script>
+<script nonce="{{ $cspNonce??'' }}" src="https://unpkg.com/@shopify/app-bridge@3"></script>
+<script nonce="{{ $cspNonce??'' }}" src="https://unpkg.com/@shopify/app-bridge-utils@3"></script>
 <script>
 
   const AppBridge = window['app-bridge'];

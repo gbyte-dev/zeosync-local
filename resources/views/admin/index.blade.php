@@ -28,7 +28,7 @@
     ];
 @endphp
 
-<style>
+<style nonce="{{ $cspNonce }}">
     .dashboard-card {
         border: 0;
         border-radius: 20px;

@@ -4,7 +4,7 @@
 
 @section('content')
 
-<style>
+<style nonce="{{ $cspNonce }}">
     .detail-card {
         border: 0;
         border-radius: 12px;

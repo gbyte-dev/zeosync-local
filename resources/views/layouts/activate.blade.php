@@ -7,9 +7,9 @@
     <title>Amazon Sync</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
-    <link href="{{ asset('css/sidebar.css') }}?v={{ time() }}" rel="stylesheet">
-    <link href="{{ asset('css/style.css') }}?v={{ time() }}" rel="stylesheet">
+    <link nonce="{{ $cspNonce??'' }}" href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
+    <link nonce="{{ $cspNonce??'' }}" href="{{ asset('css/sidebar.css') }}?v={{ time() }}" rel="stylesheet">
+    <link nonce="{{ $cspNonce??'' }}" href="{{ asset('css/style.css') }}?v={{ time() }}" rel="stylesheet">
     @php
     $favicon = \App\Models\AdminSetting::where('option_key', 'app_favicon')->value('option_value');
 
@@ -25,18 +25,18 @@
     
     $shopifyclient_id = \App\Models\AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key'));
     @endphp
-    <meta name="shopify-api-key" content="{{ $shopifyclient_id }}">
+    <meta nonce="{{ $cspNonce??'' }}" name="shopify-api-key" content="{{ $shopifyclient_id }}">
 
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
+    <link nonce="{{ $cspNonce??'' }}" rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
+    <link nonce="{{ $cspNonce??'' }}" rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
+    <link nonce="{{ $cspNonce??'' }}" rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <link nonce="{{ $cspNonce??'' }}" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+    <link nonce="{{ $cspNonce??'' }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
 
     @stack('css')
 
-    <style>
+    <style nonce="{{ $cspNonce??'' }}">
         /* 
      * 1. Design Tokens (Shopify/Apple HIG Inspired)
      */
@@ -264,11 +264,11 @@
 
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
+    <script nonce="{{ $cspNonce??'' }}" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script nonce="{{ $cspNonce??'' }}" src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
     @stack('scripts')
 
-    <script>
+    <script nonce="{{ $cspNonce??'' }}">
         // Set up CSRF token for all AJAX requests
         $.ajaxSetup({
             headers: {
@@ -345,7 +345,7 @@
         });
     </script>
 
-    <script>
+    <script nonce="{{ $cspNonce??'' }}">
         document.addEventListener('DOMContentLoaded', function() {
             let toasts = document.querySelectorAll('.toast');
             toasts.forEach(function(toastEl) {
@@ -374,7 +374,7 @@
 
     </div>
 
-    <style>
+    <style nonce="{{ $cspNonce??'' }}">
         .global-loader-overlay {
             position: fixed;
             top: 0;
@@ -536,7 +536,7 @@
         }
     </style>
 
-    <script>
+    <script nonce="{{ $cspNonce??'' }}">
         function showLoader(text = 'Processing...') {
             const loader = document.getElementById('globalLoaderOverlay');
             if (!loader) return;
@@ -556,7 +556,7 @@
         style="z-index:999999; margin-top: 56px;">
     </div>
 
-    <script>
+    <script nonce="{{ $cspNonce??'' }}">
         function showToast(message, type = 'success') {
             const container = document.getElementById('dynamicToastContainer');
             if (!container) return;
@@ -595,7 +595,7 @@
         }
     </script>
 
-    <script>
+    <script nonce="{{ $cspNonce??'' }}">
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.mark-user-read').forEach(function(item) {
                 item.addEventListener('click', function(e) {
@@ -643,14 +643,14 @@
             });
         });
     </script>
-    <script>
+    <script nonce="{{ $cspNonce??'' }}">
         if (window.self !== window.top) {
             document.documentElement.classList.add('in-iframe');
         } else {
             document.documentElement.classList.add('normal-page');
         }
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script nonce="{{ $cspNonce??'' }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 
 </html>

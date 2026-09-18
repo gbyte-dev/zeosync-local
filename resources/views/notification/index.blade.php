@@ -5,9 +5,9 @@
 @section('content')
 
 <!-- Optionally include Bootstrap Icons CDN if not already in your app.blade.php layout -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link nonce="{{ $cspNonce??'' }}"  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
-<style>
+<style nonce="{{ $cspNonce??'' }}">
     /* Global Clean SaaS Environment - Tighter Density */
     body {
         background-color: #F4F6F8;
@@ -324,7 +324,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce??'' }}">
     document.addEventListener('DOMContentLoaded', function() {
 
         const unreadNotificationIds = [];
@@ -358,15 +358,8 @@
                 formData.append('notification_ids[]', id);
             });
 
-            formData.append(
-                'shop',
-                "{{ $request->shop ?? session('active_shop') }}"
-            );
-
-            formData.append(
-                '_token',
-                "{{ csrf_token() }}"
-            );
+            formData.append( 'shop', "{{ $request->shop ?? session('active_shop') }}" );
+            formData.append( '_token',  "{{ csrf_token() }}"  );
 
             if (navigator.sendBeacon) {
                 navigator.sendBeacon(
