@@ -9,7 +9,6 @@ class SecurityHeaders
         $nonce = base64_encode(random_bytes(16));
 
         $isEmbeddedIframe = strtolower((string) $request->header('sec-fetch-dest')) === 'iframe';
-        dd($isEmbeddedIframe);
 
         // Make nonce available to Blade views
         view()->share('cspNonce', $nonce);
