@@ -1857,7 +1857,7 @@ class ProductSchemaController extends Controller
                 $mapping->amazon_sku ?? 'null',
                 $mapping->amazon_parent_sku ?? 'null'
             )
-            : 'No matching marketplace mapping was found.';
+            : '.';
         if ($mappings->count() > 1) {
             $mappingDetails .= sprintf(' Note: %d matching mapping rows found; only the first was used.', $mappings->count());
         }
