@@ -372,10 +372,6 @@ Route::get('/test-amazon-sync', function () {
     return 'Done';
 });
 
-Route::get('/test-command', function () {
-    Artisan::call('amazon:refresh-inventory-cache');
-    return nl2br(Artisan::output());
-});
 
 Route::post('/custom-plans', [CustomPlanController::class, 'store'])
     ->name('custom-plans.store');
@@ -400,8 +396,7 @@ Route::get('/test-plan-sync/{shop}', function (string $shop) {
 });
 
 Route::get('/debug/shopify-subscription/{chargeId}', function (
-    Request $request, string $chargeId
-) {
+    Request $request, string $chargeId) {
     $shop = Shop::where('shop', $request->query('shop'))->firstOrFail();
     $gid = 'gid://shopify/AppSubscription/' . $chargeId;
 
