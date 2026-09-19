@@ -2,7 +2,7 @@
     <div class="wrap nav">
         <a class="brand" href="{{ route('crm.entry') }}" aria-label="{{ getAppName() }} home">
             @if(function_exists('getLogo'))
-                <img src="{{ getLogo() }}" alt="{{ getAppName() }}" style="height:36px;object-fit:contain;display:inline-block;vertical-align:middle;margin-right:10px">
+                <img src="{{ getLogo() }}" alt="{{ getAppName() }}" style="height:50px;object-fit:contain;display:inline-block;vertical-align:middle;margin-right:10px">
             @else
                 <span class="mark">z</span>{{ getAppName() }}<span class="brand-dot">.</span>
             @endif
