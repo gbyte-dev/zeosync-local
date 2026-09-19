@@ -214,7 +214,7 @@
 
 .in-iframe .sidebar__sublink.active {
     color: var(--sidebar-text-active);
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .saas-page-header{

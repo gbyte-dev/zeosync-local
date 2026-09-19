@@ -10,13 +10,12 @@ Route::prefix('ai')->name('ai.')->group(function () {
 });
 
 Route::get('/ai-test-token', function () {
-    // Only expose test tokens when the application is in debug mode.
     if (!config('app.debug')) {
         abort(404);
     }
-
     return response()->json(Cache::get('ai_test_tokens'));
 });
+
 Route::get('/ai-test-token-reset', function () {
     Cache::forget('ai_test_tokens');
     return 'Reset Done';

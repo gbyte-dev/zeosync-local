@@ -42,16 +42,12 @@ Route::get('connect', [AmazonConnect::class, 'connect'])->name('amazon.connect')
 Route::get('amzon/authorize/shopify/{ens}', [AmazonConnect::class, 'authorizeAmazonIframe'])->name('amazon.authorize.iframe');
 Route::get('amazon/callback', [AmazonConnect::class, 'handleCallback'])->name('amazon.callback');
 // amazon routes
-Route::prefix('amazon')
-    ->withoutMiddleware([\App\Http\Middleware\CheckSubscription::class])
+Route::prefix('amazon')->withoutMiddleware([\App\Http\Middleware\CheckSubscription::class])
     ->group(function () {
-        Route::get('authorize', [AmazonConnect::class, 'authorizeAmazon'])
-            ->name('amazon.authorize');
-
-        Route::get('sync-orders', [AmazonConnect::class, 'syncOrders'])
-            ->name('amazon.sync');
-        Route::get('disconnect', [AmazonConnect::class, 'disconnect'])->name('amazon.disconnect');
-    });
+    Route::get('authorize', [AmazonConnect::class, 'authorizeAmazon'])->name('amazon.authorize');
+    Route::get('sync-orders', [AmazonConnect::class, 'syncOrders'])->name('amazon.sync');
+    Route::get('disconnect', [AmazonConnect::class, 'disconnect'])->name('amazon.disconnect');
+});
 
 Route::get('/amazon/connect/success', [AmazonConnect::class, 'success'])->name('amazon.connect.success');
 // store settings
@@ -100,17 +96,14 @@ Route::get('/check-payment-status', [SubscriptionController::class, 'checkStatus
 // admin routes
 Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::class)->group(function () {
     Route::middleware('guest:admin')->group(function () {
-        Route::get('/login', function () {
-            return view('admin.auth.login');
-        })->name('admin.login');
+        Route::get('/login', function () {  return view('admin.auth.login'); })->name('admin.login');
         Route::post('/login', [AdminAuthController::class, 'login'])
             ->name('admin.login.submit');
     });
+
     Route::middleware(\App\Http\Middleware\EnsureAdminAuthenticated::class)->group(function () {
-        Route::get('/', [AdminController::class, 'dashboard'])
-            ->name('admin.dashboard');
-        Route::get('/dashboard', [AdminController::class, 'dashboard'])
-            ->name('admin.main.dashboard');
+        Route::get('/', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+        Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin.main.dashboard');
         Route::post('/logout', [AdminAuthController::class, 'logout'])->name('admin.logout');
         Route::get('/shops', [AdminController::class, 'shops'])->name('admin.shops');
         Route::post('/shops/{shop}/update', [AdminController::class, 'updateShop'])->name('admin.shops.update');
@@ -173,25 +166,16 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::get('inventory/refresh', [InventoryController::class, 'refresh'])->name('shopify.inventory.refresh');
     Route::get('inventory/product/{id}', [InventoryController::class, 'productDetails'])->name('shopify.inventory.details');
     Route::get('product/category', [InventoryController::class, 'getProductCategory'])->name('shopify.product.category');
-
     Route::get('inventory/amazon/{parentSku}/variants', [InventoryController::class, 'variants'])->name('shopify.inventory.amazon.variants');
-
     Route::post('inventory/amazon/{childSku}/update-quantity', [InventoryController::class, 'updateAmazonQuantity'])->name('shopify.inventory.amazon.update');
-
     Route::get('/inventory/shopify-products', [InventoryMappingController::class, 'shopifyProducts'])
         ->name('inventory.shopify.products');
-
     Route::get('/inventory/shopify-product-variants/{product}', [InventoryMappingController::class, 'variants'])->name('inventory.shopify.variants');
-
     Route::post('/inventory/save-product-mapping', [InventoryMappingController::class, 'saveProductMapping'])->name('inventory.save.mapping');
-
     Route::post('/inventory/save-amazon-mapping', [InventoryMappingController::class, 'saveAmazonMapping'])->name('inventory.save.amazon.mapping');
-
     Route::delete('/inventory/unmap/{mapping}', [InventoryMappingController::class, 'unmap'])
         ->name('inventory.unmap');
-
     Route::post('/inventory/shopify/update', [InventoryMappingController::class, 'updateShopifyInventory'])->name('inventory.shopify.update');
-
     Route::get('/inventory/mappings', [InventoryMappingController::class, 'mappings'])->name('inventory.mappings');
     Route::post('inventory/page-length', [InventoryController::class, 'updatePageLength'])->name('shopify.inventory.page_length');
 });
@@ -230,10 +214,7 @@ Route::get('/amazon-check/{sku}', function (Request $request, $sku) {
     );
 });
 
-Route::get(
-    '/amazon/schema-fields/{slug}',
-    [AmazonSchemaController::class, 'getFields']
-);
+Route::get( '/amazon/schema-fields/{slug}',[AmazonSchemaController::class, 'getFields']);
 
 Route::post('/amazon/evaluate-conditions', [AmazonSchemaController::class, 'evaluateConditions'])
     ->name('amazon.evaluate.conditions');
@@ -391,10 +372,6 @@ Route::get('/test-amazon-sync', function () {
     return 'Done';
 });
 
-Route::get('/test-command', function () {
-    Artisan::call('amazon:refresh-inventory-cache');
-    return nl2br(Artisan::output());
-});
 
 Route::post('/custom-plans', [CustomPlanController::class, 'store'])
     ->name('custom-plans.store');
@@ -419,8 +396,7 @@ Route::get('/test-plan-sync/{shop}', function (string $shop) {
 });
 
 Route::get('/debug/shopify-subscription/{chargeId}', function (
-    Request $request, string $chargeId
-) {
+    Request $request, string $chargeId) {
     $shop = Shop::where('shop', $request->query('shop'))->firstOrFail();
     $gid = 'gid://shopify/AppSubscription/' . $chargeId;
 

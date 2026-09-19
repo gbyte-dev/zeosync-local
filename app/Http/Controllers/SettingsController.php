@@ -59,15 +59,6 @@ class SettingsController extends ShopifyController
             ],
         ]);
 
-        Log::info('Settings Update', [
-            'query_shop' => request()->query('shop'),
-            'input_shop' => request('shop'),
-            'session_shop' => session('shop'),
-            'active_shop' => app()->bound('activeShop')
-                ? app('activeShop')?->shop
-                : null,
-        ]);
-
         if ($request->hasAny(['currency', 'tax_behavior', 'auto_sync', 'auto_sku_mapping', 'ai_assist'])) {
             $shop->settings()->updateOrCreate(
                 ['shop_id' => $shop->id],
@@ -86,9 +77,7 @@ class SettingsController extends ShopifyController
             $newIndex = $request->input('selected_location_index');
             $locationIndex = ($newIndex !== '' && $newIndex !== null) ? (int) $newIndex : null;
 
-            $shop->update([
-                'selected_location_index' => $locationIndex,
-            ]);
+            $shop->update([  'selected_location_index' => $locationIndex ]);
 
             if ($oldIndex !== null) {
                 Cache::forget("shopify_inventory_{$shop->shop}_location_{$oldIndex}");
@@ -97,13 +86,6 @@ class SettingsController extends ShopifyController
                 Cache::forget("shopify_inventory_{$shop->shop}_location_{$locationIndex}");
             }
 
-            Log::info('SHOPIFY LOCATION SELECTED', [
-                'shop_id' => $shop->id,
-                'index' => $locationIndex,
-                'location' => $locationIndex !== null
-                    ? ($locations[$locationIndex] ?? null)
-                    : null,
-            ]);
         }
 
         if ($request->ajax() || $request->wantsJson()) {
@@ -126,9 +108,7 @@ class SettingsController extends ShopifyController
         if (!$shop) {
             return redirect()->route('dashboard')->with('error', 'Shop not found.');
         }
-        $logs = SyncLog::where('shop_id', $shop->id)
-            ->latest('id')
-            ->paginate();
+        $logs = SyncLog::where('shop_id', $shop->id)->latest('id')->paginate();
         return view('logs', compact('activeShop', 'shop', 'logs'));
     }
 
@@ -190,9 +170,7 @@ class SettingsController extends ShopifyController
         $requestId = (string) \Illuminate\Support\Str::uuid();
 
         try {
-            if (
-                $request->filled('shop') &&
-                $request->filled('shop_url') &&
+            if ( $request->filled('shop') && $request->filled('shop_url') &&
                 strtolower(trim((string) $request->query('shop'))) !==
                     strtolower(trim((string) $request->input('shop_url')))
             ) {
@@ -200,21 +178,16 @@ class SettingsController extends ShopifyController
             }
 
             $validated = $request->validate([
-                'shop_url' => 'required',
-                'shop_name' => 'required',
-                'email' => 'required|email',
-            ]);
+                            'shop_url' => 'required',
+                            'shop_name' => 'required',
+                            'email' => 'required|email',
+                        ]);
 
             $shopUrl = strtolower(trim((string) $validated['shop_url']));
 
             $shop = Shop::whereRaw('LOWER(shop) = ?', [$shopUrl])->first();
 
             if (!$shop) {
-                Log::warning('SETUP_STORE: Shop not found', [
-                    'request_id' => $requestId,
-                    'input_shop_url' => $shopUrl,
-                ]);
-
                 return response()->json([
                     'success' => false,
                     'message' => 'Shop not found.',

@@ -1,7 +1,6 @@
 @extends('admin.layout.app')
 
 @section('title', 'Add to Amazon')
-
 @section('content')
 
 <div class="container">
@@ -16,9 +15,7 @@
                         <i class="fas fa-file-code me-2"></i>Admin Panel
                     </span>
 
-                    <h2 class="fw-bold mb-1">
-                        Amazon Product Sync Available 
-                    </h2>
+                    <h2 class="fw-bold mb-1">  Amazon Product Sync Available  </h2>
 
                     <p class="mb-0 text-white-50">
                         Manage uploaded Amazon product schemas and create products from active schemas.
@@ -74,41 +71,21 @@
                 @forelse($schemas as $schema)
 
                     <tr>
-
-                        <td>
-                            <strong>{{ $schema->id }}</strong>
-                        </td>
-
-                        <td>
-                            {{ $schema->product_type }}
-                        </td>
-
-                        <td>
-                            <span class="badge bg-secondary">
+                        <td>   <strong>{{ $schema->id }}</strong>   </td>
+                        <td>  {{ $schema->product_type }}  </td>
+                        <td>  <span class="badge bg-secondary">
                                 {{ $schema->schema_version }}
                             </span>
                         </td>
-
                         <td>
-
                             @if($schema->is_active)
-
-                                <span class="badge bg-success">
-                                    Active
-                                </span>
-
+                                <span class="badge bg-success"> Active  </span>
                             @else
-
-                                <span class="badge bg-secondary">
-                                    Inactive
+                                <span class="badge bg-secondary">  Inactive
                                 </span>
-
                             @endif
-
                         </td>
-
                         <td>
-
                             @if($schema->is_active)
 
                                 <a href="{{ route('admin.product.store', $schema->id) }}"
@@ -118,36 +95,25 @@
                                 </a>
 
                             @else
-
-                                <span class="text-muted small">
-                                    —
-                                </span>
-
+                                <span class="text-muted small">  —  </span>
                             @endif
 
                         </td>
-
                     </tr>
 
                 @empty
 
                     <tr>
                         <td colspan="5" class="text-center py-5">
-
                             <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">  No Schemas Found </h5>
 
-                            <h5 class="text-muted">
-                                No Schemas Found
-                            </h5>
-
-                            <p class="text-muted mb-3">
-                                Upload your first Amazon schema to get started.
+                            <p class="text-muted mb-3"> Upload your first Amazon schema to get started.
                             </p>
 
                             <a href="{{ route('admin.schema.create') }}"
                                class="btn btn-primary">
-                                <i class="fas fa-upload me-2"></i>
-                                Upload Schema
+                                <i class="fas fa-upload me-2"></i>                                Upload Schema
                             </a>
 
                         </td>
