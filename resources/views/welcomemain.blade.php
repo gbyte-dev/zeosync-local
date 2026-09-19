@@ -12,21 +12,22 @@
 				<p class="lead">Keep products, inventory, and orders moving together. Zeosync brings Amazon and Shopify into a clearer workflow—so you can get back to growing your business.</p>
                 <p class="lead">  Connect your store, automate product sync, and manage orders & returns — all in one place.</p>
 
-				<div class="actions"> <form method="GET" action="{{ route('shopify.install') }}" class="d-flex justify-content-center">
-                <div class="input-group" style="max-width: 450px;">
+				<div class="actions"> 
+					<form method="GET" action="{{ route('shopify.install') }}" class="d-flex justify-content-center">
+						<div class="input-group" style="max-width: 450px;">
 
-                    <input type="text" name="shop" class="form-control" placeholder="your-store-name" value="{{session('active_shop')}}" required>
+							<input type="text" name="shop" class="form-control" placeholder="your-store-name" value="{{session('active_shop')}}" required>
 
-                    <span class="input-group-text d-none d-flex">.myshopify.com</span>
+							<span class="input-group-text d-none d-flex">.myshopify.com</span>
 
-                    <button class="btn btn-primary px-4" id="connect_to_store">
-                        Connect Store
-                    </button>
-                </div>
-            </form>
-            <p class="text-muted small mt-2 "> Example: demo-store.myshopify.com</p>
+							<button class="btn btn-primary px-4" id="connect_to_store">
+								Connect Store
+							</button>
+						</div>
+					</form>
+					<p class="text-muted small mt-2 "> Example: demo-store.myshopify.com</p>
 
-        </div>
+        		</div>
 				<p class="micro">Less switching tabs. Less repeating work. More room to sell.</p>
 			</div>
 			<div class="workspace" aria-label="Illustrative Zeosync dashboard">
@@ -98,19 +99,20 @@
 			<div class="sectionintro">
 				<p class="eyebrow">A STRAIGHTFORWARD START</p>
 				<h2>From separate stores<br>to a shared workflow.</h2></div>
-			<div class="steps">
-				<article><span>01 / CONNECT</span>
-					<h3>Start with your store.</h3>
-					<p>Review your Shopify setup and Amazon selling requirements.</p>
-				</article>
-				<article><span>02 / ALIGN</span>
-					<h3>Get the details right.</h3>
-					<p>Confirm products, SKU mappings, and the information you want to sync.</p>
-				</article>
-				<article><span>03 / MANAGE</span>
-					<h3>Make room for growth.</h3>
-					<p>Manage orders and follow through on returns with a clearer view.</p>
-				</article>
+				<div class="steps">
+					<article><span>01 / CONNECT</span>
+						<h3>Start with your store.</h3>
+						<p>Review your Shopify setup and Amazon selling requirements.</p>
+					</article>
+					<article><span>02 / ALIGN</span>
+						<h3>Get the details right.</h3>
+						<p>Confirm products, SKU mappings, and the information you want to sync.</p>
+					</article>
+					<article><span>03 / MANAGE</span>
+						<h3>Make room for growth.</h3>
+						<p>Manage orders and follow through on returns with a clearer view.</p>
+					</article>
+				</div>
 			</div>
 		</section>
 

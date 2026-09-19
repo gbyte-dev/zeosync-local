@@ -27,10 +27,6 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 require base_path('routes/webShopify.php');
 require base_path('routes/webnotification.php');
 
-// Route::get('/dashboard', [DashboardController::class, 'index'])->name('shopify.dashboard');
-
-// Route::get('/verify', [DashboardController::class, 'install'])->name('dashboard');
-
 Route::get('/', [ShopifyController::class, 'entry'])->name('crm.entry');
 Route::get('/apps/{token}/dashboard', [ShopifyController::class, 'appLaunch'])->name('shopify.app.launch.dashboard');
 Route::get('/apps/{token}', [ShopifyController::class, 'appLaunch'])->name('shopify.app.launch');

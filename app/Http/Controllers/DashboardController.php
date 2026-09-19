@@ -36,26 +36,16 @@ class DashboardController extends ShopifyController
         $shop = $request->attributes->get('active_shop_model');
 
         if (!$shop) {
-            $activeShop = $request->attributes->get('active_shop')
-                ?? $request->query('shop');
+            $activeShop = $request->attributes->get('active_shop') ?? $request->query('shop');
 
             if (!$activeShop) {
                 abort(404, 'Active shop not found.');
             }
 
-            $shop = Shop::where('shop', $activeShop)
-                ->where('is_active', 1)
-                ->first();
+            $shop = Shop::where('shop', $activeShop)->where('is_active', 1)->first();
 
             if (!$shop) {
-                // Log::info('DASHBOARD WAITING FOR SHOP INSTALLATION', [
-                //     'shop' => $activeShop,
-                //     'url' => $request->fullUrl(),
-                // ]);
-
-                return view('dashboard-waiting', [
-                    'shop' => $activeShop,
-                ]);
+                return view('dashboard-waiting', ['shop' => $activeShop ]);
             }
         }
 
@@ -142,17 +132,12 @@ class DashboardController extends ShopifyController
             ->map(fn($title) => \Illuminate\Support\Str::limit($title, 15))
             ->values();
 
-        $topSellingChartData = $topSellingProducts
-            ->pluck('quantity')
-            ->values();
+        $topSellingChartData = $topSellingProducts->pluck('quantity')->values();
 
         $lowInventoryProducts = collect($inventory)
             ->filter(function ($item) {
                 return isset($item['available']) && $item['available'] !== null && $item['available'] < 10;
-            })
-            ->sortBy('available')
-            ->take(7)
-            ->values();
+            })->sortBy('available')->take(7)->values();
 
         $amazonLowInventoryProducts = collect($amazonInventory)
             ->filter(function ($item) {
@@ -163,20 +148,11 @@ class DashboardController extends ShopifyController
             ->values();
 
         // Return only the exact variables required by the frontend
-        return view('dashboard', compact(
-            'totalProducts',
-            'totalMapped',
-            'totalOrders',
-            'isShopConnected',
-            'ordersTimeline',
-            'productTrend',
-            'recentLogs',
-            'topSellingProducts',
-            'topSellingChartLabels',
-            'topSellingChartData',
-            'lowInventoryProducts',
-            'amazonLowInventoryProducts',
-            'amazonInventoryCacheExists'
+        return view('dashboard', compact( 'totalProducts','totalMapped',
+            'totalOrders','isShopConnected','ordersTimeline','productTrend',
+            'recentLogs', 'topSellingProducts', 'topSellingChartLabels',
+            'topSellingChartData','lowInventoryProducts',  'amazonLowInventoryProducts',
+            'amazonInventoryCacheExists' ,'shop'
         ));
     }
 

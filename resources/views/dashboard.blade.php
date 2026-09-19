@@ -418,6 +418,26 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                     <p class="card-subtitle-custom">
                         Products with inventory below 10 units
                     </p>
+
+
+                        @php
+                            $locations = $shop->shopify_locations ?? [];
+                            $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+                                ? (int) $shop->selected_location_index
+                                : 0;
+                        @endphp
+
+                        <select name="selected_location_index" class="saas-select">
+                            @if(!empty($locations))
+                                @foreach($locations as $index => $location)
+                                <option value="{{ $index }}" {{ (string) old('selected_location_index', $selectedIndex) === (string) $index ? 'selected' : '' }}>
+                                    {{ $location['name'] ?? 'Unnamed Location' }}
+                                </option>
+                                @endforeach
+                            @else
+                                <option value="" selected>No Location Available</option>
+                            @endif
+                        </select>
                 </div>
 
                 <div class="card-divider"></div>
