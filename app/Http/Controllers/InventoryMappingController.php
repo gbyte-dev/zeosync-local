@@ -462,7 +462,7 @@ class InventoryMappingController extends Controller
             if (!$locationId) {
                 try {
                     $shopifyService = new ShopifyService($shop->shop, $shop->access_token);
-                    $locResponse = $shopifyService->shopifyRest($shop, 'get', 'locations.json');
+                    $locResponse = $shopifyService->getLocations($shop);
                     if (empty($locResponse['error']) && !empty($locResponse['locations'])) {
                         $fetchedLocations = $locResponse['locations'];
                         $effectiveIndex = (isset($shop->selected_location_index) && isset($fetchedLocations[$shop->selected_location_index]))
@@ -534,14 +534,10 @@ class InventoryMappingController extends Controller
                 // Fetch fresh authoritative Shopify baseline when not provided by the caller
                 try {
                     $shopifyService = new ShopifyService($shop->shop, $shop->access_token);
-                    $levelsResponse = $shopifyService->shopifyRest(
+                    $levelsResponse = $shopifyService->getInventoryLevel(
                         $shop,
-                        'get',
-                        'inventory_levels.json',
-                        [
-                            'inventory_item_ids' => (string) $request->inventory_item_id,
-                            'location_ids' => (string) $locationId,
-                        ]
+                        $request->inventory_item_id,
+                        $locationId
                     );
 
                     $levels = $levelsResponse['inventory_levels'] ?? [];

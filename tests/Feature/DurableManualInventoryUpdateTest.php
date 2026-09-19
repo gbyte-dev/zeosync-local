@@ -26,7 +26,90 @@ beforeEach(function () {
     ]);
 
     Http::fake([
-        '*graphql.json*'              => Http::response(['data' => ['currentAppInstallation' => ['activeSubscriptions' => [['id' => 'gid://shopify/AppSubscription/1', 'name' => 'Pro', 'status' => 'ACTIVE', 'currentPeriodEnd' => '2030-01-01T00:00:00Z']]]]], 200),
+        '*graphql.json*'              => function (\Illuminate\Http\Client\Request $request) {
+            $data = $request->data();
+            $query = $data['query'] ?? '';
+            $vars = $data['variables'] ?? [];
+
+            if (str_contains($query, 'currentAppInstallation')) {
+                return Http::response(['data' => ['currentAppInstallation' => ['activeSubscriptions' => [['id' => 'gid://shopify/AppSubscription/1', 'name' => 'Pro', 'status' => 'ACTIVE', 'currentPeriodEnd' => '2030-01-01T00:00:00Z']]]]], 200);
+            }
+
+            if (str_contains($query, 'locations(') || str_contains($query, 'GetLocations')) {
+                return Http::response([
+                    'data' => [
+                        'locations' => [
+                            'nodes' => [
+                                ['id' => 'gid://shopify/Location/loc_101', 'legacyResourceId' => 'loc_101', 'name' => 'Primary Location', 'isActive' => true],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            if (str_contains($query, 'inventorySetQuantities') || str_contains($query, 'InventorySetQuantities')) {
+                $quantities = $vars['input']['quantities'] ?? [];
+                $qty = $quantities[0]['quantity'] ?? 25;
+                $itemGid = $quantities[0]['inventoryItemId'] ?? 'gid://shopify/InventoryItem/12345';
+                $locGid = $quantities[0]['locationId'] ?? 'gid://shopify/Location/loc_101';
+                $rawItem = str_contains((string) $itemGid, 'gid://shopify/InventoryItem/') ? substr((string) $itemGid, strrpos((string) $itemGid, '/') + 1) : (string) $itemGid;
+                $rawLoc = str_contains((string) $locGid, 'gid://shopify/Location/') ? substr((string) $locGid, strrpos((string) $locGid, '/') + 1) : (string) $locGid;
+                return Http::response([
+                    'data' => [
+                        'inventorySetQuantities' => [
+                            'inventoryAdjustmentGroup' => [
+                                'reason' => 'cycle_count_available',
+                                'changes' => [
+                                    [
+                                        'name' => 'available',
+                                        'delta' => 0,
+                                        'quantity' => (int) $qty,
+                                        'item' => ['id' => $itemGid, 'legacyResourceId' => $rawItem],
+                                        'location' => ['id' => $locGid, 'legacyResourceId' => $rawLoc],
+                                    ]
+                                ]
+                            ],
+                            'userErrors' => []
+                        ]
+                    ]
+                ], 200);
+            }
+
+            if (str_contains($query, 'inventoryItem(') || str_contains($query, 'GetInventoryItemLevels')) {
+                $id = $vars['id'] ?? '';
+                $rawId = str_contains((string) $id, 'gid://shopify/InventoryItem/') ? substr((string) $id, strrpos((string) $id, '/') + 1) : (string) $id;
+                $mapping = $rawId ? ProductMarketplaceMapping::where('shopify_inventory_item_id', (string) $rawId)->first() : null;
+                $qty = $mapping && $mapping->quantity !== null ? (int) $mapping->quantity : 20;
+
+                return Http::response([
+                    'data' => [
+                        'inventoryItem' => [
+                            'id' => $id,
+                            'legacyResourceId' => $rawId,
+                            'inventoryLevels' => [
+                                'nodes' => [
+                                    [
+                                        'id' => "gid://shopify/InventoryLevel/{$rawId}?location_id=loc_101",
+                                        'location' => [
+                                            'id' => 'gid://shopify/Location/loc_101',
+                                            'legacyResourceId' => 'loc_101',
+                                            'name' => 'Primary Location',
+                                        ],
+                                        'quantities' => [
+                                            ['name' => 'available', 'quantity' => (int) $qty],
+                                            ['name' => 'on_hand', 'quantity' => (int) $qty],
+                                            ['name' => 'committed', 'quantity' => 0],
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        },
         '*inventory_levels/set.json*' => function (\Illuminate\Http\Client\Request $request) {
             $data = $request->data();
             $qty = $data['available'] ?? 25;
@@ -373,6 +456,14 @@ test('8. worker updates Shopify with desired quantity and location', function ()
                 && $data['inventory_item_id'] === 'item_shopify_call'
                 && $data['available'] === 77;
         }
+        if (str_contains($httpRequest->url(), 'graphql.json')) {
+            $vars = $httpRequest->data()['variables'] ?? [];
+            $quantities = $vars['input']['quantities'] ?? [];
+            $qty = $quantities[0]['quantity'] ?? null;
+            $locGid = $quantities[0]['locationId'] ?? '';
+            $itemGid = $quantities[0]['inventoryItemId'] ?? '';
+            return $qty === 77 && str_contains((string) $locGid, 'loc_101') && str_contains((string) $itemGid, 'item_shopify_call');
+        }
         return false;
     });
 });
@@ -402,12 +493,7 @@ test('9. worker updates Amazon with desired quantity when mapped', function () {
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(
-            Mockery::on(fn($s) => $s->id === $shop->id),
-            'AMZN-SKU-77',
-            50,
-            false
-        )
+        ->withArgs(fn($s, $sku, $qty) => $s->id === $shop->id && $sku === 'AMZN-SKU-77' && $qty === 50)
         ->andReturn(['submissionId' => 'sub_123']);
 
 
@@ -482,6 +568,7 @@ test('10. AmazonService handles Amazon sync and verification job integration', f
 test('11. Shopify transient failure throws exception to trigger queue retry', function () {
     Http::swap(new \Illuminate\Http\Client\Factory);
     Http::fake([
+        '*graphql.json*'              => Http::response(['errors' => [['message' => 'Rate limit exceeded']]], 429),
         '*inventory_levels/set.json*' => Http::response(['error' => 'Rate limit exceeded', 'message' => 'Rate limit exceeded'], 429),
         '*'                           => Http::response([], 200),
     ]);
@@ -804,12 +891,7 @@ test('19. worker crash after Shopify but before Amazon resumes at Amazon stage w
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(
-            Mockery::on(fn($s) => $s->id === $shop->id),
-            'CRASH-SKU',
-            60,
-            false
-        )
+        ->withArgs(fn($s, $sku, $qty) => $s->id === $shop->id && $sku === 'CRASH-SKU' && $qty === 60)
         ->andReturn(['submissionId' => 'sub_recovered']);
 
 
@@ -979,6 +1061,12 @@ test('24. operation uses the exact location captured at creation time', function
     Http::assertSent(function ($req) {
         if (str_contains($req->url(), 'inventory_levels/set.json')) {
             return $req->data()['location_id'] === 'loc_secondary';
+        }
+        if (str_contains($req->url(), 'graphql.json')) {
+            $vars = $req->data()['variables'] ?? [];
+            $quantities = $vars['input']['quantities'] ?? [];
+            $locGid = $quantities[0]['locationId'] ?? '';
+            return str_contains((string) $locGid, 'loc_secondary');
         }
         return false;
     });
@@ -1309,6 +1397,7 @@ test('AUDIT 8. Amazon ACCEPTED leaves operation in awaiting_verification and map
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
+        ->withArgs(fn($s, $sku, $qty) => $s->id === $shop->id && $sku === 'SKU-AUDIT-8' && $qty === 25)
         ->andReturn(['submissionId' => 'SUB-AUDIT-8', 'status' => 'ACCEPTED']);
 
     $job = new ProcessInventoryUpdateJob($op->id);
@@ -1404,6 +1493,7 @@ test('AUDIT 10. mapping.quantity represents established Shopify quantity after S
     // Simulate Amazon failing on Stage 2
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
+        ->withArgs(fn($s, $sku, $qty) => $s->id === $shop->id && $sku === 'SKU-AUDIT-10' && $qty === 40)
         ->andThrow(new \Exception('Amazon 500'));
 
     $job = new ProcessInventoryUpdateJob($op->id);
@@ -1447,7 +1537,7 @@ test('AUDIT 11. Shopify success + Amazon failure retries only Amazon stage', fun
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-AUDIT-11', 65, false)
+        ->withArgs(fn($s, $sku, $qty) => $s->id === $shop->id && $sku === 'SKU-AUDIT-11' && $qty === 65)
         ->andReturn(['submissionId' => 'SUB-RETRY-OK']);
 
     $job = new ProcessInventoryUpdateJob($op->id);
@@ -1583,7 +1673,7 @@ test('AUDIT 14. multi-tenant operation isolation remains intact', function () {
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(Mockery::on(fn($s) => $s->id === $shop1->id), 'SHARED-SKU', 20, false)
+        ->withArgs(fn($s, $sku, $qty) => $s->id === $shop1->id && $sku === 'SHARED-SKU' && $qty === 20)
         ->andReturn(['submissionId' => 'SUB-TENANT-1']);
 
     $job1 = new ProcessInventoryUpdateJob($op1->id);
@@ -1623,6 +1713,63 @@ test('AUDIT 15. Manual inventory update calls Shopify set.json exactly once and 
     ]);
 
     Http::fake([
+        '*graphql.json*' => function (\Illuminate\Http\Client\Request $request) {
+            $data = $request->data();
+            $query = $data['query'] ?? '';
+            $vars = $data['variables'] ?? [];
+
+            if (str_contains($query, 'inventorySetQuantities') || str_contains($query, 'InventorySetQuantities')) {
+                return Http::response([
+                    'data' => [
+                        'inventorySetQuantities' => [
+                            'inventoryAdjustmentGroup' => [
+                                'reason' => 'cycle_count_available',
+                                'changes' => [
+                                    [
+                                        'name' => 'available',
+                                        'delta' => 0,
+                                        'quantity' => 25,
+                                        'item' => ['id' => 'gid://shopify/InventoryItem/item_single_shopify_call', 'legacyResourceId' => 'item_single_shopify_call'],
+                                        'location' => ['id' => 'gid://shopify/Location/loc_101', 'legacyResourceId' => 'loc_101'],
+                                    ]
+                                ]
+                            ],
+                            'userErrors' => []
+                        ]
+                    ]
+                ], 200);
+            }
+
+            if (str_contains($query, 'inventoryItem(') || str_contains($query, 'GetInventoryItemLevels')) {
+                return Http::response([
+                    'data' => [
+                        'inventoryItem' => [
+                            'id' => 'gid://shopify/InventoryItem/item_single_shopify_call',
+                            'legacyResourceId' => 'item_single_shopify_call',
+                            'inventoryLevels' => [
+                                'nodes' => [
+                                    [
+                                        'id' => 'gid://shopify/InventoryLevel/item_single_shopify_call?location_id=loc_101',
+                                        'location' => [
+                                            'id' => 'gid://shopify/Location/loc_101',
+                                            'legacyResourceId' => 'loc_101',
+                                            'name' => 'Primary Location',
+                                        ],
+                                        'quantities' => [
+                                            ['name' => 'available', 'quantity' => 25],
+                                            ['name' => 'on_hand', 'quantity' => 25],
+                                            ['name' => 'committed', 'quantity' => 0],
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        },
         '*/inventory_levels.json*' => Http::response([
             'inventory_levels' => [
                 [
@@ -1644,12 +1791,7 @@ test('AUDIT 15. Manual inventory update calls Shopify set.json exactly once and 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(
-            Mockery::on(fn($s) => $s->id === $shop->id),
-            'SINGLE-CALL-SKU',
-            25,
-            false // Assert syncToShopify is explicitly false
-        )
+        ->withArgs(fn($s, $sku, $qty, $syncShopify) => $s->id === $shop->id && $sku === 'SINGLE-CALL-SKU' && $qty === 25 && $syncShopify === false)
         ->andReturn(['submissionId' => 'sub_single_call_ok']);
 
     $job = new ProcessInventoryUpdateJob($operation->id);
@@ -1659,14 +1801,12 @@ test('AUDIT 15. Manual inventory update calls Shopify set.json exactly once and 
     expect($operation->status)->toBe('awaiting_verification')
         ->and($operation->stage)->toBe('amazon_accepted');
 
-    // Assert Shopify set.json was called exactly ONCE
-    Http::assertSentCount(2); // 1 GET for Stage 2 authoritative read + 1 POST set.json
+    // Assert Shopify GraphQL was called (1 query for Stage 2 authoritative read + 1 mutation for set quantity)
+    Http::assertSentCount(2);
     Http::assertSent(function ($request) {
-        if (str_contains($request->url(), 'inventory_levels/set.json')) {
-            $body = $request->data();
-            return $body['available'] === 25
-                && $body['location_id'] === 'loc_101'
-                && $body['inventory_item_id'] === 'item_single_shopify_call';
+        if (str_contains($request->url(), 'graphql.json')) {
+            $query = $request->data()['query'] ?? '';
+            return str_contains($query, 'inventorySetQuantities') || str_contains($query, 'inventoryItem');
         }
         return true;
     });

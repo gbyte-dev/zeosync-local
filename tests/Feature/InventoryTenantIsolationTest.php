@@ -28,6 +28,38 @@ beforeEach(function () {
     Queue::fake();
 
     Http::fake([
+        '*graphql.json*' => function (\Illuminate\Http\Client\Request $request) {
+            $data = $request->data();
+            $query = $data['query'] ?? '';
+            $vars = $data['variables'] ?? [];
+            if (str_contains($query, 'inventorySetQuantities') || str_contains($query, 'InventorySetQuantities')) {
+                return Http::response(['data' => ['inventorySetQuantities' => ['inventoryAdjustmentGroup' => null, 'userErrors' => []]]], 200);
+            }
+            if (str_contains($query, 'inventoryItem(') || str_contains($query, 'GetInventoryItemLevels')) {
+                $id = $vars['id'] ?? '';
+                $rawId = str_contains((string) $id, 'gid://shopify/InventoryItem/') ? substr((string) $id, strrpos((string) $id, '/') + 1) : (string) $id;
+                $mapping = $rawId ? ProductMarketplaceMapping::where('shopify_inventory_item_id', $rawId)->first() : null;
+                $qty = $mapping && $mapping->quantity !== null ? (int) $mapping->quantity : 10;
+                return Http::response([
+                    'data' => [
+                        'inventoryItem' => [
+                            'id' => $id,
+                            'legacyResourceId' => $rawId,
+                            'inventoryLevels' => [
+                                'nodes' => [
+                                    [
+                                        'id' => "gid://shopify/InventoryLevel/{$rawId}?location_id=101",
+                                        'location' => ['id' => 'gid://shopify/Location/101', 'legacyResourceId' => '101'],
+                                        'quantities' => [['name' => 'available', 'quantity' => $qty]]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ], 200);
+            }
+            return Http::response(['data' => []], 200);
+        },
         '*inventory_levels/set.json*' => Http::response(['inventory_level' => ['available' => 10]], 200),
         '*products.json*'             => Http::response(['products' => []], 200),
         '*'                           => Http::response(['access_token' => 'dummy_token', 'expires_in' => 3600], 200),

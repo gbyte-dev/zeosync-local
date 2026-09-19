@@ -162,6 +162,113 @@ function createStaleTestShop(array $attributes = []): Shop
     ], $attributes));
 }
 
+function fakeStaleShopifyInventory(array $levelsByItemAndLoc = [], ?int $fallbackStock = null)
+{
+    Http::fake([
+        '*graphql.json*' => function (\Illuminate\Http\Client\Request $request) use ($levelsByItemAndLoc, $fallbackStock) {
+            $data = $request->data();
+            $query = $data['query'] ?? '';
+            $vars = $data['variables'] ?? [];
+
+            if (str_contains($query, 'locations(') || str_contains($query, 'GetLocations')) {
+                return Http::response([
+                    'data' => [
+                        'locations' => [
+                            'nodes' => [
+                                ['id' => 'gid://shopify/Location/loc_101', 'legacyResourceId' => 'loc_101', 'name' => 'Main Location', 'isActive' => true],
+                                ['id' => 'gid://shopify/Location/loc_202', 'legacyResourceId' => 'loc_202', 'name' => 'Secondary Location', 'isActive' => true],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            if (str_contains($query, 'inventorySetQuantities') || str_contains($query, 'InventorySetQuantities')) {
+                $quantities = $vars['input']['quantities'] ?? [];
+                $qty = $quantities[0]['quantity'] ?? 0;
+                $itemGid = $quantities[0]['inventoryItemId'] ?? 'gid://shopify/InventoryItem/123';
+                $locGid = $quantities[0]['locationId'] ?? 'gid://shopify/Location/loc_101';
+                $rawItem = str_contains((string) $itemGid, 'gid://shopify/InventoryItem/') ? substr((string) $itemGid, strrpos((string) $itemGid, '/') + 1) : (string) $itemGid;
+                $rawLoc = str_contains((string) $locGid, 'gid://shopify/Location/') ? substr((string) $locGid, strrpos((string) $locGid, '/') + 1) : (string) $locGid;
+                return Http::response([
+                    'data' => [
+                        'inventorySetQuantities' => [
+                            'userErrors' => [],
+                            'inventoryAdjustmentGroup' => [
+                                'reason' => 'cycle_count_available',
+                                'changes' => [
+                                    [
+                                        'name' => 'available',
+                                        'delta' => 0,
+                                        'quantityAfterChange' => (int) $qty,
+                                        'item' => ['id' => $itemGid, 'legacyResourceId' => $rawItem],
+                                        'location' => ['id' => $locGid, 'legacyResourceId' => $rawLoc],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            if (str_contains($query, 'inventoryItem(') || str_contains($query, 'GetInventoryItemLevels')) {
+                $id = $vars['id'] ?? '';
+                $rawId = str_contains((string) $id, 'gid://shopify/InventoryItem/') ? substr((string) $id, strrpos((string) $id, '/') + 1) : (string) $id;
+
+                $nodes = [];
+                if (isset($levelsByItemAndLoc[$rawId])) {
+                    $itemLevels = $levelsByItemAndLoc[$rawId];
+                    foreach ($itemLevels as $locId => $avail) {
+                        if ($avail === null) {
+                            continue;
+                        }
+                        $nodes[] = [
+                            'id' => "gid://shopify/InventoryLevel/{$rawId}?location_id={$locId}",
+                            'location' => [
+                                'id' => "gid://shopify/Location/{$locId}",
+                                'legacyResourceId' => $locId,
+                                'name' => "Location {$locId}",
+                            ],
+                            'quantities' => [
+                                ['name' => 'available', 'quantity' => (int) $avail],
+                                ['name' => 'on_hand', 'quantity' => (int) $avail],
+                            ],
+                        ];
+                    }
+                } elseif ($fallbackStock !== null) {
+                    $nodes[] = [
+                        'id' => "gid://shopify/InventoryLevel/{$rawId}?location_id=loc_101",
+                        'location' => [
+                            'id' => 'gid://shopify/Location/loc_101',
+                            'legacyResourceId' => 'loc_101',
+                            'name' => 'Main Location',
+                        ],
+                        'quantities' => [
+                            ['name' => 'available', 'quantity' => $fallbackStock],
+                            ['name' => 'on_hand', 'quantity' => $fallbackStock],
+                        ],
+                    ];
+                }
+
+                return Http::response([
+                    'data' => [
+                        'inventoryItem' => [
+                            'id' => $id,
+                            'legacyResourceId' => $rawId,
+                            'inventoryLevels' => [
+                                'nodes' => $nodes,
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        },
+        '*' => Http::response(['access_token' => 'dummy'], 200),
+    ]);
+}
+
 // 1. OLD MANUAL 20 + NEW SHOPIFY 18: fresh GET detects 18 and prevents writing 20
 test('1. old manual 20 queued + shopify independently becomes 18: worker detects difference and does NOT write 20', function () {
     $shop = createStaleTestShop();
@@ -188,11 +295,7 @@ test('1. old manual 20 queued + shopify independently becomes 18: worker detects
     ]);
 
     // Live Shopify inventory is now 18 (e.g. customer purchased 2 units)
-    Http::fake([
-        '*inventory_levels.json*'     => Http::response(['inventory_levels' => [['inventory_item_id' => 'item_123', 'location_id' => 'loc_101', 'available' => 18]]], 200),
-        '*inventory_levels/set.json*' => Http::response(['inventory_level' => ['available' => 20]], 200),
-        '*'                           => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_123' => ['loc_101' => 18]]);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldNotReceive('updateInventory');
@@ -213,7 +316,8 @@ test('1. old manual 20 queued + shopify independently becomes 18: worker detects
 
     // Assert that Shopify SET was NEVER called
     Http::assertNotSent(function ($request) {
-        return str_contains($request->url(), 'inventory_levels/set.json');
+        $query = $request->data()['query'] ?? '';
+        return str_contains($request->url(), 'inventory_levels/set.json') || str_contains($query, 'inventorySetQuantities');
     });
 });
 
@@ -242,10 +346,7 @@ test('2. delayed webhook scenario: local version unchanged but fresh Shopify GET
         'stage'                      => 'pending',
     ]);
 
-    Http::fake([
-        '*inventory_levels.json*' => Http::response(['inventory_levels' => [['inventory_item_id' => 'item_456', 'location_id' => 'loc_101', 'available' => 18]]], 200),
-        '*'                       => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_456' => ['loc_101' => 18]]);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldNotReceive('updateInventory');
@@ -294,7 +395,8 @@ test('3. local inventory_version changed before worker: worker aborts before cal
 
     // No external Shopify API calls made
     Http::assertNotSent(function ($request) {
-        return str_contains($request->url(), 'inventory_levels');
+        $query = $request->data()['query'] ?? '';
+        return str_contains($request->url(), 'inventory_levels') || str_contains($query, 'inventoryItem') || str_contains($query, 'inventorySetQuantities');
     });
 });
 
@@ -325,21 +427,74 @@ test('4. intentional manual override: baseline 18, desired 20, live 18 succeeds'
 
     $liveStock = 18;
     Http::fake([
-        '*inventory_levels/set.json*' => function ($request) use (&$liveStock) {
-            $liveStock = $request['available'] ?? 20;
-            return Http::response(['inventory_level' => ['available' => $liveStock]], 200);
+        '*graphql.json*' => function (\Illuminate\Http\Client\Request $request) use (&$liveStock) {
+            $data = $request->data();
+            $query = $data['query'] ?? '';
+            $vars = $data['variables'] ?? [];
+
+            if (str_contains($query, 'inventorySetQuantities') || str_contains($query, 'InventorySetQuantities')) {
+                $quantities = $vars['input']['quantities'] ?? [];
+                $liveStock = isset($quantities[0]['quantity']) ? (int) $quantities[0]['quantity'] : 20;
+                return Http::response([
+                    'data' => [
+                        'inventorySetQuantities' => [
+                            'userErrors' => [],
+                            'inventoryAdjustmentGroup' => [
+                                'reason' => 'cycle_count_available',
+                                'changes' => [
+                                    [
+                                        'name' => 'available',
+                                        'delta' => 0,
+                                        'quantityAfterChange' => $liveStock,
+                                        'item' => ['id' => 'gid://shopify/InventoryItem/item_override', 'legacyResourceId' => 'item_override'],
+                                        'location' => ['id' => 'gid://shopify/Location/loc_101', 'legacyResourceId' => 'loc_101'],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            if (str_contains($query, 'inventoryItem(') || str_contains($query, 'GetInventoryItemLevels')) {
+                return Http::response([
+                    'data' => [
+                        'inventoryItem' => [
+                            'id' => 'gid://shopify/InventoryItem/item_override',
+                            'legacyResourceId' => 'item_override',
+                            'inventoryLevels' => [
+                                'nodes' => [
+                                    [
+                                        'id' => 'gid://shopify/InventoryLevel/item_override?location_id=loc_101',
+                                        'location' => [
+                                            'id' => 'gid://shopify/Location/loc_101',
+                                            'legacyResourceId' => 'loc_101',
+                                            'name' => 'Main Location',
+                                        ],
+                                        'quantities' => [
+                                            ['name' => 'available', 'quantity' => $liveStock],
+                                            ['name' => 'on_hand', 'quantity' => $liveStock],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response(['data' => []], 200);
         },
-        '*inventory_levels.json*'     => function ($request) use (&$liveStock) {
-            return Http::response(['inventory_levels' => [['inventory_item_id' => 'item_override', 'location_id' => 'loc_101', 'available' => $liveStock]]], 200);
-        },
-        '*'                           => Http::response(['access_token' => 'dummy'], 200),
+        '*' => Http::response(['access_token' => 'dummy'], 200),
     ]);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-OVERRIDE', 20, false)
-        ->andReturn(['submissionId' => 'SUB-OVERRIDE']);
+        ->withArgs(function ($s, $sku, $qty) use ($shop) {
+            return $s->id === $shop->id && $sku === 'SKU-OVERRIDE' && $qty === 20;
+        })
+        ->andReturn(['submissionId' => 'SUB-OVERRIDE', 'status' => 'ACCEPTED']);
 
     $job = new ProcessInventoryUpdateJob($operation->id);
     $job->handle($mockAmazon);
@@ -352,8 +507,11 @@ test('4. intentional manual override: baseline 18, desired 20, live 18 succeeds'
         ->and((int) $mapping->inventory_version)->toBeGreaterThanOrEqual(2);
 
     Http::assertSent(function ($request) {
-        return str_contains($request->url(), 'inventory_levels/set.json')
-            && $request['available'] === 20;
+        $query = $request->data()['query'] ?? '';
+        $vars = $request->data()['variables'] ?? [];
+        $quantities = $vars['input']['quantities'] ?? [];
+        return (str_contains($query, 'inventorySetQuantities') && ($quantities[0]['quantity'] ?? null) === 20)
+            || (str_contains($request->url(), 'inventory_levels/set.json') && ($request['available'] ?? null) === 20);
     });
 });
 
@@ -383,10 +541,7 @@ test('5. intentional override becomes stale: baseline 18, desired 20, live 16 is
     ]);
 
     // Live Shopify is now 16 (another order happened before worker ran)
-    Http::fake([
-        '*inventory_levels.json*' => Http::response(['inventory_levels' => [['inventory_item_id' => 'item_override_stale', 'location_id' => 'loc_101', 'available' => 16]]], 200),
-        '*'                       => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_override_stale' => ['loc_101' => 16]]);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldNotReceive('updateInventory');
@@ -401,7 +556,8 @@ test('5. intentional override becomes stale: baseline 18, desired 20, live 16 is
         ->and((int) $mapping->quantity)->toBe(16);
 
     Http::assertNotSent(function ($request) {
-        return str_contains($request->url(), 'inventory_levels/set.json');
+        $query = $request->data()['query'] ?? '';
+        return str_contains($request->url(), 'inventory_levels/set.json') || str_contains($query, 'inventorySetQuantities');
     });
 });
 
@@ -430,10 +586,7 @@ test('6. multiple newer orders: baseline 20, live 15 cannot restore 20', functio
         'stage'                      => 'pending',
     ]);
 
-    Http::fake([
-        '*inventory_levels.json*' => Http::response(['inventory_levels' => [['inventory_item_id' => 'item_multi_order', 'location_id' => 'loc_101', 'available' => 15]]], 200),
-        '*'                       => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_multi_order' => ['loc_101' => 15]]);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldNotReceive('updateInventory');
@@ -548,10 +701,7 @@ test('9. negative state: baseline 0, live -2 does not restore 0', function () {
     ]);
 
     // Shopify became -2 because of an oversold order
-    Http::fake([
-        '*inventory_levels.json*' => Http::response(['inventory_levels' => [['inventory_item_id' => 'item_negative', 'location_id' => 'loc_101', 'available' => -2]]], 200),
-        '*'                       => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_negative' => ['loc_101' => -2]]);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldNotReceive('updateInventory');
@@ -566,7 +716,8 @@ test('9. negative state: baseline 0, live -2 does not restore 0', function () {
         ->and((int) $mapping->quantity)->toBe(-2);
 
     Http::assertNotSent(function ($request) {
-        return str_contains($request->url(), 'inventory_levels/set.json');
+        $query = $request->data()['query'] ?? '';
+        return str_contains($request->url(), 'inventory_levels/set.json') || str_contains($query, 'inventorySetQuantities');
     });
 });
 
@@ -596,10 +747,7 @@ test('10. unknown state: live quantity unknown or null causes safe rejection wit
     ]);
 
     // Shopify returns empty inventory levels (item not tracked / not found at location)
-    Http::fake([
-        '*inventory_levels.json*' => Http::response(['inventory_levels' => []], 200),
-        '*'                       => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_unknown' => []]);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldNotReceive('updateInventory');
@@ -613,7 +761,8 @@ test('10. unknown state: live quantity unknown or null causes safe rejection wit
 
     // Assert that Shopify SET was NOT called
     Http::assertNotSent(function ($request) {
-        return str_contains($request->url(), 'inventory_levels/set.json');
+        $query = $request->data()['query'] ?? '';
+        return str_contains($request->url(), 'inventory_levels/set.json') || str_contains($query, 'inventorySetQuantities');
     });
 });
 
@@ -642,17 +791,18 @@ test('11. correct location: operation for Location 2 checks Location 2 inventory
         'stage'                      => 'pending',
     ]);
 
-    Http::fake([
-        '*inventory_levels.json*'     => Http::response(['inventory_levels' => [
-            ['inventory_item_id' => 'item_loc2', 'location_id' => 'loc_101', 'available' => 10],
-            ['inventory_item_id' => 'item_loc2', 'location_id' => 'loc_202', 'available' => 50],
-        ]], 200),
-        '*inventory_levels/set.json*' => Http::response(['inventory_level' => ['available' => 50]], 200),
-        '*'                           => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_loc2' => [
+        'loc_101' => 10,
+        'loc_202' => 50,
+    ]], 50);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
-    $mockAmazon->shouldReceive('updateInventory')->once()->andReturn(['submissionId' => 'SUB-LOC2']);
+    $mockAmazon->shouldReceive('updateInventory')
+        ->once()
+        ->withArgs(function ($s, $sku, $qty) use ($shop) {
+            return $s->id === $shop->id && $sku === 'SKU-LOC2' && $qty === 50;
+        })
+        ->andReturn(['submissionId' => 'SUB-LOC2', 'status' => 'ACCEPTED']);
 
     $job = new ProcessInventoryUpdateJob($operation->id);
     $job->handle($mockAmazon);
@@ -661,8 +811,11 @@ test('11. correct location: operation for Location 2 checks Location 2 inventory
     expect($operation->status)->toBe('awaiting_verification');
 
     Http::assertSent(function ($request) {
-        return str_contains($request->url(), 'inventory_levels/set.json')
-            && $request['location_id'] === 'loc_202';
+        $query = $request->data()['query'] ?? '';
+        $vars = $request->data()['variables'] ?? [];
+        $quantities = $vars['input']['quantities'] ?? [];
+        return (str_contains($query, 'inventorySetQuantities') && str_contains($quantities[0]['locationId'] ?? '', 'loc_202'))
+            || (str_contains($request->url(), 'inventory_levels/set.json') && ($request['location_id'] ?? '') === 'loc_202');
     });
 });
 
@@ -689,11 +842,12 @@ test('12. duplicate job: repeated execution of stale operation exits harmlessly 
     $job->handle($mockAmazon);
 
     Http::assertNotSent(function ($request) {
-        return str_contains($request->url(), 'inventory_levels/set.json');
+        $query = $request->data()['query'] ?? '';
+        return str_contains($request->url(), 'inventory_levels/set.json') || str_contains($query, 'inventorySetQuantities');
     });
 });
 
-// 13. Multi-tenant isolation
+// 13. Multi-tenant isolation: stale checks on Shop A never touch Shop B mappings
 test('13. multi-tenant isolation: stale checks on Shop A never touch Shop B mappings', function () {
     $shopA = createStaleTestShop(['shop' => 'tenant-a.myshopify.com']);
     $shopB = createStaleTestShop(['shop' => 'tenant-b.myshopify.com']);
@@ -728,10 +882,7 @@ test('13. multi-tenant isolation: stale checks on Shop A never touch Shop B mapp
         'stage'                      => 'pending',
     ]);
 
-    Http::fake([
-        '*inventory_levels.json*' => Http::response(['inventory_levels' => [['inventory_item_id' => 'item_iso', 'location_id' => 'loc_101', 'available' => 14]]], 200),
-        '*'                       => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_iso' => ['loc_101' => 14]]);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldNotReceive('updateInventory');
@@ -845,10 +996,7 @@ test('16. recovery sweeper + stale Shopify state: recovered operation detects ex
         'last_dispatched_at'         => now()->subMinutes(15),
     ]);
 
-    Http::fake([
-        '*inventory_levels.json*' => Http::response(['inventory_levels' => [['inventory_item_id' => 'item_rec', 'location_id' => 'loc_101', 'available' => 17]]], 200),
-        '*'                       => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_rec' => ['loc_101' => 17]]);
 
     Queue::fake();
 
@@ -873,7 +1021,8 @@ test('16. recovery sweeper + stale Shopify state: recovered operation detects ex
     expect($operation->status)->toBe('stale_external_state');
 
     Http::assertNotSent(function ($request) {
-        return str_contains($request->url(), 'inventory_levels/set.json');
+        $query = $request->data()['query'] ?? '';
+        return str_contains($request->url(), 'inventory_levels/set.json') || str_contains($query, 'inventorySetQuantities');
     });
 });
 
@@ -907,10 +1056,7 @@ test('17. Stage 2 delayed webhook race: Stage 1 establishes 20, fresh Shopify St
     ]);
 
     // Live Shopify read before Stage 2 returns 18 (customer purchased 2 units right after Stage 1)
-    Http::fake([
-        '*inventory_levels.json*' => Http::response(['inventory_levels' => [['inventory_item_id' => 'item_stage2_race', 'location_id' => 'loc_101', 'available' => 18]]], 200),
-        '*'                       => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_stage2_race' => ['loc_101' => 18]]);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldNotReceive('updateInventory');
@@ -953,10 +1099,7 @@ test('18. Stage 2 oversold race: Stage 1 establishes 0, fresh Shopify returns -2
     ]);
 
     // Live Shopify dropped to -2
-    Http::fake([
-        '*inventory_levels.json*' => Http::response(['inventory_levels' => [['inventory_item_id' => 'item_stage2_oversold', 'location_id' => 'loc_101', 'available' => -2]]], 200),
-        '*'                       => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_stage2_oversold' => ['loc_101' => -2]]);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldNotReceive('updateInventory');
@@ -998,15 +1141,14 @@ test('19. Stage 2 clean path: Stage 1 establishes 20, fresh Shopify remains 20 -
     ]);
 
     // Live Shopify matches desired 20
-    Http::fake([
-        '*inventory_levels.json*' => Http::response(['inventory_levels' => [['inventory_item_id' => 'item_stage2_clean', 'location_id' => 'loc_101', 'available' => 20]]], 200),
-        '*'                       => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_stage2_clean' => ['loc_101' => 20]]);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-STAGE2-CLEAN', 20, false)
+        ->withArgs(function ($s, $sku, $qty) use ($shop) {
+            return $s->id === $shop->id && $sku === 'SKU-STAGE2-CLEAN' && $qty === 20;
+        })
         ->andReturn(['submissionId' => 'SUB-STAGE2-CLEAN', 'status' => 'ACCEPTED']);
 
     $job = new ProcessInventoryUpdateJob($operation->id);
@@ -1049,10 +1191,7 @@ test('20. Delayed orders/create webhook after stale manual operation cannot over
     ]);
 
     // Live Shopify is already 18
-    Http::fake([
-        '*inventory_levels.json*' => Http::response(['inventory_levels' => [['inventory_item_id' => 'item_webhook_race', 'location_id' => 'loc_101', 'available' => 18]]], 200),
-        '*'                       => Http::response(['access_token' => 'dummy'], 200),
-    ]);
+    fakeStaleShopifyInventory(['item_webhook_race' => ['loc_101' => 18]]);
 
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldNotReceive('updateInventory');
@@ -1068,7 +1207,7 @@ test('20. Delayed orders/create webhook after stale manual operation cannot over
         ->and($mapping->inventory_version)->toBe(2);
 
     Http::assertNotSent(function ($request) {
-        return str_contains($request->url(), 'inventory_levels/set.json');
+        $query = $request->data()['query'] ?? '';
+        return str_contains($request->url(), 'inventory_levels/set.json') || str_contains($query, 'inventorySetQuantities');
     });
 });
-

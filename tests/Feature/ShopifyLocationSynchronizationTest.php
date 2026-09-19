@@ -24,7 +24,99 @@ beforeEach(function () {
         'app.disable_subscription'    => true,
     ]);
 
+    view()->share('cspNonce', 'test-nonce');
+    view()->share('shopifyPageLength', 10);
+    view()->share('amazonPageLength', 10);
+
     Http::fake([
+        '*graphql.json*' => function (\Illuminate\Http\Client\Request $request) {
+            $data = $request->data();
+            $query = $data['query'] ?? '';
+            $vars = $data['variables'] ?? [];
+
+            if (str_contains($query, 'currentAppInstallation')) {
+                return Http::response(['data' => ['currentAppInstallation' => ['activeSubscriptions' => [['id' => 'gid://shopify/AppSubscription/1', 'name' => 'Pro', 'status' => 'ACTIVE', 'currentPeriodEnd' => '2030-01-01T00:00:00Z']]]]], 200);
+            }
+
+            if (str_contains($query, 'locations(') || str_contains($query, 'GetLocations')) {
+                return Http::response([
+                    'data' => [
+                        'locations' => [
+                            'nodes' => [
+                                ['id' => 'gid://shopify/Location/10001', 'legacyResourceId' => '10001', 'name' => 'Location 1', 'isActive' => true],
+                                ['id' => 'gid://shopify/Location/10002', 'legacyResourceId' => '10002', 'name' => 'Location 2', 'isActive' => true],
+                                ['id' => 'gid://shopify/Location/10003', 'legacyResourceId' => '10003', 'name' => 'Location 3', 'isActive' => true],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            if (str_contains($query, 'inventorySetQuantities') || str_contains($query, 'InventorySetQuantities')) {
+                $quantities = $vars['input']['quantities'] ?? [];
+                $qty = $quantities[0]['quantity'] ?? 0;
+                $itemGid = $quantities[0]['inventoryItemId'] ?? 'gid://shopify/InventoryItem/123';
+                $locGid = $quantities[0]['locationId'] ?? 'gid://shopify/Location/10001';
+                $rawItem = str_contains((string) $itemGid, 'gid://shopify/InventoryItem/') ? substr((string) $itemGid, strrpos((string) $itemGid, '/') + 1) : (string) $itemGid;
+                $rawLoc = str_contains((string) $locGid, 'gid://shopify/Location/') ? substr((string) $locGid, strrpos((string) $locGid, '/') + 1) : (string) $locGid;
+                return Http::response([
+                    'data' => [
+                        'inventorySetQuantities' => [
+                            'userErrors' => [],
+                            'inventoryAdjustmentGroup' => [
+                                'reason' => 'cycle_count_available',
+                                'changes' => [
+                                    [
+                                        'name' => 'available',
+                                        'delta' => 0,
+                                        'quantityAfterChange' => (int) $qty,
+                                        'item' => ['id' => $itemGid, 'legacyResourceId' => $rawItem],
+                                        'location' => ['id' => $locGid, 'legacyResourceId' => $rawLoc],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            if (str_contains($query, 'inventoryItem(') || str_contains($query, 'GetInventoryItemLevels')) {
+                $id = $vars['id'] ?? '';
+                $rawId = str_contains((string) $id, 'gid://shopify/InventoryItem/') ? substr((string) $id, strrpos((string) $id, '/') + 1) : (string) $id;
+                $mapping = $rawId ? ProductMarketplaceMapping::where('shopify_inventory_item_id', (string) $rawId)->first() : null;
+                $qty = $mapping && $mapping->quantity !== null ? (int) $mapping->quantity : 10;
+
+                return Http::response([
+                    'data' => [
+                        'inventoryItem' => [
+                            'id' => $id,
+                            'legacyResourceId' => $rawId,
+                            'inventoryLevels' => [
+                                'nodes' => [
+                                    [
+                                        'id' => "gid://shopify/InventoryLevel/{$rawId}?location_id=10001",
+                                        'location' => ['id' => 'gid://shopify/Location/10001', 'legacyResourceId' => '10001', 'name' => 'Location 1'],
+                                        'quantities' => [['name' => 'available', 'quantity' => (int) $qty]],
+                                    ],
+                                    [
+                                        'id' => "gid://shopify/InventoryLevel/{$rawId}?location_id=10002",
+                                        'location' => ['id' => 'gid://shopify/Location/10002', 'legacyResourceId' => '10002', 'name' => 'Location 2'],
+                                        'quantities' => [['name' => 'available', 'quantity' => (int) $qty]],
+                                    ],
+                                    [
+                                        'id' => "gid://shopify/InventoryLevel/{$rawId}?location_id=10003",
+                                        'location' => ['id' => 'gid://shopify/Location/10003', 'legacyResourceId' => '10003', 'name' => 'Location 3'],
+                                        'quantities' => [['name' => 'available', 'quantity' => (int) $qty]],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        },
         '*inventory_levels/set.json*' => function (\Illuminate\Http\Client\Request $request) {
             $data = $request->data();
             $qty = $data['available'] ?? 0;
@@ -456,25 +548,12 @@ it('Requirement 11: Manual Shopify inventory update while location 1 is selected
 
     $mockAmazonService = Mockery::mock(AmazonService::class);
     $mockAmazonService->shouldReceive('updateInventory')
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-LOC-1', 25, false)
+        ->withArgs(function ($s, $sku, $qty) use ($shop) {
+            return $s->id === $shop->id && $sku === 'AMZ-LOC-1' && $qty === 25;
+        })
         ->once()
         ->andReturn(['submissionId' => 'SUB-LOC-25', 'status' => 'ACCEPTED']);
     app()->instance(AmazonService::class, $mockAmazonService);
-
-    Http::fake([
-        '*inventory_levels/set.json*' => function (\Illuminate\Http\Client\Request $request) {
-            $data = $request->data();
-            expect($data['location_id'])->toBe('10002');
-            expect($data['available'])->toBe(25);
-            return Http::response(['inventory_level' => ['available' => 25]], 200);
-        },
-        '*inventory_levels.json*' => Http::response([
-            'inventory_levels' => [
-                ['inventory_item_id' => 'ITEM-LOC-1', 'location_id' => '10002', 'available' => 10]
-            ]
-        ], 200),
-        '*' => Http::response(['access_token' => 'dummy_token', 'expires_in' => 3600], 200),
-    ]);
 
     $controller = app(InventoryMappingController::class);
     $req = Request::create('/inventory/shopify/update', 'POST', [
@@ -485,6 +564,14 @@ it('Requirement 11: Manual Shopify inventory update while location 1 is selected
 
     $response = $controller->updateShopifyInventory($req);
     expect($response->getStatusCode())->toBe(200);
+
+    Http::assertSent(function ($request) {
+        $query = $request->data()['query'] ?? '';
+        $vars = $request->data()['variables'] ?? [];
+        $quantities = $vars['input']['quantities'] ?? [];
+        return (str_contains($query, 'inventorySetQuantities') && str_contains($quantities[0]['locationId'] ?? '', '10002') && ($quantities[0]['quantity'] ?? null) === 25)
+            || (str_contains($request->url(), 'inventory_levels/set.json') && ($request['location_id'] ?? '') === '10002');
+    });
 });
 
 // =========================================================================
@@ -502,26 +589,12 @@ it('Requirement 12: Manual Shopify inventory update while location 2 is selected
 
     $mockAmazonService = Mockery::mock(AmazonService::class);
     $mockAmazonService->shouldReceive('updateInventory')
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-LOC-2', 40, false)
+        ->withArgs(function ($s, $sku, $qty) use ($shop) {
+            return $s->id === $shop->id && $sku === 'AMZ-LOC-2' && $qty === 40;
+        })
         ->once()
         ->andReturn(['submissionId' => 'SUB-LOC-40', 'status' => 'ACCEPTED']);
     app()->instance(AmazonService::class, $mockAmazonService);
-
-
-    Http::fake([
-        '*inventory_levels/set.json*' => function (\Illuminate\Http\Client\Request $request) {
-            $data = $request->data();
-            expect($data['location_id'])->toBe('10003');
-            expect($data['available'])->toBe(40);
-            return Http::response(['inventory_level' => ['available' => 40]], 200);
-        },
-        '*inventory_levels.json*' => Http::response([
-            'inventory_levels' => [
-                ['inventory_item_id' => 'ITEM-LOC-2', 'location_id' => '10003', 'available' => 10]
-            ]
-        ], 200),
-        '*' => Http::response(['access_token' => 'dummy_token', 'expires_in' => 3600], 200),
-    ]);
 
     $controller = app(InventoryMappingController::class);
     $req = Request::create('/inventory/shopify/update', 'POST', [
@@ -532,6 +605,14 @@ it('Requirement 12: Manual Shopify inventory update while location 2 is selected
 
     $response = $controller->updateShopifyInventory($req);
     expect($response->getStatusCode())->toBe(200);
+
+    Http::assertSent(function ($request) {
+        $query = $request->data()['query'] ?? '';
+        $vars = $request->data()['variables'] ?? [];
+        $quantities = $vars['input']['quantities'] ?? [];
+        return (str_contains($query, 'inventorySetQuantities') && str_contains($quantities[0]['locationId'] ?? '', '10003') && ($quantities[0]['quantity'] ?? null) === 40)
+            || (str_contains($request->url(), 'inventory_levels/set.json') && ($request['location_id'] ?? '') === '10003');
+    });
 });
 
 // =========================================================================
