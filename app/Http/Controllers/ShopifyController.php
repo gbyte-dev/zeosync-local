@@ -2121,18 +2121,60 @@ class ShopifyController extends Controller
 
             $existingImages = $request->input('existing_images', []);
             if (is_string($existingImages)) {
-                $existingImages = array_filter(array_map('trim', explode(',', $existingImages)));
+                $decoded = json_decode($existingImages, true);
+                $existingImages = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode(',', $existingImages)));
             }
             $deletedImages = $request->input('deleted_images', []);
             if (is_string($deletedImages)) {
-                $deletedImages = array_filter(array_map('trim', explode(',', $deletedImages)));
+                $decoded = json_decode($deletedImages, true);
+                $deletedImages = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode(',', $deletedImages)));
             }
             $keptImages = array_diff($existingImages, $deletedImages);
 
             $imagesData = [];
             foreach ($keptImages as $imgId) {
-                if (!empty($imgId) && filter_var($imgId, FILTER_VALIDATE_URL)) {
-                    $imagesData[] = ['src' => $imgId];
+                if (!empty($imgId)) {
+                    if (is_string($imgId) && filter_var(trim($imgId), FILTER_VALIDATE_URL)) {
+                        $imagesData[] = ['src' => trim($imgId)];
+                    } elseif (is_numeric($imgId) || str_starts_with((string)$imgId, 'gid://')) {
+                        $imagesData[] = ['id' => $imgId];
+                    }
+                }
+            }
+
+            // Also support direct 'images' array input if supplied
+            $rawImages = $request->input('images', []);
+            if (is_string($rawImages)) {
+                $decoded = json_decode($rawImages, true);
+                $rawImages = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode(',', $rawImages)));
+            }
+            if (is_array($rawImages)) {
+                foreach ($rawImages as $img) {
+                    if (is_array($img)) {
+                        $src = $img['src'] ?? ($img['url'] ?? null);
+                        $id = $img['id'] ?? null;
+                        if ($src && filter_var($src, FILTER_VALIDATE_URL)) {
+                            $imagesData[] = ['src' => $src];
+                        } elseif ($id) {
+                            $imagesData[] = ['id' => $id];
+                        }
+                    } elseif (is_string($img)) {
+                        $trimmed = trim($img);
+                        if (filter_var($trimmed, FILTER_VALIDATE_URL)) {
+                            $imagesData[] = ['src' => $trimmed];
+                        } elseif (is_numeric($trimmed) || str_starts_with($trimmed, 'gid://')) {
+                            $imagesData[] = ['id' => $trimmed];
+                        }
+                    }
+                }
+            }
+
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $galleryImage) {
+                    if ($galleryImage->isValid()) {
+                        $path = $galleryImage->store('uploads', 'public');
+                        $imagesData[] = ['src' => asset('storage/' . $path)];
+                    }
                 }
             }
 
@@ -2701,21 +2743,58 @@ class ShopifyController extends Controller
         $variantImageMap = [];
 
         $existingImages = $request->input('existing_images', []);
+        if (is_string($existingImages)) {
+            $decoded = json_decode($existingImages, true);
+            $existingImages = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode(',', $existingImages)));
+        }
         $deletedImages = $request->input('deleted_images', []);
+        if (is_string($deletedImages)) {
+            $decoded = json_decode($deletedImages, true);
+            $deletedImages = is_array($decoded) ? $deletedImages : array_filter(array_map('trim', explode(',', $deletedImages)));
+        }
         $keptImages = array_diff($existingImages, $deletedImages);
 
         foreach ($keptImages as $img) {
-            if (filter_var($img, FILTER_VALIDATE_URL)) {
-                $images[] = ['src' => $img];  // Instructs Shopify to download from Amazon URL
-            } elseif (is_numeric($img)) {
-                $images[] = ['id' => (int) $img];
+            if (is_string($img) && filter_var(trim($img), FILTER_VALIDATE_URL)) {
+                $images[] = ['src' => trim($img)];  // Instructs Shopify to download from URL
+            } elseif (is_numeric($img) || (is_string($img) && str_starts_with($img, 'gid://'))) {
+                $images[] = ['id' => $img];
+            }
+        }
+
+        // Support direct 'images' array/JSON input
+        $rawImages = $request->input('images', []);
+        if (is_string($rawImages)) {
+            $decoded = json_decode($rawImages, true);
+            $rawImages = is_array($decoded) ? $decoded : array_filter(array_map('trim', explode(',', $rawImages)));
+        }
+        if (is_array($rawImages)) {
+            foreach ($rawImages as $img) {
+                if (is_array($img)) {
+                    $src = $img['src'] ?? ($img['url'] ?? null);
+                    $id = $img['id'] ?? null;
+                    if ($src && filter_var($src, FILTER_VALIDATE_URL)) {
+                        $images[] = ['src' => $src];
+                    } elseif ($id) {
+                        $images[] = ['id' => $id];
+                    }
+                } elseif (is_string($img)) {
+                    $trimmed = trim($img);
+                    if (filter_var($trimmed, FILTER_VALIDATE_URL)) {
+                        $images[] = ['src' => $trimmed];
+                    } elseif (is_numeric($trimmed) || str_starts_with($trimmed, 'gid://')) {
+                        $images[] = ['id' => $trimmed];
+                    }
+                }
             }
         }
 
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $galleryImage) {
                 if ($galleryImage->isValid()) {
+                    $path = $galleryImage->store('uploads', 'public');
                     $images[] = [
+                        'src' => asset('storage/' . $path),
                         'attachment' => base64_encode(
                             file_get_contents($galleryImage->getRealPath())
                         )
@@ -2728,7 +2807,9 @@ class ShopifyController extends Controller
             foreach ($request->file('variants', []) as $index => $variantFiles) {
                 if (!empty($variantFiles['image']) && $variantFiles['image']->isValid()) {
                     $file = $variantFiles['image'];
+                    $path = $file->store('uploads', 'public');
                     $images[] = [
+                        'src' => asset('storage/' . $path),
                         'attachment' => base64_encode(
                             file_get_contents($file->getRealPath())
                         )

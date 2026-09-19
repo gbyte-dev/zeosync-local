@@ -772,7 +772,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                     <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
                         <label class="form-label mb-0">Product Images (Multiple)</label>
                         <button type="button" class="btn btn-outline-dark btn-sm" id="openImageLibraryBtn" style="height: 28px; font-size: 12px; padding: 0 10px;">
-                            <i class="bi bi-images me-1"></i> Select Image
+                            <i class="bi bi-images me-1"></i> Select from Image Upload
                         </button>
                     </div>
                     <input type="file" name="images[]" class="form-control" style="padding-top:4px;" multiple accept="image/*" id="imageUpload">
@@ -785,7 +785,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                             <button type="button" class="delete-image-btn"
                                 data-image-id="{{ $image['id'] ?? $image['src'] }}"
                                 data-image-src="{{ $image['src'] }}">×</button>
-                            <input type="hidden" name="existing_images[]" value="{{ $image['id'] ?? $image['src'] }}">
+                            <input type="hidden" name="existing_images[]" value="{{ $image['src'] ?? $image['id'] }}">
                         </div>
                         @endforeach
                         @endif
