@@ -336,7 +336,11 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                         $locationId,
                         $operation->desired_quantity,
                         $changeFromQuantity,
-                        $idempotencyKey
+                        $idempotencyKey,
+                        [
+                            'operation_id' => $operation->id,
+                            'operation_uuid' => $operation->operation_uuid,
+                        ]
                     );
 
                     if (!empty($response['error'])) {

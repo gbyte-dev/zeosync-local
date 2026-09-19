@@ -10,7 +10,7 @@ class ShopifyService
 {
     protected $shop;
     protected $token;
-    protected $version = 2026-07;
+    protected $version = '2026-07';
 
     public function __construct($shop, $token)
     {
@@ -426,7 +426,8 @@ class ShopifyService
         $param3 = null,
         $param4 = null,
         ?int $changeFromQuantity = null,
-        ?string $idempotencyKey = null
+        ?string $idempotencyKey = null,
+        array $context = []
     ): array {
         if ($param1 instanceof Shop) {
             $shop = $param1;
@@ -524,6 +525,18 @@ class ShopifyService
             ],
             'idempotencyKey' => $resolvedIdempotencyKey,
         ];
+
+        Log::info('Shopify GraphQL inventorySetQuantities Request', [
+            'api_version' => $this->version,
+            'mutation_name' => 'InventorySetQuantities',
+            'operation_id' => $context['operation_id'] ?? null,
+            'operation_uuid' => $context['operation_uuid'] ?? $resolvedIdempotencyKey,
+            'inventory_item_id' => $inventoryItemId,
+            'location_id' => $locationId,
+            'desired_quantity' => (int) $quantity,
+            'baseline_quantity' => $changeFromQuantity,
+            'final_graphql_variables' => $variables,
+        ]);
 
         $response = $this->graphql($mutation, $variables);
 
