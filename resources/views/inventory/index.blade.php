@@ -589,7 +589,7 @@
                     Amazon
                 </button>
             </li>
-            <li class="nav-item">
+            <!-- <li class="nav-item">
                 <button
                     class="nav-link"
                     id="mapped-tab"
@@ -597,7 +597,7 @@
                     data-bs-target="#mappedAmazonTab">
                     Mappings
                 </button>
-            </li>
+            </li> -->
         </ul>
     </div>
 
