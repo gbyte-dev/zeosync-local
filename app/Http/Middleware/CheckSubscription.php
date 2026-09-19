@@ -10,16 +10,14 @@ class CheckSubscription
 {
     public function handle(Request $request, Closure $next)
     {
-        Log::info('CHECK SUBSCRIPTION MIDDLEWARE HIT', [
-            'route' => optional($request->route())->getName(),
-            'url' => $request->fullUrl(),
-        ]);
+        // Log::info('CHECK SUBSCRIPTION MIDDLEWARE HIT', [
+        //     'route' => optional($request->route())->getName(),
+        //     'url' => $request->fullUrl(),
+        // ]);
 
-        // 🔥 Global bypass switch
+        //  Global bypass switch
         if (config('app.disable_subscription')) {
-
-            Log::warning('SUBSCRIPTION CHECK DISABLED');
-
+            // Log::warning('SUBSCRIPTION CHECK DISABLED');
             return $next($request);
         }
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Authenticating &mdash; {{ config('app.name', 'ZeoSync') }}</title>
+    <title>Authenticating &mdash; {{ config('app.name', 'Zeosync') }}</title>
     @php
         $apiKey = \App\Models\AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key'));
     @endphp

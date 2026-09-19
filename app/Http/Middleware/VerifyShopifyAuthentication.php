@@ -21,31 +21,31 @@ class VerifyShopifyAuthentication
 
     public function handle(Request $request, Closure $next): Response
     {
-        Log::info('SHOPIFY_DEBUG: verify_auth_handle_start', [
-            'path'                  => $request->path(),
-            'route_name'            => $request->route()?->getName(),
-            'query_shop'            => $request->query('shop'),
-            'query_host'            => $request->query('host'),
-            'hmac_present'          => $request->has('hmac'),
-            'id_token_present'      => $request->has('id_token') || $request->has('session_token'),
-            'session_active_shop'   => session('active_shop'),
-            'session_verified_shop' => session('_shopify_verified_shop'),
-        ]);
+        // Log::info('SHOPIFY_DEBUG: verify_auth_handle_start', [
+        //     'path'                  => $request->path(),
+        //     'route_name'            => $request->route()?->getName(),
+        //     'query_shop'            => $request->query('shop'),
+        //     'query_host'            => $request->query('host'),
+        //     'hmac_present'          => $request->has('hmac'),
+        //     'id_token_present'      => $request->has('id_token') || $request->has('session_token'),
+        //     'session_active_shop'   => session('active_shop'),
+        //     'session_verified_shop' => session('_shopify_verified_shop'),
+        // ]);
 
         // 1. Priority 1: Shopify Launch HMAC parameters (can appear on crm.entry or any page)
         if ($request->has('hmac') && $request->has('shop')) {
             $hmacShop = $this->verifyLaunchHmac($request);
-            Log::info('SHOPIFY_DEBUG: verify_auth_priority1_hmac_check', [
-                'requested_shop'        => $request->query('shop'),
-                'requested_host'        => $request->query('host'),
-                'session_active_shop'   => session('active_shop'),
-                'session_verified_shop' => session('_shopify_verified_shop'),
-                'auth_strategy'         => 'launch_hmac',
-                'hmac_present'          => true,
-                'resolved_shop_found'   => (bool) $hmacShop,
-                'resolved_shop'         => $hmacShop?->shop,
-                'result'                => $hmacShop ? 'authenticated' : 'failed_or_skipped',
-            ]);
+            // Log::info('SHOPIFY_DEBUG: verify_auth_priority1_hmac_check', [
+            //     'requested_shop'        => $request->query('shop'),
+            //     'requested_host'        => $request->query('host'),
+            //     'session_active_shop'   => session('active_shop'),
+            //     'session_verified_shop' => session('_shopify_verified_shop'),
+            //     'auth_strategy'         => 'launch_hmac',
+            //     'hmac_present'          => true,
+            //     'resolved_shop_found'   => (bool) $hmacShop,
+            //     'resolved_shop'         => $hmacShop?->shop,
+            //     'result'                => $hmacShop ? 'authenticated' : 'failed_or_skipped',
+            // ]);
 
             if ($hmacShop) {
                 $request->attributes->set('shopify_verified_shop', $hmacShop->shop);
@@ -69,14 +69,14 @@ class VerifyShopifyAuthentication
             // 2a. Validate App Bridge JWT Session Token
             $tokenResult = $this->validator->validate($sessionToken);
 
-            Log::info('SHOPIFY_DEBUG: verify_auth_priority2_token_check', [
-                'requested_shop'        => $request->query('shop'),
-                'token_present'         => true,
-                'auth_strategy'         => 'session_token',
-                'token_valid'           => (bool) $tokenResult,
-                'dest_shop'             => $tokenResult['shop'] ?? null,
-                'result'                => $tokenResult ? 'authenticated' : 'unauthenticated',
-            ]);
+            // Log::info('SHOPIFY_DEBUG: verify_auth_priority2_token_check', [
+            //     'requested_shop'        => $request->query('shop'),
+            //     'token_present'         => true,
+            //     'auth_strategy'         => 'session_token',
+            //     'token_valid'           => (bool) $tokenResult,
+            //     'dest_shop'             => $tokenResult['shop'] ?? null,
+            //     'result'                => $tokenResult ? 'authenticated' : 'unauthenticated',
+            // ]);
 
             if ($tokenResult) {
                 $request->attributes->set('shopify_verified_shop', $tokenResult['shop']);
@@ -91,20 +91,14 @@ class VerifyShopifyAuthentication
                 ]);
 
                 // Clean URL redirect if token was passed in query on a protected GET route
-                if (
-                    !$request->ajax() &&
-                    !$request->expectsJson() &&
+                if ( !$request->ajax() &&  !$request->expectsJson() &&
                     $request->isMethod('GET') &&
                     $request->hasAny(['id_token', 'session_token', 'shopify_token']) &&
-                    !$request->routeIs('crm.entry') &&
-                    !$request->routeIs('shopify.app.launch*')
+                    !$request->routeIs('crm.entry') && !$request->routeIs('shopify.app.launch*')
                 ) {
                     $cleanParams = $request->query();
-                    unset(
-                        $cleanParams['id_token'],
-                        $cleanParams['token'],
-                        $cleanParams['session_token'],
-                        $cleanParams['shopify_token']
+                    unset( $cleanParams['id_token'],  $cleanParams['token'],
+                        $cleanParams['session_token'],  $cleanParams['shopify_token']
                     );
                     $cleanUrl = $request->url() . (!empty($cleanParams) ? '?' . http_build_query($cleanParams) : '');
                     return redirect($cleanUrl);
@@ -116,12 +110,12 @@ class VerifyShopifyAuthentication
             // 2b. Validate Laravel Crypt Token (from path /apps/{token} or query)
             $cryptResult = $this->verifyCryptToken($sessionToken);
             if ($cryptResult) {
-                Log::info('SHOPIFY_DEBUG: verify_auth_priority2b_crypt_check', [
-                    'requested_shop'        => $request->query('shop'),
-                    'auth_strategy'         => 'crypt_token',
-                    'resolved_shop'         => $cryptResult['shop'] ?? null,
-                    'result'                => 'authenticated',
-                ]);
+                // Log::info('SHOPIFY_DEBUG: verify_auth_priority2b_crypt_check', [
+                //     'requested_shop'        => $request->query('shop'),
+                //     'auth_strategy'         => 'crypt_token',
+                //     'resolved_shop'         => $cryptResult['shop'] ?? null,
+                //     'result'                => 'authenticated',
+                // ]);
 
                 $request->attributes->set('shopify_verified_shop', $cryptResult['shop']);
                 $request->attributes->set('shopify_verified_model', $cryptResult['shop_model']);
@@ -156,13 +150,13 @@ class VerifyShopifyAuthentication
 
         // 3. Bypass unauthenticated / public / webhook / admin routes
         if ($this->shouldBypass($request)) {
-            Log::info('SHOPIFY_DEBUG: verify_auth_bypass_route', [
-                'path'                  => $request->path(),
-                'route_name'            => $request->route()?->getName(),
-                'query_shop'            => $request->query('shop'),
-                'session_active_shop'   => session('active_shop'),
-                'session_verified_shop' => session('_shopify_verified_shop'),
-            ]);
+            // Log::info('SHOPIFY_DEBUG: verify_auth_bypass_route', [
+            //     'path'                  => $request->path(),
+            //     'route_name'            => $request->route()?->getName(),
+            //     'query_shop'            => $request->query('shop'),
+            //     'session_active_shop'   => session('active_shop'),
+            //     'session_verified_shop' => session('_shopify_verified_shop'),
+            // ]);
             return $next($request);
         }
 
@@ -178,15 +172,9 @@ class VerifyShopifyAuthentication
                     'requested_shop'   => $requestedShop,
                 ]);
 
-                session()->forget([
-                    '_shopify_verified_shop',
-                    '_shopify_verified_at',
-                    'active_shop',
-                    'active_shop_id',
-                    'amazon_shop',
-                    'shop',
-                    'shopify_verified_model',
-                    'shopify_auth_source',
+                session()->forget([ '_shopify_verified_shop', '_shopify_verified_at',
+                    'active_shop', 'active_shop_id', 'amazon_shop', 'shop',
+                    'shopify_verified_model', 'shopify_auth_source',
                 ]);
 
                 if ($requestedShop) {
@@ -195,24 +183,18 @@ class VerifyShopifyAuthentication
                     ]);
                 }
             } elseif ($requestedShop && strcasecmp($requestedShop, $sessionShopDomain) !== 0) {
-                Log::warning('SHOPIFY_DEBUG: verify_auth_session_fallback_shop_mismatch', [
-                    'requested_shop'        => $requestedShop,
-                    'session_verified_shop' => $sessionShopDomain,
-                    'session_active_shop'   => session('active_shop'),
-                    'auth_strategy'         => 'session_fallback_rejected',
-                    'result'                => 'redirect_to_install',
-                ]);
+                // Log::warning('SHOPIFY_DEBUG: verify_auth_session_fallback_shop_mismatch', [
+                //     'requested_shop'        => $requestedShop,
+                //     'session_verified_shop' => $sessionShopDomain,
+                //     'session_active_shop'   => session('active_shop'),
+                //     'auth_strategy'         => 'session_fallback_rejected',
+                //     'result'                => 'redirect_to_install',
+                // ]);
 
                 // Clear stale session context.
-                session()->forget([
-                    '_shopify_verified_shop',
-                    '_shopify_verified_at',
-                    'active_shop',
-                    'active_shop_id',
-                    'amazon_shop',
-                    'shop',
-                    'shopify_verified_model',
-                    'shopify_auth_source',
+                session()->forget([ '_shopify_verified_shop',   '_shopify_verified_at',
+                    'active_shop', 'active_shop_id', 'amazon_shop',
+                    'shop', 'shopify_verified_model',  'shopify_auth_source',
                 ]);
 
                 // Never set verified attributes for the old shop.
@@ -230,14 +212,14 @@ class VerifyShopifyAuthentication
                     $sessionShop = null;
                 }
 
-                Log::info('SHOPIFY_DEBUG: verify_auth_priority4_session_fallback', [
-                    'requested_shop'        => $requestedShop ?? $request->query('shop'),
-                    'session_verified_shop' => $sessionShopDomain,
-                    'auth_strategy'         => 'session_fallback',
-                    'database_shop_exists'  => (bool) $sessionShop,
-                    'database_shop_active'  => $sessionShop ? (int) $sessionShop->is_active : null,
-                    'result'                => ($sessionShop && !empty($sessionShop->access_token)) ? 'fallback_authenticated' : 'fallback_failed',
-                ]);
+                // Log::info('SHOPIFY_DEBUG: verify_auth_priority4_session_fallback', [
+                //     'requested_shop'        => $requestedShop ?? $request->query('shop'),
+                //     'session_verified_shop' => $sessionShopDomain,
+                //     'auth_strategy'         => 'session_fallback',
+                //     'database_shop_exists'  => (bool) $sessionShop,
+                //     'database_shop_active'  => $sessionShop ? (int) $sessionShop->is_active : null,
+                //     'result'                => ($sessionShop && !empty($sessionShop->access_token)) ? 'fallback_authenticated' : 'fallback_failed',
+                // ]);
 
                 if ($sessionShop && !empty($sessionShop->access_token)) {
                     $request->attributes->set('shopify_verified_shop', $sessionShop->shop);
@@ -429,10 +411,10 @@ class VerifyShopifyAuthentication
         }
 
         if (!$this->isValidShopifyHmac($query, $apiSecret)) {
-            Log::warning('VerifyShopifyAuthentication: Launch HMAC signature mismatch.');
-            Log::warning('SHOPIFY_DEBUG: verify_launch_hmac_mismatch', [
-                'raw_shop' => $query['shop'] ?? null,
-            ]);
+            // Log::warning('VerifyShopifyAuthentication: Launch HMAC signature mismatch.');
+            // Log::warning('SHOPIFY_DEBUG: verify_launch_hmac_mismatch', [
+            //     'raw_shop' => $query['shop'] ?? null,
+            // ]);
             return null;
         }
 
@@ -447,9 +429,7 @@ class VerifyShopifyAuthentication
         $rawShop = $query['shop'] ?? null;
         $normalizedShop = $this->validator->normalizeShopDomain($rawShop);
 
-        if (!$normalizedShop) {
-            return null;
-        }
+        if (!$normalizedShop) { return null;  }
 
         try {
             $shop = Shop::where('shop', $normalizedShop)->where('is_active', 1)->first();
@@ -457,14 +437,14 @@ class VerifyShopifyAuthentication
             $shop = null;
         }
 
-        Log::info('SHOPIFY_DEBUG: verify_launch_hmac_details', [
-            'raw_shop'             => $rawShop,
-            'normalized_shop'      => $normalizedShop,
-            'hmac_valid'           => true,
-            'database_shop_exists' => (bool) $shop,
-            'database_shop_active' => $shop ? (int) $shop->is_active : null,
-            'token_present'        => !empty($shop?->access_token),
-        ]);
+        // Log::info('SHOPIFY_DEBUG: verify_launch_hmac_details', [
+        //     'raw_shop'             => $rawShop,
+        //     'normalized_shop'      => $normalizedShop,
+        //     'hmac_valid'           => true,
+        //     'database_shop_exists' => (bool) $shop,
+        //     'database_shop_active' => $shop ? (int) $shop->is_active : null,
+        //     'token_present'        => !empty($shop?->access_token),
+        // ]);
 
         if (!$shop) {
             Log::warning('SHOPIFY_DEBUG: verify_launch_hmac_shop_missing_in_db', [

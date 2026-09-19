@@ -43,17 +43,10 @@ beforeEach(function () {
     AdminSetting::forget('SHOPIFY_API_SECRET');
 });
 
-function createMockToken(
-    string $shop = 'test-store.myshopify.com',
-    string $apiKey = 'test-client-id',
-    string $apiSecret = 'test-client-secret',
-    int $expOffset = 300,
-    int $nbfOffset = -60,
-    ?string $aud = null,
-    ?string $dest = null,
-    ?string $iss = null,
-    ?string $customSecret = null,
-    string $alg = 'HS256'
+function createMockToken(string $shop = 'test-store.myshopify.com',
+    string $apiKey = 'test-client-id', string $apiSecret = 'test-client-secret',
+    int $expOffset = 300,  int $nbfOffset = -60,  ?string $aud = null,  ?string $dest = null,
+    ?string $iss = null,   ?string $customSecret = null,   string $alg = 'HS256'
 ): string {
     $header = ['alg' => $alg, 'typ' => 'JWT'];
     $payload = [
@@ -114,6 +107,20 @@ it('rejects tokens with non-HS256 algorithm', function () {
     $token = createMockToken('valid.myshopify.com', 'test-client-id', 'test-client-secret', 300, -60, null, null, null, null, 'none');
 
     expect($validator->validate($token))->toBeNull();
+});
+
+it('always resolves billing through Shopify for app compliance', function () {
+    config(['billing.provider' => 'stripe']);
+    AdminSetting::query()->updateOrCreate(
+        ['option_key' => 'billing_provider'],
+        ['option_value' => 'stripe']
+    );
+
+    $provider = new \App\Services\Billing\BillingProvider();
+
+    expect($provider->provider())->toBe(\App\Services\Billing\BillingProvider::SHOPIFY);
+    expect($provider->isShopify())->toBeTrue();
+    expect($provider->isStripe())->toBeFalse();
 });
 
 it('validates authentic Shopify App Bridge JWT issued from admin.shopify.com unified admin', function () {
