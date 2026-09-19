@@ -425,9 +425,7 @@
                                 : 0;
                         @endphp
 
-                        <select
-                            name="selected_location_index"
-                            class="saas-select">
+                        <select name="selected_location_index" class="saas-select">
                             @if(!empty($locations))
                                 @foreach($locations as $index => $location)
                                 <option value="{{ $index }}" {{ (string) old('selected_location_index', $selectedIndex) === (string) $index ? 'selected' : '' }}>
