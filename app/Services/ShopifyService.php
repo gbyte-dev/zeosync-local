@@ -24,40 +24,6 @@ class ShopifyService
     /**
      *  1. Raw GraphQL Call
      */
-    // public function graphql($query, $variables = [])
-    // {
-    //     if (empty($variables)) {
-    //         $response = Http::withHeaders([
-    //             'X-Shopify-Access-Token' => $this->token,
-    //             'Content-Type' => 'application/json',
-    //         ])->post("https://{$this->shop}/admin/api/{$this->version}/graphql.json", [
-    //             'query' => $query
-    //         ]);
-    //     } else {
-    //         $response = Http::withHeaders([
-    //             'X-Shopify-Access-Token' => $this->token,
-    //             'Content-Type' => 'application/json',
-    //         ])->post("https://{$this->shop}/admin/api/{$this->version}/graphql.json", [
-    //             'query' => $query,
-    //             'variables' => $variables
-    //         ]);
-    //     }
-
-
-    //     // dd($response->body());
-    //     if (!$response->successful()) {
-    //         \Log::error('Shopify GraphQL Error', [
-    //             'body' => $response->body()
-    //         ]);
-    //         return null;
-    //     }
-
-    //     return $response->json();
-    // }
-
-    /**
-     *  1. Raw GraphQL Call
-     */
     public function graphql($query, $variables = [])
     {
         try {
@@ -103,57 +69,6 @@ class ShopifyService
                 'error' => true,
                 'status' => 0, // Designates a Network Exception
                 'message' => $e->getMessage()
-            ];
-        }
-    }
-
-    public function shopifyRest(Shop $shop, string $method, string $endpoint, array $payload = []): array
-    {
-        $method = strtolower($method);
-        $url = sprintf( 'https://%s/admin/api/%s/%s',  $shop->shop,
-            config('services.shopify.api_version', '2026-07'),  ltrim($endpoint, '/')
-        );
-        
-        $options = [];
-        if ($method === 'get') {
-            $options['query'] = $payload;
-        } else {
-            $options['json'] = $payload;
-        }
-        try {
-            $response = Http::timeout(120)
-                ->connectTimeout(120)
-                ->withHeaders([
-                    'X-Shopify-Access-Token' => $shop->access_token,
-                    'Content-Type' => 'application/json',
-                ])
-                ->send(strtoupper($method), $url, $options);
-            if (!$response->successful()) {
-                $body = $response->body();
-                $json = $response->json();
-                Log::error('Shopify API Error', [
-                    'method' => $method,
-                    'url' => $url,
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                    'json' => $response->json(),
-                ]);
-                return [
-                    'error' => true,
-                    'status' => $response->status(),
-                    'message' => $json ? json_encode($json) : $body,
-                ];
-            }
-            return $response->json();
-        } catch (\Exception $e) {
-            Log::error('Shopify API Exception', [
-                'method' => $method,
-                'url' => $url,
-                'error' => $e->getMessage(),
-            ]);
-            return [
-                'error' => true,
-                'message' => $e->getMessage(),
             ];
         }
     }
