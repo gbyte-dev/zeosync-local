@@ -89,27 +89,27 @@ class VerifyShopifySubscription
         }
 
         if (!$response->successful()) {
-            Log::error('VERIFY SHOPIFY SUBSCRIPTION: API REQUEST FAILED', [
-                'shop'   => $shop->shop,
-                'status' => $response->status(),
-                'body'   => $response->body(),
-            ]);
+            if (config('app.debug')) {    
+                Log::error('VERIFY SHOPIFY SUBSCRIPTION: API REQUEST FAILED', [
+                    'shop'   => $shop->shop,
+                    'status' => $response->status(),
+                    'body'   => $response->body(),
+                ]);
+            }
 
-            return redirect()
-                ->route('plans.index', ['shop' => $shop->shop])
+            return redirect()->route('plans.index', ['shop' => $shop->shop])
                 ->with('error', 'We could not verify your subscription. Please try again.');
         }
 
         $payload = $response->json();
 
         if (!empty($payload['errors'])) {
-            Log::error('VERIFY SHOPIFY SUBSCRIPTION: GRAPHQL ERRORS', [
-                'shop'    => $shop->shop,
-                'errors'  => $payload['errors'],
-            ]);
+            // Log::error('VERIFY SHOPIFY SUBSCRIPTION: GRAPHQL ERRORS', [
+            //     'shop'    => $shop->shop,
+            //     'errors'  => $payload['errors'],
+            // ]);
 
-            return redirect()
-                ->route('plans.index', ['shop' => $shop->shop])
+            return redirect()->route('plans.index', ['shop' => $shop->shop])
                 ->with('error', 'We could not verify your subscription. Please try again.');
         }
 
@@ -131,12 +131,12 @@ class VerifyShopifySubscription
                 ->with('error', 'No active Shopify subscription found on your account. Please choose a plan to continue.');
         }
 
-        Log::info('VERIFY SHOPIFY SUBSCRIPTION: ACTIVE', [
-            'shop'           => $shop->shop,
-            'subscription'   => $activeSubscription['id'] ?? null,
-            'name'           => $activeSubscription['name'] ?? null,
-            'period_end'     => $activeSubscription['currentPeriodEnd'] ?? null,
-        ]);
+        // Log::info('VERIFY SHOPIFY SUBSCRIPTION: ACTIVE', [
+        //     'shop'           => $shop->shop,
+        //     'subscription'   => $activeSubscription['id'] ?? null,
+        //     'name'           => $activeSubscription['name'] ?? null,
+        //     'period_end'     => $activeSubscription['currentPeriodEnd'] ?? null,
+        // ]);
 
         // Share the live subscription data with controllers/views
         $request->attributes->set('shopify_subscription', $activeSubscription);

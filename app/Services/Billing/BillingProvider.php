@@ -10,7 +10,7 @@ class BillingProvider
     public const STRIPE = 'stripe';
 
     public const DEFAULT = self::SHOPIFY;
-    public const FALLBACK = self::STRIPE;
+    public const FALLBACK = self::SHOPIFY;
 
     /**
      * Resolve the active billing provider.
@@ -22,17 +22,7 @@ class BillingProvider
      */
     public function provider(): string
     {
-        $envProvider = strtolower(trim((string) config('billing.provider', self::DEFAULT)));
-
-        if (in_array($envProvider, [self::STRIPE, self::SHOPIFY], true)) {
-            return $envProvider;
-        }
-
-        $settingProvider = strtolower(trim((string) AdminSetting::get('billing_provider', self::DEFAULT)));
-
-        return in_array($settingProvider, [self::STRIPE, self::SHOPIFY], true)
-            ? $settingProvider
-            : self::DEFAULT;
+        return self::SHOPIFY;
     }
 
     public function isStripe(): bool

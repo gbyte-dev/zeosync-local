@@ -45,11 +45,20 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
 
 <nav id="sidebar" class="sidebar">
     <div class="sidebar__logo">
-        <a href="{{ route('dashboard').($currentShop ? '?shop='.$currentShop : '') }}">
+
+        <a class="brand" href="{{ route('dashboard').($currentShop ? '?shop='.$currentShop : '') }}" aria-label="{{ getAppName() }} home">
+            @if(function_exists('getLogo'))
+                <img src="{{ getLogo() }}" alt="{{ getAppName() }}" class="sidebar__logo-img">
+            @else
+                <span class="mark">z</span>{{ getAppName() }}<span class="brand-dot">.</span>
+            @endif
+        </a>
+
+        <!-- <a href="{{ route('dashboard').($currentShop ? '?shop='.$currentShop : '') }}">
             <img src="{{ asset('logo/logoamazonysync.png') }}"
                 alt="Logo"
                 class="sidebar__logo-img">
-        </a>
+        </a> -->
     </div>
 
     <!-- Dashboard -->

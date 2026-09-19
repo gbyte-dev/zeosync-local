@@ -8,12 +8,10 @@ return [
     |--------------------------------------------------------------------------
     |
     | Controls which billing provider is used for plan subscriptions.
-    | Supported values: 'stripe' | 'shopify'
     |
-    | Priority:
-    |   1. BILLING_PROVIDER env variable
-    |   2. billing_provider admin setting (admin_settings table)
-    |   3. Default: 'stripe'
+    | For this app, Shopify billing is required for App Store compliance.
+    | We intentionally keep the provider locked to 'shopify' and do not permit
+    | legacy Stripe checkout overrides for app subscriptions.
     |
     */
 

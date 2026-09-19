@@ -51,31 +51,28 @@ class ResolveActiveShop
                 }
             }
 
-            Log::info('SHOPIFY_DEBUG: resolve_active_shop_from_verified_attr', [
-                'verified_shop_domain' => $verifiedShopDomain,
-                'shop_model_found' => (bool) $shop,
-                'shop_id' => $shop?->id,
-                'access_token_present' => !empty($shop?->access_token),
-                'session_active_shop' => session('active_shop'),
-            ]);
+            // Log::info('SHOPIFY_DEBUG: resolve_active_shop_from_verified_attr', [
+            //     'verified_shop_domain' => $verifiedShopDomain,
+            //     'shop_model_found' => (bool) $shop,
+            //     'shop_id' => $shop?->id,
+            //     'access_token_present' => !empty($shop?->access_token),
+            //     'session_active_shop' => session('active_shop'),
+            // ]);
 
             if ($shop && !empty($shop->access_token)) {
                 $request->attributes->set('active_shop', $shop->shop);
                 $request->attributes->set('active_shop_model', $shop);
 
-                session([
-                    'active_shop' => $shop->shop,
-                    'active_shop_id' => $shop->id,
-                ]);
+                session([ 'active_shop' => $shop->shop, 'active_shop_id' => $shop->id]);
 
                 View::share('activeShop', $shop->shop);
                 View::share('activeShopModel', $shop);
 
-                Log::info('RESOLVED VERIFIED ACTIVE SHOP', [
-                    'shop_id' => $shop->id,
-                    'shop' => $shop->shop,
-                    'source' => $request->attributes->get('shopify_auth_source'),
-                ]);
+                // Log::info('RESOLVED VERIFIED ACTIVE SHOP', [
+                //     'shop_id' => $shop->id,
+                //     'shop' => $shop->shop,
+                //     'source' => $request->attributes->get('shopify_auth_source'),
+                // ]);
 
                 // Activation check for setup flow
                 $isActivated = filled($shop->shop_name) && filled($shop->email);
@@ -85,12 +82,12 @@ class ResolveActiveShop
                     !$request->routeIs('setup.store') &&
                     !$request->routeIs('setup.activation.status')
                 ) {
-                    Log::info('RESOLVE_ACTIVE_SHOP: Activation required', [
-                        'shop_id' => $shop->id,
-                        'shop' => $shop->shop,
-                        'route' => $request->route()?->getName(),
-                        'is_ajax' => $request->ajax() || $request->expectsJson(),
-                    ]);
+                    // Log::info('RESOLVE_ACTIVE_SHOP: Activation required', [
+                    //     'shop_id' => $shop->id,
+                    //     'shop' => $shop->shop,
+                    //     'route' => $request->route()?->getName(),
+                    //     'is_ajax' => $request->ajax() || $request->expectsJson(),
+                    // ]);
 
                     if ($request->ajax() || $request->expectsJson()) {
                         return response()->json([
@@ -116,21 +113,13 @@ class ResolveActiveShop
         }
 
         // 3. Public / Setup / OAuth Entry routes allow legacy parameter-based discovery for onboarding
-        if (
-            $request->routeIs('crm.entry') ||
-            $request->routeIs('shopify.app.launch*') ||
-            $request->routeIs('shopify.install') ||
-            $request->routeIs('shopify.callback') ||
-            $request->routeIs('api.shop.status') ||
-            $request->routeIs('setup.form') ||
-            $request->routeIs('setup.store') ||
-            $request->routeIs('setup.activation.status') ||
-            $request->routeIs('about') ||
-            $request->routeIs('pricing') ||
-            $request->routeIs('contact') ||
-            $request->routeIs('contact.store') ||
-            $request->routeIs('terms') ||
-            $request->routeIs('privacy')
+        if ( $request->routeIs('crm.entry') || $request->routeIs('shopify.app.launch*') ||
+            $request->routeIs('shopify.install') || $request->routeIs('shopify.callback') ||
+            $request->routeIs('api.shop.status') || $request->routeIs('setup.form') ||
+            $request->routeIs('setup.store') || $request->routeIs('setup.activation.status') ||
+            $request->routeIs('about') || $request->routeIs('pricing') ||
+            $request->routeIs('contact') ||  $request->routeIs('contact.store') ||
+            $request->routeIs('terms') || $request->routeIs('privacy')
         ) {
             $activeShop = $this->resolveShopDomain($request);
 
@@ -150,14 +139,14 @@ class ResolveActiveShop
                 $request->attributes->set('active_shop_model', $shop);
             }
 
-            Log::info('SHOPIFY_DEBUG: resolve_active_shop_public_route', [
-                'route' => $request->route()?->getName(),
-                'resolved_active_shop' => $activeShop,
-                'db_shop_exists' => (bool) $shop,
-                'db_shop_id' => $shop?->id,
-                'session_active_shop' => session('active_shop'),
-                'session_verified_shop' => session('_shopify_verified_shop'),
-            ]);
+            // Log::info('SHOPIFY_DEBUG: resolve_active_shop_public_route', [
+            //     'route' => $request->route()?->getName(),
+            //     'resolved_active_shop' => $activeShop,
+            //     'db_shop_exists' => (bool) $shop,
+            //     'db_shop_id' => $shop?->id,
+            //     'session_active_shop' => session('active_shop'),
+            //     'session_verified_shop' => session('_shopify_verified_shop'),
+            // ]);
 
             View::share('activeShop', $activeShop);
             return $next($request);
