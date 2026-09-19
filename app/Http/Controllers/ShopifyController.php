@@ -20,6 +20,7 @@ use App\Services\AmazonService;
 use App\Services\NotificationService;
 use App\Services\ShopifyBillingService;
 use App\Services\ShopifyOrderSyncService;
+use App\Services\ShopifyService;
 use App\Services\ShopifyWebhookService;
 use App\Services\UserNotificationService;
 use Illuminate\Http\Request;
@@ -475,13 +476,10 @@ class ShopifyController extends Controller
             'activation_required' => empty($shopModel->shop_name) || empty($shopModel->email),
         ]);
 
-        // Fetch and store all Shopify locations
+        // Fetch and store all Shopify locations via GraphQL
         try {
-            $locationResponse = $this->shopifyRest(
-                $shopModel,
-                'get',
-                'locations.json'
-            );
+            $shopifyService = new ShopifyService($shopModel->shop, $shopModel->access_token);
+            $locationResponse = $shopifyService->getLocations($shopModel);
 
             if (!empty($locationResponse['error'])) {
                 Log::error('SHOPIFY LOCATIONS FETCH FAILED', [
@@ -1671,57 +1669,28 @@ class ShopifyController extends Controller
     {
         $this->ensureFreshAccessToken($shopModel);
         try {
-            $response = $this->shopifyRest($shopModel, 'get', 'products.json', [
-                'limit' => 250
-            ]);
-            if (!empty($response['error']))
+            $locationId = $this->getSelectedShopifyLocationId($shopModel);
+            $shopifyService = new ShopifyService($shopModel->shop, $shopModel->access_token);
+            $result = $shopifyService->getProductsForSync($shopModel, $locationId);
+
+            if (!empty($result['error'])) {
+                Log::error('SHOPIFY PRODUCT SYNC RETURNED ERROR', [
+                    'shop_id' => $shopModel->id,
+                    'shop' => $shopModel->shop,
+                    'message' => $result['message'] ?? 'Unknown error',
+                ]);
                 return;
-            $products = $response['products'] ?? [];
+            }
+
+            $products = $result['products'] ?? [];
+
             foreach ($products as $product) {
-                //  ADD THIS HERE (TOP)
                 Log::info('SHOPIFY PRODUCT RAW', [
                     'product_id' => $product['id'],
                     'variants' => $product['variants']
                 ]);
-                //  STEP 1: Collect inventory item IDs
-                $inventoryItemIds = [];
-                foreach ($product['variants'] as $variant) {
-                    if (!empty($variant['inventory_item_id'])) {
-                        $inventoryItemIds[] = $variant['inventory_item_id'];
-                    }
-                }
-                //  STEP 2: Fetch real inventory
-                $locationId = $this->getSelectedShopifyLocationId($shopModel);
 
-                if (!empty($inventoryItemIds) && $locationId) {
-                    $inventoryRes = $this->shopifyRest(
-                        $shopModel,
-                        'get',
-                        'inventory_levels.json',
-                        [
-                            'location_ids' => $locationId,
-                            'inventory_item_ids' => implode(',', $inventoryItemIds),
-                        ]
-                    );
-                    if (empty($inventoryRes['error'])) {
-                        $inventoryMap = [];
-                        foreach ($inventoryRes['inventory_levels'] ?? [] as $item) {
-                            if (!isset($inventoryMap[$item['inventory_item_id']])) {
-                                $inventoryMap[$item['inventory_item_id']] = 0;
-                            }
-                            $inventoryMap[$item['inventory_item_id']] = $item['available'];
-                        }
-                        Log::info('INVENTORY MAP', $inventoryMap);
-                        //  STEP 3: Update variants with real inventory
-                        foreach ($product['variants'] as &$variant) {
-                            $variant['inventory_quantity'] =
-                                $inventoryMap[$variant['inventory_item_id']] ?? 0;
-                        }
-                        Log::info('FINAL VARIANTS', $product['variants']);
-                    }
-                }
-                //  STEP 4: SAVE TO DB
-                $existingProduct = Product::where('shopify_id', $product['id'])->where('shop_id', $shopModel->id)->first();
+                $existingProduct = Product::where('shopify_id', (string) $product['id'])->where('shop_id', $shopModel->id)->first();
 
                 Log::info('EXISTING PRODUCT CHECK', [
                     'shopify_id' => (string) $product['id'],
@@ -1763,7 +1732,7 @@ class ShopifyController extends Controller
                     'synced_to_amazon' => $saved?->synced_to_amazon,
                     'needs_resync' => $saved?->needs_resync,
                 ]);
-                //  ADD THIS AFTER SAVE
+
                 Log::info('PRODUCT SAVED', [
                     'shopify_id' => $product['id'],
                     'variants' => $product['variants']
@@ -1785,48 +1754,15 @@ class ShopifyController extends Controller
         }
         $this->ensureFreshAccessToken($shopModel);
         try {
-            $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
-            //  dd($response);
-            if (!empty($response['error'])) {
-                return redirect($this->shopAwareUrl('/dashboard', $shopModel->shop))
-                    ->with('error', 'Product not found');
-            }
-            $product = $response['product'] ?? null;
+            $locationId = $this->getSelectedShopifyLocationId($shopModel);
+            $shopifyService = new ShopifyService($shopModel->shop, $shopModel->access_token);
+            $product = $shopifyService->getProductForView($shopModel, $id, $locationId);
+
             if (!$product) {
                 return redirect($this->shopAwareUrl('/dashboard', $shopModel->shop))
                     ->with('error', 'Product not found');
             }
-            $inventoryItemIds = [];
-            foreach ($product['variants'] as $variant) {
-                if (!empty($variant['inventory_item_id'])) {
-                    $inventoryItemIds[] = $variant['inventory_item_id'];
-                }
-            }
-            $locationId = $this->getSelectedShopifyLocationId($shopModel);
 
-            if (!empty($inventoryItemIds) && $locationId) {
-                $inventoryRes = $this->shopifyRest(
-                    $shopModel,
-                    'get',
-                    'inventory_levels.json',
-                    [
-                        'location_ids' => $locationId,
-                        'inventory_item_ids' => implode(',', $inventoryItemIds),
-                    ]
-                );
-                if (empty($inventoryRes['error'])) {
-                    $inventoryMap = [];
-                    foreach ($inventoryRes['inventory_levels'] ?? [] as $item) {
-                        if (!isset($inventoryMap[$item['inventory_item_id']])) {
-                            $inventoryMap[$item['inventory_item_id']] = 0;
-                        }
-                        $inventoryMap[$item['inventory_item_id']] = $item['available'];
-                    }
-                    foreach ($product['variants'] as &$variant) {
-                        $variant['inventory_quantity'] = $inventoryMap[$variant['inventory_item_id']] ?? 0;
-                    }
-                }
-            }
             return view('product-view', compact('product', 'activeShop'));
         } catch (\Exception $e) {
             Log::error('VIEW PRODUCT FAILED', [
@@ -1846,55 +1782,28 @@ class ShopifyController extends Controller
         }
         $this->ensureFreshAccessToken($shopModel);
         try {
-            $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
-            if (!empty($response['error'])) {
-                return redirect($this->shopAwareUrl('/dashboard', $shopModel->shop))->with('error', 'Product not found');
-            }
-            $product = $response['product'] ?? null;
+            $locationId = $this->getSelectedShopifyLocationId($shopModel);
+            $shopifyService = new ShopifyService($shopModel->shop, $shopModel->access_token);
+            $product = $shopifyService->getProductForView($shopModel, $id, $locationId);
+
             if (!$product) {
                 return redirect($this->shopAwareUrl('/dashboard', $shopModel->shop))->with('error', 'Product not found');
             }
+
             $dbProduct = \App\Models\Product::where('shopify_id', $id)
                 ->where('shop_id', $shopModel->id)
                 ->first();
+
             $amazonData = null;
             if ($dbProduct) {
                 $amazonData = \App\Models\AmazonProduct::where('product_id', $dbProduct->id)->first();
             }
-            $inventoryItemIds = [];
-            foreach ($product['variants'] as $variant) {
-                if (!empty($variant['inventory_item_id'])) {
-                    $inventoryItemIds[] = $variant['inventory_item_id'];
-                }
-            }
-            $locationId = $this->getSelectedShopifyLocationId($shopModel);
 
-            if (!empty($inventoryItemIds) && $locationId) {
-                $inventoryRes = $this->shopifyRest(
-                    $shopModel,
-                    'get',
-                    'inventory_levels.json',
-                    [
-                        'location_ids' => $locationId,
-                        'inventory_item_ids' => implode(',', $inventoryItemIds),
-                    ]
-                );
-                if (empty($inventoryRes['error'])) {
-                    $inventoryMap = [];
-                    foreach ($inventoryRes['inventory_levels'] ?? [] as $item) {
-                        if (!isset($inventoryMap[$item['inventory_item_id']])) {
-                            $inventoryMap[$item['inventory_item_id']] = 0;
-                        }
-                        $inventoryMap[$item['inventory_item_id']] = $item['available'];
-                    }
-                    foreach ($product['variants'] as &$variant) {
-                        $variant['inventory_quantity'] = $inventoryMap[$variant['inventory_item_id']] ?? 0;
-                    }
-                }
-            }
             return view('EditProduct', compact('product', 'activeShop', 'amazonData', 'dbProduct'));
         } catch (\Exception $e) {
             Log::error('EDIT PRODUCT FAILED', [
+                'shop' => $shopModel?->shop,
+                'product_id' => $id,
                 'error' => $e->getMessage()
             ]);
             return redirect($this->shopAwareUrl('/dashboard', $shopModel?->shop))->with('error', 'Product not found');
@@ -1917,7 +1826,7 @@ class ShopifyController extends Controller
     protected function syncProductMetafields(Shop $shopModel, $productId, $metaNames, $metaValues)
     {
         if (empty($metaNames) || empty($metaValues)) {
-            return [];
+            return ['success' => true, 'metafields' => []];
         }
 
         $metafields = [];
@@ -1945,8 +1854,12 @@ class ShopifyController extends Controller
         }
 
         foreach ($localMetafields as $key => $value) {
+            $ownerId = str_starts_with((string) $productId, 'gid://')
+                ? (string) $productId
+                : "gid://shopify/Product/{$productId}";
+
             $metafields[] = [
-                'ownerId' => "gid://shopify/Product/{$productId}",
+                'ownerId' => $ownerId,
                 'namespace' => 'custom',  // Default namespace for custom attributes
                 'key' => $key,
                 'type' => 'single_line_text_field',  // Best default for text/string
@@ -1955,7 +1868,7 @@ class ShopifyController extends Controller
         }
 
         if (empty($metafields)) {
-            return $localMetafields;
+            return ['success' => true, 'metafields' => $localMetafields];
         }
 
         $query = '
@@ -1981,7 +1894,7 @@ class ShopifyController extends Controller
                     'X-Shopify-Access-Token' => $shopModel->access_token,
                     'Content-Type' => 'application/json',
                 ])
-                ->post("https://{$shopModel->shop}/admin/api/" . config('services.shopify.api_version', '2026-01') . '/graphql.json', [
+                ->post("https://{$shopModel->shop}/admin/api/" . config('services.shopify.api_version', '2026-07') . '/graphql.json', [
                     'query' => $query,
                     'variables' => [
                         'metafields' => $metafields
@@ -1989,27 +1902,55 @@ class ShopifyController extends Controller
                 ]);
             $result = $response->json();
 
+            if (isset($result['errors']) && !empty($result['errors'])) {
+                Log::error('GraphQL MetafieldsSet Top-level Errors', [
+                    'shop' => $shopModel->shop,
+                    'product_id' => $productId,
+                    'errors' => $result['errors']
+                ]);
+                return [
+                    'success' => false,
+                    'metafields' => [],
+                    'errors' => $result['errors'],
+                    'error' => $result['errors'][0]['message'] ?? 'GraphQL metafieldsSet error.',
+                ];
+            }
+
             if (isset($result['data']['metafieldsSet']['userErrors']) && count($result['data']['metafieldsSet']['userErrors']) > 0) {
                 Log::error('GraphQL MetafieldsSet UserErrors', [
                     'shop' => $shopModel->shop,
                     'product_id' => $productId,
                     'errors' => $result['data']['metafieldsSet']['userErrors']
                 ]);
-            } else {
-                Log::info('Successfully synced metafields via GraphQL', [
-                    'shop' => $shopModel->shop,
-                    'product_id' => $productId
-                ]);
+                return [
+                    'success' => false,
+                    'metafields' => [],
+                    'errors' => $result['data']['metafieldsSet']['userErrors'],
+                    'error' => $result['data']['metafieldsSet']['userErrors'][0]['message'] ?? 'Metafield validation error.',
+                ];
             }
+
+            Log::info('Successfully synced metafields via GraphQL', [
+                'shop' => $shopModel->shop,
+                'product_id' => $productId
+            ]);
+
+            return [
+                'success' => true,
+                'metafields' => $localMetafields,
+            ];
         } catch (\Exception $e) {
             Log::error('GraphQL Metafields Sync Exception', [
                 'shop' => $shopModel->shop,
                 'product_id' => $productId,
                 'error' => $e->getMessage()
             ]);
+            return [
+                'success' => false,
+                'metafields' => [],
+                'error' => $e->getMessage(),
+            ];
         }
-
-        return $localMetafields;
     }
 
     public function createProduct(Request $request)
@@ -2042,78 +1983,17 @@ class ShopifyController extends Controller
         try {
             $localImages = $this->UploadImageProvideUrl($request);
             $payloadData = $this->buildProductPayload($request);
-            $productPayload = [
-                'product' => $payloadData['product']
-            ];
-
-            $variantImageMap = $payloadData['variant_image_map'];
-            $payloadIndexMap = $payloadData['payload_index_map'];
-
-            $response = $this->shopifyRest(
-                $shopModel,
-                'post',
-                'products.json',
-                $productPayload
-            );
-
-            if (!empty($response['error'])) {
-                return redirect()->back()->withInput()->with('error', $response['message'] ?? 'Failed to create product');
-            }
-
-            $productData = $response['product'] ?? null;
-            if (!$productData) {
-                return redirect()->back()->withInput()->with('error', 'Failed to create product: Unknown error occurred');
-            }
-
-            // --- FLOW: INVENTORY LEVEL SYNC ---
             $locationId = $this->getSelectedShopifyLocationId($shopModel);
 
-            if ($locationId && !empty($productData['variants'])) {
-                foreach ($productData['variants'] as $index => $variant) {
-                    $inventoryItemId = $variant['inventory_item_id'] ?? null;
+            $shopifyService = new ShopifyService($shopModel->shop, $shopModel->access_token);
+            $result = $shopifyService->createProduct($shopModel, $payloadData['product'], $locationId);
 
-                    // Align Shopify's variant index with the original form index
-                    $formIndex = $payloadIndexMap[$index] ?? $index;
-                    $formVariant = $request->input("variants.{$formIndex}") ?? [];
-                    $qty = (int) ($formVariant['qty'] ?? 0);
-
-                    if ($inventoryItemId && $qty > 0) {
-                        $this->shopifyRest($shopModel, 'post', 'inventory_levels/set.json', [
-                            'location_id' => $locationId,
-                            'inventory_item_id' => $inventoryItemId,
-                            'available' => $qty,
-                        ]);
-                    }
-                }
+            if (empty($result['success']) || empty($result['product'])) {
+                return redirect()->back()->withInput()->with('error', $result['error'] ?? 'Failed to create product');
             }
 
-            // --- FLOW: IMAGE ATTACHMENT TO VARIANTS ---
-            $updatedResponse = $this->shopifyRest($shopModel, 'get', "products/{$productData['id']}.json");
-            $productData = $updatedResponse['product'] ?? $productData;
-
-            $productImages = $productData['images'] ?? [];
-            $productVariants = $productData['variants'] ?? [];
-
-            foreach ($variantImageMap as $payloadIndex => $imagePosition) {
-                $variantId = $productVariants[$payloadIndex]['id'] ?? null;
-                $imageId = $productImages[$imagePosition]['id'] ?? null;
-
-                if (!$variantId || !$imageId) {
-                    continue;
-                }
-
-                $this->shopifyRest(
-                    $shopModel,
-                    'put',
-                    "variants/{$variantId}.json",
-                    [
-                        'variant' => [
-                            'id' => $variantId,
-                            'image_id' => $imageId
-                        ]
-                    ]
-                );
-            }
+            $productData = $result['product'];
+            $payloadIndexMap = $payloadData['payload_index_map'] ?? [];
 
             // --- FLOW: MERGE FOR LOCAL DB ---
             $finalVariants = [];
@@ -2125,17 +2005,18 @@ class ShopifyController extends Controller
                     'id' => $variant['id'],
                     'price' => $variant['price'],
                     'sku' => $variant['sku'] ?? null,
-                    'inventory_quantity' => (int) ($formVariant['qty'] ?? 0),
-                    'option1' => $formVariant['option1'] ?? null,
-                    'option2' => $formVariant['option2'] ?? null,
-                    'image' => $formVariant['image'] ?? null,
+                    'inventory_quantity' => $variant['inventory_quantity'] ?? (int) ($formVariant['qty'] ?? 0),
+                    'option1' => $variant['option1'] ?? ($formVariant['option1'] ?? null),
+                    'option2' => $variant['option2'] ?? ($formVariant['option2'] ?? null),
+                    'image' => $variant['image']['src'] ?? ($formVariant['image'] ?? null),
                 ];
             }
 
             // --- FLOW: SYNC METAFIELDS VIA GRAPHQL ---
             $metaNames = $request->input('meta_name', []);
             $metaValues = $request->input('meta_value', []);
-            $localMetafields = $this->syncProductMetafields($shopModel, $productData['id'], $metaNames, $metaValues);
+            $metafieldsResult = $this->syncProductMetafields($shopModel, $productData['id'], $metaNames, $metaValues);
+            $localMetafields = is_array($metafieldsResult) && isset($metafieldsResult['metafields']) ? $metafieldsResult['metafields'] : (is_array($metafieldsResult) ? $metafieldsResult : []);
 
             // Map Category details accurately
             $category = \App\Models\Category::where('id', $request->input('category'))->first();
@@ -2175,7 +2056,7 @@ class ShopifyController extends Controller
             $syncid = $request->sync_id ?? '';
             if ($syncid) {
                 $updatesync = new \App\Http\Controllers\ProductSchemaController();
-                $updatesync->updateSyncShopify($syncid, $updatedResponse);
+                $updatesync->updateSyncShopify($syncid, ['product' => $productData]);
 
                 UserNotificationService::send(
                     $shopModel->id,
@@ -2222,7 +2103,6 @@ class ShopifyController extends Controller
     public function updateProduct(Request $request, $id)
     {
         set_time_limit(120);
-        // DEBUG: Log entry into function
         Log::info('START: updateProduct called for Shopify Product ID: ' . $id);
 
         $shopModel = $this->getActiveShop($request);
@@ -2232,185 +2112,103 @@ class ShopifyController extends Controller
             return back()->with('error', 'No shop connected');
         }
 
-        // DEBUG: Log Shop Model state
         Log::debug('Active Shop found: ID ' . $shopModel->id . ', Shop domain: ' . $shopModel->shop);
 
         try {
-            // 1. Fetch Local Product
             $dbProduct = Product::where('shop_id', $shopModel->id)
                 ->where('shopify_id', $id)
                 ->first();
 
-            if ($dbProduct) {
-                Log::debug('DB Product found: ID ' . $dbProduct->id . ' (Title: ' . $dbProduct->title . ')');
-            } else {
-                Log::warning('DB Product NOT found for Shopify ID: ' . $id);
-            }
-
-            // 2. Image Processing & Preservation (Main Gallery ONLY)
-            $imagesdata = [];
-
-            // a. Preserve existing images that weren't deleted
             $existingImages = $request->input('existing_images', []);
+            if (is_string($existingImages)) {
+                $existingImages = array_filter(array_map('trim', explode(',', $existingImages)));
+            }
             $deletedImages = $request->input('deleted_images', []);
+            if (is_string($deletedImages)) {
+                $deletedImages = array_filter(array_map('trim', explode(',', $deletedImages)));
+            }
             $keptImages = array_diff($existingImages, $deletedImages);
 
+            $imagesData = [];
             foreach ($keptImages as $imgId) {
-                if (!empty($imgId) && is_numeric($imgId)) {
-                    $imagesdata[] = ['id' => (int) $imgId];
-                } elseif (!empty($imgId) && filter_var($imgId, FILTER_VALIDATE_URL)) {
-                    $imagesdata[] = ['src' => $imgId];
+                if (!empty($imgId) && filter_var($imgId, FILTER_VALIDATE_URL)) {
+                    $imagesData[] = ['src' => $imgId];
                 }
             }
 
-            // b. Add ONLY newly uploaded generic gallery images here
-            if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $galleryImage) {
-                    if ($galleryImage->isValid()) {
-                        $imagesdata[] = [
-                            'attachment' => base64_encode(file_get_contents($galleryImage->getRealPath()))
-                        ];
-                    }
-                }
-            }
-
-            $productPayload = [
-                'product' => [
-                    'id' => (int) $id,
-                    'title' => $request->title,
-                    'body_html' => $request->description,
-                    'vendor' => $request->vendor,
-                    'product_type' => $request->product_type,
-                    'status' => $request->status,
-                    'images' => array_values($imagesdata)  // Syncs gallery and deletes removed ones
-                ]
-            ];
-
-            // 3. Shopify Product API Update
-            Log::info('Sending PUT request to Shopify for Product ID: ' . $id);
-            $sh = $this->shopifyRest($shopModel, 'put', "products/{$id}.json", $productPayload);
-            Log::debug('Shopify Product API Response received', ['response' => $sh]);
-
-            // 4 & 5. Update Existing Variants, Create New Variants & Update Inventory
+            $variantsPayload = [];
             $variantIds = $request->input('variant_ids', []);
             $variantCombos = $request->input('variant_combo', []);
-            $existingVariantImages = $request->input('existing_variant_image', []);
-            $variantImages = $request->file('variant_image', []);  // Array of newly uploaded variant images
 
-            Log::info('Iterating over variants. Total Count: ' . count($variantIds));
+            foreach ($variantIds as $index => $vId) {
+                $vItem = [
+                    'id' => !empty($vId) ? $vId : null,
+                    'price' => $request->input("variant_price.{$index}"),
+                    'sku' => $request->input("variant_sku.{$index}"),
+                    'qty' => (int) $request->input("variant_quantity.{$index}", 0),
+                    'inventory_quantity' => (int) $request->input("variant_quantity.{$index}", 0),
+                ];
+
+                if (!empty($variantCombos[$index])) {
+                    $combo = is_array($variantCombos[$index]) ? $variantCombos[$index] : json_decode($variantCombos[$index], true);
+                    if (is_array($combo)) {
+                        foreach ($combo as $cIdx => $c) {
+                            $vItem['option' . ($cIdx + 1)] = $c['value'] ?? ($c['name'] ?? '');
+                        }
+                    }
+                }
+
+                $variantsPayload[] = $vItem;
+            }
 
             $locationId = $this->getSelectedShopifyLocationId($shopModel);
 
-            foreach ($variantIds as $index => $variantId) {
-                $price = $request->input("variant_price.$index");
-                $sku = $request->input("variant_sku.$index");
-                $qty = (int) $request->input("variant_quantity.$index", 0);
+            $updatePayload = [
+                'title' => $request->title,
+                'description' => $request->description,
+                'body_html' => $request->description,
+                'vendor' => $request->vendor,
+                'product_type' => $request->product_type,
+                'status' => $request->status,
+                'tags' => $request->tags,
+                'images' => $imagesData,
+                'deleted_images' => $deletedImages,
+                'variants' => $variantsPayload,
+            ];
 
-                // -------------------------------------------------------------
-                // Deterministic Image ID Assignment [BULLETPROOF FIX]
-                // -------------------------------------------------------------
-                $assignedImageId = null;
+            $shopifyService = new ShopifyService($shopModel->shop, $shopModel->access_token);
+            $result = $shopifyService->updateProduct($shopModel, $id, $updatePayload, $locationId);
 
-                // 1. If a NEW image was uploaded specifically for this variant
-                if (isset($variantImages[$index]) && $variantImages[$index]->isValid()) {
-                    Log::info("Uploading new image directly for variant index: {$index}");
-
-                    // Directly push to Shopify's image endpoint to guarantee exact ID retrieval
-                    $newImageRes = $this->shopifyRest($shopModel, 'post', "products/{$id}/images.json", [
-                        'image' => [
-                            'attachment' => base64_encode(file_get_contents($variantImages[$index]->getRealPath()))
-                        ]
-                    ]);
-
-                    if (!empty($newImageRes['image']['id'])) {
-                        $assignedImageId = $newImageRes['image']['id'];
-                    }
-                }
-                // 2. Otherwise, check if it had an existing image that we intentionally kept
-                elseif (isset($existingVariantImages[$index]) && in_array($existingVariantImages[$index], $keptImages)) {
-                    $assignedImageId = (int) $existingVariantImages[$index];
-                }
-
-                if (!empty($variantId)) {
-                    // --- FLOW: UPDATE EXISTING VARIANT ---
-                    Log::info('Updating Existing Variant ID: ' . $variantId . ' | Price: ' . $price);
-
-                    $variantPayload = [
-                        'variant' => [
-                            'id' => $variantId,
-                            'price' => $price,
-                            'sku' => $sku,
-                        ]
-                    ];
-
-                    // Explicitly link/unlink the image ID to the existing variant
-                    $variantPayload['variant']['image_id'] = $assignedImageId ?: null;
-
-                    $this->shopifyRest($shopModel, 'put', "variants/{$variantId}.json", $variantPayload);
-
-                    // Update Inventory for Existing Variant
-                    $inventoryItemId = $request->input("inventory_item_id.$index");
-                    if ($inventoryItemId && $locationId) {
-                        $this->shopifyRest($shopModel, 'post', 'inventory_levels/set.json', [
-                            'location_id' => $locationId,
-                            'inventory_item_id' => $inventoryItemId,
-                            'available' => $qty,
-                        ]);
-                    }
-                } else {
-                    // --- FLOW: CREATE NEW VARIANT ---
-                    Log::info('Creating New Variant for Product ID: ' . $id);
-
-                    $comboJson = $variantCombos[$index] ?? null;
-                    $options = [];
-                    if ($comboJson) {
-                        $combo = json_decode($comboJson, true);
-                        if (is_array($combo)) {
-                            foreach ($combo as $i => $c) {
-                                $options['option' . ($i + 1)] = $c['value'] ?? '';
-                            }
-                        }
-                    }
-
-                    $newVariantPayload = [
-                        'variant' => array_merge([
-                            'price' => $price,
-                            'sku' => $sku,
-                            'inventory_management' => 'shopify',
-                            'inventory_policy' => 'deny',
-                        ], $options)
-                    ];
-
-                    // Attach the accurate image ID to the new variant
-                    if ($assignedImageId) {
-                        $newVariantPayload['variant']['image_id'] = $assignedImageId;
-                    }
-
-                    $createRes = $this->shopifyRest($shopModel, 'post', "products/{$id}/variants.json", $newVariantPayload);
-
-                    if (empty($createRes['error']) && isset($createRes['variant'])) {
-                        $newVariant = $createRes['variant'];
-
-                        // Instantly update the inventory for the newly created variant
-                        $newInventoryItemId = $newVariant['inventory_item_id'] ?? null;
-                        if ($newInventoryItemId && $locationId) {
-                            $this->shopifyRest($shopModel, 'post', 'inventory_levels/set.json', [
-                                'location_id' => $locationId,
-                                'inventory_item_id' => $newInventoryItemId,
-                                'available' => $qty,
-                            ]);
-                        }
-                    }
-                }
+            if (empty($result['success']) || empty($result['product'])) {
+                Log::error('Shopify GraphQL updateProduct failed', [
+                    'shop' => $shopModel->shop,
+                    'product_id' => $id,
+                    'result' => $result,
+                ]);
+                return back()->withInput()->with('error', $result['error'] ?? 'Failed to update product');
             }
+
+            $productData = $result['product'];
 
             // --- FLOW: SYNC METAFIELDS VIA GRAPHQL ---
             Log::info('Syncing Metafields for Product ID: ' . $id);
             $metaNames = $request->input('meta_name', []);
             $metaValues = $request->input('meta_value', []);
-            $localMetafields = $this->syncProductMetafields($shopModel, $id, $metaNames, $metaValues);
+            $metafieldsResult = $this->syncProductMetafields($shopModel, $id, $metaNames, $metaValues);
+            $metafieldsSuccess = is_array($metafieldsResult) && ($metafieldsResult['success'] ?? true);
+            $localMetafields = is_array($metafieldsResult) && isset($metafieldsResult['metafields']) ? $metafieldsResult['metafields'] : (is_array($metafieldsResult) ? $metafieldsResult : []);
 
-            // 6. Determine Category
+            if (!$metafieldsSuccess) {
+                Log::warning('PARTIAL SUCCESS: Shopify product updated, but metafieldsSet failed', [
+                    'shop_id' => $shopModel->id,
+                    'shop' => $shopModel->shop,
+                    'product_id' => $id,
+                    'errors' => $metafieldsResult['errors'] ?? null,
+                    'error' => $metafieldsResult['error'] ?? null,
+                ]);
+            }
+
+            // Determine Category
             $category = Category::where('id', $request->input('category'))->first();
             $producttype = '';
             if ($category) {
@@ -2430,11 +2228,10 @@ class ShopifyController extends Controller
                 $subcategory = $category->slug ?? 'test';
             }
 
-            // 7. Update Local DB
+            // Update Local DB
             if ($dbProduct) {
                 $productdata = [];
                 if ((int) $dbProduct->synced_to_amazon === 1) {
-                    $productdata['needs_resync'] = 1;
                     $productdata['synced_to_amazon'] = 0;
                 }
 
@@ -2445,22 +2242,31 @@ class ShopifyController extends Controller
                 $productdata['category'] = $producttype;
                 $productdata['category_id'] = $category_id;
                 $productdata['sub_category_id'] = $sub_category_id;
-                $productdata['metafields'] = json_encode($localMetafields);
+                $productdata['variants'] = json_encode($productData['variants'] ?? []);
+                $productdata['options'] = json_encode($productData['options'] ?? []);
+                $productdata['images'] = json_encode($productData['images'] ?? []);
+                if ($metafieldsSuccess) {
+                    $productdata['metafields'] = json_encode($localMetafields);
+                }
 
                 $dbProduct->update($productdata);
             }
 
-            // 8. Sync Log
-            ProductSyncLog::create([
-                'product_id' => $dbProduct->id,
-                'shop_id' => $shopModel->id,
-                'platform' => 'shopify',
-                'status' => 'success',
-                'message' => 'Product "' . $dbProduct->title . '" was updated successfully during resync.',
-                'type' => 'product'
-            ]);
+            // Sync Log
+            if ($dbProduct) {
+                ProductSyncLog::create([
+                    'product_id' => $dbProduct->id,
+                    'shop_id' => $shopModel->id,
+                    'platform' => 'shopify',
+                    'status' => $metafieldsSuccess ? 'success' : 'warning',
+                    'message' => $metafieldsSuccess
+                        ? 'Product "' . $dbProduct->title . '" was updated successfully during resync.'
+                        : 'Product "' . $dbProduct->title . '" updated in Shopify, but metafields failed to save: ' . ($metafieldsResult['error'] ?? 'validation error'),
+                    'type' => 'product'
+                ]);
+            }
 
-            // 9. Amazon Data Update
+            // Amazon Data Update
             if ($dbProduct) {
                 $amazonData = AmazonProduct::where('product_id', $dbProduct->id)->first();
                 $data = [
@@ -2486,17 +2292,10 @@ class ShopifyController extends Controller
                 }
             }
 
-            // UserNotificationService::send(
-            //     $shopModel->id,
-            //     'inventory_stock_update',
-            //     'Inventory Stock Updated',
-            //     "{$shopModel->shop} inventory has been updated successfully."
-            // );
-
             $message = sprintf(
                 '%s - "%s" has been updated successfully.',
                 $shopModel->shop,
-                $dbProduct->title
+                $dbProduct->title ?? $request->title ?? 'Product'
             );
 
             UserNotificationService::send(
@@ -2506,10 +2305,15 @@ class ShopifyController extends Controller
                 $message
             );
 
-            // Sync down to your local DB
             $this->refreshProductsCache($shopModel);
 
             Log::info('END: updateProduct completed successfully for ID: ' . $id);
+
+            if (!$metafieldsSuccess) {
+                return redirect($this->shopAwareUrl('/products', $shopModel->shop))
+                    ->with('warning', 'Product updated in Shopify, but metafields failed to save: ' . ($metafieldsResult['error'] ?? 'GraphQL error'));
+            }
+
             return redirect($this->shopAwareUrl('/products', $shopModel->shop))
                 ->with('success', 'Product updated successfully!');
         } catch (\Exception $e) {
@@ -2538,33 +2342,48 @@ class ShopifyController extends Controller
         if (!$shopModel) {
             return response()->json(['success' => false, 'message' => 'No shop connected'], 401);
         }
+
         try {
             Log::info('Delete Product Debug', [
                 'id' => $id,
-                'type' => gettype($id),
-                'endpoint' => "products/{$id}.json",
+                'shop_id' => $shopModel->id,
+                'shop' => $shopModel->shop,
             ]);
-            $response = $this->shopifyRest($shopModel, 'delete', "products/{$id}.json");
-            if (!empty($response['error'])) {
-                throw new RuntimeException($response['message'] ?? 'Failed to delete product');
+
+            $numericId = is_numeric($id) ? (int)$id : (str_contains((string)$id, '/') ? (int)substr($id, strrpos($id, '/') + 1) : $id);
+
+            $shopifyService = new ShopifyService($shopModel->shop, $shopModel->access_token);
+            $response = $shopifyService->deleteProduct($shopModel, $id);
+
+            if (empty($response['success'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to delete product from Shopify: ' . ($response['error'] ?? 'Unknown error'),
+                ], 400);
             }
-        } catch (RuntimeException $exception) {
+
+            Product::withTrashed()
+                ->where('shop_id', $shopModel->id)
+                ->where('shopify_id', $numericId)
+                ->first()
+                ?->forceDelete();
+
+            $updatesync = new ProductSchemaController();
+            $updatesync->updatelog($numericId, 'shopify', 'deleted', true);
+
+            $this->refreshProductsCache($shopModel);
+            return response()->json(['success' => true, 'message' => 'Product deleted successfully']);
+        } catch (\Exception $exception) {
+            Log::error('Delete Product Exception', [
+                'shop_id' => $shopModel->id,
+                'product_id' => $id,
+                'error' => $exception->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete product from Shopify: ' . $exception->getMessage(),
             ], 400);
         }
-        Product::withTrashed()
-            ->where('shop_id', $shopModel->id)
-            ->where('shopify_id', $id)
-            ->first()
-            ?->forceDelete();
-
-        $updatesync = new ProductSchemaController();
-        $updatesync->updatelog($id, 'shopify', 'deleted', true);
-
-        $this->refreshProductsCache($shopModel);
-        return response()->json(['success' => true, 'message' => 'Product deleted successfully']);
     }
 
     private function refreshProductsCache($shopModel): void
@@ -2979,6 +2798,7 @@ class ShopifyController extends Controller
         }
 
         $variantsInput = $request->input('variants', []);
+        $optionsInput = $request->input('options', []);
         $variantNames = $request->input('variant_names', []);
         $variants = [];
         $payloadIndexToFormIndexMap = [];
@@ -2993,6 +2813,29 @@ class ShopifyController extends Controller
                 'inventory_management' => 'shopify',
                 'inventory_policy' => 'deny',
             ];
+
+            if (isset($v['qty'])) {
+                $variant['qty'] = (int) $v['qty'];
+                $variant['inventory_quantity'] = (int) $v['qty'];
+            } elseif (isset($v['inventory_quantity'])) {
+                $variant['qty'] = (int) $v['inventory_quantity'];
+                $variant['inventory_quantity'] = (int) $v['inventory_quantity'];
+            } elseif ($request->filled('qty')) {
+                $variant['qty'] = (int) $request->input('qty');
+                $variant['inventory_quantity'] = (int) $request->input('qty');
+            }
+
+            if (!empty($v['barcode'])) {
+                $variant['barcode'] = (string) $v['barcode'];
+            } elseif ($request->filled('barcode')) {
+                $variant['barcode'] = (string) $request->input('barcode');
+            }
+
+            if (!empty($v['compare_at_price'])) {
+                $variant['compare_at_price'] = (string) $v['compare_at_price'];
+            } elseif ($request->filled('compare_at_price')) {
+                $variant['compare_at_price'] = (string) $request->input('compare_at_price');
+            }
 
             if (!empty($v['option1']))
                 $variant['option1'] = trim($v['option1']);
@@ -3011,12 +2854,23 @@ class ShopifyController extends Controller
         }
 
         if (empty($variants)) {
-            $variants[] = [
+            $variant = [
                 'price' => (float) $request->input('price', 0),
                 'sku' => $request->input('sku') ?: 'SKU-' . uniqid(),
                 'inventory_management' => 'shopify',
                 'inventory_policy' => 'deny',
             ];
+            if ($request->filled('qty')) {
+                $variant['qty'] = (int) $request->input('qty');
+                $variant['inventory_quantity'] = (int) $request->input('qty');
+            }
+            if ($request->filled('barcode')) {
+                $variant['barcode'] = (string) $request->input('barcode');
+            }
+            if ($request->filled('compare_at_price')) {
+                $variant['compare_at_price'] = (string) $request->input('compare_at_price');
+            }
+            $variants[] = $variant;
             $payloadIndexToFormIndexMap[0] = 0;
         }
 
@@ -3030,7 +2884,23 @@ class ShopifyController extends Controller
 
         // Build options
         $options = [];
-        if (!empty($variantsInput) && !empty($variantNames)) {
+        if (!empty($optionsInput) && is_array($optionsInput) && isset($optionsInput[0]['name'])) {
+            foreach ($optionsInput as $opt) {
+                $optName = trim((string) ($opt['name'] ?? ''));
+                if (empty($optName)) continue;
+                $optVals = [];
+                foreach ($opt['values'] ?? [] as $val) {
+                    $valStr = trim((string) $val);
+                    if ($valStr !== '') $optVals[] = $valStr;
+                }
+                if (!empty($optVals)) {
+                    $options[] = [
+                        'name' => $optName,
+                        'values' => $optVals,
+                    ];
+                }
+            }
+        } elseif (!empty($variantsInput) && !empty($variantNames)) {
             foreach ($variantNames as $i => $name) {
                 $name = trim((string) $name);
                 if (empty($name)) {
@@ -3609,52 +3479,21 @@ class ShopifyController extends Controller
         }
 
         try {
-            $response = $this->shopifyRest($shopModel, 'get', "products/{$id}.json");
+            $locationId = $this->getSelectedShopifyLocationId($shopModel);
+            $shopifyService = new ShopifyService($shopModel->shop, $shopModel->access_token);
+            $syncResult = $shopifyService->singleProductSync($shopModel, $id, $locationId);
 
-            if (!empty($response['error'])) {
-                return back()->with('error', 'Product not found');
-            }
-            $product = $response['product'] ?? null;
-            if (!$product) {
-                return back()->with('error', 'Product not found');
+            if (empty($syncResult['success']) || empty($syncResult['product'])) {
+                return back()->with('error', $syncResult['error'] ?? 'Product not found');
             }
 
+            $product = $syncResult['product'];
             $product_type = $product['product_type'] ?? '';
 
             $dbProduct = \App\Models\Product::where('shopify_id', $id)
                 ->where('shop_id', $shopModel->id)
                 ->first();
             $amazonData = null;
-
-            $inventoryItemIds = [];
-            foreach ($product['variants'] as $variant) {
-                if (!empty($variant['inventory_item_id'])) {
-                    $inventoryItemIds[] = $variant['inventory_item_id'];
-                }
-            }
-
-            if (!empty($inventoryItemIds)) {
-                $inventoryRes = $this->shopifyRest(
-                    $shopModel,
-                    'get',
-                    'inventory_levels.json',
-                    [
-                        'inventory_item_ids' => implode(',', $inventoryItemIds)
-                    ]
-                );
-                if (empty($inventoryRes['error'])) {
-                    $inventoryMap = [];
-                    foreach ($inventoryRes['inventory_levels'] ?? [] as $item) {
-                        if (!isset($inventoryMap[$item['inventory_item_id']])) {
-                            $inventoryMap[$item['inventory_item_id']] = 0;
-                        }
-                        $inventoryMap[$item['inventory_item_id']] += $item['available'];
-                    }
-                    foreach ($product['variants'] as &$variant) {
-                        $variant['inventory_quantity'] = $inventoryMap[$variant['inventory_item_id']] ?? 0;
-                    }
-                }
-            }
 
             $mapper = new ShopifyAmazonMapper();
             $mappedproduct = $mapper->map($product);

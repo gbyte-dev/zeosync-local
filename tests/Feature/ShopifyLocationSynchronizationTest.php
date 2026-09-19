@@ -565,6 +565,11 @@ it('Requirement 11: Manual Shopify inventory update while location 1 is selected
     $response = $controller->updateShopifyInventory($req);
     expect($response->getStatusCode())->toBe(200);
 
+    $opId = json_decode($response->getContent(), true)['operation_id'] ?? null;
+    if ($opId) {
+        app()->call([new \App\Jobs\ProcessInventoryUpdateJob($opId), 'handle']);
+    }
+
     Http::assertSent(function ($request) {
         $query = $request->data()['query'] ?? '';
         $vars = $request->data()['variables'] ?? [];
@@ -605,6 +610,11 @@ it('Requirement 12: Manual Shopify inventory update while location 2 is selected
 
     $response = $controller->updateShopifyInventory($req);
     expect($response->getStatusCode())->toBe(200);
+
+    $opId = json_decode($response->getContent(), true)['operation_id'] ?? null;
+    if ($opId) {
+        app()->call([new \App\Jobs\ProcessInventoryUpdateJob($opId), 'handle']);
+    }
 
     Http::assertSent(function ($request) {
         $query = $request->data()['query'] ?? '';

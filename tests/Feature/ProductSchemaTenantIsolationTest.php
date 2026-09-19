@@ -177,11 +177,13 @@ function createIsolatedTestShop(string $domain): Shop
         'is_active' => true,
     ]);
 
-    ShopSubscription::create([
+    ShopSubscription::updateOrCreate([
         'shop_id' => $shop->id,
+    ], [
         'plan_id' => $plan->id,
         'status' => 'active',
         'price' => 0,
+        'current_period_end' => now()->addYear(),
     ]);
 
     return $shop;
@@ -189,8 +191,9 @@ function createIsolatedTestShop(string $domain): Shop
 
 function createIsolatedTestSchema(): ProductSchema
 {
-    return ProductSchema::create([
+    return ProductSchema::firstOrCreate([
         'product_type' => 'TEST_PRODUCT',
+    ], [
         'schema_json' => json_encode(['title' => 'Test Product']),
         'parsed_json' => [
             [
@@ -206,7 +209,7 @@ function createIsolatedTestSchema(): ProductSchema
                 'required' => false,
             ],
         ],
-        'is_active' => 1,
+        'is_active' => true,
     ]);
 }
 
