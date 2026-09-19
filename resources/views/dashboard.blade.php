@@ -422,7 +422,7 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                             $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
                                 ? (int) $shop->selected_location_index  : 0;
                         @endphp
-                        <label>Update location from settings</label>
+                        <label style="font-size: x-small;">Update location from settings</label>
                         <select name="selected_location_index" class="form-select form-select-sm" id="locationSelect" disabled="true">
                             @if(!empty($locations))
                                 @foreach($locations as $index => $location)
