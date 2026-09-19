@@ -212,6 +212,11 @@
     font-weight: 500;
 }
 
+.in-iframe .sidebar__sublink.active {
+    color: var(--sidebar-text-active);
+    font-weight: 600;
+}
+
 .saas-page-header{
     background: #FFFFFF;
     border: 1px solid #E5E7EB;

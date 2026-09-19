@@ -18,7 +18,7 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 20px 16px 24px;
+        padding: 10px 16px 14px;
         border-bottom: 1px solid rgba(255, 255, 255, .08);
         margin-bottom: 12px;
     }
