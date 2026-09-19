@@ -618,7 +618,9 @@ class InventoryMappingController extends Controller
             // ]);
 
             // Dispatch background processing job after DB transaction has committed
-            ProcessInventoryUpdateJob::dispatch($operation->id);
+            ProcessInventoryUpdateJob::dispatch($operation->id)
+                ->onConnection('database')
+                ->onQueue('default');
 
             Log::info('Shopify inventory update: 9. ProcessInventoryUpdateJob dispatched', [
                 'shop_id' => $shop->id,

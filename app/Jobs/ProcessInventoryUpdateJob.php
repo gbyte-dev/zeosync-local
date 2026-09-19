@@ -29,7 +29,9 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
 
     public function __construct(
         public readonly int $operationId
-    ) {}
+    ) {
+        $this->onConnection('database')->onQueue('default');
+    }
 
     public function handle(AmazonService $amazonService): void
     {

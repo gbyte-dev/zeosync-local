@@ -17,6 +17,18 @@ abstract class TestCase extends BaseTestCase
             try {
                 DB::statement('SET FOREIGN_KEY_CHECKS = 0');
                 DB::statement('SET SESSION sql_mode = ""');
+                if (Schema::hasTable('shops')) {
+                    DB::table('shops')->truncate();
+                }
+                if (Schema::hasTable('product_marketplace_mappings')) {
+                    DB::table('product_marketplace_mappings')->truncate();
+                }
+                if (Schema::hasTable('inventory_sync_operations')) {
+                    DB::table('inventory_sync_operations')->truncate();
+                }
+                if (Schema::hasTable('jobs')) {
+                    DB::table('jobs')->truncate();
+                }
             } catch (\Throwable $e) {
                 // Ignore if MySQL server is not connected during in-memory testing
             }
@@ -86,6 +98,18 @@ abstract class TestCase extends BaseTestCase
                     $table->unsignedBigInteger('expected_inventory_version')->default(1);
                 });
             }
+        }
+
+        if (!Schema::hasTable('jobs')) {
+            Schema::create('jobs', function (Blueprint $table) {
+                $table->id();
+                $table->string('queue')->index();
+                $table->longText('payload');
+                $table->unsignedTinyInteger('attempts');
+                $table->unsignedInteger('reserved_at')->nullable();
+                $table->unsignedInteger('available_at');
+                $table->unsignedInteger('created_at');
+            });
         }
     }
 }

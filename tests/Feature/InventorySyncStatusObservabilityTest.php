@@ -61,21 +61,24 @@ beforeEach(function () {
             $table->unique(['shop_id', 'shopify_variant_id'], 'unique_shop_shopify_variant');
             $table->unique(['shop_id', 'amazon_sku'], 'unique_shop_amazon_sku');
         });
-    } else {
-        if (!Schema::hasColumn('product_marketplace_mappings', 'inventory_version')) {
-            Schema::table('product_marketplace_mappings', function (Blueprint $table) {
-                $table->unsignedBigInteger('inventory_version')->default(1);
-            });
-        }
+    }
+
+    if (Schema::hasTable('shops')) {
+        Shop::truncate();
+    }
+    if (Schema::hasTable('product_marketplace_mappings')) {
         ProductMarketplaceMapping::truncate();
+    }
+    if (Schema::hasTable('inventory_sync_operations')) {
+        \App\Models\InventorySyncOperation::truncate();
     }
 });
 
-function createMockShop(int $id = 1, string $domain = 'test-shop.myshopify.com'): Shop
+function createMockShop(int $id = 1, ?string $domain = null): Shop
 {
     return Shop::create([
         'id'                      => $id,
-        'shop'                    => $domain,
+        'shop'                    => $domain ?? "test-shop-{$id}.myshopify.com",
         'access_token'            => 'token-' . $id,
         'selected_location_index' => 0,
         'shopify_locations'       => [
