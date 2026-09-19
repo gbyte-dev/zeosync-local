@@ -217,6 +217,32 @@ class ShopifyService
                         position
                         values
                     }
+                    media(first: 50) {
+                        nodes {
+                            id
+                            alt
+                            mediaContentType
+                            preview {
+                                image {
+                                    id
+                                    url
+                                    altText
+                                    width
+                                    height
+                                }
+                            }
+                            ... on MediaImage {
+                                id
+                                image {
+                                    id
+                                    url
+                                    altText
+                                    width
+                                    height
+                                }
+                            }
+                        }
+                    }
                     images(first: 50) {
                         nodes {
                             id
@@ -226,7 +252,7 @@ class ShopifyService
                             height
                         }
                     }
-                    variants(first: 100) {
+                    variants(first: 250) {
                         nodes {
                             id
                             legacyResourceId
@@ -239,6 +265,32 @@ class ShopifyService
                             selectedOptions {
                                 name
                                 value
+                            }
+                            media(first: 10) {
+                                nodes {
+                                    id
+                                    alt
+                                    mediaContentType
+                                    preview {
+                                        image {
+                                            id
+                                            url
+                                            altText
+                                            width
+                                            height
+                                        }
+                                    }
+                                    ... on MediaImage {
+                                        id
+                                        image {
+                                            id
+                                            url
+                                            altText
+                                            width
+                                            height
+                                        }
+                                    }
+                                }
                             }
                             image {
                                 id
@@ -281,10 +333,11 @@ class ShopifyService
             'page_size' => $pageSize,
         ]);
 
-        while ($hasNextPage) {
+        while ($hasNextPage && $pageCount < $maxPages) {
             $pageCount++;
+
             $variables = [
-                'first' => $pageSize,
+                'first' => min($pageSize, 250),
                 'after' => $after,
             ];
 
@@ -294,13 +347,12 @@ class ShopifyService
                 $errorMsg = $response['message'] ?? (is_array($response['errors'] ?? null) ? json_encode($response['errors']) : 'Failed to fetch products via GraphQL.');
                 Log::error('Shopify GraphQL getProductsForSync Error', [
                     'shop' => $this->shop,
-                    'page' => $pageCount,
-                    'cursor' => $after,
                     'response' => $response,
+                    'after' => $after,
+                    'page' => $pageCount,
                 ]);
                 return [
                     'error' => true,
-                    'status' => $response['status'] ?? 500,
                     'message' => $errorMsg,
                     'products' => $allProducts,
                 ];
@@ -309,132 +361,7 @@ class ShopifyService
             $productNodes = data_get($response, 'data.products.nodes', []);
 
             foreach ($productNodes as $node) {
-                $pGid = $node['id'] ?? '';
-                $pNumericId = $node['legacyResourceId'] ?? (str_contains((string) $pGid, 'gid://shopify/Product/') ? substr($pGid, strrpos($pGid, '/') + 1) : $pGid);
-                $pNumericId = is_numeric($pNumericId) ? (int) $pNumericId : $pNumericId;
-
-                // Options mapping
-                $options = [];
-                foreach ($node['options'] ?? [] as $opt) {
-                    $optGid = $opt['id'] ?? '';
-                    $optId = is_numeric($optGid) ? (int) $optGid : (str_contains((string) $optGid, '/') ? (int) substr($optGid, strrpos($optGid, '/') + 1) : $optGid);
-                    $options[] = [
-                        'id' => $optId,
-                        'product_id' => $pNumericId,
-                        'name' => $opt['name'] ?? '',
-                        'position' => $opt['position'] ?? 1,
-                        'values' => $opt['values'] ?? [],
-                    ];
-                }
-
-                // Images mapping
-                $images = [];
-                $imgNodes = data_get($node, 'images.nodes', []);
-                $imgPos = 1;
-                foreach ($imgNodes as $img) {
-                    $imgGid = $img['id'] ?? '';
-                    $imgId = is_numeric($imgGid) ? (int) $imgGid : (str_contains((string) $imgGid, '/') ? (int) substr($imgGid, strrpos($imgGid, '/') + 1) : $imgGid);
-                    $imgUrl = $img['url'] ?? '';
-                    $images[] = [
-                        'id' => $imgId,
-                        'product_id' => $pNumericId,
-                        'position' => $imgPos++,
-                        'src' => $imgUrl,
-                        'url' => $imgUrl,
-                        'alt' => $img['altText'] ?? null,
-                        'width' => $img['width'] ?? null,
-                        'height' => $img['height'] ?? null,
-                        'admin_graphql_api_id' => $imgGid,
-                    ];
-                }
-
-                // Variants mapping
-                $variants = [];
-                $variantNodes = data_get($node, 'variants.nodes', []);
-                $vPos = 1;
-                foreach ($variantNodes as $v) {
-                    $vGid = $v['id'] ?? '';
-                    $vNumericId = $v['legacyResourceId'] ?? (str_contains((string) $vGid, 'gid://shopify/ProductVariant/') ? substr($vGid, strrpos($vGid, '/') + 1) : $vGid);
-                    $vNumericId = is_numeric($vNumericId) ? (int) $vNumericId : $vNumericId;
-
-                    $invGid = data_get($v, 'inventoryItem.id', '');
-                    $invNumericId = data_get($v, 'inventoryItem.legacyResourceId') ?? (str_contains((string) $invGid, 'gid://shopify/InventoryItem/') ? substr($invGid, strrpos($invGid, '/') + 1) : $invGid);
-                    $invNumericId = is_numeric($invNumericId) ? (int) $invNumericId : $invNumericId;
-
-                    $selectedOptions = $v['selectedOptions'] ?? [];
-                    $option1 = $selectedOptions[0]['value'] ?? null;
-                    $option2 = $selectedOptions[1]['value'] ?? null;
-                    $option3 = $selectedOptions[2]['value'] ?? null;
-
-                    // Location-specific inventory resolution
-                    $inventoryQuantity = isset($v['inventoryQuantity']) ? (int) $v['inventoryQuantity'] : 0;
-
-                    if ($locationId !== null) {
-                        $levels = data_get($v, 'inventoryItem.inventoryLevels.nodes', []);
-                        $levelMatched = false;
-                        foreach ($levels as $level) {
-                            $locGid = data_get($level, 'location.id', '');
-                            $locNumeric = data_get($level, 'location.legacyResourceId') ?? (str_contains((string) $locGid, 'gid://shopify/Location/') ? substr($locGid, strrpos($locGid, '/') + 1) : $locGid);
-                            if ((string) $locNumeric === (string) $locationId || (string) $locGid === "gid://shopify/Location/{$locationId}") {
-                                $levelMatched = true;
-                                $available = null;
-                                foreach ($level['quantities'] ?? [] as $q) {
-                                    if (($q['name'] ?? '') === 'available') {
-                                        $available = isset($q['quantity']) ? (int) $q['quantity'] : null;
-                                        break;
-                                    }
-                                }
-                                $inventoryQuantity = $available ?? 0;
-                                break;
-                            }
-                        }
-                        if (!$levelMatched && !empty($levels)) {
-                            $inventoryQuantity = 0;
-                        }
-                    }
-
-                    $vImgGid = data_get($v, 'image.id');
-                    $vImgId = $vImgGid ? (is_numeric($vImgGid) ? (int) $vImgGid : (str_contains((string) $vImgGid, '/') ? (int) substr($vImgGid, strrpos($vImgGid, '/') + 1) : $vImgGid)) : null;
-
-                    $variants[] = [
-                        'id' => $vNumericId,
-                        'product_id' => $pNumericId,
-                        'title' => $v['title'] ?? '',
-                        'price' => (string) ($v['price'] ?? '0.00'),
-                        'sku' => $v['sku'] ?? '',
-                        'position' => $v['position'] ?? $vPos++,
-                        'inventory_item_id' => $invNumericId,
-                        'inventory_quantity' => $inventoryQuantity,
-                        'option1' => $option1,
-                        'option2' => $option2,
-                        'option3' => $option3,
-                        'barcode' => $v['barcode'] ?? null,
-                        'compare_at_price' => $v['compareAtPrice'] ?? null,
-                        'image_id' => $vImgId,
-                        'image' => data_get($v, 'image.url') ? ['src' => data_get($v, 'image.url'), 'url' => data_get($v, 'image.url')] : null,
-                        'admin_graphql_api_id' => $vGid,
-                    ];
-                }
-
-                $statusRaw = $node['status'] ?? 'draft';
-                $tagsRaw = $node['tags'] ?? [];
-
-                $allProducts[] = [
-                    'id' => $pNumericId,
-                    'title' => $node['title'] ?? '',
-                    'handle' => $node['handle'] ?? '',
-                    'body_html' => $node['descriptionHtml'] ?? '',
-                    'vendor' => $node['vendor'] ?? null,
-                    'product_type' => $node['productType'] ?? null,
-                    'status' => strtolower((string) $statusRaw),
-                    'tags' => is_array($tagsRaw) ? implode(', ', $tagsRaw) : ($tagsRaw ?? ''),
-                    'created_at' => $node['createdAt'] ?? null,
-                    'updated_at' => $node['updatedAt'] ?? null,
-                    'images' => $images,
-                    'options' => $options,
-                    'variants' => $variants,
-                    'admin_graphql_api_id' => $pGid,
-                ];
+                $allProducts[] = $this->normalizeProductNode($node, $locationId);
             }
 
             $pageInfo = data_get($response, 'data.products.pageInfo', []);
@@ -454,22 +381,14 @@ class ShopifyService
                 break;
             }
 
-            if ($pageCount >= $maxPages) {
-                Log::warning('Shopify product pagination reached maximum pages limit', [
-                    'shop' => $this->shop,
-                    'max_pages' => $maxPages,
-                ]);
-                break;
-            }
-
             $visitedCursors[$nextCursor] = true;
             $after = $nextCursor;
         }
 
-        Log::info('SHOPIFY GRAPHQL PRODUCT SYNC COMPLETED', [
+        Log::info('SHOPIFY GRAPHQL PRODUCT SYNC COMPLETE', [
             'shop' => $this->shop,
-            'pages_fetched' => $pageCount,
             'total_products' => count($allProducts),
+            'total_pages' => $pageCount,
         ]);
 
         return [
@@ -479,8 +398,7 @@ class ShopifyService
     }
 
     /**
-     * Fetch a single product from Shopify via Admin GraphQL for viewing,
-     * normalized into the legacy array format with location-aware inventory.
+     * Get single product details for view/edit page via GraphQL (API 2026-07).
      *
      * @param Shop|null $shop
      * @param int|string $productId
@@ -527,6 +445,32 @@ class ShopifyService
                     position
                     values
                 }
+                media(first: 50) {
+                    nodes {
+                        id
+                        alt
+                        mediaContentType
+                        preview {
+                            image {
+                                id
+                                url
+                                altText
+                                width
+                                height
+                            }
+                        }
+                        ... on MediaImage {
+                            id
+                            image {
+                                id
+                                url
+                                altText
+                                width
+                                height
+                            }
+                        }
+                    }
+                }
                 images(first: 50) {
                     nodes {
                         id
@@ -536,7 +480,7 @@ class ShopifyService
                         height
                     }
                 }
-                variants(first: 100) {
+                variants(first: 250) {
                     nodes {
                         id
                         legacyResourceId
@@ -549,6 +493,32 @@ class ShopifyService
                         selectedOptions {
                             name
                             value
+                        }
+                        media(first: 10) {
+                            nodes {
+                                id
+                                alt
+                                mediaContentType
+                                preview {
+                                    image {
+                                        id
+                                        url
+                                        altText
+                                        width
+                                        height
+                                    }
+                                }
+                                ... on MediaImage {
+                                    id
+                                    image {
+                                        id
+                                        url
+                                        altText
+                                        width
+                                        height
+                                    }
+                                }
+                            }
                         }
                         image {
                             id
@@ -624,25 +594,89 @@ class ShopifyService
             ];
         }
 
-        // Images
+        // Build product media lookup map
+        // Keyed by: GID, numeric ID, URL
+        $mediaLookup = [];
         $images = [];
-        $imgNodes = data_get($node, 'images.nodes', []);
         $imgPos = 1;
-        foreach ($imgNodes as $img) {
-            $imgGid = $img['id'] ?? '';
-            $imgId = is_numeric($imgGid) ? (int) $imgGid : (str_contains((string)$imgGid, '/') ? (int) substr($imgGid, strrpos($imgGid, '/') + 1) : $imgGid);
-            $imgUrl = $img['url'] ?? '';
-            $images[] = [
-                'id' => $imgId,
+
+        $mediaNodes = data_get($node, 'media.nodes', []);
+        foreach ($mediaNodes as $media) {
+            $mGid = $media['id'] ?? '';
+            $mNumericId = is_numeric($mGid) ? (int)$mGid : (str_contains((string)$mGid, '/') ? (int)substr($mGid, strrpos($mGid, '/') + 1) : $mGid);
+            $imgUrl = data_get($media, 'image.url') ?? data_get($media, 'preview.image.url');
+            $altText = data_get($media, 'image.altText') ?? ($media['alt'] ?? null);
+            $width = data_get($media, 'image.width') ?? data_get($media, 'preview.image.width');
+            $height = data_get($media, 'image.height') ?? data_get($media, 'preview.image.height');
+
+            $mediaObj = [
+                'id' => $mNumericId,
                 'product_id' => $pNumericId,
                 'position' => $imgPos++,
                 'src' => $imgUrl,
                 'url' => $imgUrl,
-                'alt' => $img['altText'] ?? null,
-                'width' => $img['width'] ?? null,
-                'height' => $img['height'] ?? null,
+                'alt' => $altText,
+                'width' => $width,
+                'height' => $height,
+                'media_id' => $mNumericId,
+                'admin_graphql_api_id' => $mGid,
+            ];
+
+            if (!empty($imgUrl)) {
+                $images[] = $mediaObj;
+            }
+
+            if (!empty($mGid)) {
+                $mediaLookup[$mGid] = $mediaObj;
+            }
+            if (!empty($mNumericId)) {
+                $mediaLookup[(string)$mNumericId] = $mediaObj;
+                $mediaLookup[(int)$mNumericId] = $mediaObj;
+            }
+            if (!empty($imgUrl)) {
+                $mediaLookup[$imgUrl] = $mediaObj;
+                $cleanUrl = strtok($imgUrl, '?');
+                if ($cleanUrl && $cleanUrl !== $imgUrl) {
+                    $mediaLookup[$cleanUrl] = $mediaObj;
+                }
+            }
+        }
+
+        // Also check legacy images.nodes if present
+        $imgNodes = data_get($node, 'images.nodes', []);
+        foreach ($imgNodes as $img) {
+            $imgGid = $img['id'] ?? '';
+            $imgNumericId = is_numeric($imgGid) ? (int)$imgGid : (str_contains((string)$imgGid, '/') ? (int)substr($imgGid, strrpos($imgGid, '/') + 1) : $imgGid);
+            $imgUrl = $img['url'] ?? '';
+            $altText = $img['altText'] ?? null;
+            $width = $img['width'] ?? null;
+            $height = $img['height'] ?? null;
+
+            $imgObj = [
+                'id' => $imgNumericId,
+                'product_id' => $pNumericId,
+                'position' => $imgPos++,
+                'src' => $imgUrl,
+                'url' => $imgUrl,
+                'alt' => $altText,
+                'width' => $width,
+                'height' => $height,
                 'admin_graphql_api_id' => $imgGid,
             ];
+
+            if (!empty($imgUrl) && empty($mediaLookup[$imgUrl])) {
+                $images[] = $imgObj;
+            }
+            if (!empty($imgGid) && !isset($mediaLookup[$imgGid])) {
+                $mediaLookup[$imgGid] = $imgObj;
+            }
+            if (!empty($imgNumericId) && !isset($mediaLookup[(string)$imgNumericId])) {
+                $mediaLookup[(string)$imgNumericId] = $imgObj;
+                $mediaLookup[(int)$imgNumericId] = $imgObj;
+            }
+            if (!empty($imgUrl) && !isset($mediaLookup[$imgUrl])) {
+                $mediaLookup[$imgUrl] = $imgObj;
+            }
         }
 
         $featUrl = data_get($node, 'featuredImage.url');
@@ -698,8 +732,57 @@ class ShopifyService
                 }
             }
 
-            $vImgGid = data_get($v, 'image.id');
-            $vImgId = $vImgGid ? (is_numeric($vImgGid) ? (int) $vImgGid : (str_contains((string)$vImgGid, '/') ? (int) substr($vImgGid, strrpos($vImgGid, '/') + 1) : $vImgGid)) : null;
+            // Variant media / image resolution
+            $vMediaNodes = data_get($v, 'media.nodes', []);
+            $resolvedVariantImg = null;
+            $vMediaGid = null;
+            $vMediaNumericId = null;
+
+            if (!empty($vMediaNodes)) {
+                $firstMedia = $vMediaNodes[0];
+                $vMediaGid = $firstMedia['id'] ?? null;
+                $vMediaNumericId = $vMediaGid ? (is_numeric($vMediaGid) ? (int)$vMediaGid : (str_contains((string)$vMediaGid, '/') ? (int)substr($vMediaGid, strrpos($vMediaGid, '/') + 1) : $vMediaGid)) : null;
+                $vMediaUrl = data_get($firstMedia, 'image.url') ?? data_get($firstMedia, 'preview.image.url');
+                if ($vMediaUrl) {
+                    $resolvedVariantImg = [
+                        'id' => $vMediaNumericId,
+                        'src' => $vMediaUrl,
+                        'url' => $vMediaUrl,
+                        'admin_graphql_api_id' => $vMediaGid,
+                    ];
+                }
+            }
+
+            // Fallback to variant.image if media.nodes was empty
+            if (!$resolvedVariantImg) {
+                $vImgGid = data_get($v, 'image.id');
+                $vImgUrl = data_get($v, 'image.url');
+                if ($vImgGid || $vImgUrl) {
+                    $vImgNumericId = $vImgGid ? (is_numeric($vImgGid) ? (int)$vImgGid : (str_contains((string)$vImgGid, '/') ? (int)substr($vImgGid, strrpos($vImgGid, '/') + 1) : $vImgGid)) : null;
+                    $resolvedVariantImg = [
+                        'id' => $vImgNumericId,
+                        'src' => $vImgUrl,
+                        'url' => $vImgUrl,
+                        'admin_graphql_api_id' => $vImgGid,
+                    ];
+                    $vMediaGid = $vMediaGid ?? $vImgGid;
+                    $vMediaNumericId = $vMediaNumericId ?? $vImgNumericId;
+                }
+            }
+
+            // If we have an image URL but no media ID, try product mediaLookup
+            if ($resolvedVariantImg && !empty($resolvedVariantImg['url']) && empty($vMediaNumericId)) {
+                if (isset($mediaLookup[$resolvedVariantImg['url']])) {
+                    $lookupObj = $mediaLookup[$resolvedVariantImg['url']];
+                    $vMediaNumericId = $lookupObj['id'] ?? null;
+                    $vMediaGid = $lookupObj['admin_graphql_api_id'] ?? null;
+                    $resolvedVariantImg['id'] = $vMediaNumericId;
+                }
+            }
+
+            $vFinalImgId = $resolvedVariantImg['id'] ?? $vMediaNumericId;
+            $vFinalImgSrc = $resolvedVariantImg['src'] ?? null;
+            $vFinalMediaId = $vMediaGid ? (is_numeric($vMediaGid) ? (int)$vMediaGid : (str_contains((string)$vMediaGid, '/') ? (int)substr($vMediaGid, strrpos($vMediaGid, '/') + 1) : $vMediaGid)) : $vFinalImgId;
 
             $variants[] = [
                 'id' => $vNumericId,
@@ -715,8 +798,14 @@ class ShopifyService
                 'option3' => $option3,
                 'barcode' => $v['barcode'] ?? null,
                 'compare_at_price' => $v['compareAtPrice'] ?? null,
-                'image_id' => $vImgId,
-                'image' => data_get($v, 'image.url') ? ['src' => data_get($v, 'image.url'), 'url' => data_get($v, 'image.url')] : null,
+                'image_id' => $vFinalImgId,
+                'image' => $resolvedVariantImg ? [
+                    'id' => $vFinalImgId,
+                    'src' => $vFinalImgSrc,
+                    'url' => $vFinalImgSrc,
+                ] : null,
+                'image_src' => $vFinalImgSrc,
+                'media_id' => $vFinalMediaId,
                 'admin_graphql_api_id' => $vGid,
             ];
         }
@@ -811,6 +900,30 @@ class ShopifyService
             }
         }
 
+        // Build files / images with deduplication
+        $files = [];
+        $seenFiles = [];
+
+        $addFile = function($src) use (&$files, &$seenFiles) {
+            if (is_string($src) && filter_var($src, FILTER_VALIDATE_URL) && (str_starts_with($src, 'http://') || str_starts_with($src, 'https://'))) {
+                if (!isset($seenFiles[$src])) {
+                    $seenFiles[$src] = true;
+                    $files[] = [
+                        'originalSource' => $src,
+                        'contentType' => 'IMAGE',
+                    ];
+                }
+                return true;
+            }
+            return false;
+        };
+
+        $rawImages = $payload['images'] ?? [];
+        foreach ($rawImages as $img) {
+            $src = is_array($img) ? ($img['src'] ?? ($img['url'] ?? '')) : (string) $img;
+            $addFile($src);
+        }
+
         // Build variants
         $variants = [];
         $rawVariants = $payload['variants'] ?? [];
@@ -871,20 +984,55 @@ class ShopifyService
                 ];
             }
 
-            $variants[] = $variantInput;
-        }
+            // Variant file / image association
+            $vImgUrl = null;
+            $vImgId = null;
 
-        // Build files / images
-        $files = [];
-        $rawImages = $payload['images'] ?? [];
-        foreach ($rawImages as $img) {
-            $src = is_array($img) ? ($img['src'] ?? '') : (string) $img;
-            if (filter_var($src, FILTER_VALIDATE_URL)) {
-                $files[] = [
-                    'originalSource' => $src,
-                    'contentType' => 'IMAGE',
-                ];
+            if (!empty($v['file']) && is_array($v['file'])) {
+                $variantInput['file'] = $v['file'];
+                if (!empty($v['file']['originalSource'])) {
+                    $addFile($v['file']['originalSource']);
+                }
+            } else {
+                if (!empty($v['image'])) {
+                    if (is_array($v['image'])) {
+                        $vImgUrl = $v['image']['url'] ?? ($v['image']['src'] ?? null);
+                        $vImgId = $v['image']['id'] ?? null;
+                    } elseif (is_string($v['image'])) {
+                        if (filter_var($v['image'], FILTER_VALIDATE_URL)) {
+                            $vImgUrl = $v['image'];
+                        } elseif (str_starts_with($v['image'], 'gid://shopify/') || is_numeric($v['image'])) {
+                            $vImgId = $v['image'];
+                        }
+                    }
+                }
+                if (!$vImgUrl && !empty($v['image_src']) && filter_var($v['image_src'], FILTER_VALIDATE_URL)) {
+                    $vImgUrl = $v['image_src'];
+                }
+                if (!$vImgId && !empty($v['image_id'])) {
+                    $vImgId = $v['image_id'];
+                }
+                if (!$vImgId && !empty($v['media_id'])) {
+                    $vImgId = $v['media_id'];
+                }
+
+                if ($vImgUrl && filter_var($vImgUrl, FILTER_VALIDATE_URL) && (str_starts_with($vImgUrl, 'http://') || str_starts_with($vImgUrl, 'https://'))) {
+                    $addFile($vImgUrl);
+                    $variantInput['file'] = [
+                        'originalSource' => $vImgUrl,
+                        'contentType' => 'IMAGE',
+                    ];
+                } elseif (!empty($vImgId)) {
+                    $vGid = str_starts_with((string)$vImgId, 'gid://shopify/')
+                        ? (string)$vImgId
+                        : "gid://shopify/MediaImage/{$vImgId}";
+                    $variantInput['file'] = [
+                        'id' => $vGid,
+                    ];
+                }
             }
+
+            $variants[] = $variantInput;
         }
 
         $input = [
@@ -927,6 +1075,32 @@ class ShopifyService
                             values
                             position
                         }
+                        media(first: 50) {
+                            nodes {
+                                id
+                                alt
+                                mediaContentType
+                                preview {
+                                    image {
+                                        id
+                                        url
+                                        altText
+                                        width
+                                        height
+                                    }
+                                }
+                                ... on MediaImage {
+                                    id
+                                    image {
+                                        id
+                                        url
+                                        altText
+                                        width
+                                        height
+                                    }
+                                }
+                            }
+                        }
                         images(first: 50) {
                             nodes {
                                 id
@@ -936,7 +1110,7 @@ class ShopifyService
                                 height
                             }
                         }
-                        variants(first: 100) {
+                        variants(first: 250) {
                             nodes {
                                 id
                                 legacyResourceId
@@ -949,6 +1123,36 @@ class ShopifyService
                                 selectedOptions {
                                     name
                                     value
+                                }
+                                media(first: 10) {
+                                    nodes {
+                                        id
+                                        alt
+                                        mediaContentType
+                                        preview {
+                                            image {
+                                                id
+                                                url
+                                                altText
+                                                width
+                                                height
+                                            }
+                                        }
+                                        ... on MediaImage {
+                                            id
+                                            image {
+                                                id
+                                                url
+                                                altText
+                                                width
+                                                height
+                                            }
+                                        }
+                                    }
+                                }
+                                image {
+                                    id
+                                    url
                                 }
                                 inventoryItem {
                                     id
@@ -1191,6 +1395,119 @@ class ShopifyService
 
         $finalVariants = [];
 
+        // Build files / images (excluding any deleted images by ID or URL)
+        $deletedUrls = [];
+        foreach ($deletedImages as $del) {
+            $delStr = (string) $del;
+            if (filter_var($delStr, FILTER_VALIDATE_URL)) {
+                $deletedUrls[] = $delStr;
+            } else {
+                $delNumeric = is_numeric($delStr) ? (int)$delStr : (str_contains($delStr, '/') ? (int)substr($delStr, strrpos($delStr, '/') + 1) : $delStr);
+                foreach ($existingImages as $existImg) {
+                    $existId = $existImg['id'] ?? null;
+                    if ($existId == $delNumeric || $existId == $delStr) {
+                        if (!empty($existImg['src'])) {
+                            $deletedUrls[] = $existImg['src'];
+                        }
+                    }
+                }
+            }
+        }
+
+        $files = [];
+        $seenFiles = [];
+
+        $addFile = function($src) use (&$files, &$seenFiles, $deletedUrls) {
+            if (is_string($src) && filter_var($src, FILTER_VALIDATE_URL) && (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) && !in_array($src, $deletedUrls)) {
+                if (!isset($seenFiles[$src])) {
+                    $seenFiles[$src] = true;
+                    $files[] = [
+                        'originalSource' => $src,
+                        'contentType' => 'IMAGE',
+                    ];
+                }
+                return true;
+            }
+            return false;
+        };
+
+        $rawImages = $payload['images'] ?? [];
+        foreach ($rawImages as $img) {
+            $src = is_array($img) ? ($img['src'] ?? ($img['url'] ?? '')) : (string) $img;
+            $addFile($src);
+        }
+
+        $resolveVariantFile = function(array $vData, ?array $existV = null) use (&$addFile) {
+            if (!empty($vData['file']) && is_array($vData['file'])) {
+                if (!empty($vData['file']['originalSource'])) {
+                    $addFile($vData['file']['originalSource']);
+                }
+                return $vData['file'];
+            }
+
+            $vImgUrl = null;
+            $vImgId = null;
+
+            if (!empty($vData['image'])) {
+                if (is_array($vData['image'])) {
+                    $vImgUrl = $vData['image']['url'] ?? ($vData['image']['src'] ?? null);
+                    $vImgId = $vData['image']['id'] ?? null;
+                } elseif (is_string($vData['image'])) {
+                    if (filter_var($vData['image'], FILTER_VALIDATE_URL)) {
+                        $vImgUrl = $vData['image'];
+                    } elseif (str_starts_with($vData['image'], 'gid://shopify/') || is_numeric($vData['image'])) {
+                        $vImgId = $vData['image'];
+                    }
+                }
+            }
+            if (!$vImgUrl && !empty($vData['image_src']) && filter_var($vData['image_src'], FILTER_VALIDATE_URL)) {
+                $vImgUrl = $vData['image_src'];
+            }
+            if (!$vImgId && !empty($vData['image_id'])) {
+                $vImgId = $vData['image_id'];
+            }
+            if (!$vImgId && !empty($vData['media_id'])) {
+                $vImgId = $vData['media_id'];
+            }
+            if (!$vImgId && !empty($vData['existing_image_id'])) {
+                $vImgId = $vData['existing_image_id'];
+            }
+
+            // New image URL supplied
+            if ($vImgUrl && filter_var($vImgUrl, FILTER_VALIDATE_URL) && (str_starts_with($vImgUrl, 'http://') || str_starts_with($vImgUrl, 'https://'))) {
+                $addFile($vImgUrl);
+                return [
+                    'originalSource' => $vImgUrl,
+                    'contentType' => 'IMAGE',
+                ];
+            }
+
+            // Explicit image / media ID supplied
+            if (!empty($vImgId)) {
+                $gid = str_starts_with((string)$vImgId, 'gid://shopify/')
+                    ? (string)$vImgId
+                    : "gid://shopify/MediaImage/{$vImgId}";
+                return [
+                    'id' => $gid,
+                ];
+            }
+
+            // Untouched/unmodified image: preserve existing image from authoritative Shopify variant
+            if ($existV) {
+                $existMediaId = $existV['media_id'] ?? ($existV['image_id'] ?? ($existV['image']['id'] ?? null));
+                if (!empty($existMediaId)) {
+                    $gid = str_starts_with((string)$existMediaId, 'gid://shopify/')
+                        ? (string)$existMediaId
+                        : "gid://shopify/MediaImage/{$existMediaId}";
+                    return [
+                        'id' => $gid,
+                    ];
+                }
+            }
+
+            return null;
+        };
+
         // 1. Process all existing variants from Shopify (update modified, preserve unmodified)
         foreach ($existingVariants as $existV) {
             $existId = $existV['id'];
@@ -1260,6 +1577,11 @@ class ShopifyService
                     }
                 }
 
+                $resolvedFile = $resolveVariantFile($formV, $existV);
+                if ($resolvedFile) {
+                    $variantInput['file'] = $resolvedFile;
+                }
+
                 $finalVariants[] = $variantInput;
                 unset($submittedById[$existId]);
             } else {
@@ -1290,6 +1612,12 @@ class ShopifyService
                 if (!empty($optVals)) {
                     $variantInput['optionValues'] = $optVals;
                 }
+
+                $resolvedFile = $resolveVariantFile([], $existV);
+                if ($resolvedFile) {
+                    $variantInput['file'] = $resolvedFile;
+                }
+
                 $finalVariants[] = $variantInput;
             }
         }
@@ -1343,38 +1671,12 @@ class ShopifyService
                 }
             }
 
+            $resolvedFile = $resolveVariantFile($nV, null);
+            if ($resolvedFile) {
+                $variantInput['file'] = $resolvedFile;
+            }
+
             $finalVariants[] = $variantInput;
-        }
-
-        // Build files / images (excluding any deleted images by ID or URL)
-        $deletedUrls = [];
-        foreach ($deletedImages as $del) {
-            $delStr = (string) $del;
-            if (filter_var($delStr, FILTER_VALIDATE_URL)) {
-                $deletedUrls[] = $delStr;
-            } else {
-                $delNumeric = is_numeric($delStr) ? (int)$delStr : (str_contains($delStr, '/') ? (int)substr($delStr, strrpos($delStr, '/') + 1) : $delStr);
-                foreach ($existingImages as $existImg) {
-                    $existId = $existImg['id'] ?? null;
-                    if ($existId == $delNumeric || $existId == $delStr) {
-                        if (!empty($existImg['src'])) {
-                            $deletedUrls[] = $existImg['src'];
-                        }
-                    }
-                }
-            }
-        }
-
-        $files = [];
-        $rawImages = $payload['images'] ?? [];
-        foreach ($rawImages as $img) {
-            $src = is_array($img) ? ($img['src'] ?? '') : (string) $img;
-            if (filter_var($src, FILTER_VALIDATE_URL) && !in_array($src, $deletedUrls)) {
-                $files[] = [
-                    'originalSource' => $src,
-                    'contentType' => 'IMAGE',
-                ];
-            }
         }
 
         $input = [];
@@ -1431,6 +1733,32 @@ class ShopifyService
                             values
                             position
                         }
+                        media(first: 50) {
+                            nodes {
+                                id
+                                alt
+                                mediaContentType
+                                preview {
+                                    image {
+                                        id
+                                        url
+                                        altText
+                                        width
+                                        height
+                                    }
+                                }
+                                ... on MediaImage {
+                                    id
+                                    image {
+                                        id
+                                        url
+                                        altText
+                                        width
+                                        height
+                                    }
+                                }
+                            }
+                        }
                         images(first: 50) {
                             nodes {
                                 id
@@ -1440,7 +1768,7 @@ class ShopifyService
                                 height
                             }
                         }
-                        variants(first: 100) {
+                        variants(first: 250) {
                             nodes {
                                 id
                                 legacyResourceId
@@ -1453,6 +1781,36 @@ class ShopifyService
                                 selectedOptions {
                                     name
                                     value
+                                }
+                                media(first: 10) {
+                                    nodes {
+                                        id
+                                        alt
+                                        mediaContentType
+                                        preview {
+                                            image {
+                                                id
+                                                url
+                                                altText
+                                                width
+                                                height
+                                            }
+                                        }
+                                        ... on MediaImage {
+                                            id
+                                            image {
+                                                id
+                                                url
+                                                altText
+                                                width
+                                                height
+                                            }
+                                        }
+                                    }
+                                }
+                                image {
+                                    id
+                                    url
                                 }
                                 inventoryItem {
                                     id

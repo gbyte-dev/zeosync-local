@@ -2149,6 +2149,22 @@ class ShopifyController extends Controller
                     'inventory_quantity' => (int) $request->input("variant_quantity.{$index}", 0),
                 ];
 
+                $variantImageUrl = $request->input("variants.{$index}.image") ?? $request->input("variant_image.{$index}");
+                $existingVariantImgId = $request->input("existing_variant_image.{$index}") ?? $request->input("variants.{$index}.image_id");
+
+                if (!empty($variantImageUrl) && is_string($variantImageUrl) && filter_var(trim($variantImageUrl), FILTER_VALIDATE_URL)) {
+                    $vItem['image'] = [
+                        'url' => trim($variantImageUrl),
+                        'id' => !empty($existingVariantImgId) ? $existingVariantImgId : null,
+                    ];
+                    $vItem['image_src'] = trim($variantImageUrl);
+                } elseif (!empty($existingVariantImgId)) {
+                    $vItem['image'] = [
+                        'id' => $existingVariantImgId,
+                    ];
+                    $vItem['image_id'] = $existingVariantImgId;
+                }
+
                 if (!empty($variantCombos[$index])) {
                     $combo = is_array($variantCombos[$index]) ? $variantCombos[$index] : json_decode($variantCombos[$index], true);
                     if (is_array($combo)) {
@@ -2791,9 +2807,21 @@ class ShopifyController extends Controller
             if (!empty($v['option3']))
                 $variant['option3'] = trim($v['option3']);
 
-            // Attach any existing image ID mapped to this variant directly
-            if (!empty($v['existing_image_id']) && is_numeric($v['existing_image_id'])) {
-                $variant['image_id'] = (int) $v['existing_image_id'];
+            // Attach any image / image ID mapped to this variant
+            $variantImgUrl = !empty($v['image']) && is_string($v['image']) ? trim($v['image']) : ($request->input("variant_image.{$originalIndex}") ?? null);
+            $existingImgId = $v['existing_image_id'] ?? ($v['image_id'] ?? ($request->input("existing_variant_image.{$originalIndex}") ?? null));
+
+            if (!empty($variantImgUrl) && filter_var($variantImgUrl, FILTER_VALIDATE_URL)) {
+                $variant['image'] = [
+                    'url' => $variantImgUrl,
+                    'id' => !empty($existingImgId) ? $existingImgId : null,
+                ];
+                $variant['image_src'] = $variantImgUrl;
+            } elseif (!empty($existingImgId)) {
+                $variant['image'] = [
+                    'id' => $existingImgId,
+                ];
+                $variant['image_id'] = $existingImgId;
             }
 
             $variants[] = $variant;

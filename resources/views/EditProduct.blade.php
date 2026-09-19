@@ -1720,10 +1720,32 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 
             // Handle variant image state
             if (!variantImageMap[idx]) {
-                if (existingVariant && existingVariant.image_id && imageIdToSrc[existingVariant.image_id]) {
+                let resolvedUrl = null;
+                let resolvedImageId = null;
+                let resolvedMediaId = null;
+
+                if (existingVariant) {
+                    if (existingVariant.image && existingVariant.image.src) {
+                        resolvedUrl = existingVariant.image.src;
+                        resolvedImageId = existingVariant.image.id || existingVariant.image_id || null;
+                    } else if (existingVariant.image && existingVariant.image.url) {
+                        resolvedUrl = existingVariant.image.url;
+                        resolvedImageId = existingVariant.image.id || existingVariant.image_id || null;
+                    } else if (existingVariant.image_src) {
+                        resolvedUrl = existingVariant.image_src;
+                        resolvedImageId = existingVariant.image_id || null;
+                    } else if (existingVariant.image_id && imageIdToSrc[existingVariant.image_id]) {
+                        resolvedUrl = imageIdToSrc[existingVariant.image_id];
+                        resolvedImageId = existingVariant.image_id;
+                    }
+                    resolvedMediaId = existingVariant.media_id || (existingVariant.image && existingVariant.image.id) || existingVariant.image_id || null;
+                }
+
+                if (resolvedUrl) {
                     variantImageMap[idx] = {
-                        url: imageIdToSrc[existingVariant.image_id],
-                        imageId: existingVariant.image_id,
+                        url: resolvedUrl,
+                        imageId: resolvedImageId || resolvedMediaId,
+                        mediaId: resolvedMediaId,
                         name: 'Variant Image',
                         key: comboKey
                     };
@@ -1735,6 +1757,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                 savedComboImageMap[comboKey] = {
                     url: variantImageMap[idx].url,
                     imageId: variantImageMap[idx].imageId,
+                    mediaId: variantImageMap[idx].mediaId,
                     name: variantImageMap[idx].name
                 };
             }
