@@ -463,7 +463,7 @@ class ShopifyService
                     changes {
                         name
                         delta
-                        quantity
+                        quantityAfterChange
                         item {
                             id
                             legacyResourceId
