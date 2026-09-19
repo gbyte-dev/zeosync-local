@@ -10,7 +10,7 @@ class ShopifyService
 {
     protected $shop;
     protected $token;
-    protected $version = 2026-07;
+    protected $version = '2026-07';
 
     public function __construct($shop, $token)
     {
@@ -409,8 +409,26 @@ class ShopifyService
      * @param mixed $param4 (int $quantity or Shop|null)
      * @return array
      */
-    public function setInventoryQuantity($param1, $param2 = null, $param3 = null, $param4 = null): array
-    {
+    /**
+     * Set the available inventory quantity for an item at a specific location using GraphQL.
+     *
+     * @param mixed $param1 Shop or inventoryItemId
+     * @param mixed $param2 inventoryItemId or locationId
+     * @param mixed $param3 locationId or quantity
+     * @param mixed $param4 quantity or Shop
+     * @param int|null $changeFromQuantity Optional authoritative live baseline quantity for OCC
+     * @param string|null $idempotencyKey Deterministic idempotency key for this operation/retry
+     * @return array
+     */
+    public function setInventoryQuantity(
+        $param1,
+        $param2 = null,
+        $param3 = null,
+        $param4 = null,
+        ?int $changeFromQuantity = null,
+        ?string $idempotencyKey = null,
+        array $context = []
+    ): array {
         if ($param1 instanceof Shop) {
             $shop = $param1;
             $inventoryItemId = $param2;
@@ -456,8 +474,8 @@ class ShopifyService
         $numericLocId = is_numeric($numericLocId) ? (int) $numericLocId : $numericLocId;
 
         $mutation = <<<'GRAPHQL'
-        mutation InventorySetQuantities($input: InventorySetQuantitiesInput!) {
-            inventorySetQuantities(input: $input) {
+        mutation InventorySetQuantities($input: InventorySetQuantitiesInput!, $idempotencyKey: String!) {
+            inventorySetQuantities(input: $input) @idempotent(key: $idempotencyKey) {
                 inventoryAdjustmentGroup {
                     reason
                     changes {
@@ -483,20 +501,42 @@ class ShopifyService
         }
         GRAPHQL;
 
+        $quantityInput = [
+            'inventoryItemId' => $itemGid,
+            'locationId' => $locGid,
+            'quantity' => (int) $quantity,
+        ];
+
+        if ($changeFromQuantity !== null) {
+            $quantityInput['changeFromQuantity'] = (int) $changeFromQuantity;
+        }
+
+        $resolvedIdempotencyKey = !blank($idempotencyKey)
+            ? (string) $idempotencyKey
+            : (string) \Illuminate\Support\Str::uuid();
+
         $variables = [
             'input' => [
                 'name' => 'available',
                 'reason' => 'cycle_count_available',
-                'ignoreCompareQuantity' => true,
                 'quantities' => [
-                    [
-                        'inventoryItemId' => $itemGid,
-                        'locationId' => $locGid,
-                        'quantity' => (int) $quantity,
-                    ]
-                ]
-            ]
+                    $quantityInput,
+                ],
+            ],
+            'idempotencyKey' => $resolvedIdempotencyKey,
         ];
+
+        Log::info('Shopify GraphQL inventorySetQuantities Request', [
+            'api_version' => $this->version,
+            'mutation_name' => 'InventorySetQuantities',
+            'operation_id' => $context['operation_id'] ?? null,
+            'operation_uuid' => $context['operation_uuid'] ?? $resolvedIdempotencyKey,
+            'inventory_item_id' => $inventoryItemId,
+            'location_id' => $locationId,
+            'desired_quantity' => (int) $quantity,
+            'baseline_quantity' => $changeFromQuantity,
+            'final_graphql_variables' => $variables,
+        ]);
 
         $response = $this->graphql($mutation, $variables);
 
@@ -507,6 +547,8 @@ class ShopifyService
                 'inventory_item_id' => $inventoryItemId,
                 'location_id' => $locationId,
                 'quantity' => $quantity,
+                'change_from_quantity' => $changeFromQuantity,
+                'idempotency_key' => $resolvedIdempotencyKey,
                 'response' => $response,
             ]);
             return [
@@ -519,16 +561,20 @@ class ShopifyService
         $userErrors = data_get($response, 'data.inventorySetQuantities.userErrors', []);
         if (!empty($userErrors)) {
             $firstMsg = $userErrors[0]['message'] ?? 'Inventory update rejected by Shopify.';
+            $firstCode = $userErrors[0]['code'] ?? null;
             Log::error('Shopify GraphQL setInventoryQuantity userErrors', [
                 'shop' => $this->shop,
                 'inventory_item_id' => $inventoryItemId,
                 'location_id' => $locationId,
                 'quantity' => $quantity,
+                'change_from_quantity' => $changeFromQuantity,
+                'idempotency_key' => $resolvedIdempotencyKey,
                 'userErrors' => $userErrors,
             ]);
             return [
                 'error' => true,
                 'status' => 422,
+                'code' => $firstCode,
                 'message' => $firstMsg,
                 'userErrors' => $userErrors,
             ];

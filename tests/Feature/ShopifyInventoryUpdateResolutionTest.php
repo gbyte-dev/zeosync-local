@@ -335,7 +335,7 @@ it('Test C: Spoofed shop query parameter is ignored and authenticated shop remai
     $response->assertOk();
     $op = InventorySyncOperation::find($response->json('operation_id'));
     expect($op->shop_id)->toBe($shopA->id)
-        ->and($mappingB->fresh()->quantity)->toBe(40);
+        ->and((int) $mappingB->fresh()->quantity)->toBe(40);
 });
 
 // D. Session expired + valid App Bridge token
@@ -614,6 +614,6 @@ it('Test L: ProcessInventoryUpdateJob executes without HTTP request session usin
 
     $op->refresh();
     expect($op->status)->toBe('awaiting_verification')
-        ->and($mapping->fresh()->quantity)->toBe(25);
+        ->and((int) $mapping->fresh()->quantity)->toBe(25);
 });
 

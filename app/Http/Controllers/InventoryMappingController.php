@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
 class InventoryMappingController extends Controller
@@ -412,10 +413,28 @@ class InventoryMappingController extends Controller
 
     public function updateShopifyInventory(Request $request)
     {
-        Log::info('Shopify inventory update: 1. Request received', [
-            'shop' => $request->shop ?? $request->query('shop'),
-            'inventory_item_id' => $request->inventory_item_id,
-            'quantity' => $request->quantity,
+        $dbName = DB::connection()->getDatabaseName();
+        $qConn = Queue::connection('database');
+        $queueDbName = method_exists($qConn, 'getDatabase') ? $qConn->getDatabase()->getDatabaseName() : 'faked_or_default';
+        $appQueueDefault = config('queue.default');
+
+        Log::info('INV_TRACE_01_REQUEST', [
+            'app_db'              => $dbName,
+            'queue_db'            => $queueDbName,
+            'queue_default'       => $appQueueDefault,
+            'php_version'         => PHP_VERSION,
+            'php_ini'             => php_ini_loaded_file(),
+            'hostname'            => gethostname(),
+            'shop_param'          => $request->shop ?? $request->query('shop'),
+            'inventory_item_id'   => $request->inventory_item_id,
+            'quantity'            => $request->quantity,
+            'baseline_quantity'   => $request->baseline_quantity,
+            'mapping_id'          => $request->mapping_id,
+            'shopify_variant_id'  => $request->shopify_variant_id,
+            'all_params'          => $request->all(),
+            'bearer_token'        => $request->bearerToken() ? 'PRESENT' : 'NONE',
+            'session_verified_shop' => session('_shopify_verified_shop'),
+            'session_active_shop' => session('active_shop'),
         ]);
 
         try {
@@ -428,14 +447,14 @@ class InventoryMappingController extends Controller
                 'baseline_quantity' => 'nullable|integer',
             ]);
 
-            Log::info('Shopify inventory update: 2. Request validation passed', [
+            Log::info('INV_TRACE_02_VALIDATED', [
                 'inventory_item_id' => $request->inventory_item_id,
                 'quantity' => $request->quantity,
             ]);
 
             $shop = $this->getActiveShopModel($request);
             if (!$shop) {
-                Log::warning('Shopify inventory update: Active shop resolution returned null', [
+                Log::warning('INV_TRACE_03_SHOP_FAILED', [
                     'shop_param' => $request->shop ?? $request->query('shop'),
                 ]);
 
@@ -445,7 +464,7 @@ class InventoryMappingController extends Controller
                 ], 401);
             }
 
-            Log::info('Shopify inventory update: 3. Active shop resolved', [
+            Log::info('INV_TRACE_03_SHOP', [
                 'shop_id' => $shop->id,
                 'shop' => $shop->shop,
             ]);
@@ -487,7 +506,7 @@ class InventoryMappingController extends Controller
             }
 
             if (!$locationId) {
-                Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
+                Log::warning('INV_TRACE_04_LOCATION_FAILED', [
                     'shop_id' => $shop->id,
                     'selected_location_index' => $shop->selected_location_index,
                     'effective_index' => $selectedIndex,
@@ -499,7 +518,7 @@ class InventoryMappingController extends Controller
                 ], 422);
             }
 
-            Log::info('Shopify inventory update: 4. Shopify location resolved', [
+            Log::info('INV_TRACE_04_LOCATION', [
                 'shop_id' => $shop->id,
                 'location_id' => $locationId,
                 'index' => $selectedIndex,
@@ -519,7 +538,7 @@ class InventoryMappingController extends Controller
                     ->first();
             }
 
-            Log::info('Shopify inventory update: 5. Inventory mapping found', [
+            Log::info('INV_TRACE_05_MAPPING', [
                 'shop_id' => $shop->id,
                 'mapping_id' => $mapping?->id,
                 'amazon_sku' => $mapping?->amazon_sku,
@@ -567,9 +586,10 @@ class InventoryMappingController extends Controller
                 }
             }
 
-            Log::info('Shopify inventory update: 6. InventorySyncOperation database record creation started', [
+            Log::info('INV_TRACE_06_BASELINE', [
                 'shop_id' => $shop->id,
                 'inventory_item_id' => $request->inventory_item_id,
+                'baseline_quantity' => $baselineQuantity,
                 'desired_quantity' => (int) $request->quantity,
             ]);
 
@@ -586,7 +606,7 @@ class InventoryMappingController extends Controller
                         'last_error' => 'Superseded by newer manual update.',
                     ]);
 
-                return InventorySyncOperation::create([
+                $op = InventorySyncOperation::create([
                     'operation_uuid' => (string) Str::uuid(),
                     'source_key' => 'manual:' . Str::uuid(),
                     'shop_id' => $shop->id,
@@ -604,48 +624,58 @@ class InventoryMappingController extends Controller
                     'max_attempts' => 4,
                     'last_dispatched_at' => now(),
                 ]);
+
+                Log::info('INV_TRACE_07_OPERATION_CREATED', [
+                    'shop_id'        => $shop->id,
+                    'operation_id'   => $op->id,
+                    'operation_uuid' => $op->operation_uuid,
+                ]);
+
+                return $op;
             });
 
-            // Log::info('Shopify inventory update: 7. InventorySyncOperation database record created', [
-            //     'shop_id'        => $shop->id,
-            //     'operation_id'   => $operation->id,
-            //     'operation_uuid' => $operation->operation_uuid,
-            // ]);
+            Log::info('INV_TRACE_08_TRANSACTION_COMMITTED', [
+                'shop_id'        => $shop->id,
+                'operation_id'   => $operation->id,
+                'operation_uuid' => $operation->operation_uuid,
+            ]);
 
-            // Log::info('Shopify inventory update: 8. ProcessInventoryUpdateJob dispatch started', [
-            //     'shop_id'      => $shop->id,
-            //     'operation_id' => $operation->id,
-            // ]);
+            Log::info('INV_TRACE_09_BEFORE_DISPATCH', [
+                'shop_id'      => $shop->id,
+                'operation_id' => $operation->id,
+                'target_conn'  => 'database',
+                'target_queue' => 'default',
+            ]);
 
             // Dispatch background processing job after DB transaction has committed
-            ProcessInventoryUpdateJob::dispatch($operation->id)
+            $pendingJob = ProcessInventoryUpdateJob::dispatch($operation->id)
                 ->onConnection('database')
                 ->onQueue('default');
 
-            Log::info('Shopify inventory update: 9. ProcessInventoryUpdateJob dispatched', [
-                'shop_id' => $shop->id,
+            $latestJob = DB::table('jobs')->orderByDesc('id')->first();
+
+            Log::info('INV_TRACE_10_AFTER_DISPATCH', [
+                'shop_id'      => $shop->id,
                 'operation_id' => $operation->id,
+                'pending_job_class' => get_debug_type($pendingJob),
+                'latest_job_id' => $latestJob?->id,
+                'latest_job_queue' => $latestJob?->queue,
+                'latest_job_payload' => $latestJob ? substr($latestJob->payload, 0, 200) : null,
             ]);
 
             // Invalidate cache
             Cache::forget("shopify_inventory_{$shop->shop}_location_{$selectedIndex}");
 
-            // Log::info('Shopify inventory update: 10. Cache invalidation completed', [
-            //     'shop'      => $shop->shop,
-            //     'cache_key' => "shopify_inventory_{$shop->shop}_location_{$selectedIndex}",
-            // ]);
-
-            // Log::info('Shopify inventory update: 11. Shopify inventory update flow completed', [
-            //     'shop_id'      => $shop->id,
-            //     'operation_id' => $operation->id,
-            // ]);
-
-            return response()->json([
+            $responsePayload = [
                 'success' => true,
                 'status' => 'pending',
                 'operation_id' => $operation->id,
                 'message' => 'Inventory update queued successfully.',
-            ]);
+            ];
+
+            Log::info('INV_TRACE_11_RESPONSE', $responsePayload);
+
+            return response()->json($responsePayload);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
