@@ -411,23 +411,19 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
             <div class="premium-card" style="height:350px;">
 
                 <div class="card-header-custom">
-                    <h3 class="card-title-custom">
-                        Low Inventory Products
-                    </h3>
-
-                    <p class="card-subtitle-custom">
-                        Products with inventory below 10 units
-                    </p>
-
-
-                        @php
+                    <div class="col-sm-8">
+                        <h3 class="card-title-custom"> Low Inventory Products  </h3>
+                        <p class="card-subtitle-custom"> Products with inventory below 10 units
+                        </p>
+                    </div>
+                    <div class="col-sm-4">
+                         @php
                             $locations = $shop->shopify_locations ?? [];
                             $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
-                                ? (int) $shop->selected_location_index
-                                : 0;
+                                ? (int) $shop->selected_location_index  : 0;
                         @endphp
 
-                        <select name="selected_location_index" class="saas-select">
+                        <select name="selected_location_index" class="form-select form-select-sm" id="locationSelect">
                             @if(!empty($locations))
                                 @foreach($locations as $index => $location)
                                 <option value="{{ $index }}" {{ (string) old('selected_location_index', $selectedIndex) === (string) $index ? 'selected' : '' }}>
@@ -438,6 +434,7 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                                 <option value="" selected>No Location Available</option>
                             @endif
                         </select>
+                    </div>
                 </div>
 
                 <div class="card-divider"></div>
