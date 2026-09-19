@@ -463,13 +463,101 @@
                 <tbody id="productsTableBody">
                     @foreach($products as $product)
                     @php
-                    $firstImage = data_get($product, 'image.src')
-                    ?? data_get($product, 'images.0.src')
-                    ?? asset('b6.png');
-                    $status = $product['status'] ?? 'draft';
-                    $category = $product['product_type'] ?? 'Uncategorized';
-                    $inventory = collect($product['variants'] ?? [])->sum(fn($v) => $v['inventory_quantity'] ?? 0);
-                    $price = $product['variants'][0]['price'] ?? 0;
+                    $firstImage = null;
+                    $imgAttr = data_get($product, 'image');
+                    if (is_string($imgAttr) && !empty($imgAttr)) {
+                        $firstImage = $imgAttr;
+                    } elseif (is_array($imgAttr) || is_object($imgAttr)) {
+                        $firstImage = data_get($imgAttr, 'src') ?? data_get($imgAttr, 'url') ?? data_get($imgAttr, 'image_src') ?? data_get($imgAttr, 'image_url');
+                    }
+
+                    if (empty($firstImage)) {
+                        $imagesList = data_get($product, 'images');
+                        if (is_string($imagesList)) {
+                            $decoded = json_decode($imagesList, true);
+                            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                                $imagesList = $decoded;
+                            } else {
+                                $firstImage = $imagesList;
+                            }
+                        }
+                        if (empty($firstImage) && !empty($imagesList) && (is_array($imagesList) || is_iterable($imagesList))) {
+                            foreach ($imagesList as $imgItem) {
+                                if (is_string($imgItem) && !empty($imgItem)) {
+                                    $firstImage = $imgItem;
+                                    break;
+                                } elseif (is_array($imgItem) || is_object($imgItem)) {
+                                    $candidate = data_get($imgItem, 'src') ?? data_get($imgItem, 'url') ?? data_get($imgItem, 'image_src') ?? data_get($imgItem, 'image_url');
+                                    if (!empty($candidate)) {
+                                        $firstImage = $candidate;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    $variantsList = data_get($product, 'variants', []);
+                    if (is_string($variantsList)) {
+                        $decodedV = json_decode($variantsList, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decodedV)) {
+                            $variantsList = $decodedV;
+                        } else {
+                            $variantsList = [];
+                        }
+                    }
+
+                    if (empty($firstImage) && !empty($variantsList) && (is_array($variantsList) || is_iterable($variantsList))) {
+                        foreach ($variantsList as $varItem) {
+                            $candidate = data_get($varItem, 'image_src') 
+                                ?? data_get($varItem, 'image.src') 
+                                ?? data_get($varItem, 'image.url') 
+                                ?? data_get($varItem, 'image_url');
+                            if (!empty($candidate)) {
+                                $firstImage = $candidate;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (empty($firstImage) && !empty(data_get($product, 'local_images'))) {
+                        $localImg = data_get($product, 'local_images');
+                        if (is_string($localImg)) {
+                            $decodedL = json_decode($localImg, true);
+                            if (json_last_error() === JSON_ERROR_NONE && is_array($decodedL)) {
+                                $firstImage = $decodedL[0] ?? null;
+                            } else {
+                                $firstImage = $localImg;
+                            }
+                        } elseif (is_array($localImg)) {
+                            $firstImage = $localImg[0] ?? null;
+                        }
+                    }
+
+                    $firstImage = $firstImage ?: asset('b6.png');
+                    $status = data_get($product, 'status', 'draft');
+                    $category = data_get($product, 'product_type') ?? data_get($product, 'category') ?? 'Uncategorized';
+
+                    if (!empty($variantsList) && (is_array($variantsList) || is_iterable($variantsList))) {
+                        $inventory = (int) collect($variantsList)->sum(function ($v) {
+                            $qty = data_get($v, 'inventory_quantity')
+                                ?? data_get($v, 'quantity')
+                                ?? data_get($v, 'available')
+                                ?? data_get($v, 'qty')
+                                ?? data_get($v, 'stock');
+                            return is_numeric($qty) ? (int) $qty : 0;
+                        });
+                    } else {
+                        $directQty = data_get($product, 'inventory_quantity')
+                            ?? data_get($product, 'inventory')
+                            ?? data_get($product, 'stock')
+                            ?? data_get($product, 'quantity')
+                            ?? data_get($product, 'total_inventory')
+                            ?? 0;
+                        $inventory = is_numeric($directQty) ? (int) $directQty : 0;
+                    }
+
+                    $price = data_get($variantsList, '0.price') ?? data_get($product, 'price') ?? 0;
                     @endphp
                     <tr data-product-id="{{ $product['id'] }}">
                         <td>

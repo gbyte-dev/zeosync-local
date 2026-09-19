@@ -1649,8 +1649,29 @@ class ShopifyController extends Controller
         }
 
         $outOfStockProducts = $allProducts->filter(function ($product) {
-            return collect($product->variants ?? [])
-                ->sum('inventory_quantity') <= 0;
+            $variants = $product->variants ?? [];
+            if (is_string($variants)) {
+                $decoded = json_decode($variants, true);
+                $variants = is_array($decoded) ? $decoded : [];
+            }
+            $inv = collect($variants)->sum(function ($v) {
+                $q = data_get($v, 'inventory_quantity')
+                    ?? data_get($v, 'quantity')
+                    ?? data_get($v, 'available')
+                    ?? data_get($v, 'qty')
+                    ?? data_get($v, 'stock')
+                    ?? 0;
+                return is_numeric($q) ? (int) $q : 0;
+            });
+            if ($inv === 0 && empty($variants)) {
+                $directQty = data_get($product, 'inventory_quantity')
+                    ?? data_get($product, 'inventory')
+                    ?? data_get($product, 'stock')
+                    ?? data_get($product, 'quantity')
+                    ?? 0;
+                $inv = is_numeric($directQty) ? (int) $directQty : 0;
+            }
+            return $inv <= 0;
         })->count();
         $totalProducts = $allProducts->count();
 
