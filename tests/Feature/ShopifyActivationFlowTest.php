@@ -80,6 +80,8 @@ beforeEach(function () {
             $table->boolean('trial_used')->default(false);
             $table->timestamps();
         });
+    } else {
+        ShopSubscription::query()->forceDelete();
     }
 
     if (!Schema::hasTable('notification_settings')) {
@@ -125,6 +127,8 @@ beforeEach(function () {
             $table->timestamps();
         });
     }
+
+    view()->share('cspNonce', 'test-nonce');
 
     Http::fake([
         '*graphql.json*' => Http::response(['data' => ['shop' => ['id' => '1', 'name' => 'Store']]], 200),

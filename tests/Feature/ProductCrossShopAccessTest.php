@@ -182,6 +182,11 @@ beforeEach(function () {
             $table->timestamps();
         });
     }
+
+    ProductSchema::query()->forceDelete();
+    AllProduct::query()->forceDelete();
+    Shop::query()->forceDelete();
+    ShopSubscription::query()->forceDelete();
 });
 
 function createProductCrossAccessTestShop(string $domain): Shop
@@ -235,6 +240,22 @@ it('1. Current shop can access its own product on editProduct and productEdit', 
     $shopA = createProductCrossAccessTestShop('shop-a.myshopify.com');
 
     Http::fake([
+        'https://shop-a.myshopify.com/admin/api/*/graphql.json' => Http::response([
+            'data' => [
+                'product' => [
+                    'id' => 'gid://shopify/Product/1001',
+                    'legacyResourceId' => '1001',
+                    'title' => 'Shop A Valid Product',
+                    'variants' => [
+                        'nodes' => [
+                            ['id' => 'gid://shopify/ProductVariant/2001', 'legacyResourceId' => '2001', 'price' => '19.99', 'sku' => 'SKU-A-1']
+                        ]
+                    ],
+                    'images' => ['nodes' => []],
+                    'options' => [],
+                ]
+            ]
+        ], 200),
         'https://shop-a.myshopify.com/admin/api/*/products/1001.json' => Http::response([
             'product' => [
                 'id' => 1001,
