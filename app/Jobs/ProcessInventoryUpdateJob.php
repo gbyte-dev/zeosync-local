@@ -318,22 +318,57 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                 ]);
 
                 try {
+                    $changeFromQuantity = $liveAvailable ?? ($operation->baseline_quantity !== null ? (int) $operation->baseline_quantity : null);
+                    $idempotencyKey = $operation->operation_uuid ?? (string) \Illuminate\Support\Str::uuid();
+
                     Log::info('INV_TRACE_JOB_08_GRAPHQL_MUTATION', [
                         'shop_id' => $shop->id,
                         'inventory_item_id' => $operation->shopify_inventory_item_id,
                         'location_id' => $locationId,
                         'desired_quantity' => $operation->desired_quantity,
+                        'change_from_quantity' => $changeFromQuantity,
+                        'idempotency_key' => $idempotencyKey,
                     ]);
 
                     $response = $shopify->setInventoryQuantity(
                         $shop,
                         $operation->shopify_inventory_item_id,
                         $locationId,
-                        $operation->desired_quantity
+                        $operation->desired_quantity,
+                        $changeFromQuantity,
+                        $idempotencyKey
                     );
 
                     if (!empty($response['error'])) {
                         $errorMessage = $response['message'] ?? 'Shopify inventory update failed.';
+                        $errorCode = $response['code'] ?? null;
+                        $userErrors = $response['userErrors'] ?? [];
+
+                        $isStale = $errorCode === 'CHANGE_FROM_QUANTITY_STALE'
+                            || str_contains(strtolower($errorMessage), 'changefromquantity')
+                            || str_contains(strtolower($errorMessage), 'persisted quantity')
+                            || collect($userErrors)->contains(fn ($ue) => ($ue['code'] ?? '') === 'CHANGE_FROM_QUANTITY_STALE' || str_contains(strtolower($ue['message'] ?? ''), 'changefromquantity'));
+
+                        if ($isStale) {
+                            $operation->update([
+                                'status'     => 'stale_external_state',
+                                'last_error' => $errorMessage,
+                            ]);
+
+                            $selectedIndex = $shop->selected_location_index ?? 0;
+                            Cache::forget("shopify_inventory_{$shop->shop}_location_{$selectedIndex}");
+
+                            Log::warning('ProcessInventoryUpdateJob: Operation aborted due to Shopify optimistic concurrency conflict (CHANGE_FROM_QUANTITY_STALE).', [
+                                'operation_id'        => $operation->id,
+                                'operation_uuid'      => $operation->operation_uuid,
+                                'baseline_quantity'   => $operation->baseline_quantity,
+                                'change_from_quantity'=> $changeFromQuantity,
+                                'desired_quantity'    => $operation->desired_quantity,
+                                'error_message'       => $errorMessage,
+                                'user_errors'         => $userErrors,
+                            ]);
+                            return;
+                        }
 
                         // Check if permanent error
                         if (
@@ -353,6 +388,9 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                         throw new \Exception($errorMessage);
                     }
                 } catch (\Throwable $e) {
+                    if ($operation->status === 'stale_external_state' || $operation->status === 'failed') {
+                        return;
+                    }
                     $operation->update(['last_error' => $e->getMessage()]);
                     throw $e;
                 }
