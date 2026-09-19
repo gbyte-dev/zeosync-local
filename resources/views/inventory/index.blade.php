@@ -589,6 +589,15 @@
                     Amazon
                 </button>
             </li>
+            <li class="nav-item">
+                <button
+                    class="nav-link"
+                    id="mapped-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#mappedAmazonTab">
+                    Mappings
+                </button>
+            </li>
         </ul>
     </div>
 
@@ -765,6 +774,16 @@
             </div>
             @endif
         </div>
+
+        <div class="tab-pane fade" id="mappedAmazonTab">
+            <div class="p-3">
+                <div class="alert alert-info mb-0 border-0" style="border-radius: 8px; font-size: 13px;">
+                    <i class="bi bi-info-circle-fill me-2"></i> The Mappings tab is under development and will be available soon.
+                </div>
+            </div>
+        </div>
+
+        {{-- Mapped Tab --}}
 
     </div>
 </div>
