@@ -31,10 +31,19 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
         public readonly int $operationId
     ) {
         $this->onConnection('database')->onQueue('default');
+        Log::info('INV_TRACE_JOB_01_CONSTRUCT', [
+            'operation_id' => $this->operationId,
+            'connection'   => $this->connection,
+            'queue'        => $this->queue,
+        ]);
     }
 
     public function handle(AmazonService $amazonService): void
     {
+        Log::info('INV_TRACE_JOB_02_HANDLE', [
+            'operation_id' => $this->operationId,
+        ]);
+
         $operation = InventorySyncOperation::find($this->operationId);
 
         if (!$operation) {
@@ -43,6 +52,13 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
             ]);
             return;
         }
+
+        Log::info('INV_TRACE_JOB_03_OPERATION', [
+            'operation_id' => $operation->id,
+            'status'       => $operation->status,
+            'stage'        => $operation->stage,
+            'desired_qty'  => $operation->desired_quantity,
+        ]);
 
         // Terminal or already accepted states check
         if (in_array($operation->status, ['awaiting_verification', 'completed', 'failed', 'superseded', 'stale_external_state'], true)) {
@@ -65,6 +81,11 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
             ]);
             return;
         }
+
+        Log::info('INV_TRACE_JOB_04_SHOP', [
+            'shop_id' => $shop->id,
+            'shop'    => $shop->shop,
+        ]);
 
         // Stale / Latest-wins check (before locking)
         if ($this->isSupersededByNewerOperation($operation)) {
@@ -95,7 +116,7 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
         // STAGE 1: Update Shopify Inventory (Protected by SKU lock)
         // -----------------------------------------------------------------
         if ($operation->stage === 'pending') {
-            Log::info('ProcessInventoryUpdateJob Stage 1: Lock acquire start', [
+            Log::info('INV_TRACE_JOB_05_LOCK_START', [
                 'stage'                 => 'stage_1_shopify',
                 'lock_key'              => $lockKey,
                 'shop_id'               => $shop->id,
@@ -107,7 +128,7 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
             $lock = Cache::lock($lockKey, 30);
             try {
                 $lock->block(15, function () use ($lockKey, $operation, $shop, $mapping) {
-                    Log::info('ProcessInventoryUpdateJob Stage 1: Lock acquire success', [
+                    Log::info('INV_TRACE_JOB_05_LOCK', [
                         'stage'        => 'stage_1_shopify',
                         'lock_key'     => $lockKey,
                         'shop_id'      => $shop->id,
@@ -136,6 +157,12 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                 if ($mapping && $operation->expected_inventory_version !== null) {
                     $currentVersion = (int) ($mapping->inventory_version ?? 1);
                     $expectedVersion = (int) $operation->expected_inventory_version;
+
+                    Log::info('INV_TRACE_JOB_07_OCC', [
+                        'operation_id'     => $operation->id,
+                        'current_version'  => $currentVersion,
+                        'expected_version' => $expectedVersion,
+                    ]);
 
                     if ($currentVersion !== $expectedVersion) {
                         $operation->update([
@@ -179,6 +206,13 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                 // LAYER 2: Fresh Authoritative Shopify Inventory Read (bypassing local cache)
                 if ($operation->baseline_quantity !== null) {
                     try {
+                        Log::info('INV_TRACE_JOB_06_SHOPIFY_READ', [
+                            'shop_id' => $shop->id,
+                            'inventory_item_id' => $operation->shopify_inventory_item_id,
+                            'location_id' => $locationId,
+                            'baseline_quantity' => $operation->baseline_quantity,
+                        ]);
+
                         $levelsResponse = $shopify->getInventoryLevel(
                             $shop,
                             $operation->shopify_inventory_item_id,
@@ -284,6 +318,13 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                 ]);
 
                 try {
+                    Log::info('INV_TRACE_JOB_08_GRAPHQL_MUTATION', [
+                        'shop_id' => $shop->id,
+                        'inventory_item_id' => $operation->shopify_inventory_item_id,
+                        'location_id' => $locationId,
+                        'desired_quantity' => $operation->desired_quantity,
+                    ]);
+
                     $response = $shopify->setInventoryQuantity(
                         $shop,
                         $operation->shopify_inventory_item_id,
@@ -327,6 +368,12 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
 
                 // Reflect confirmed Shopify quantity in mapping and advance version
                 if ($mapping) {
+                    Log::info('INV_TRACE_JOB_09_MAPPING_UPDATE', [
+                        'mapping_id' => $mapping->id,
+                        'new_quantity' => $operation->desired_quantity,
+                        'new_version' => ($mapping->inventory_version ?? 1) + 1,
+                    ]);
+
                     $mapping->update([
                         'quantity'          => $operation->desired_quantity,
                         'inventory_version' => ($mapping->inventory_version ?? 1) + 1,
@@ -526,6 +573,12 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                 $amazonTargetQty = max(0, $operation->desired_quantity);
 
                 try {
+                    Log::info('INV_TRACE_JOB_10_AMAZON', [
+                        'shop_id'          => $shop->id,
+                        'amazon_sku'       => $amazonSku,
+                        'amazon_target_qty' => $amazonTargetQty,
+                    ]);
+
                     if ($operation->desired_quantity < 0) {
                         $amazonResult = $amazonService->updateInventory(
                             $shop,
@@ -563,6 +616,12 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                         'status'       => 'awaiting_verification',
                         'stage'        => 'amazon_accepted',
                         'last_error'   => null,
+                    ]);
+
+                    Log::info('INV_TRACE_JOB_11_COMPLETE', [
+                        'operation_id'     => $operation->id,
+                        'status'           => $operation->status,
+                        'stage'            => $operation->stage,
                     ]);
 
                     Log::info('ProcessInventoryUpdateJob: Inventory operation accepted by Amazon, awaiting verification.', [
@@ -623,6 +682,12 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                 'stage'        => 'completed',
                 'completed_at' => now(),
                 'last_error'   => null,
+            ]);
+
+            Log::info('INV_TRACE_JOB_11_COMPLETE', [
+                'operation_id'     => $operation->id,
+                'status'           => $operation->status,
+                'stage'            => $operation->stage,
             ]);
         }
     }
