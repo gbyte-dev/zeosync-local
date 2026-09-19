@@ -6,14 +6,6 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
 <style nonce="{{ $cspNonce }}">
-    /* Global Clean SaaS Environment - Tighter Density */
-    body {
-        background-color: #F4F6F8;
-        font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        color: #202223;
-        font-size: 13px;
-    }
-
     .saas-wrapper {
         max-width: 1180px;
         margin: 0 auto;
@@ -353,11 +345,7 @@
                     <i class="bi bi-copy"></i>
                 </button>
 
-                <form action="{{ route('shopify.imgupload.delete', [
-    'id' => $img->id,
-    'shop' => request('shop')
-]) }}"
-                    method="POST"
+                <form action="{{ route('shopify.imgupload.delete', [ 'id' => $img->id,'shop' => request('shop')]) }}?page={{ $images->currentPage() }}"  method="POST"
                     onsubmit="return confirm('Are you sure you want to delete this image?')">
                     @csrf
                     @method('DELETE')
@@ -368,10 +356,8 @@
                 </form>
 
                 <div class="saas-gallery-img-wrapper">
-                    <img src="{{ asset($img->image) }}"
-                        class="preview-image"
-                        alt="Uploaded Image"
-                        data-image="{{ asset($img->image) }}">
+                    <img src="{{ asset($img->image) }}"  class="preview-image"
+                        alt="Uploaded Image"  data-image="{{ asset($img->image) }}">
                 </div>
 
                 <div class="saas-gallery-footer">
@@ -390,6 +376,12 @@
         </div>
         @endforelse
     </div>
+
+    @if ($images->hasPages())
+        <div class="d-flex justify-content-center mt-4">
+            {{ $images->appends(request()->query())->links('pagination::bootstrap-5') }}
+        </div>
+    @endif
 
 </div>
 
@@ -415,12 +407,8 @@
                 <div class="modal-body pt-1">
                     <label class="saas-label">Select Image</label>
 
-                    <input type="file"
-                        id="image"
-                        name="image"
-                        class="saas-input"
-                        style="padding-top: 5px;"
-                        accept="image/*"
+                    <input type="file" id="image" name="image"
+                        class="saas-input" style="padding-top: 5px;" accept="image/*"
                         required>
 
                     @error('image')
@@ -429,19 +417,14 @@
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button"
-                        class="saas-btn saas-btn-outline"
-                        data-bs-dismiss="modal">
-                        Cancel
-                    </button>
+                    <button type="button"  class="saas-btn saas-btn-outline"
+                        data-bs-dismiss="modal">  Cancel  </button>
 
                     <button type="submit" class="saas-btn saas-btn-primary">
                         Upload
                     </button>
                 </div>
-
             </form>
-
         </div>
     </div>
 </div>

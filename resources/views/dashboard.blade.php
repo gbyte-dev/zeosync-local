@@ -411,19 +411,19 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
             <div class="premium-card" style="height:350px;">
 
                 <div class="row">
-                    <div class="col-sm-8">
+                    <div class="col-sm-7">
                         <h3 class="card-title-custom"> Low Inventory Products  </h3>
                         <p class="card-subtitle-custom"> Products with inventory below 10 units
                         </p>
                     </div>
-                    <div class="col-sm-4">
-                         @php
+                    <div class="col-sm-5">
+                        @php
                             $locations = $shop->shopify_locations ?? [];
                             $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
                                 ? (int) $shop->selected_location_index  : 0;
                         @endphp
-
-                        <select name="selected_location_index" class="form-select form-select-sm" id="locationSelect">
+                        <label style="font-size: x-small;">Update location from settings</label>
+                        <select name="selected_location_index" class="form-select form-select-sm" id="locationSelect" disabled="true">
                             @if(!empty($locations))
                                 @foreach($locations as $index => $location)
                                 <option value="{{ $index }}" {{ (string) old('selected_location_index', $selectedIndex) === (string) $index ? 'selected' : '' }}>
