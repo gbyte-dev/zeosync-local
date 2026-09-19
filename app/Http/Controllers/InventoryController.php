@@ -71,11 +71,49 @@ class InventoryController extends ShopifyController
         // Sync Usage
         $syncUsage = app(SyncLimitService::class)->canMap($shop);
 
+        $allowedLengths = [10, 25, 50, 100];
+        $rawShopifyLength = (int) session("inventory_page_length_{$shop->id}.shopify", 10);
+        $rawAmazonLength = (int) session("inventory_page_length_{$shop->id}.amazon", 10);
+
+        $shopifyPageLength = in_array($rawShopifyLength, $allowedLengths, true) ? $rawShopifyLength : 10;
+        $amazonPageLength = in_array($rawAmazonLength, $allowedLengths, true) ? $rawAmazonLength : 10;
+
         return view('inventory.index', compact(
             'inventories',
             'shop',
-            'syncUsage'
+            'syncUsage',
+            'shopifyPageLength',
+            'amazonPageLength'
         ));
+    }
+
+    public function updatePageLength(Request $request)
+    {
+        $shop = $this->getActiveShopModel($request);
+        if (!$shop) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'Active shop not resolved.',
+            ], 401);
+        }
+
+        $validated = $request->validate([
+            'type' => ['required', 'string', 'in:shopify,amazon'],
+            'length' => ['required', 'integer', 'in:10,25,50,100'],
+        ]);
+
+        $type = $validated['type'];
+        $length = (int) $validated['length'];
+
+        session([
+            "inventory_page_length_{$shop->id}.{$type}" => $length,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'type' => $type,
+            'length' => $length,
+        ]);
     }
 
     public function shopify(
