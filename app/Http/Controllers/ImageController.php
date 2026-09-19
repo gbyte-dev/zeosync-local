@@ -18,7 +18,10 @@ class ImageController extends Controller
             return back()->with('error', 'Shop not found.');
         }
 
-        $images = Image::where('shop_id', $shop->id)->latest()->get();
+        $images = Image::where('shop_id', $shop->id)
+            ->latest()
+            ->paginate(12);
+
         $limitInfo = $imageLimitService->getImageLimitInfo($shop);
 
         return view('image-upload', compact('images', 'limitInfo'));
