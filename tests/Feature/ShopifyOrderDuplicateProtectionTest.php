@@ -13,10 +13,10 @@ use Illuminate\Support\Facades\Schema;
 
 beforeEach(function () {
     config([
-        'services.shopify.api_key'    => 'test-api-key',
+        'services.shopify.api_key' => 'test-api-key',
         'services.shopify.api_secret' => 'test-api-secret',
-        'services.shopify.app_url'    => 'https://test-zeosync.com',
-        'app.disable_subscription'    => true,
+        'services.shopify.app_url' => 'https://test-zeosync.com',
+        'app.disable_subscription' => true,
     ]);
 
     if (!Schema::hasTable('admin_settings')) {
@@ -149,20 +149,21 @@ beforeEach(function () {
 
 test('1. New orders/create webhook creates exactly one row and deducts inventory once', function () {
     $shop = Shop::create([
-        'shop'         => 'duplicate-test.myshopify.com',
+        'shop' => 'duplicate-test.myshopify.com',
         'access_token' => 'shpat_test_123',
-        'is_active'    => 1,
+        'is_active' => 1,
     ]);
 
     ProductMarketplaceMapping::create([
-        'shop_id'            => $shop->id,
+        'shop_id' => $shop->id,
         'shopify_variant_id' => '444101',
-        'amazon_sku'         => 'SKU-TEST-1001',
-        'quantity'           => '10',
+        'amazon_sku' => 'SKU-TEST-1001',
+        'quantity' => '10',
     ]);
 
     $amazonMock = Mockery::mock(AmazonService::class);
-    $amazonMock->shouldReceive('updateInventory')
+    $amazonMock
+        ->shouldReceive('updateInventory')
         ->once()
         ->with(
             Mockery::on(fn($s) => $s->id === $shop->id),
@@ -177,14 +178,14 @@ test('1. New orders/create webhook creates exactly one row and deducts inventory
     $this->app->instance(ShopifyOrderSyncService::class, new ShopifyOrderSyncService($amazonMock));
 
     $payload = [
-        'id'                 => 1001,
-        'order_number'       => 1001,
-        'name'               => '#1001',
-        'email'              => 'customer@example.com',
-        'financial_status'   => 'paid',
+        'id' => 1001,
+        'order_number' => 1001,
+        'name' => '#1001',
+        'email' => 'customer@example.com',
+        'financial_status' => 'paid',
         'fulfillment_status' => null,
-        'total_price'        => '53.00',
-        'line_items'         => [
+        'total_price' => '53.00',
+        'line_items' => [
             ['variant_id' => '444101', 'quantity' => 1, 'title' => 'Test Item'],
         ],
     ];
@@ -197,9 +198,9 @@ test('1. New orders/create webhook creates exactly one row and deducts inventory
 
 test('2. Same orders/create event retry returns HTTP 200 without duplicate row or second inventory deduction', function () {
     $shop = Shop::create([
-        'shop'         => 'retry-test.myshopify.com',
+        'shop' => 'retry-test.myshopify.com',
         'access_token' => 'shpat_test_123',
-        'is_active'    => 1,
+        'is_active' => 1,
     ]);
 
     $amazonMock = Mockery::mock(AmazonService::class);
@@ -208,19 +209,19 @@ test('2. Same orders/create event retry returns HTTP 200 without duplicate row o
     $this->app->instance(ShopifyOrderSyncService::class, new ShopifyOrderSyncService($amazonMock));
 
     ProductMarketplaceMapping::create([
-        'shop_id'            => $shop->id,
+        'shop_id' => $shop->id,
         'shopify_variant_id' => '444102',
-        'amazon_sku'         => 'SKU-TEST-1002',
-        'quantity'           => '5',
+        'amazon_sku' => 'SKU-TEST-1002',
+        'quantity' => '5',
     ]);
 
     $payload = [
-        'id'                 => 1002,
-        'order_number'       => 1002,
-        'name'               => '#1002',
-        'email'              => 'retry@example.com',
-        'financial_status'   => 'paid',
-        'line_items'         => [
+        'id' => 1002,
+        'order_number' => 1002,
+        'name' => '#1002',
+        'email' => 'retry@example.com',
+        'financial_status' => 'paid',
+        'line_items' => [
             ['variant_id' => '444102', 'quantity' => 1],
         ],
     ];
@@ -238,9 +239,9 @@ test('2. Same orders/create event retry returns HTTP 200 without duplicate row o
 
 test('3. orders/create followed by orders/update with different event IDs maintains exactly one row', function () {
     $shop = Shop::create([
-        'shop'         => 'create-update.myshopify.com',
+        'shop' => 'create-update.myshopify.com',
         'access_token' => 'shpat_test_123',
-        'is_active'    => 1,
+        'is_active' => 1,
     ]);
 
     $amazonMock = Mockery::mock(AmazonService::class);
@@ -249,27 +250,27 @@ test('3. orders/create followed by orders/update with different event IDs mainta
     $this->app->instance(ShopifyOrderSyncService::class, new ShopifyOrderSyncService($amazonMock));
 
     ProductMarketplaceMapping::create([
-        'shop_id'            => $shop->id,
+        'shop_id' => $shop->id,
         'shopify_variant_id' => '444103',
-        'amazon_sku'         => 'SKU-TEST-1003',
-        'quantity'           => '8',
+        'amazon_sku' => 'SKU-TEST-1003',
+        'quantity' => '8',
     ]);
 
     $createPayload = [
-        'id'                 => 1003,
-        'order_number'       => 1003,
-        'name'               => '#1003',
-        'financial_status'   => 'pending',
+        'id' => 1003,
+        'order_number' => 1003,
+        'name' => '#1003',
+        'financial_status' => 'pending',
         'fulfillment_status' => null,
-        'line_items'         => [
+        'line_items' => [
             ['variant_id' => '444103', 'quantity' => 1],
         ],
     ];
 
     $updatePayload = array_merge($createPayload, [
-        'financial_status'   => 'paid',
+        'financial_status' => 'paid',
         'fulfillment_status' => 'fulfilled',
-        'fulfillments'       => [
+        'fulfillments' => [
             ['status' => 'success', 'shipment_status' => 'in_transit'],
         ],
     ]);
@@ -291,19 +292,19 @@ test('3. orders/create followed by orders/update with different event IDs mainta
 
 test('4. Concurrent create/update simulation: duplicate key race gracefully updates and keeps 1 row', function () {
     $shop = Shop::create([
-        'shop'         => 'race-test.myshopify.com',
+        'shop' => 'race-test.myshopify.com',
         'access_token' => 'shpat_test_123',
-        'is_active'    => 1,
+        'is_active' => 1,
     ]);
 
     $amazonMock = Mockery::mock(AmazonService::class);
     $syncService = new ShopifyOrderSyncService($amazonMock);
 
     $payload = [
-        'id'                 => 1004,
-        'order_number'       => 1004,
-        'name'               => '#1004',
-        'financial_status'   => 'paid',
+        'id' => 1004,
+        'order_number' => 1004,
+        'name' => '#1004',
+        'financial_status' => 'paid',
         'fulfillment_status' => 'unfulfilled',
     ];
 
@@ -322,16 +323,16 @@ test('4. Concurrent create/update simulation: duplicate key race gracefully upda
 
 test('5. Fulfillment status update changes existing row and sends notification', function () {
     $shop = Shop::create([
-        'shop'         => 'fulfillment-update.myshopify.com',
+        'shop' => 'fulfillment-update.myshopify.com',
         'access_token' => 'shpat_test_123',
-        'is_active'    => 1,
+        'is_active' => 1,
     ]);
 
     ShopifyOrder::create([
-        'shop_id'            => $shop->id,
-        'shopify_order_id'   => '1005',
-        'order_number'       => 1005,
-        'name'               => '#1005',
+        'shop_id' => $shop->id,
+        'shopify_order_id' => '1005',
+        'order_number' => 1005,
+        'name' => '#1005',
         'fulfillment_status' => 'unfulfilled',
     ]);
 
@@ -341,9 +342,9 @@ test('5. Fulfillment status update changes existing row and sends notification',
     $this->app->instance(ShopifyOrderSyncService::class, new ShopifyOrderSyncService($amazonMock));
 
     $payload = [
-        'id'                 => 1005,
-        'order_number'       => 1005,
-        'name'               => '#1005',
+        'id' => 1005,
+        'order_number' => 1005,
+        'name' => '#1005',
         'fulfillment_status' => 'fulfilled',
     ];
 
@@ -357,13 +358,13 @@ test('5. Fulfillment status update changes existing row and sends notification',
 
 test('6. Financial status update changes existing row', function () {
     $shop = Shop::create([
-        'shop'         => 'financial-update.myshopify.com',
+        'shop' => 'financial-update.myshopify.com',
         'access_token' => 'shpat_test_123',
-        'is_active'    => 1,
+        'is_active' => 1,
     ]);
 
     ShopifyOrder::create([
-        'shop_id'          => $shop->id,
+        'shop_id' => $shop->id,
         'shopify_order_id' => '1006',
         'financial_status' => 'pending',
     ]);
@@ -372,7 +373,7 @@ test('6. Financial status update changes existing row', function () {
     $syncService = new ShopifyOrderSyncService($amazonMock);
 
     $payload = [
-        'id'               => 1006,
+        'id' => 1006,
         'financial_status' => 'paid',
     ];
 
@@ -383,25 +384,25 @@ test('6. Financial status update changes existing row', function () {
 
 test('7. Cancellation update changes existing row', function () {
     $shop = Shop::create([
-        'shop'         => 'cancel-update.myshopify.com',
+        'shop' => 'cancel-update.myshopify.com',
         'access_token' => 'shpat_test_123',
-        'is_active'    => 1,
+        'is_active' => 1,
     ]);
 
     ShopifyOrder::create([
-        'shop_id'          => $shop->id,
+        'shop_id' => $shop->id,
         'shopify_order_id' => '1007',
         'financial_status' => 'paid',
-        'cancelled_at'     => null,
+        'cancelled_at' => null,
     ]);
 
     $amazonMock = Mockery::mock(AmazonService::class);
     $syncService = new ShopifyOrderSyncService($amazonMock);
 
     $payload = [
-        'id'               => 1007,
+        'id' => 1007,
         'financial_status' => 'voided',
-        'cancelled_at'     => '2026-09-18T10:00:00Z',
+        'cancelled_at' => '2026-09-18T10:00:00Z',
     ];
 
     $res = $syncService->syncOrder($shop, $payload, 'update', 'evt_cancel_1007');
@@ -412,18 +413,18 @@ test('7. Cancellation update changes existing row', function () {
 
 test('8. Shipment/tracking update changes shipment_status and sends delivered notification', function () {
     $shop = Shop::create([
-        'shop'         => 'delivery-update.myshopify.com',
+        'shop' => 'delivery-update.myshopify.com',
         'access_token' => 'shpat_test_123',
-        'is_active'    => 1,
+        'is_active' => 1,
     ]);
 
     ShopifyOrder::create([
-        'shop_id'            => $shop->id,
-        'shopify_order_id'   => '1008',
-        'order_number'       => 1008,
-        'name'               => '#1008',
+        'shop_id' => $shop->id,
+        'shopify_order_id' => '1008',
+        'order_number' => 1008,
+        'name' => '#1008',
         'fulfillment_status' => 'fulfilled',
-        'shipment_status'    => 'in_transit',
+        'shipment_status' => 'in_transit',
     ]);
 
     $amazonMock = Mockery::mock(AmazonService::class);
@@ -431,11 +432,11 @@ test('8. Shipment/tracking update changes shipment_status and sends delivered no
     $this->app->instance(ShopifyOrderSyncService::class, new ShopifyOrderSyncService($amazonMock));
 
     $payload = [
-        'id'                 => 1008,
-        'order_number'       => 1008,
-        'name'               => '#1008',
+        'id' => 1008,
+        'order_number' => 1008,
+        'name' => '#1008',
         'fulfillment_status' => 'fulfilled',
-        'fulfillments'       => [
+        'fulfillments' => [
             ['status' => 'success', 'shipment_status' => 'delivered'],
         ],
     ];
@@ -450,18 +451,18 @@ test('8. Shipment/tracking update changes shipment_status and sends delivered no
 
 test('9. Identical meaningful payload returns unchanged without DB write overhead', function () {
     $shop = Shop::create([
-        'shop'         => 'identical-test.myshopify.com',
+        'shop' => 'identical-test.myshopify.com',
         'access_token' => 'shpat_test_123',
-        'is_active'    => 1,
+        'is_active' => 1,
     ]);
 
     $payload = [
-        'id'                 => 1009,
-        'order_number'       => 1009,
-        'name'               => '#1009',
-        'financial_status'   => 'paid',
+        'id' => 1009,
+        'order_number' => 1009,
+        'name' => '#1009',
+        'financial_status' => 'paid',
         'fulfillment_status' => 'unfulfilled',
-        'total_price'        => '45.00',
+        'total_price' => '45.00',
     ];
 
     $amazonMock = Mockery::mock(AmazonService::class);
@@ -476,24 +477,24 @@ test('9. Identical meaningful payload returns unchanged without DB write overhea
 
 test('10. Multi-shop isolation: same Shopify order ID in two shops creates two separate tenant rows', function () {
     $shopA = Shop::create([
-        'shop'         => 'shop-a.myshopify.com',
+        'shop' => 'shop-a.myshopify.com',
         'access_token' => 'token_a',
-        'is_active'    => 1,
+        'is_active' => 1,
     ]);
 
     $shopB = Shop::create([
-        'shop'         => 'shop-b.myshopify.com',
+        'shop' => 'shop-b.myshopify.com',
         'access_token' => 'token_b',
-        'is_active'    => 1,
+        'is_active' => 1,
     ]);
 
     $amazonMock = Mockery::mock(AmazonService::class);
     $syncService = new ShopifyOrderSyncService($amazonMock);
 
     $payload = [
-        'id'           => 9999,
+        'id' => 9999,
         'order_number' => 9999,
-        'name'         => '#9999',
+        'name' => '#9999',
     ];
 
     $resA = $syncService->syncOrder($shopA, $payload, 'create', 'evt_a');
@@ -508,13 +509,13 @@ test('10. Multi-shop isolation: same Shopify order ID in two shops creates two s
 
 test('11. Delete webhook deletes by composite key shop_id and shopify_order_id', function () {
     $shop = Shop::create([
-        'shop'         => 'delete-test.myshopify.com',
+        'shop' => 'delete-test.myshopify.com',
         'access_token' => 'shpat_test_123',
-        'is_active'    => 1,
+        'is_active' => 1,
     ]);
 
     ShopifyOrder::create([
-        'shop_id'          => $shop->id,
+        'shop_id' => $shop->id,
         'shopify_order_id' => '1010',
     ]);
 

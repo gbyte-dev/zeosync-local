@@ -617,10 +617,10 @@
                     <div class="col-md-2 col-6">
                         <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Rows Per Page</label>
                         <select id="dtLengthShopify" class="saas-select">
-                            <option value="10">10 Rows</option>
-                            <option value="25">25 Rows</option>
-                            <option value="50">50 Rows</option>
-                            <option value="100">100 Rows</option>
+                            <option value="10" {{ $shopifyPageLength === 10 ? 'selected' : '' }}>10 Rows</option>
+                            <option value="25" {{ $shopifyPageLength === 25 ? 'selected' : '' }}>25 Rows</option>
+                            <option value="50" {{ $shopifyPageLength === 50 ? 'selected' : '' }}>50 Rows</option>
+                            <option value="100" {{ $shopifyPageLength === 100 ? 'selected' : '' }}>100 Rows</option>
                         </select>
                     </div>
                     <div class="col-md-2 col-6">
@@ -697,10 +697,10 @@
                     <div class="col-md-3 col-6">
                         <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Rows Per Page</label>
                         <select id="dtLengthAmazon" class="saas-select">
-                            <option value="10">10 Rows</option>
-                            <option value="25">25 Rows</option>
-                            <option value="50">50 Rows</option>
-                            <option value="100">100 Rows</option>
+                            <option value="10" {{ $amazonPageLength === 10 ? 'selected' : '' }}>10 Rows</option>
+                            <option value="25" {{ $amazonPageLength === 25 ? 'selected' : '' }}>25 Rows</option>
+                            <option value="50" {{ $amazonPageLength === 50 ? 'selected' : '' }}>50 Rows</option>
+                            <option value="100" {{ $amazonPageLength === 100 ? 'selected' : '' }}>100 Rows</option>
                         </select>
                     </div>
                     <div class="col-md-2 col-6">
@@ -810,11 +810,28 @@
     let amazonProductsCache = null;
     let amazonLoading = false;
 
-    // Read saved page length from browser memory (default to 10)   
-    let savedShopifyLength = localStorage.getItem('zeosync_shopify_length') || 10;
-    let savedAmazonLength = localStorage.getItem('zeosync_amazon_length') || 10;
+    // Saved page length from Laravel session (default to 10)
+    let savedShopifyLength = {{ $shopifyPageLength ?? 10 }};
+    let savedAmazonLength = {{ $amazonPageLength ?? 10 }};
 
-    // On load, update the dropdown UI to match the saved memory
+    function persistPageLength(type, length) {
+        $.ajax({
+            url: "{{ route('shopify.inventory.page_length') }}",
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: {
+                type: type,
+                length: length
+            },
+            error: function(xhr) {
+                console.warn(`Failed to save ${type} page length preference to session:`, xhr.responseText);
+            }
+        });
+    }
+
+    // On load, update the dropdown UI to match the saved preference
     document.addEventListener('DOMContentLoaded', function() {
         $('#dtLengthShopify').val(savedShopifyLength);
         $('#dtLengthAmazon').val(savedAmazonLength);
@@ -1383,10 +1400,10 @@
         if (dtShopify) dtShopify.column(4).search(this.value).draw();
     });
     $('#dtLengthShopify').on('change', function() {
-        let val = parseInt(this.value);
-        localStorage.setItem('zeosync_shopify_length', val); // Lock in local override
+        let val = parseInt(this.value, 10);
         savedShopifyLength = val; // Sync active variable
         if (dtShopify) dtShopify.page.len(val).draw();
+        persistPageLength('shopify', val);
     });
     $('#dtLocationShopify').on('change', function() {
         const selectedIndex = $(this).val();
@@ -1428,10 +1445,10 @@
         if (dtAmazon) dtAmazon.column(4).search(this.value).draw();
     });
     $('#dtLengthAmazon').on('change', function() {
-        let val = parseInt(this.value);
-        localStorage.setItem('zeosync_amazon_length', val); // Lock in local override
+        let val = parseInt(this.value, 10);
         savedAmazonLength = val; // Sync active variable
         if (dtAmazon) dtAmazon.page.len(val).draw();
+        persistPageLength('amazon', val);
     });
     // ==========================================
     // Core Functions & Actions
