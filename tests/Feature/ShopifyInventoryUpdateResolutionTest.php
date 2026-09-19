@@ -28,6 +28,98 @@ beforeEach(function () {
     Http::fake(function (\Illuminate\Http\Client\Request $request) {
         $url = $request->url();
 
+        if (str_contains($url, 'graphql.json')) {
+            $data = $request->data();
+            $query = $data['query'] ?? '';
+            $vars = $data['variables'] ?? [];
+
+            if (str_contains($query, 'locations(') || str_contains($query, 'GetLocations')) {
+                if (str_contains($url, 'fail-loc.myshopify.com')) {
+                    return Http::response(['errors' => [['message' => 'Location service unavailable']]], 500);
+                }
+                if (str_contains($url, 'self-heal.myshopify.com')) {
+                    return Http::response([
+                        'data' => [
+                            'locations' => [
+                                'nodes' => [
+                                    ['id' => 'gid://shopify/Location/8888', 'legacyResourceId' => '8888', 'name' => 'Auto Refreshed Location', 'isActive' => true],
+                                ],
+                            ],
+                        ],
+                    ], 200);
+                }
+                return Http::response([
+                    'data' => [
+                        'locations' => [
+                            'nodes' => [
+                                ['id' => 'gid://shopify/Location/10001', 'legacyResourceId' => '10001', 'name' => 'Default Location', 'isActive' => true],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            if (str_contains($query, 'inventorySetQuantities') || str_contains($query, 'InventorySetQuantities')) {
+                $quantities = $vars['input']['quantities'] ?? [];
+                $qty = $quantities[0]['quantity'] ?? 0;
+                $itemGid = $quantities[0]['inventoryItemId'] ?? 'gid://shopify/InventoryItem/101';
+                $locGid = $quantities[0]['locationId'] ?? 'gid://shopify/Location/101';
+                return Http::response([
+                    'data' => [
+                        'inventorySetQuantities' => [
+                            'inventoryAdjustmentGroup' => [
+                                'reason' => 'cycle_count_available',
+                                'changes' => [
+                                    [
+                                        'name' => 'available',
+                                        'delta' => 0,
+                                        'quantity' => (int) $qty,
+                                        'item' => ['id' => $itemGid, 'legacyResourceId' => (string) preg_replace('/[^0-9]/', '', $itemGid)],
+                                        'location' => ['id' => $locGid, 'legacyResourceId' => (string) preg_replace('/[^0-9]/', '', $locGid)],
+                                    ]
+                                ]
+                            ],
+                            'userErrors' => []
+                        ]
+                    ]
+                ], 200);
+            }
+
+            if (str_contains($query, 'inventoryItem(') || str_contains($query, 'GetInventoryItemLevels')) {
+                $id = $vars['id'] ?? '';
+                $rawId = str_contains((string) $id, 'gid://shopify/InventoryItem/') ? substr((string) $id, strrpos((string) $id, '/') + 1) : (string) $id;
+                $mapping = $rawId ? ProductMarketplaceMapping::where('shopify_inventory_item_id', $rawId)->first() : null;
+                $qty = $mapping && $mapping->quantity !== null ? (int) $mapping->quantity : 10;
+                return Http::response([
+                    'data' => [
+                        'inventoryItem' => [
+                            'id' => $id,
+                            'legacyResourceId' => $rawId,
+                            'inventoryLevels' => [
+                                'nodes' => [
+                                    [
+                                        'id' => "gid://shopify/InventoryLevel/{$rawId}?location_id=101",
+                                        'location' => [
+                                            'id' => 'gid://shopify/Location/101',
+                                            'legacyResourceId' => '101',
+                                            'name' => 'Location 101',
+                                        ],
+                                        'quantities' => [
+                                            ['name' => 'available', 'quantity' => (int) $qty],
+                                            ['name' => 'on_hand', 'quantity' => (int) $qty],
+                                            ['name' => 'committed', 'quantity' => 0],
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        }
+
         if (str_contains($url, 'locations.json')) {
             if (str_contains($url, 'fail-loc.myshopify.com')) {
                 return Http::response(['errors' => 'Location service unavailable'], 500);
@@ -455,14 +547,17 @@ it('Test K: Shop A cannot access Shop B via legacy endpoints by passing shop que
         ->once()
         ->andReturn(['success' => true]);
     app()->instance(AmazonService::class, $amazonMock);
+    $validator = Mockery::mock(ShopifySessionTokenValidator::class);
+    $validator->shouldReceive('validate')->with('token-leg-a')->andReturn([
+        'shop'       => 'store-legacy-a.myshopify.com',
+        'shop_model' => $shopA,
+        'payload'    => ['dest' => 'https://store-legacy-a.myshopify.com'],
+    ]);
+    app()->instance(ShopifySessionTokenValidator::class, $validator);
 
-    $this->defaultHeaders = [];
-    $response = $this->withSession([
-        '_shopify_verified_shop' => $shopA->shop,
-        'active_shop'            => $shopA->shop,
-        'active_shop_id'         => $shopA->id,
-    ])->withHeaders([
-        'Accept' => 'application/json',
+    $response = $this->withHeaders([
+        'Authorization' => 'Bearer token-leg-a',
+        'Accept'        => 'application/json',
     ])->postJson('/amazon/test-update/SKU-CROSS?shop=store-legacy-b.myshopify.com', [
         'quantity' => 10,
     ]);
@@ -508,7 +603,7 @@ it('Test L: ProcessInventoryUpdateJob executes without HTTP request session usin
 
     $amazonMock = Mockery::mock(AmazonService::class);
     $amazonMock->shouldReceive('updateInventory')
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'SKU-WORKER', 25, Mockery::any())
+        ->withArgs(fn($s, $sku, $qty) => $s->id === $shop->id && $sku === 'SKU-WORKER' && $qty === 25)
         ->once()
         ->andReturn(['submission_id' => 'sub_123']);
     app()->instance(AmazonService::class, $amazonMock);

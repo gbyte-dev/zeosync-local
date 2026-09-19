@@ -26,7 +26,82 @@ beforeEach(function () {
     ]);
 
     Http::fake([
-        '*graphql.json*'              => Http::response(['data' => ['currentAppInstallation' => ['activeSubscriptions' => [['id' => 'gid://shopify/AppSubscription/1', 'name' => 'Pro', 'status' => 'ACTIVE', 'currentPeriodEnd' => '2030-01-01T00:00:00Z']]]]], 200),
+        '*graphql.json*' => function (\Illuminate\Http\Client\Request $request) {
+            $data = $request->data();
+            $query = $data['query'] ?? '';
+            $vars = $data['variables'] ?? [];
+
+            if (str_contains($query, 'currentAppInstallation')) {
+                return Http::response(['data' => ['currentAppInstallation' => ['activeSubscriptions' => [['id' => 'gid://shopify/AppSubscription/1', 'name' => 'Pro', 'status' => 'ACTIVE', 'currentPeriodEnd' => '2030-01-01T00:00:00Z']]]]], 200);
+            }
+
+            if (str_contains($query, 'locations(') || str_contains($query, 'GetLocations')) {
+                return Http::response([
+                    'data' => [
+                        'locations' => [
+                            'nodes' => [
+                                ['id' => 'gid://shopify/Location/loc_101', 'legacyResourceId' => 'loc_101', 'name' => 'Main Location', 'isActive' => true],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            if (str_contains($query, 'inventorySetQuantities') || str_contains($query, 'InventorySetQuantities')) {
+                $quantities = $vars['input']['quantities'] ?? [];
+                $qty = $quantities[0]['quantity'] ?? 0;
+                $itemGid = $quantities[0]['inventoryItemId'] ?? 'gid://shopify/InventoryItem/123';
+                $locGid = $quantities[0]['locationId'] ?? 'gid://shopify/Location/loc_101';
+                $rawItem = str_contains((string) $itemGid, 'gid://shopify/InventoryItem/') ? substr((string) $itemGid, strrpos((string) $itemGid, '/') + 1) : (string) $itemGid;
+                $rawLoc = str_contains((string) $locGid, 'gid://shopify/Location/') ? substr((string) $locGid, strrpos((string) $locGid, '/') + 1) : (string) $locGid;
+                return Http::response([
+                    'data' => [
+                        'inventorySetQuantities' => [
+                            'userErrors' => [],
+                            'inventoryAdjustmentGroup' => [
+                                'reason' => 'cycle_count_available',
+                                'changes' => [
+                                    [
+                                        'name' => 'available',
+                                        'delta' => 0,
+                                        'quantityAfterChange' => (int) $qty,
+                                        'item' => ['id' => $itemGid, 'legacyResourceId' => $rawItem],
+                                        'location' => ['id' => $locGid, 'legacyResourceId' => $rawLoc],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            if (str_contains($query, 'inventoryItem(') || str_contains($query, 'GetInventoryItemLevels')) {
+                $id = $vars['id'] ?? '';
+                $rawId = str_contains((string) $id, 'gid://shopify/InventoryItem/') ? substr((string) $id, strrpos((string) $id, '/') + 1) : (string) $id;
+                $mapping = $rawId ? \App\Models\ProductMarketplaceMapping::where('shopify_inventory_item_id', (string) $rawId)->first() : null;
+                $qty = $mapping && $mapping->quantity !== null ? (int) $mapping->quantity : 0;
+
+                return Http::response([
+                    'data' => [
+                        'inventoryItem' => [
+                            'id' => $id,
+                            'legacyResourceId' => $rawId,
+                            'inventoryLevels' => [
+                                'nodes' => [
+                                    [
+                                        'id' => "gid://shopify/InventoryLevel/{$rawId}?location_id=loc_101",
+                                        'location' => ['id' => 'gid://shopify/Location/loc_101', 'legacyResourceId' => 'loc_101', 'name' => 'Main Location'],
+                                        'quantities' => [['name' => 'available', 'quantity' => (int) $qty]],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        },
         '*inventory_levels/set.json*' => function (\Illuminate\Http\Client\Request $request) {
             $data = $request->data();
             $qty = $data['available'] ?? 0;
@@ -557,7 +632,9 @@ it('Replenishment recovery: mapping restores from -3 to 3 and Amazon receives 3'
     $mockAmazon = Mockery::mock(AmazonService::class);
     $mockAmazon->shouldReceive('updateInventory')
         ->once()
-        ->with(Mockery::on(fn($s) => $s->id === $shop->id), 'AMZ-REPLENISH', 3, false)
+        ->withArgs(function ($s, $sku, $qty) use ($shop) {
+            return $s->id === $shop->id && $sku === 'AMZ-REPLENISH' && $qty === 3;
+        })
         ->andReturn(['submissionId' => 'SUB-REPL-3', 'status' => 'ACCEPTED']);
 
     app()->instance(AmazonService::class, $mockAmazon);

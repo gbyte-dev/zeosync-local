@@ -29,7 +29,9 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
 
     public function __construct(
         public readonly int $operationId
-    ) {}
+    ) {
+        $this->onConnection('database')->onQueue('default');
+    }
 
     public function handle(AmazonService $amazonService): void
     {
@@ -177,14 +179,10 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                 // LAYER 2: Fresh Authoritative Shopify Inventory Read (bypassing local cache)
                 if ($operation->baseline_quantity !== null) {
                     try {
-                        $levelsResponse = $shopify->shopifyRest(
+                        $levelsResponse = $shopify->getInventoryLevel(
                             $shop,
-                            'get',
-                            'inventory_levels.json',
-                            [
-                                'inventory_item_ids' => (string) $operation->shopify_inventory_item_id,
-                                'location_ids'       => (string) $locationId,
-                            ]
+                            $operation->shopify_inventory_item_id,
+                            $locationId
                         );
 
                         if (!empty($levelsResponse['error'])) {
@@ -286,15 +284,11 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                 ]);
 
                 try {
-                    $response = $shopify->shopifyRest(
+                    $response = $shopify->setInventoryQuantity(
                         $shop,
-                        'post',
-                        'inventory_levels/set.json',
-                        [
-                            'location_id'       => $locationId,
-                            'inventory_item_id' => $operation->shopify_inventory_item_id,
-                            'available'         => $operation->desired_quantity,
-                        ]
+                        $operation->shopify_inventory_item_id,
+                        $locationId,
+                        $operation->desired_quantity
                     );
 
                     if (!empty($response['error'])) {
@@ -434,14 +428,10 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                 if ($locationId) {
                     $shopify = new ShopifyService($shop->shop, $shop->access_token);
                     try {
-                        $levelsResponse = $shopify->shopifyRest(
+                        $levelsResponse = $shopify->getInventoryLevel(
                             $shop,
-                            'get',
-                            'inventory_levels.json',
-                            [
-                                'inventory_item_ids' => (string) $operation->shopify_inventory_item_id,
-                                'location_ids'       => (string) $locationId,
-                            ]
+                            $operation->shopify_inventory_item_id,
+                            $locationId
                         );
 
                         if (!empty($levelsResponse['error'])) {

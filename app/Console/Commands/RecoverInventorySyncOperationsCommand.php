@@ -54,7 +54,9 @@ class RecoverInventorySyncOperationsCommand extends Command
                 ]);
 
             if ($updated) {
-                ProcessInventoryUpdateJob::dispatch($operation->id);
+                ProcessInventoryUpdateJob::dispatch($operation->id)
+                    ->onConnection('database')
+                    ->onQueue('default');
                 $recoveredPendingCount++;
 
                 Log::info('RecoverInventorySyncOperationsCommand: Recovered abandoned pending operation.', [
@@ -112,7 +114,9 @@ class RecoverInventorySyncOperationsCommand extends Command
                         ]);
 
                     if ($updated) {
-                        ProcessInventoryUpdateJob::dispatch($operation->id);
+                        ProcessInventoryUpdateJob::dispatch($operation->id)
+                            ->onConnection('database')
+                            ->onQueue('default');
                         $recoveredProcessingCount++;
 
                         Log::info('RecoverInventorySyncOperationsCommand: Recovered stuck processing operation.', [

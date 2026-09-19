@@ -457,16 +457,19 @@ class AmazonService
                                 );
                             }
 
-                            $shopify->shopifyRest(
+                            $shopifyResponse = $shopify->setInventoryQuantity(
                                 $shop,
-                                'post',
-                                'inventory_levels/set.json',
-                                [
-                                    'location_id'       => $locationId,
-                                    'inventory_item_id' => $mapping->shopify_inventory_item_id,
-                                    'available'         => $quantity,
-                                ]
+                                $mapping->shopify_inventory_item_id,
+                                $locationId,
+                                $quantity
                             );
+
+                            if (!empty($shopifyResponse['error'])) {
+                                Log::error('Shopify inventory update failed in AmazonService', [
+                                    'shop_id' => $shop->id,
+                                    'error' => $shopifyResponse['message'] ?? 'Unknown error',
+                                ]);
+                            }
                         }
 
                         Log::info('Amazon inventory update accepted, scheduling verification.', [

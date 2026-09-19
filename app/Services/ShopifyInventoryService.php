@@ -387,11 +387,7 @@ class ShopifyInventoryService
             throw new \RuntimeException('Shopify location or inventory item is not configured.');
         }
         $shopify = new ShopifyService($shop->shop, $shop->access_token);
-        $response = $shopify->shopifyRest($shop, 'post', 'inventory_levels/set.json', [
-            'location_id' => $locationId,
-            'inventory_item_id' => $inventoryItemId,
-            'available' => $quantity,
-        ]);
+        $response = $shopify->setInventoryQuantity($shop, $inventoryItemId, $locationId, $quantity);
         if (! empty($response['error'])) {
             throw new \RuntimeException('Shopify did not accept inventory update: '.($response['message'] ?? 'unknown error'));
         }

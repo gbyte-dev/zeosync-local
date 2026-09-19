@@ -157,6 +157,395 @@ class ShopifyService
     }
 
     /**
+     * Get Shopify Locations via Admin GraphQL API.
+     *
+     * @param Shop|null $shop
+     * @return array
+     */
+    public function getLocations(?Shop $shop = null): array
+    {
+        if ($shop instanceof Shop) {
+            $this->shop = $shop->shop;
+            $this->token = $shop->access_token;
+        }
+
+        $query = <<<'GRAPHQL'
+        query GetLocations {
+            locations(first: 50, includeInactive: false) {
+                nodes {
+                    id
+                    legacyResourceId
+                    name
+                    isActive
+                    address {
+                        address1
+                        address2
+                        city
+                        province
+                        country
+                        zip
+                        phone
+                        countryCode
+                    }
+                }
+            }
+        }
+        GRAPHQL;
+
+        $response = $this->graphql($query);
+
+        if (!empty($response['error']) || !empty($response['errors'])) {
+            $errorMsg = $response['message'] ?? (is_array($response['errors'] ?? null) ? json_encode($response['errors']) : 'Failed to fetch Shopify locations via GraphQL.');
+            Log::error('Shopify GraphQL getLocations Error', [
+                'shop' => $this->shop,
+                'response' => $response,
+            ]);
+            return [
+                'error' => true,
+                'status' => $response['status'] ?? 500,
+                'message' => $errorMsg,
+                'locations' => [],
+            ];
+        }
+
+        $nodes = data_get($response, 'data.locations.nodes', []);
+        $locations = collect($nodes)->map(function ($node) {
+            $gid = $node['id'] ?? '';
+            $numericId = $node['legacyResourceId'] ?? (str_contains((string) $gid, 'gid://shopify/Location/') ? substr($gid, strrpos($gid, '/') + 1) : $gid);
+
+            return [
+                'id' => is_numeric($numericId) ? (int) $numericId : $numericId,
+                'name' => $node['name'] ?? '',
+                'active' => $node['isActive'] ?? true,
+                'address1' => data_get($node, 'address.address1'),
+                'address2' => data_get($node, 'address.address2'),
+                'city' => data_get($node, 'address.city'),
+                'province' => data_get($node, 'address.province'),
+                'country' => data_get($node, 'address.country'),
+                'zip' => data_get($node, 'address.zip'),
+                'phone' => data_get($node, 'address.phone'),
+                'country_code' => data_get($node, 'address.countryCode'),
+                'admin_graphql_api_id' => $gid,
+            ];
+        })->values()->all();
+
+        return [
+            'error' => false,
+            'locations' => $locations,
+        ];
+    }
+
+    /**
+     * Get authoritative Shopify Inventory Level for a specific item and location via GraphQL.
+     *
+     * @param mixed $param1 (Shop or string|int $inventoryItemId)
+     * @param mixed $param2 (string|int $inventoryItemId or string|int $locationId)
+     * @param mixed $param3 (string|int $locationId or Shop|null)
+     * @return array
+     */
+    public function getInventoryLevel($param1, $param2 = null, $param3 = null): array
+    {
+        if ($param1 instanceof Shop) {
+            $shop = $param1;
+            $inventoryItemId = $param2;
+            $locationId = $param3;
+            $this->shop = $shop->shop;
+            $this->token = $shop->access_token;
+        } else {
+            $inventoryItemId = $param1;
+            $locationId = $param2;
+            $shop = $param3;
+            if ($shop instanceof Shop) {
+                $this->shop = $shop->shop;
+                $this->token = $shop->access_token;
+            }
+        }
+
+        if (blank($inventoryItemId)) {
+            return [
+                'error' => true,
+                'status' => 422,
+                'message' => 'Inventory item ID is required.',
+                'inventory_levels' => [],
+                'available' => null,
+            ];
+        }
+
+        $itemGid = str_starts_with((string) $inventoryItemId, 'gid://')
+            ? (string) $inventoryItemId
+            : "gid://shopify/InventoryItem/{$inventoryItemId}";
+
+        $locNumeric = null;
+        $locGid = null;
+        if (!blank($locationId)) {
+            $locNumeric = str_contains((string) $locationId, 'gid://shopify/Location/')
+                ? substr((string) $locationId, strrpos((string) $locationId, '/') + 1)
+                : (string) $locationId;
+            $locGid = str_starts_with((string) $locationId, 'gid://')
+                ? (string) $locationId
+                : "gid://shopify/Location/{$locationId}";
+        }
+
+        $query = <<<'GRAPHQL'
+        query GetInventoryItemLevels($id: ID!) {
+            inventoryItem(id: $id) {
+                id
+                legacyResourceId
+                inventoryLevels(first: 50) {
+                    nodes {
+                        id
+                        location {
+                            id
+                            legacyResourceId
+                            name
+                        }
+                        quantities(names: ["available", "on_hand", "committed"]) {
+                            name
+                            quantity
+                        }
+                    }
+                }
+            }
+        }
+        GRAPHQL;
+
+        $response = $this->graphql($query, ['id' => $itemGid]);
+
+        if (!empty($response['error']) || !empty($response['errors'])) {
+            $errorMsg = $response['message'] ?? (is_array($response['errors'] ?? null) ? json_encode($response['errors']) : 'Failed to fetch inventory levels via GraphQL.');
+            Log::error('Shopify GraphQL getInventoryLevel Error', [
+                'shop' => $this->shop,
+                'inventory_item_id' => $inventoryItemId,
+                'location_id' => $locationId,
+                'response' => $response,
+            ]);
+            return [
+                'error' => true,
+                'status' => $response['status'] ?? 500,
+                'message' => $errorMsg,
+                'inventory_levels' => [],
+                'available' => null,
+            ];
+        }
+
+        $item = data_get($response, 'data.inventoryItem');
+        if (!$item) {
+            return [
+                'error' => true,
+                'status' => 404,
+                'message' => 'Inventory item not found on Shopify.',
+                'inventory_levels' => [],
+                'available' => null,
+            ];
+        }
+
+        $numericItemId = $item['legacyResourceId'] ?? (str_contains($itemGid, 'gid://shopify/InventoryItem/') ? substr($itemGid, strrpos($itemGid, '/') + 1) : $itemGid);
+        $numericItemId = is_numeric($numericItemId) ? (int) $numericItemId : $numericItemId;
+
+        $levelNodes = data_get($item, 'inventoryLevels.nodes', []);
+        $parsedLevels = [];
+        $matchedAvailable = null;
+        $matchedLevel = null;
+
+        foreach ($levelNodes as $node) {
+            $nodeLocGid = data_get($node, 'location.id');
+            $nodeLocNumeric = data_get($node, 'location.legacyResourceId') ?? (str_contains((string) $nodeLocGid, 'gid://shopify/Location/') ? substr($nodeLocGid, strrpos($nodeLocGid, '/') + 1) : (string) $nodeLocGid);
+            $nodeLocNumeric = is_numeric($nodeLocNumeric) ? (int) $nodeLocNumeric : $nodeLocNumeric;
+
+            $quantities = data_get($node, 'quantities', []);
+            $availableQty = null;
+            $onHandQty = null;
+            $committedQty = null;
+
+            foreach ($quantities as $q) {
+                $name = $q['name'] ?? '';
+                if ($name === 'available') {
+                    $availableQty = isset($q['quantity']) ? (int) $q['quantity'] : null;
+                } elseif ($name === 'on_hand') {
+                    $onHandQty = isset($q['quantity']) ? (int) $q['quantity'] : null;
+                } elseif ($name === 'committed') {
+                    $committedQty = isset($q['quantity']) ? (int) $q['quantity'] : null;
+                }
+            }
+
+            $lvlEntry = [
+                'inventory_item_id' => $numericItemId,
+                'location_id' => $nodeLocNumeric,
+                'available' => $availableQty,
+                'on_hand' => $onHandQty,
+                'committed' => $committedQty,
+                'admin_graphql_api_id' => $node['id'] ?? null,
+            ];
+
+            $parsedLevels[] = $lvlEntry;
+
+            if ($locNumeric !== null && ((string) $nodeLocNumeric === (string) $locNumeric || (string) $nodeLocGid === (string) $locGid)) {
+                $matchedAvailable = $availableQty;
+                $matchedLevel = $lvlEntry;
+            }
+        }
+
+        if ($matchedAvailable === null && empty($locationId) && !empty($parsedLevels)) {
+            $matchedAvailable = $parsedLevels[0]['available'] ?? null;
+            $matchedLevel = $parsedLevels[0];
+        }
+
+        return [
+            'error' => false,
+            'inventory_item_id' => $numericItemId,
+            'location_id' => $locNumeric !== null && is_numeric($locNumeric) ? (int) $locNumeric : $locNumeric,
+            'available' => $matchedAvailable,
+            'inventory_levels' => $parsedLevels,
+            'level' => $matchedLevel,
+        ];
+    }
+
+    /**
+     * Set inventory quantity on Shopify via Admin GraphQL mutation (inventorySetQuantities).
+     *
+     * @param mixed $param1 (Shop or string|int $inventoryItemId)
+     * @param mixed $param2 (string|int $inventoryItemId or string|int $locationId)
+     * @param mixed $param3 (string|int $locationId or int $quantity)
+     * @param mixed $param4 (int $quantity or Shop|null)
+     * @return array
+     */
+    public function setInventoryQuantity($param1, $param2 = null, $param3 = null, $param4 = null): array
+    {
+        if ($param1 instanceof Shop) {
+            $shop = $param1;
+            $inventoryItemId = $param2;
+            $locationId = $param3;
+            $quantity = (int) $param4;
+            $this->shop = $shop->shop;
+            $this->token = $shop->access_token;
+        } else {
+            $inventoryItemId = $param1;
+            $locationId = $param2;
+            $quantity = (int) $param3;
+            $shop = $param4;
+            if ($shop instanceof Shop) {
+                $this->shop = $shop->shop;
+                $this->token = $shop->access_token;
+            }
+        }
+
+        if (blank($inventoryItemId) || blank($locationId)) {
+            return [
+                'error' => true,
+                'status' => 422,
+                'message' => 'Shopify inventory item ID and location ID are required.',
+            ];
+        }
+
+        $itemGid = str_starts_with((string) $inventoryItemId, 'gid://')
+            ? (string) $inventoryItemId
+            : "gid://shopify/InventoryItem/{$inventoryItemId}";
+
+        $locGid = str_starts_with((string) $locationId, 'gid://')
+            ? (string) $locationId
+            : "gid://shopify/Location/{$locationId}";
+
+        $numericItemId = str_contains($itemGid, 'gid://shopify/InventoryItem/')
+            ? substr($itemGid, strrpos($itemGid, '/') + 1)
+            : $inventoryItemId;
+        $numericItemId = is_numeric($numericItemId) ? (int) $numericItemId : $numericItemId;
+
+        $numericLocId = str_contains($locGid, 'gid://shopify/Location/')
+            ? substr($locGid, strrpos($locGid, '/') + 1)
+            : $locationId;
+        $numericLocId = is_numeric($numericLocId) ? (int) $numericLocId : $numericLocId;
+
+        $mutation = <<<'GRAPHQL'
+        mutation InventorySetQuantities($input: InventorySetQuantitiesInput!) {
+            inventorySetQuantities(input: $input) {
+                inventoryAdjustmentGroup {
+                    reason
+                    changes {
+                        name
+                        delta
+                        quantityAfterChange
+                        item {
+                            id
+                            legacyResourceId
+                        }
+                        location {
+                            id
+                            legacyResourceId
+                        }
+                    }
+                }
+                userErrors {
+                    field
+                    message
+                    code
+                }
+            }
+        }
+        GRAPHQL;
+
+        $variables = [
+            'input' => [
+                'name' => 'available',
+                'reason' => 'cycle_count_available',
+                'ignoreCompareQuantity' => true,
+                'quantities' => [
+                    [
+                        'inventoryItemId' => $itemGid,
+                        'locationId' => $locGid,
+                        'quantity' => (int) $quantity,
+                    ]
+                ]
+            ]
+        ];
+
+        $response = $this->graphql($mutation, $variables);
+
+        if (!empty($response['error']) || !empty($response['errors'])) {
+            $errorMsg = $response['message'] ?? (is_array($response['errors'] ?? null) ? json_encode($response['errors']) : 'Failed to execute inventorySetQuantities mutation.');
+            Log::error('Shopify GraphQL setInventoryQuantity Error', [
+                'shop' => $this->shop,
+                'inventory_item_id' => $inventoryItemId,
+                'location_id' => $locationId,
+                'quantity' => $quantity,
+                'response' => $response,
+            ]);
+            return [
+                'error' => true,
+                'status' => $response['status'] ?? 500,
+                'message' => $errorMsg,
+            ];
+        }
+
+        $userErrors = data_get($response, 'data.inventorySetQuantities.userErrors', []);
+        if (!empty($userErrors)) {
+            $firstMsg = $userErrors[0]['message'] ?? 'Inventory update rejected by Shopify.';
+            Log::error('Shopify GraphQL setInventoryQuantity userErrors', [
+                'shop' => $this->shop,
+                'inventory_item_id' => $inventoryItemId,
+                'location_id' => $locationId,
+                'quantity' => $quantity,
+                'userErrors' => $userErrors,
+            ]);
+            return [
+                'error' => true,
+                'status' => 422,
+                'message' => $firstMsg,
+                'userErrors' => $userErrors,
+            ];
+        }
+
+        return [
+            'error' => false,
+            'inventory_level' => [
+                'inventory_item_id' => $numericItemId,
+                'location_id' => $numericLocId,
+                'available' => (int) $quantity,
+            ],
+            'data' => $response['data'] ?? [],
+        ];
+    }
+
+    /**
      * 2. Paginated Query (Array → GraphQL)
      */
     public function paginate($structure, $first = 50, $cursor = null)
