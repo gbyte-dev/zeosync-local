@@ -410,7 +410,7 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
         <div class="col-md-6 d-flex">
             <div class="premium-card" style="height:350px;">
 
-                <div class="card-header-custom">
+                <div class="row">
                     <div class="col-sm-8">
                         <h3 class="card-title-custom"> Low Inventory Products  </h3>
                         <p class="card-subtitle-custom"> Products with inventory below 10 units
@@ -440,13 +440,11 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                 <div class="card-divider"></div>
 
                 <div class="flex-grow-1 overflow-auto" style="margin-top: -8px;">
-
                     <table class="saas-table low-inventory-table">
-
                         <thead>
-                            <tr>
-                                <th>Product Name</th>
-                                <th>SKU</th>
+                            <tr> 
+                                <th>Product Name</th>  
+                                <th>SKU</th>  
                                 <th class="text-end">Available</th>
                             </tr>
                         </thead>
@@ -457,23 +455,16 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                                 <td class="product-name" title="{{ $product['product'] }}">
                                     {{ $product['product'] }}
                                 </td>
-
-                                <td>
-                                    {{ $product['sku'] ?? '-' }}
-                                </td>
-
+                                <td>  {{ $product['sku'] ?? '-' }} </td>
                                 <td class="text-end">
                                     @php $qty = $product['available'] ?? null; @endphp
 
                                     @if($qty !== null)
-                                    <span class="saas-badge
-            {{ $qty <= 3 ? 'saas-badge-danger' : ($qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral') }}">
-                                        {{ $qty }}
-                                    </span>
+                                        <span class="saas-badge  {{ $qty <= 3 ? 'saas-badge-danger' : ($qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral') }}">
+                                            {{ $qty }}
+                                        </span>
                                     @else
-                                    <span class="saas-badge saas-badge-neutral">
-                                        Unknown
-                                    </span>
+                                        <span class="saas-badge saas-badge-neutral"> Unknown </span>
                                     @endif
                                 </td>
                             </tr>
@@ -485,9 +476,7 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                             </tr>
                             @endforelse
                         </tbody>
-
                     </table>
-
                 </div>
 
                 <div class="card-divider"></div>
@@ -495,7 +484,6 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                 <div class="card-footer-custom">
                     Updated from Shopify inventory
                 </div>
-
             </div>
         </div>
 
@@ -503,16 +491,12 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
 
             <!-- Amazon Top Selling -->
             <div class="col-md-6 d-flex">
-
                 <div class="premium-card" style="height:350px;">
-
                     <div class="card-header-custom">
-                        <h3 class="card-title-custom">
-                            Amazon Top Selling Products
+                        <h3 class="card-title-custom">  Amazon Top Selling Products
                         </h3>
 
-                        <p class="card-subtitle-custom">
-                            Last 24 Hours
+                        <p class="card-subtitle-custom"> Last 24 Hours
                         </p>
                     </div>
 
