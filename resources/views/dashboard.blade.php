@@ -423,7 +423,7 @@ $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
                                 ? (int) $shop->selected_location_index  : 0;
                         @endphp
                         <label style="font-size: x-small;">Update location from settings</label>
-                        <select name="selected_location_index" class="form-select form-select-sm" id="locationSelect" disabled="true">
+                        <select name="selected_location_index" class="form-select-sm" id="locationSelect" disabled="true">
                             @if(!empty($locations))
                                 @foreach($locations as $index => $location)
                                 <option value="{{ $index }}" {{ (string) old('selected_location_index', $selectedIndex) === (string) $index ? 'selected' : '' }}>

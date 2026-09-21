@@ -276,11 +276,6 @@ class SettingsController extends ShopifyController
         }
 
         if (!$shop) {
-            Log::info('ACTIVATION_STATUS_CHECK: Shop not found', [
-                'request_id' => $requestId,
-                'shop_domain' => $shopParam,
-                'status' => 'shop_not_found',
-            ]);
 
             return response()->json([
                 'activated' => false,
@@ -294,16 +289,6 @@ class SettingsController extends ShopifyController
         $shopName = trim((string) $shop->shop_name);
         $email = trim((string) $shop->email);
         $isActivated = ($shopName !== '' && $email !== '' && (int) $shop->is_active === 1);
-
-        Log::info('ACTIVATION_STATUS_CHECK: Polling request evaluated', [
-            'request_id' => $requestId,
-            'shop_id' => $shop->id,
-            'shop_domain' => $shop->shop,
-            'has_shop_name' => !empty($shopName),
-            'has_email' => !empty($email),
-            'is_active' => (int) $shop->is_active,
-            'activated' => $isActivated,
-        ]);
 
         return response()->json([
             'activated' => $isActivated,
