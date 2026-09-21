@@ -263,7 +263,7 @@ class SettingsController extends ShopifyController
 
     public function activationStatus(Request $request)
     {
-        if(!$request->isAjax() ) {
+        if (!$request->ajax()) {
             return response()->json([
                 'message' => 'Invalid request.',
             ], 404);
