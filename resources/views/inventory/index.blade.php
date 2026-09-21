@@ -803,6 +803,7 @@
                         </thead>
                         <tbody style="font-size: 12px;">
                             @foreach($mappedproducts as $mapping)
+                                @if(!empty($mapping->amazon_sku))
                                 <tr>
                                     <td>
                                         <div class="fw-semibold text-dark">
@@ -844,6 +845,7 @@
                                         </button>
                                     </td>
                                 </tr>
+                                @endif
                             @endforeach
                         </tbody>
                     </table>
