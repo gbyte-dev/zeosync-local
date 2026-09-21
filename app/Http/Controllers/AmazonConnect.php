@@ -409,7 +409,14 @@ class AmazonConnect extends ShopifyController
     }
 
     public function success(Request $request)
-    {
-        return view('amazonconnect.success', [ 'shop' => $request->query('shop')  ]);
+    {   
+        $shopModel = $this->getActiveShop($request);
+        if(!$shopModel) {
+            $shop = $request->query('shop'); 
+        }else{
+            $shop = $shopModel->shop;
+        }
+            
+        return view('amazonconnect.success', [ 'shop' => $shop  ]);
     }
 }
