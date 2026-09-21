@@ -1,5 +1,5 @@
  @if(empty($shop))
-    @php abort(404); @endphp
+    @php // abort(404); @endphp
 @endif
 <!DOCTYPE html>
 <html lang="en">    
