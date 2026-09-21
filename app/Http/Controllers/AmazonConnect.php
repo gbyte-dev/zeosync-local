@@ -231,14 +231,10 @@ class AmazonConnect extends ShopifyController
             $request->session()->forget('amazon_is_iframe');
 
             if ($isIframe) {
-                return redirect()->route('amazon.connect.success', [
-                    'shop' => $shop->shop,
-                ]);
+                return redirect()->route('amazon.connect.success', [ 'shop' => $shop->shop  ])->with('success', 'Amazon Connected!'); 
             }
 
-            return redirect()->route('amazon.connect.success', [
-                'shop' => $shop->shop,
-            ])->with('success', 'Amazon Connected!');
+            return redirect()->route('amazon.connect.success', ['shop' => $shop->shop ])->with('success', 'Amazon Connected!');
 
             // return redirect()->route('dashboard', [
             //         'shop' => $shop->shop,
@@ -414,8 +410,6 @@ class AmazonConnect extends ShopifyController
 
     public function success(Request $request)
     {
-        return view('amazonconnect.success', [
-            'shop' => $request->query('shop')
-        ]);
+        return view('amazonconnect.success', [ 'shop' => $request->query('shop')  ]);
     }
 }
