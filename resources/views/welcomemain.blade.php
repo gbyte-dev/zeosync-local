@@ -13,6 +13,11 @@
                 <p class="lead">  Connect your store, automate product sync, and manage orders & returns — all in one place.</p>
 
 				<div class="actions"> 
+					<a href="https://admin.shopify.com/?organization_id=211723053&no_redirect=true&redirect=/oauth/redirect_from_developer_dashboard?client_id%3Dcc04d2b21de39debde846f2b0f70a763" class="btn btn-primary px-4">
+						Install on Shopify
+					</a>
+
+					{{-- Existing Connect Store UI temporarily disabled
 					<form method="GET" action="{{ route('shopify.install') }}" class="d-flex justify-content-center">
 						<div class="input-group" style="max-width: 450px;">
 
@@ -26,7 +31,7 @@
 						</div>
 					</form>
 					<p class="text-muted small mt-2 "> Example: demo-store.myshopify.com</p>
-
+					--}}
         		</div>
 				<p class="micro">Less switching tabs. Less repeating work. More room to sell.</p>
 			</div>
