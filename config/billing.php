@@ -15,8 +15,8 @@ return [
     |
     */
 
-    'provider' => env('BILLING_PROVIDER', 'shopify'),
-
+    //'provider' => env('BILLING_PROVIDER', 'shopify'),
+    'provider' => 'shopify',
     'providers' => [
         'stripe' => [
             'label' => 'Stripe',
