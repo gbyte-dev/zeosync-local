@@ -104,14 +104,6 @@
 </div>
 @endsection
 
-@push('css')
-    <link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
-@endpush
-
-@push('css')
-    <link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
-@endpush
-
 @section('scripts')
     <script nonce="{{ $cspNonce }}">
         $(document).ready(function() {

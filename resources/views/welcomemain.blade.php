@@ -13,7 +13,7 @@
                 <p class="lead">  Connect your store, automate product sync, and manage orders & returns — all in one place.</p>
 
 				<div class="actions"> 
-					<a href="https://admin.shopify.com/?organization_id=211723053&no_redirect=true&redirect=/oauth/redirect_from_developer_dashboard?client_id%3Dcc04d2b21de39debde846f2b0f70a763" class="btn btn-primary px-4">
+					<a href="https://admin.shopify.com/?organization_id=211723053&no_redirect=true&redirect=/oauth/redirect_from_developer_dashboard?client_id%3Dcc04d2b21de39debde846f2b0f70a763" target="_blank" class="btn btn-primary px-4">
 						Install on Shopify
 					</a>
 

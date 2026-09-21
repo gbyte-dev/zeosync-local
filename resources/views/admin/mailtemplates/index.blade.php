@@ -109,13 +109,7 @@
         </div>
     </div>
 </div>
-@endsection
-@section('styles')
-<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
-@endsection
 @section('scripts')
-<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
 <script nonce="{{ $cspNonce }}">
     $(document).ready(function() {
 

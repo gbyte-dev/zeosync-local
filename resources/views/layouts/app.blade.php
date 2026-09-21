@@ -30,8 +30,8 @@
     <link nonce="{{ $cspNonce??'' }}" rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
     <link nonce="{{ $cspNonce??'' }}" rel="apple-touch-icon" sizes="180x180" href="{{ $faviconUrl }}">
 
-    <link nonce="{{ $cspNonce??'' }}" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
     <link nonce="{{ $cspNonce??'' }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    @include('layouts.partials.vendor-assets', ['type' => 'css'])
 
     @stack('css')
 
@@ -269,7 +269,7 @@
 
     </div>
 
-    <script nonce="{{ $cspNonce??'' }}" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    @include('layouts.partials.vendor-assets', ['type' => 'js'])
     <script nonce="{{ $cspNonce??'' }}" src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
     @stack('scripts')
 
@@ -790,7 +790,6 @@
             }
         });
     </script>
-    <script nonce="{{ $cspNonce??'' }}" src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 
 </html>

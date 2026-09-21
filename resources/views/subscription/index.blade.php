@@ -9,14 +9,6 @@
 
 @endsection
 
-@push('styles')
-
-<link nonce="{{ $cspNonce??'' }}" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-@endpush
-
-
-
 @push('scripts')
 <script nonce="{{ $cspNonce??'' }}" src="https://unpkg.com/@shopify/app-bridge@3"></script>
 <script nonce="{{ $cspNonce??'' }}" src="https://unpkg.com/@shopify/app-bridge-utils@3"></script>

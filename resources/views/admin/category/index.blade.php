@@ -86,12 +86,7 @@
 @endsection
 {{-- Include Category Form Modal --}}
 @include('admin.category.form')
-@section('styles')
-<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
-@endsection
 @section('scripts')
-<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
 <script nonce="{{ $cspNonce }}">
     $(document).ready(function() {
         if ($('#category-table').length) {

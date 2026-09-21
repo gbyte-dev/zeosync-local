@@ -1,13 +1,6 @@
 @extends('layouts.app')
 @section('content')
 
-
-@push('css')
-<!-- DataTables Bootstrap 5 CSS -->
-<link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-<link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
-@endpush
-
 <style nonce="{{ $cspNonce }}">
     /* Shopify Admin Inspired UI - Ultra Compact & Premium */
     .sp-page {
@@ -719,18 +712,7 @@
 </div>
 @endsection
 
-@push('styles')
-<!-- Maintain FontAwesome reference for JS injections that might strictly rely on it -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-@endpush
-
 @push('scripts')
-<!-- DataTables JS & Bootstrap 5 Integration -->
-<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
-
 <script nonce="{{ $cspNonce }}">
     $(document).ready(function() {
         const $table = $('#productsTable');
