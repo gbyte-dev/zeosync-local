@@ -112,10 +112,32 @@
                 }
             }, 500);
 
+            function isSafeRedirectUrl(url) {
+                if (typeof url !== 'string' || !url.trim()) return false;
+                const trimmed = url.trim();
+                if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+                    return true;
+                }
+                try {
+                    const parsed = new URL(trimmed, window.location.origin);
+                    return parsed.origin === window.location.origin && (parsed.protocol === 'http:' || parsed.protocol === 'https:');
+                } catch (e) {
+                    return false;
+                }
+            }
+
             window.addEventListener('message', function(event) {
+                if (event.origin !== window.location.origin) {
+                    return;
+                }
+
+                if (popup && event.source !== popup) {
+                    return;
+                }
+
                 const data = event.data || {};
                 if (data.type === 'shopify_authenticated' || data.type === 'shopify_activated') {
-                    if (data.redirect_url && (data.redirect_url.includes('/dashboard') || data.type === 'shopify_activated') && !hasRedirected) {
+                    if (data.redirect_url && isSafeRedirectUrl(data.redirect_url) && (data.redirect_url.includes('/dashboard') || data.type === 'shopify_activated') && !hasRedirected) {
                         hasRedirected = true;
                         if (setupCheckInterval) clearInterval(setupCheckInterval);
                         statusEl.textContent = 'Store activated successfully. Redirecting...';

@@ -33,7 +33,7 @@
             function notifyOpener() {
                 if (window.opener && !window.opener.closed) {
                     try {
-                        window.opener.postMessage(payload, '*');
+                        window.opener.postMessage(payload, window.location.origin);
                     } catch (e) {
                         console.error('Failed to post message:', e);
                     }
