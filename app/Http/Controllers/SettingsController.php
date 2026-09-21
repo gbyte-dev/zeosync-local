@@ -263,6 +263,11 @@ class SettingsController extends ShopifyController
 
     public function activationStatus(Request $request)
     {
+        if(!$request->isAjax() ) {
+            return response()->json([
+                'message' => 'Invalid request.',
+            ], 404);
+        }
         $requestId = (string) \Illuminate\Support\Str::uuid();
         $shopParam = strtolower(trim((string) ($request->query('shop') ?? $request->input('shop', ''))));
 

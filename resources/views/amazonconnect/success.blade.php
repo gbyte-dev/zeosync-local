@@ -220,7 +220,7 @@
 
             @if(!empty($shop))
                 <div class="store-box">
-                    <span class="label">Connected Store</span>
+                    <span class="label">Connected Store : </span>
                     <span>{{ $shop }}</span>
                 </div>
             @endif
