@@ -805,11 +805,21 @@
                             @foreach($mappedproducts as $mapping)
                                 @if(!empty($mapping->amazon_sku))
                                 <tr>
+                                    @php
+                                        $shopifyProductId = $mapping->shopify_product_id ?? $mapping->product_id ?? null;
+                                        $shopifyProductLink = $shopifyProductId
+                                            ? route('shopify.product.view', ['id' => $shopifyProductId, 'shop' => request('shop') ?? session('active_shop')])
+                                            : null;
+                                    @endphp
                                     <td>
-                                        <div class="fw-semibold text-dark">
-                                            {{ $mapping->shopify_product_id ?? $mapping->product_id ?? 'N/A' }}
-                                        </div>
-                                        <small class="text-muted">Product ID: {{ $mapping->product_id ?? '—' }}</small>
+                                        @if($shopifyProductLink)
+                                            <a href="{{ $shopifyProductLink }}" class="fw-semibold text-dark text-decoration-none" title="View Shopify product">
+                                                {{ $mapping->shopify_product_title ?? 'Shopify Product #' . $shopifyProductId }}
+                                            </a>
+                                        @else
+                                            <div class="fw-semibold text-dark">N/A</div>
+                                        @endif
+                                        <small class="text-muted d-block">Product ID: {{ $shopifyProductId ?? '—' }}</small>
                                     </td>
                                     <td class="text-muted">
                                         {{ $mapping->shopify_variant_id ?? '—' }}
