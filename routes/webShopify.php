@@ -31,9 +31,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 Route::get('verify', [DashboardController::class, 'install'])->name('i.dashboard');
-Route::get('verify', function () {
-    return view('welcome');
-})->name('crm.verify');
+
 Route::get('subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
 Route::get('planview', [SubscriptionController::class, 'plans'])->name('shopify.plans');
 // THIS IS JUST TETSING WILL BE REMOVED IN FUTURE
