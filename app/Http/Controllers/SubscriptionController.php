@@ -25,23 +25,6 @@ class SubscriptionController extends ShopifyController
         $this->shopifyBilling = app(ShopifyBillingService::class);
         $this->shopifyWebhook = app(ShopifyWebhookService::class);
     }
-
-    public function index(Request $request)
-    {
-        $shopModel = $this->getActiveShop($request);
-        if (!$shopModel) {
-            return redirect($this->shopAwareUrl(
-                '/',
-                $request->query('shop') ?? $request->input('shop')
-            ))->with('error', 'No shop connected.');
-        }
-        return view('subscriptions.index', [
-            'shop' => $shopModel->shop,
-            'subscription' => ShopSubscription::with('plan')
-                ->where('shop_id', $shopModel->id)
-                ->first(),
-        ]);
-    }
     
     public function plans(Request $request)
     {

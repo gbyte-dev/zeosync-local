@@ -1781,4 +1781,24 @@ class TestController extends Controller
         }
     }
 
+    public function amazonSchemaTest(){
+        $shop = \App\Models\Shop::find(6);
+        return (new \App\Services\AmazonService())->getProductTypeDefinition($shop);
+    }
+
+    public function amazonSchemaTestSku(Request $request, $sku){
+           $shop = getActiveShopModel($request);
+
+            if (!$shop) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Shop not found'
+                ], 404);
+            }
+
+            $service = app(AmazonService::class);
+
+            return response()->json($service->checkAmazonListing($shop, $sku)   );
+    }
+
 }

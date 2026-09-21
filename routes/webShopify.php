@@ -32,11 +32,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('verify', [DashboardController::class, 'install'])->name('i.dashboard');
 
-Route::get('subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
-Route::get('planview', [SubscriptionController::class, 'plans'])->name('shopify.plans');
 // THIS IS JUST TETSING WILL BE REMOVED IN FUTURE
 Route::POST('plans/subscribe', [SubscriptionController::class, 'subscribeToPlan'])->name('plans.subscribe');
-Route::get('connect', [AmazonConnect::class, 'connect'])->name('amazon.connect');
 Route::get('amzon/authorize/shopify/{ens}', [AmazonConnect::class, 'authorizeAmazonIframe'])->name('amazon.authorize.iframe');
 Route::get('amazon/callback', [AmazonConnect::class, 'handleCallback'])->name('amazon.callback');
 // amazon routes
@@ -48,8 +45,8 @@ Route::prefix('amazon')->withoutMiddleware([\App\Http\Middleware\CheckSubscripti
 });
 
 Route::get('/amazon/connect/success', [AmazonConnect::class, 'success'])->name('amazon.connect.success');
+
 // store settings
-Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
 Route::post('settings', [SettingsController::class, 'update'])->name('settings.update');
 // Route::get('logs', [SettingsController::class, 'logs'])->name('shopify.logs');
 Route::get('activate', [SettingsController::class, 'showForm'])->name('setup.form');
@@ -78,8 +75,7 @@ Route::post('/amazon/test-update/{sku}', function (Illuminate\Http\Request $requ
         return response()->json(['success' => false, 'message' => 'Unauthorized or shop not found.'], 401);
     }
 
-    return app(\App\Services\AmazonService::class)
-        ->updateInventory($shop, $sku, (int) $request->quantity);
+    return app(\App\Services\AmazonService::class)->updateInventory($shop, $sku, (int) $request->quantity);
 });
 
 // Stripe webhook for payment updates
@@ -91,8 +87,10 @@ Route::get('/payment/success/page', [SubscriptionController::class, 'paymentSucc
 Route::get('payment/cancel', [SubscriptionController::class, 'cancel'])->name('payment.cancel');
 Route::get('/check-payment-status', [SubscriptionController::class, 'checkStatus'])
     ->name('payment.status');
+
 // admin routes
 Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::class)->group(function () {
+   
     Route::middleware('guest:admin')->group(function () {
         Route::get('/login', function () {  return view('admin.auth.login'); })->name('admin.login');
         Route::post('/login', [AdminAuthController::class, 'login'])
@@ -158,6 +156,10 @@ Route::middleware([ResolveActiveShop::class, \App\Http\Middleware\CheckSubscript
     Route::get('/remove_drafts/{product}', [ProductSchemaController::class, 'removeDrafts'])->name('user.product.removeDrafts');
 });
 Route::middleware([ResolveActiveShop::class])->group(function () {
+    // store settings
+    Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::get('planview', [SubscriptionController::class, 'plans'])->name('shopify.plans');
+    Route::get('connect', [AmazonConnect::class, 'connect'])->name('amazon.connect');
     Route::get('inventory/shopify', [InventoryController::class, 'shopify'])->name('shopify.inventory.shopify');
     Route::get('inventory/amazon', [InventoryController::class, 'amazon'])
         ->name('shopify.inventory.amazon');
@@ -178,232 +180,151 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::post('inventory/page-length', [InventoryController::class, 'updatePageLength'])->name('shopify.inventory.page_length');
 });
 
-Route::get('/amazon-schema', [AmazonSchemaController::class, 'index']);
-Route::get('/amazon/subcategories/{id}', [AmazonSchemaController::class, 'getSubcategories']);
-Route::post('/amazon/validate-rules', [AmazonSchemaController::class, 'validateRules']);
-// // amazon smart from
-// Route::get('/amazon-smart-form', [AmazonSmartFormController::class, 'index']);
-// Route::post('/amazon-smart-form/fetch', [AmazonSmartFormController::class, 'fetch'])
-//     ->name('amazon.smart.fetch');
-// // test route
-Route::get('/test', [TestController::class, 'test'])->name('test');
-Route::get('/getAllProductTypes', [TestController::class, 'getAllProductTypes'])->name('getAllProductTypes');
-Route::get('/test-category-map', [TestController::class, 'testCategoryMapping']);
-Route::get('/amazon-schema-test', function () {
-    $shop = \App\Models\Shop::find(6);
-    return (new \App\Services\AmazonService())
-        ->getProductTypeDefinition($shop);
-});
+Route::get('amazon-schema', [AmazonSchemaController::class, 'index']);
+Route::get('amazon/subcategories/{id}', [AmazonSchemaController::class, 'getSubcategories']);
+Route::post('amazon/validate-rules', [AmazonSchemaController::class, 'validateRules']);
 
-Route::get('/amazon-check/{sku}', function (Request $request, $sku) {
-    $shop = getActiveShopModel($request);
-
-    if (!$shop) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Shop not found'
-        ], 404);
-    }
-
-    $service = app(AmazonService::class);
-
-    return response()->json(
-        $service->checkAmazonListing($shop, $sku)
-    );
-});
-
+// test route
+Route::get('test', [TestController::class, 'test'])->name('test');
+Route::get('getAllProductTypes', [TestController::class, 'getAllProductTypes'])->name('getAllProductTypes');
+Route::get('test-category-map', [TestController::class, 'testCategoryMapping']);
+Route::get('amazon-schema-test', [TestController::class, 'amazonSchemaTest'])->name('amazon.schema.test');
+Route::get('amazon-check/{sku}', [TestController::class, 'amazonSchemaTestSku'])->name('amazon.schema.test.sku');
 Route::get( '/amazon/schema-fields/{slug}',[AmazonSchemaController::class, 'getFields']);
-
-Route::post('/amazon/evaluate-conditions', [AmazonSchemaController::class, 'evaluateConditions'])
+Route::post('amazon/evaluate-conditions', [AmazonSchemaController::class, 'evaluateConditions'])
     ->name('amazon.evaluate.conditions');
 Route::post('/amazon/manual-sync', [AmazonSchemaController::class, 'manualSync'])->name('amazon.manual.sync');
-Route::post('/amazon/generate-sync-payload', [
-    AmazonSchemaController::class,
-    'generateSyncPayload'
-]);
+Route::post('/amazon/generate-sync-payload', [ AmazonSchemaController::class, 'generateSyncPayload']);
 Route::get('/amazon/search-schema/{keyword}', [ShopifyController::class, 'searchAmazonSchema']);
-Route::get('/keyboard-schema', [TestController::class, 'keyboardSchema']);
+Route::get('keyboard-schema', [TestController::class, 'keyboardSchema']);
+Route::post('amazon/load-missing-fields', [AmazonSchemaController::class, 'loadMissingFields'])->name('amazon.load.missingfield');
 
-Route::post('/amazon/load-missing-fields', [AmazonSchemaController::class, 'loadMissingFields'])->name('amazon.load.missingfield');
-
-Route::get('/inventory/amazon/test-report', function (
-    Illuminate\Http\Request $request,
-    \App\Services\AmazonInventoryReportService $service
-) {
-    $activeShop = session('active_shop');
-
-    $shop = is_numeric($activeShop)
-        ? \App\Models\Shop::findOrFail($activeShop)
-        : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
-
-    return response()->json(
-        $service->createReport(
-            $shop,
-            'ATVPDKIKX0DER'
-        )
-    );
-});
-
-Route::get('/inventory/amazon/test-report/{reportId}', function (
-    $reportId,
-    \App\Services\AmazonInventoryReportService $service
-) {
-    $activeShop = session('active_shop');
-
-    $shop = is_numeric($activeShop)
-        ? \App\Models\Shop::findOrFail($activeShop)
-        : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
-
-    return response()->json(
-        $service->getReport(
-            $shop,
-            $reportId
-        )
-    );
-});
-
-Route::get('/inventory/amazon/test-download', function (
-    Illuminate\Http\Request $request,
-    \App\Services\AmazonInventoryReportService $service
-) {
-    $documentId = $request->get('documentId');
-
-    $activeShop = session('active_shop');
-
-    $shop = is_numeric($activeShop)
-        ? \App\Models\Shop::findOrFail($activeShop)
-        : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
-
-    $download = $service->downloadReport($shop, $documentId);
-
-    return response()->json([
-        'compression' => $download['compression'],
-        'size' => strlen($download['content']),
-    ]);
-});
-
-Route::get('/inventory/amazon/test-extract', function (
-    Illuminate\Http\Request $request,
-    \App\Services\AmazonInventoryReportService $service
-) {
-    $documentId = $request->get('documentId');
-
-    $activeShop = session('active_shop');
-
-    $shop = is_numeric($activeShop)
-        ? \App\Models\Shop::findOrFail($activeShop)
-        : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
-
-    $download = $service->downloadReport($shop, $documentId);
-    $reflection = new ReflectionClass($service);
-    $method = $reflection->getMethod('extractReport');
-    $method->setAccessible(true);
-    $content = $method->invoke(
-        $service,
-        $download['content']
-    );
-
-    return response($content)
-        ->header('Content-Type', 'text/plain');
-});
-
-Route::get('/inventory/amazon/test-parser', function (
-    Illuminate\Http\Request $request,
-    \App\Services\AmazonInventoryReportService $service
-) {
-    $activeShop = session('active_shop');
-
-    $shop = is_numeric($activeShop)
-        ? \App\Models\Shop::findOrFail($activeShop)
-        : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
-
-    $download = $service->downloadReport($shop, $request->documentId);
-    $reflection = new ReflectionClass($service);
-    $extract = $reflection->getMethod('extractReport');
-    $extract->setAccessible(true);
-
-    $content = $extract->invoke($service, $download['content']);
-
-    return response()->json($service->parseReport($content));
-});
-
-Route::get('/inventory/amazon/progress', [InventoryController::class, 'amazonProgress'])->name('inventory.amazon.progress');
-
-Route::post('/webhooks/amazon/orders', [AmazonWebhookController::class, 'handleOrderNotification'])->name('amazon.webhooks.orders');
-
+Route::get('inventory/amazon/progress', [InventoryController::class, 'amazonProgress'])->name('inventory.amazon.progress');
+Route::post('webhooks/amazon/orders', [AmazonWebhookController::class, 'handleOrderNotification'])->name('amazon.webhooks.orders');
 Route::get('amazon/connect/progress', [AmazonConnect::class, 'progress'])->name('amazon.connect.progress');
-
-Route::get('/test/store-status', [TestController::class, 'checkStoreStatus']);
+// Route::get('test/store-status', [TestController::class, 'checkStoreStatus']);
 
 Route::get('/test/store-status-command', function () {
     Artisan::call('stores:check-status');
     return nl2br(Artisan::output());
 });
 
-Route::get('/test/subscription', function () {
-    $shop = \App\Models\Shop::find(21);
-    return app(\App\Services\SubscriptionCancellationService::class)
-        ->getActiveSubscription($shop);
-});
-
-Route::get('/test/cancel-subscription', function () {
-    $shop = \App\Models\Shop::findOrFail(21);
-    return app(\App\Services\SubscriptionCancellationService::class)
-        ->cancelAtPeriodEnd($shop);
-});
-
-Route::get('/test/queue-work', function () {
-    Artisan::call('queue:work', ['--queue' => 'store-status', '--once' => true, '--tries' => 3, '--timeout' => 60]);
-    return 'Done';
-});
-
-Route::get('/test-amazon-sync', function () {
-    $shops = Shop::where('is_active', 1)
-        ->whereNotNull('amazon_refresh_token')
-        ->get();
-
-    foreach ($shops as $shop) {
-        app(App\Services\AmazonInventoryReportService::class)
-            ->syncInventory($shop, $shop->amazon_marketplace_id);
-    }
-
-    return 'Done';
-});
-
-
-Route::post('/custom-plans', [CustomPlanController::class, 'store'])
-    ->name('custom-plans.store');
-
-Route::post('/custom-plans/{plan}/activate', [CustomPlanController::class, 'activate'])
-    ->name('custom-plans.activate');
-
-Route::post('/custom-plans/{plan}/cancel', [CustomPlanController::class, 'cancel'])
-    ->name('custom-plans.cancel');
-
+Route::post('/custom-plans', [CustomPlanController::class, 'store'])->name('custom-plans.store');
+Route::post('/custom-plans/{plan}/activate', [CustomPlanController::class, 'activate'])->name('custom-plans.activate');
+Route::post('/custom-plans/{plan}/cancel', [CustomPlanController::class, 'cancel'])->name('custom-plans.cancel');
 Route::get('/shopify/categories/search', [ShopifyController::class, 'searchCategories'])->name('shopify.categories.search');
 
 Route::get('/test-plan-sync/{shop}', function (string $shop) {
     $shopModel = \App\Models\Shop::where('shop', $shop)->firstOrFail();
-    $result = app(\App\Services\ShopifyPlanSyncService::class)
-        ->sync($shopModel);
-
-    return response()->json([
-        'success' => $result !== null,
-        'subscription' => $result,
-    ]);
+    $result = app(\App\Services\ShopifyPlanSyncService::class)->sync($shopModel);
+    return response()->json([ 'success' => $result !== null, 'subscription' => $result, ]);
 });
 
 Route::get('/debug/shopify-subscription/{chargeId}', function (
     Request $request, string $chargeId) {
     $shop = Shop::where('shop', $request->query('shop'))->firstOrFail();
     $gid = 'gid://shopify/AppSubscription/' . $chargeId;
-
-    $subscription = app(ShopifyBillingService::class)
-        ->fetchSubscriptionByGid($shop, $gid);
-
-    return response()->json([
-        'requested_charge_id' => $chargeId,
-        'requested_gid' => $gid,
-        'subscription' => $subscription,
+    $subscription = app(ShopifyBillingService::class)->fetchSubscriptionByGid($shop, $gid);
+    return response()->json([ 'requested_charge_id' => $chargeId,
+        'requested_gid' => $gid, 'subscription' => $subscription,
     ]);
 });
+
+// Route::get('inventory/amazon/test-parser', function ( Illuminate\Http\Request $request,
+//     \App\Services\AmazonInventoryReportService $service) {
+//     $activeShop = session('active_shop');
+//     $shop = is_numeric($activeShop)
+//         ? \App\Models\Shop::findOrFail($activeShop)
+//         : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
+//     $download = $service->downloadReport($shop, $request->documentId);
+//     $reflection = new ReflectionClass($service);
+//     $extract = $reflection->getMethod('extractReport');
+//     $extract->setAccessible(true);
+//     $content = $extract->invoke($service, $download['content']);
+//     return response()->json($service->parseReport($content));
+// });
+
+// Route::get('inventory/amazon/test-report', function ( Illuminate\Http\Request $request,
+//     \App\Services\AmazonInventoryReportService $service) {
+//     $activeShop = session('active_shop');
+
+//     $shop = is_numeric($activeShop)
+//         ? \App\Models\Shop::findOrFail($activeShop)
+//         : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
+
+//     return response()->json( $service->createReport( $shop, 'ATVPDKIKX0DER' ) );
+// });
+
+// Route::get('inventory/amazon/test-report/{reportId}', function (
+//     $reportId,   \App\Services\AmazonInventoryReportService $service) {
+//     $activeShop = session('active_shop');
+
+//     $shop = is_numeric($activeShop)
+//         ? \App\Models\Shop::findOrFail($activeShop)
+//         : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
+
+//     return response()->json( $service->getReport( $shop, $reportId ));
+// });
+
+// Route::get('inventory/amazon/test-download', function (
+//     Illuminate\Http\Request $request, \App\Services\AmazonInventoryReportService $service
+// ) {
+//     $documentId = $request->get('documentId');
+//     $activeShop = session('active_shop');
+
+//     $shop = is_numeric($activeShop)
+//         ? \App\Models\Shop::findOrFail($activeShop)
+//         : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
+
+//     $download = $service->downloadReport($shop, $documentId);
+
+//     return response()->json([
+//         'compression' => $download['compression'],
+//         'size' => strlen($download['content']),
+//     ]);
+// });
+
+// Route::get('inventory/amazon/test-extract', function ( Illuminate\Http\Request $request,
+//     \App\Services\AmazonInventoryReportService $service) {
+    
+//     $documentId = $request->get('documentId');
+//     $activeShop = session('active_shop');
+
+//     $shop = is_numeric($activeShop) ? \App\Models\Shop::findOrFail($activeShop)
+//         : \App\Models\Shop::where('shop', $activeShop)->firstOrFail();
+
+//     $download = $service->downloadReport($shop, $documentId);
+//     $reflection = new ReflectionClass($service);
+//     $method = $reflection->getMethod('extractReport');
+//     $method->setAccessible(true);
+//     $content = $method->invoke( $service,   $download['content']  );
+
+//     return response($content)->header('Content-Type', 'text/plain');
+// });
+
+// Route::get('/test/subscription', function () {
+//     $shop = \App\Models\Shop::find(21);
+//     return app(\App\Services\SubscriptionCancellationService::class)
+//         ->getActiveSubscription($shop);
+// });
+
+// Route::get('/test/cancel-subscription', function () {
+//     $shop = \App\Models\Shop::findOrFail(21);
+//     return app(\App\Services\SubscriptionCancellationService::class)
+//         ->cancelAtPeriodEnd($shop);
+// });
+
+// Route::get('/test/queue-work', function () {
+//     Artisan::call('queue:work', ['--queue' => 'store-status', '--once' => true, '--tries' => 3, '--timeout' => 60]);
+//     return 'Done';
+// });
+
+// Route::get('/test-amazon-sync', function () {
+//     $shops = Shop::where('is_active', 1)->whereNotNull('amazon_refresh_token')->get();
+//     foreach ($shops as $shop) {
+//         app(App\Services\AmazonInventoryReportService::class)
+//             ->syncInventory($shop, $shop->amazon_marketplace_id);
+//     }
+//     return 'Done';
+// });
+
