@@ -744,7 +744,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                 <div class="mb-3">
                     <label class="form-label">Description</label>
                     <textarea name="description" class="form-control" rows="3" placeholder="Product description"
-                        required>{{ old('description', isset($product['body']) ? $product['body'] : (isset($product['body_html']) ? strip_tags(html_entity_decode($product['body_html'])) : '')) }}</textarea>
+                        required>{{ old('description', !empty($dbProduct?->description) ? $dbProduct->description : html_to_plain_text($product['body_html'] ?? ($product['body'] ?? ''))) }}</textarea>
                 </div>
 
                 <div class="row">

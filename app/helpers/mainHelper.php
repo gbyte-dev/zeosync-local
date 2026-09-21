@@ -314,3 +314,38 @@ if (!function_exists('getActiveShopModel')) {
     }
 }
 
+if (!function_exists('html_to_plain_text')) {
+    /**
+     * Convert HTML content (such as Shopify descriptionHtml) into clean plain text for textarea inputs.
+     * Preserves paragraph/line breaks as newlines and decodes HTML entities.
+     *
+     * @param string|null $html
+     * @return string
+     */
+    function html_to_plain_text(?string $html): string
+    {
+        if ($html === null || $html === '') {
+            return '';
+        }
+
+        // Convert <br> tags to standard newlines
+        $text = preg_replace('/<br\s*\/?>/i', "\n", $html);
+
+        // Convert paragraph transitions to double newlines
+        $text = preg_replace('/<\/p>\s*<p[^>]*>/i', "\n\n", $text);
+        $text = preg_replace('/<\/?p[^>]*>/i', '', $text);
+
+        // Convert list items to newlines if present
+        $text = preg_replace('/<\/li>\s*<li[^>]*>/i', "\n", $text);
+        $text = preg_replace('/<\/?(?:ul|ol|li)[^>]*>/i', '', $text);
+
+        // Strip remaining HTML tags
+        $text = strip_tags($text);
+
+        // Decode HTML entities
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim($text);
+    }
+}
+

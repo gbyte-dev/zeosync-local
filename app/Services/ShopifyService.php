@@ -2046,7 +2046,7 @@ class ShopifyService
                 ],
                 [
                     'title' => $normalizedProduct['title'] ?? '',
-                    'description' => $normalizedProduct['body_html'] ?? '',
+                    'description' => html_to_plain_text($normalizedProduct['body_html'] ?? ''),
                     'vendor' => $normalizedProduct['vendor'] ?? '',
                     'product_type' => $normalizedProduct['product_type'] ?? '',
                     'status' => $normalizedProduct['status'] ?? 'draft',

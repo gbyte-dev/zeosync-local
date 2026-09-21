@@ -168,7 +168,7 @@ it('Test 1: successfully synchronizes products, variants, options, and images vi
 
     expect($dbProduct)->not->toBeNull()
         ->and($dbProduct->title)->toBe('Test GraphQL T-Shirt')
-        ->and($dbProduct->description)->toBe('<p>Premium organic cotton t-shirt</p>')
+        ->and($dbProduct->description)->toBe('Premium organic cotton t-shirt')
         ->and((float) $dbProduct->price)->toEqual(24.99)
         ->and($dbProduct->status)->toBe('active')
         ->and($dbProduct->product_type)->toBe('Shirts')

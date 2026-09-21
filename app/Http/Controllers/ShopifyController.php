@@ -1727,7 +1727,7 @@ class ShopifyController extends Controller
                 ]);
 
                 $productModel->title = $product['title'];
-                $productModel->description = $product['body_html'] ?? '';
+                $productModel->description = html_to_plain_text($product['body_html'] ?? '');
                 $productModel->price = $product['variants'][0]['price'] ?? 0;
                 $productModel->status = $product['status'] ?? 'draft';
                 $productModel->product_type = $product['product_type'] ?? null;
@@ -2056,7 +2056,7 @@ class ShopifyController extends Controller
                 ],
                 [
                     'title' => $request->title,
-                    'description' => $request->description,
+                    'description' => html_to_plain_text($request->description),
                     'price' => $finalVariants[0]['price'] ?? 0,
                     'status' => $request->status ?? 'draft',
                     'product_type' => $subcategory,
@@ -2244,8 +2244,8 @@ class ShopifyController extends Controller
 
             $updatePayload = [
                 'title' => $request->title,
-                'description' => $request->description,
-                'body_html' => $request->description,
+                'description' => $this->formatDescription($request->description),
+                'body_html' => $this->formatDescription($request->description),
                 'vendor' => $request->vendor,
                 'product_type' => $request->product_type,
                 'status' => $request->status,
@@ -2315,7 +2315,7 @@ class ShopifyController extends Controller
                 }
 
                 $productdata['title'] = $request->title;
-                $productdata['description'] = $request->description;
+                $productdata['description'] = html_to_plain_text($request->description);
                 $productdata['vendor'] = $request->vendor;
                 $productdata['product_type'] = $subcategory;
                 $productdata['category'] = $producttype;

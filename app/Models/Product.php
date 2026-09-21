@@ -60,4 +60,12 @@ class Product extends Model
     {
         return $this->hasOne(AmazonProduct::class);
     }
+
+    /**
+     * Mutator to ensure description is always stored as clean plain text in DB.
+     */
+    public function setDescriptionAttribute($value): void
+    {
+        $this->attributes['description'] = html_to_plain_text($value);
+    }
 }
