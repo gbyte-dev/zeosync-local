@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\ProductMapping;
 
 class InventoryController extends ShopifyController
 {
@@ -55,18 +56,14 @@ class InventoryController extends ShopifyController
         $shop = $this->getActiveShopModel($request);
 
         if (!$shop) {
-            return redirect()
-                ->route('dashboard')
-                ->with('error', 'Shop not found.');
+            return redirect()->route('dashboard')->with('error', 'Shop not found.');
         }
 
-        session([
-            'shop' => $shop->shop,
-            'access_token' => $shop->access_token,
-            'region' => $shop->amazon_mws_region,
-        ]);
+        session([ 'shop' => $shop->shop, 'access_token' => $shop->access_token,
+            'region' => $shop->amazon_mws_region   ]);
 
         $inventories = [];
+        $mappedproducts = ProductMapping::where('shop_id',$shop->id)->get();
 
         // Sync Usage
         $syncUsage = app(SyncLimitService::class)->canMap($shop);
@@ -78,13 +75,8 @@ class InventoryController extends ShopifyController
         $shopifyPageLength = in_array($rawShopifyLength, $allowedLengths, true) ? $rawShopifyLength : 10;
         $amazonPageLength = in_array($rawAmazonLength, $allowedLengths, true) ? $rawAmazonLength : 10;
 
-        return view('inventory.index', compact(
-            'inventories',
-            'shop',
-            'syncUsage',
-            'shopifyPageLength',
-            'amazonPageLength'
-        ));
+        return view('inventory.index', compact( 'inventories', 'shop', 'syncUsage',
+         'shopifyPageLength',  'amazonPageLength' ,'mappedproducts'  ));
     }
 
     public function updatePageLength(Request $request)
@@ -116,9 +108,7 @@ class InventoryController extends ShopifyController
         ]);
     }
 
-    public function shopify(
-        Request $request,
-        ShopifyInventoryService $shopifyInventoryService
+    public function shopify( Request $request,  ShopifyInventoryService $shopifyInventoryService
     ) {
         $shopModel = $this->getActiveShopModel($request);
         if (!$shopModel) {
@@ -158,9 +148,7 @@ class InventoryController extends ShopifyController
             : [];
 
         app(AutoSkuMappingService::class)->handle(
-            $shopModel,
-            $data,
-            $amazonInventory
+            $shopModel,   $data,  $amazonInventory
         );
 
         return response()->json($data);
@@ -198,8 +186,7 @@ class InventoryController extends ShopifyController
         $inventoryCacheService = app(InventoryCacheService::class);
 
         $response = $inventoryCacheService->getAmazonInventory(
-            $shop,
-            $shop->amazon_marketplace_id
+            $shop,   $shop->amazon_marketplace_id
         );
 
         $products = $response['products'] ?? [];
@@ -250,8 +237,7 @@ class InventoryController extends ShopifyController
         return response()->json($response);
     }
 
-    public function syncAmazonInventory(
-        Request $request,
+    public function syncAmazonInventory( Request $request,
         AmazonInventoryReportService $reportService
     ) {
         $shop = $this->getActiveShopModel($request);
@@ -266,8 +252,7 @@ class InventoryController extends ShopifyController
         $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
         try {
-            $result = $reportService->syncInventory(
-                shop: $shop,
+            $result = $reportService->syncInventory(  shop: $shop,
                 marketplaceId: $marketplaceId
             );
 

@@ -777,6 +777,7 @@
                 <div class="alert alert-info mb-0 border-0" style="border-radius: 8px; font-size: 13px;">
                     <i class="bi bi-info-circle-fill me-2"></i> The Mappings tab is under development and will be available soon.
                 </div>
+                @php echo "<pre>"; print_r($mappedproducts); @endphp
             </div>
         </div>
 
