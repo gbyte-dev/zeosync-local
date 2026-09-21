@@ -44,7 +44,7 @@ Route::prefix('amazon')->withoutMiddleware([\App\Http\Middleware\CheckSubscripti
     Route::get('disconnect', [AmazonConnect::class, 'disconnect'])->name('amazon.disconnect');
 });
 
-Route::get('/amazon/connect/success', [AmazonConnect::class, 'success'])->name('amazon.connect.success');
+Route::get('amazon/connect/success', [AmazonConnect::class, 'success'])->name('amazon.connect.success');
 
 // store settings
 Route::post('settings', [SettingsController::class, 'update'])->name('settings.update');

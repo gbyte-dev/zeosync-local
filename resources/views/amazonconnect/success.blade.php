@@ -1,5 +1,8 @@
+ @if(empty($shop))
+    @php // abort(404); @endphp
+@endif
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en">    
 
 <head>
     <meta charset="UTF-8">
@@ -31,14 +34,13 @@
             background:#fff;
             border-radius:16px;
             box-shadow:0 10px 30px rgba(0,0,0,.08);
-            padding:45px;
         }
 
         .icon{
             width:85px;
             height:85px;
             border-radius:50%;
-            background:#E3FCEF;
+            background:#008060;
             display:flex;
             align-items:center;
             justify-content:center;
@@ -48,19 +50,7 @@
         .icon svg{
             width:45px;
             height:45px;
-            color:#008060;
-        }
-
-        h1{
-            font-size:30px;
-            font-weight:700;
-            margin-bottom:15px;
-        }
-
-        p{
-            color:#6d7175;
-            font-size:16px;
-            line-height:1.7;
+            color:#f9fefd;
         }
 
         .instruction{
@@ -68,7 +58,6 @@
             border-left:4px solid #008060;
             border-radius:8px;
             padding:20px;
-            margin:30px 0;
         }
 
         .instruction h5{
@@ -133,32 +122,23 @@
                 $logoUrl = asset('storage/' . $logo);
             }
         @endphp
-        <div style="margin-bottom: 25px;">
+        <div style="margin-bottom: 5px;">
             <img src="{{ $logoUrl }}" alt="App Logo" style="max-height: 55px; width: auto; object-fit: contain;">
         </div>
 
         <div class="icon">
-
             <svg fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd"
                     d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0L3.293 9.207a1 1 0 111.414-1.414l4.043 4.043 6.543-6.543a1 1 0 011.414 0z"
                     clip-rule="evenodd"/>
             </svg>
-
         </div>
-
-        <h1>Amazon Account Connected Successfully</h1>
-
-        <p>
-
+        <h5>Amazon Account Connected Successfully</h5>
+        <p style="white-space: break-spaces;  font-size: smaller;">
             Your Amazon Seller account has been connected successfully with
-            <strong>Zeosync</strong>.
-
-            <br><br>
-
+            <strong>Zeosync</strong>
             Amazon authorization is completed outside Shopify's embedded application.
             To continue using Zeosync, simply return to your Shopify Admin and reopen the app.
-
         </p>
 
         @if(!empty($shop))
