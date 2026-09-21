@@ -5,10 +5,10 @@ namespace App\Http\Middleware;
 use App\Models\AdminSetting;
 use App\Models\Shop;
 use App\Services\ShopifySessionTokenValidator;
-use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
+use Closure;
 
 class VerifyShopifyAuthentication
 {
@@ -54,9 +54,9 @@ class VerifyShopifyAuthentication
 
                 session([
                     '_shopify_verified_shop' => $hmacShop->shop,
-                    '_shopify_verified_at'   => time(),
-                    'active_shop'            => $hmacShop->shop,
-                    'active_shop_id'         => $hmacShop->id,
+                    '_shopify_verified_at' => time(),
+                    'active_shop' => $hmacShop->shop,
+                    'active_shop_id' => $hmacShop->id,
                 ]);
 
                 return $next($request);
@@ -85,24 +85,10 @@ class VerifyShopifyAuthentication
 
                 session([
                     '_shopify_verified_shop' => $tokenResult['shop'],
-                    '_shopify_verified_at'   => time(),
-                    'active_shop'            => $tokenResult['shop'],
-                    'active_shop_id'         => $tokenResult['shop_model']->id,
+                    '_shopify_verified_at' => time(),
+                    'active_shop' => $tokenResult['shop'],
+                    'active_shop_id' => $tokenResult['shop_model']->id,
                 ]);
-
-                // Clean URL redirect if token was passed in query on a protected GET route
-                if ( !$request->ajax() &&  !$request->expectsJson() &&
-                    $request->isMethod('GET') &&
-                    $request->hasAny(['id_token', 'session_token', 'shopify_token']) &&
-                    !$request->routeIs('crm.entry') && !$request->routeIs('shopify.app.launch*')
-                ) {
-                    $cleanParams = $request->query();
-                    unset( $cleanParams['id_token'],  $cleanParams['token'],
-                        $cleanParams['session_token'],  $cleanParams['shopify_token']
-                    );
-                    $cleanUrl = $request->url() . (!empty($cleanParams) ? '?' . http_build_query($cleanParams) : '');
-                    return redirect($cleanUrl);
-                }
 
                 return $next($request);
             }
@@ -123,9 +109,9 @@ class VerifyShopifyAuthentication
 
                 session([
                     '_shopify_verified_shop' => $cryptResult['shop'],
-                    '_shopify_verified_at'   => time(),
-                    'active_shop'            => $cryptResult['shop'],
-                    'active_shop_id'         => $cryptResult['shop_model']->id,
+                    '_shopify_verified_at' => time(),
+                    'active_shop' => $cryptResult['shop'],
+                    'active_shop_id' => $cryptResult['shop_model']->id,
                 ]);
 
                 return $next($request);
@@ -139,11 +125,11 @@ class VerifyShopifyAuthentication
             if ($request->ajax() || $request->expectsJson()) {
                 $requestedShop = $this->extractRequestedShop($request);
                 return response()->json([
-                    'success'         => false,
+                    'success' => false,
                     'requires_reauth' => true,
-                    'redirect_url'    => route('shopify.install', array_filter(['shop' => $requestedShop])),
-                    'error'           => 'Unauthorized',
-                    'message'         => 'Invalid, expired, or untrusted Shopify session token.',
+                    'redirect_url' => route('shopify.install', array_filter(['shop' => $requestedShop])),
+                    'error' => 'Unauthorized',
+                    'message' => 'Invalid, expired, or untrusted Shopify session token.',
                 ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');
             }
         }
@@ -169,12 +155,18 @@ class VerifyShopifyAuthentication
             if (!$sessionShopDomain) {
                 Log::warning('SHOPIFY_DEBUG: verify_auth_session_fallback_invalid_domain', [
                     'raw_session_shop' => $rawSessionShop,
-                    'requested_shop'   => $requestedShop,
+                    'requested_shop' => $requestedShop,
                 ]);
 
-                session()->forget([ '_shopify_verified_shop', '_shopify_verified_at',
-                    'active_shop', 'active_shop_id', 'amazon_shop', 'shop',
-                    'shopify_verified_model', 'shopify_auth_source',
+                session()->forget([
+                    '_shopify_verified_shop',
+                    '_shopify_verified_at',
+                    'active_shop',
+                    'active_shop_id',
+                    'amazon_shop',
+                    'shop',
+                    'shopify_verified_model',
+                    'shopify_auth_source',
                 ]);
 
                 if ($requestedShop) {
@@ -192,9 +184,15 @@ class VerifyShopifyAuthentication
                 // ]);
 
                 // Clear stale session context.
-                session()->forget([ '_shopify_verified_shop',   '_shopify_verified_at',
-                    'active_shop', 'active_shop_id', 'amazon_shop',
-                    'shop', 'shopify_verified_model',  'shopify_auth_source',
+                session()->forget([
+                    '_shopify_verified_shop',
+                    '_shopify_verified_at',
+                    'active_shop',
+                    'active_shop_id',
+                    'amazon_shop',
+                    'shop',
+                    'shopify_verified_model',
+                    'shopify_auth_source',
                 ]);
 
                 // Never set verified attributes for the old shop.
@@ -239,11 +237,11 @@ class VerifyShopifyAuthentication
 
             $requestedShop = $this->extractRequestedShop($request);
             return response()->json([
-                'success'         => false,
+                'success' => false,
                 'requires_reauth' => true,
-                'redirect_url'    => route('shopify.install', array_filter(['shop' => $requestedShop])),
-                'error'           => 'Unauthorized',
-                'message'         => 'Shopify authentication required.',
+                'redirect_url' => route('shopify.install', array_filter(['shop' => $requestedShop])),
+                'error' => 'Unauthorized',
+                'message' => 'Shopify authentication required.',
             ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');
         }
 
@@ -296,7 +294,11 @@ class VerifyShopifyAuthentication
      */
     public function verifyCryptToken(string $token): ?array
     {
-        $candidates = [ $token, urldecode($token), strtr($token, '-_', '+/'), strtr(urldecode($token), '-_', '+/'),
+        $candidates = [
+            $token,
+            urldecode($token),
+            strtr($token, '-_', '+/'),
+            strtr(urldecode($token), '-_', '+/'),
         ];
 
         $decrypted = null;
@@ -357,7 +359,7 @@ class VerifyShopifyAuthentication
         }
 
         return [
-            'shop'       => $normalizedShop,
+            'shop' => $normalizedShop,
             'shop_model' => $shopModel,
         ];
     }
@@ -368,24 +370,33 @@ class VerifyShopifyAuthentication
     protected function shouldBypass(Request $request): bool
     {
         // Webhook routes
-        if ( $request->routeIs('shopify.webhooks.*') || $request->routeIs('webhooks.*') ||
-            $request->routeIs('stripe.webhook') ||  $request->routeIs('amazon.webhooks.*') ||
-            $request->is('webhooks/*') || $request->is('shopify/webhooks/*') ||
-            $request->is('customers/*') || $request->is('shop/*')
-        ) {
+        if ($request->routeIs('shopify.webhooks.*') ||
+                $request->routeIs('webhooks.*') ||
+                $request->routeIs('stripe.webhook') ||
+                $request->routeIs('amazon.webhooks.*') ||
+                $request->is('webhooks/*') ||
+                $request->is('shopify/webhooks/*') ||
+                $request->is('customers/*') ||
+                $request->is('shop/*')) {
             return true;
         }
 
         // OAuth lifecycle & public / CRM entry routes
-        if ( $request->routeIs('crm.entry') || $request->routeIs('shopify.install') ||
-            $request->routeIs('shopify.callback') ||  $request->routeIs('api.shop.status') ||
-            $request->routeIs('setup.form') || $request->routeIs('setup.store') ||
-            $request->routeIs('setup.activation.status') || $request->routeIs('about') ||
-            $request->routeIs('pricing') || $request->routeIs('contact') ||
-            $request->routeIs('contact.store') || $request->routeIs('terms') ||
-            $request->routeIs('privacy') || $request->is('admin') ||
-            $request->is('admin/*')
-        ) {
+        if ($request->routeIs('crm.entry') ||
+                $request->routeIs('shopify.install') ||
+                $request->routeIs('shopify.callback') ||
+                $request->routeIs('api.shop.status') ||
+                $request->routeIs('setup.form') ||
+                $request->routeIs('setup.store') ||
+                $request->routeIs('setup.activation.status') ||
+                $request->routeIs('about') ||
+                $request->routeIs('pricing') ||
+                $request->routeIs('contact') ||
+                $request->routeIs('contact.store') ||
+                $request->routeIs('terms') ||
+                $request->routeIs('privacy') ||
+                $request->is('admin') ||
+                $request->is('admin/*')) {
             return true;
         }
 
@@ -429,7 +440,9 @@ class VerifyShopifyAuthentication
         $rawShop = $query['shop'] ?? null;
         $normalizedShop = $this->validator->normalizeShopDomain($rawShop);
 
-        if (!$normalizedShop) { return null;  }
+        if (!$normalizedShop) {
+            return null;
+        }
 
         try {
             $shop = Shop::where('shop', $normalizedShop)->where('is_active', 1)->first();
@@ -472,7 +485,7 @@ class VerifyShopifyAuthentication
             urldecode(http_build_query($canonicalized)),
         ];
 
-        foreach (array_unique(array_filter($candidates, static fn ($candidate) => $candidate !== '')) as $candidate) {
+        foreach (array_unique(array_filter($candidates, static fn($candidate) => $candidate !== '')) as $candidate) {
             if (hash_equals($providedHmac, hash_hmac('sha256', $candidate, $apiSecret))) {
                 return true;
             }
