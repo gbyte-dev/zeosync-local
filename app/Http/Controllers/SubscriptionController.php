@@ -25,6 +25,7 @@ class SubscriptionController extends ShopifyController
         $this->shopifyBilling = app(ShopifyBillingService::class);
         $this->shopifyWebhook = app(ShopifyWebhookService::class);
     }
+    
     public function plans(Request $request)
     {
         $shopModel = $this->getActiveShop($request);

@@ -3208,17 +3208,15 @@ class ShopifyController extends Controller
                         marketplaceIds: [$shop->amazon_marketplace_id],
                         createdAfter: now()->subDays(30)->utc()->toIso8601String()
                     );
-                    $data = json_decode($response->body(), true);
 
+                    $data = json_decode($response->body(), true);
                     $orders = $data['payload']['Orders'] ?? [];
 
                     foreach ($orders as $order) {
                         $orderId = $order['AmazonOrderId'] ?? null;
 
                         if ($orderId) {
-                            Cache::put(
-                                'amazon_order_' . $orderId,
-                                $order,
+                            Cache::put( 'amazon_order_' . $orderId, $order,
                                 now()->addHours(24)
                             );
                         }

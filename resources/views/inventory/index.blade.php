@@ -641,8 +641,7 @@
                         @php
                             $locations = $shop->shopify_locations ?? [];
                             $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
-                                ? (int) $shop->selected_location_index
-                                : 0;
+                                ? (int) $shop->selected_location_index : 0;
                         @endphp
                         <select id="dtLocationShopify" class="saas-select">
                             @if(!empty($locations))
