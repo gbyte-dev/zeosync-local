@@ -7,7 +7,7 @@
 
     <title>Amazon Connected</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
 
     <style nonce="{{ $cspNonce }}">
         body{

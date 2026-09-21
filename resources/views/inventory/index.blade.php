@@ -7,8 +7,6 @@
 
 <!-- Bootstrap Icons -->
 <link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<!-- DataTables CSS -->
-<link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 
 <style nonce="{{ $cspNonce }}">
     /* Page Header & Usage Card */
@@ -811,11 +809,6 @@
 @endsection
 
 @push('scripts')
-<!-- DataTables JS Files -->
-<script nonce="{{ $cspNonce }}" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script nonce="{{ $cspNonce }}" src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-
 <script nonce="{{ $cspNonce }}">
     const amazonConnected = @json(!empty($shop -> amazon_refresh_token));
     let selectedAmazonSku = null;

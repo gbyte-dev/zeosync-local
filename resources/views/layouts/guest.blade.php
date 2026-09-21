@@ -338,7 +338,7 @@
 
     </div>
 
-    <script nonce="{{ $cspNonce }}" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script nonce="{{ $cspNonce }}" src="{{ asset('assets/vendor/jquery/jquery.min.js') }}"></script>
     <script nonce="{{ $cspNonce }}" src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
     @stack('scripts')
 
