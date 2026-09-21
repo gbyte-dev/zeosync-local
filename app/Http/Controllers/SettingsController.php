@@ -178,13 +178,15 @@ class SettingsController extends ShopifyController
             }
 
             $validated = $request->validate([
-                            'shop_url' => 'required',
+                            'shop_url' => 'nullable|string',
                             'shop_name' => 'required',
                             'email' => 'required|email',
                         ]);
+            if (empty($validated['shop_url'])) {
+                $validated['shop_url'] = strtolower(trim((string) $request->query('shop') ?? ''));
+            }
 
             $shopUrl = strtolower(trim((string) $validated['shop_url']));
-
             $shop = Shop::whereRaw('LOWER(shop) = ?', [$shopUrl])->first();
 
             if (!$shop) {
@@ -194,10 +196,8 @@ class SettingsController extends ShopifyController
                 ], 404);
             }
 
-            $shop->update([
-                'shop_name' => $validated['shop_name'],
-                'email' => $validated['email'],
-                'is_active' => 1,
+            $shop->update([ 'shop_name' => $validated['shop_name'],
+                'email' => $validated['email'], 'is_active' => 1,
             ]);
 
             $shop->fresh();
@@ -208,17 +208,9 @@ class SettingsController extends ShopifyController
                 '_shopify_verified_shop' => $shop->shop,
             ]);
 
-            Log::info('SETUP_STORE: Shop activated successfully', [
-                'request_id' => $requestId,
-                'shop_id' => $shop->id,
-                'shop' => $shop->shop,
-                'status' => 'activated',
-            ]);
-
             try {
                 $template = MailTemplate::active()
-                    ->where('slug', 'welcome-email')
-                    ->first();
+                    ->where('slug', 'welcome-email')->first();
 
                 if ($template) {
                     app(\App\Services\EmailService::class)
