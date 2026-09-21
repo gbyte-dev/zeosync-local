@@ -1,5 +1,8 @@
+ @if(empty($shop))
+    @php abort(404); @endphp
+@endif
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en">    
 
 <head>
     <meta charset="UTF-8">
@@ -31,7 +34,6 @@
             background:#fff;
             border-radius:16px;
             box-shadow:0 10px 30px rgba(0,0,0,.08);
-            padding:45px;
         }
 
         .icon{
@@ -132,7 +134,7 @@
             </svg>
         </div>
         <h5>Amazon Account Connected Successfully</h5>
-        <p style="white-space: break-spaces;padding-right: 18px;">
+        <p style="white-space: break-spaces;  font-size: smaller;">
             Your Amazon Seller account has been connected successfully with
             <strong>Zeosync</strong>
             Amazon authorization is completed outside Shopify's embedded application.
