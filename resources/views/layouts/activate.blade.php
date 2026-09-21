@@ -26,6 +26,31 @@
     $shopifyclient_id = \App\Models\AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key'));
     @endphp
     <meta nonce="{{ $cspNonce??'' }}" name="shopify-api-key" content="{{ $shopifyclient_id }}">
+    <script nonce="{{ $cspNonce??'' }}">
+        (function() {
+            try {
+                const url = new URL(window.location.href);
+                let mutated = false;
+
+                ['id_token', 'token', 'session_token', 'shopify_token'].forEach(function(param) {
+                    if (url.searchParams.has(param)) {
+                        url.searchParams.delete(param);
+                        mutated = true;
+                    }
+                });
+
+                if (mutated) {
+                    window.history.replaceState(
+                        {},
+                        document.title,
+                        url.pathname + url.search + url.hash
+                    );
+                }
+            } catch (e) {
+                // Ignore URL parsing errors
+            }
+        })();
+    </script>
 
     <link nonce="{{ $cspNonce??'' }}" rel="icon" type="image/png" sizes="32x32" href="{{ $faviconUrl }}">
     <link nonce="{{ $cspNonce??'' }}" rel="icon" type="image/png" sizes="16x16" href="{{ $faviconUrl }}">
