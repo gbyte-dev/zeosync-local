@@ -1367,7 +1367,8 @@ class ShopifyController extends Controller
     /**
      * products/delete — product deleted directly from Shopify Admin.
      * Validates HMAC, resolves shop tenant from X-Shopify-Shop-Domain,
-     * invalidates ONLY that shop's Shopify inventory cache, and returns HTTP 200.
+     * finds local Product using shop_id + shopify_id and soft-deletes it,
+     * invalidates products_shop_{shopId} cache and Shopify inventory cache, and returns HTTP 200.
      */
     public function handleProductsDeleteWebhook(Request $request)
     {
@@ -1413,9 +1414,33 @@ class ShopifyController extends Controller
         $data = json_decode($payload, true);
         $productId = is_array($data) ? ($data['id'] ?? null) : null;
 
+        if ($productId !== null && $productId !== '') {
+            $product = Product::where('shop_id', $shopModel->id)
+                ->where('shopify_id', (string) $productId)
+                ->first();
+
+            if ($product) {
+                $product->delete();
+                Log::info('Shopify products/delete webhook: local product soft-deleted.', [
+                    'shop_id' => $shopModel->id,
+                    'shopify_id' => $productId,
+                    'local_product_id' => $product->id,
+                ]);
+            } else {
+                Log::info('Shopify products/delete webhook: local product not found in DB.', [
+                    'shop_id' => $shopModel->id,
+                    'shopify_id' => $productId,
+                ]);
+            }
+        }
+
+        // Invalidate products list cache for this shop
+        Cache::forget("products_shop_{$shopModel->id}");
+
+        // Invalidate inventory cache for this shop
         app(\App\Services\ShopifyInventoryService::class)->invalidate($shopModel);
 
-        Log::info('Shopify products/delete webhook received and inventory cache invalidated.', [
+        Log::info('Shopify products/delete webhook received, product soft-deleted, and caches invalidated.', [
             'shop_id' => $shopModel->id,
             'shop_domain' => $shopDomain,
             'webhook_id' => $webhookId,
@@ -1657,9 +1682,11 @@ class ShopifyController extends Controller
         //   REFRESH FLOW (correct order)
         if ($request->has('refresh')) {
             $refreshSuccess = $this->refreshProductsCache($shopModel);
-            return response()->json([
-                'success' => $refreshSuccess,
-            ]);
+            if ($request->expectsJson() || $request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => $refreshSuccess,
+                ]);
+            }
         }
 
         //   LOAD DATA (cache → sync/DB fallback)
