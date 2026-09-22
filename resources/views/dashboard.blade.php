@@ -234,18 +234,6 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
         padding: 6px;
         min-width: 140px;
         margin-top: 6px !important;
-        animation: saasDropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    @keyframes saasDropdownFadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(-4px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
     }
 
     .shopify-dashboard .dropdown-item {
