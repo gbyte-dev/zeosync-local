@@ -320,7 +320,7 @@
                     </h2>
                     <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                         <div class="accordion-body">
-                            Yes, manual sync options are available in the dashboard.
+                            Yes, manual sync options are available in the inventory page.
                         </div>
                     </div>
                 </div>
