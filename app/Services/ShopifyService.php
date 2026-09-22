@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
-use App\Models\Shop;
 use App\Models\Product;
+use App\Models\Shop;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class ShopifyService
@@ -22,7 +22,7 @@ class ShopifyService
     }
 
     /**
-     *  1. Raw GraphQL Call
+     * 1. Raw GraphQL Call
      */
     public function graphql($query, $variables = [])
     {
@@ -67,7 +67,7 @@ class ShopifyService
             ]);
             return [
                 'error' => true,
-                'status' => 0, // Designates a Network Exception
+                'status' => 0,  // Designates a Network Exception
                 'message' => $e->getMessage()
             ];
         }
@@ -87,31 +87,31 @@ class ShopifyService
         }
 
         $query = <<<'GRAPHQL'
-        query GetLocations($first: Int!, $after: String) {
-            locations(first: $first, after: $after, includeInactive: false) {
-                pageInfo {
-                    hasNextPage
-                    endCursor
-                }
-                nodes {
-                    id
-                    legacyResourceId
-                    name
-                    isActive
-                    address {
-                        address1
-                        address2
-                        city
-                        province
-                        country
-                        zip
-                        phone
-                        countryCode
+            query GetLocations($first: Int!, $after: String) {
+                locations(first: $first, after: $after, includeInactive: false) {
+                    pageInfo {
+                        hasNextPage
+                        endCursor
+                    }
+                    nodes {
+                        id
+                        legacyResourceId
+                        name
+                        isActive
+                        address {
+                            address1
+                            address2
+                            city
+                            province
+                            country
+                            zip
+                            phone
+                            countryCode
+                        }
                     }
                 }
             }
-        }
-        GRAPHQL;
+            GRAPHQL;
 
         $allLocations = [];
         $hasNextPage = true;
@@ -185,7 +185,7 @@ class ShopifyService
      * @param int $pageSize
      * @return array
      */
-    public function getProductsForSync(?Shop $shop = null, $locationId = null, int $pageSize = 50): array
+    public function getProductsForSync(?Shop $shop = null, $locationId = null, int $pageSize = 20): array
     {
         if ($shop instanceof Shop) {
             $this->shop = $shop->shop;
@@ -193,13 +193,203 @@ class ShopifyService
         }
 
         $query = <<<'GRAPHQL'
-        query GetProductsForSync($first: Int!, $after: String) {
-            products(first: $first, after: $after) {
-                pageInfo {
-                    hasNextPage
-                    endCursor
+            query GetProductsForSync($first: Int!, $after: String) {
+                products(first: $first, after: $after) {
+                    pageInfo {
+                        hasNextPage
+                        endCursor
+                    }
+                    nodes {
+                        id
+                        legacyResourceId
+                        title
+                        handle
+                        descriptionHtml
+                        vendor
+                        productType
+                        status
+                        tags
+                        createdAt
+                        updatedAt
+                        options {
+                            id
+                            name
+                            position
+                            values
+                        }
+                        images(first: 20) {
+                            nodes {
+                                id
+                                url
+                                altText
+                                width
+                                height
+                            }
+                        }
+                        variants(first: 50) {
+                            nodes {
+                                id
+                                legacyResourceId
+                                title
+                                sku
+                                barcode
+                                price
+                                compareAtPrice
+                                position
+                                selectedOptions {
+                                    name
+                                    value
+                                }
+                                image {
+                                    id
+                                    url
+                                }
+                                inventoryQuantity
+                                inventoryItem {
+                                    id
+                                    legacyResourceId
+                                    inventoryLevels(first: 5) {
+                                        nodes {
+                                            location {
+                                                id
+                                                legacyResourceId
+                                            }
+                                            quantities(names: ["available", "on_hand", "committed"]) {
+                                                name
+                                                quantity
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-                nodes {
+            }
+            GRAPHQL;
+
+        $allProducts = [];
+        $hasNextPage = true;
+        $after = null;
+        $pageCount = 0;
+        $maxPages = 250;
+        $visitedCursors = [];
+
+        Log::info('SHOPIFY GRAPHQL PRODUCT SYNC START', [
+            'shop' => $this->shop,
+            'location_id' => $locationId,
+            'page_size' => $pageSize,
+        ]);
+
+        while ($hasNextPage && $pageCount < $maxPages) {
+            $pageCount++;
+
+            $variables = [
+                'first' => min($pageSize, 50),
+                'after' => $after,
+            ];
+
+            $response = $this->graphql($query, $variables);
+
+            if (!empty($response['error']) || !empty($response['errors'])) {
+                $errorMsg = $response['message'] ?? (is_array($response['errors'] ?? null) ? json_encode($response['errors']) : 'Failed to fetch products via GraphQL.');
+                Log::error('Shopify GraphQL getProductsForSync Error', [
+                    'shop' => $this->shop,
+                    'response' => $response,
+                    'after' => $after,
+                    'page' => $pageCount,
+                ]);
+                return [
+                    'error' => true,
+                    'message' => $errorMsg,
+                    'products' => [],
+                ];
+            }
+
+            $costInfo = data_get($response, 'extensions.cost');
+            if (!empty($costInfo)) {
+                Log::info('SHOPIFY GRAPHQL PRODUCT SYNC QUERY COST', [
+                    'shop' => $this->shop,
+                    'page' => $pageCount,
+                    'requested_cost' => $costInfo['requestedQueryCost'] ?? null,
+                    'actual_cost' => $costInfo['actualQueryCost'] ?? null,
+                    'throttle_status' => $costInfo['throttleStatus'] ?? null,
+                ]);
+            }
+
+            $productNodes = data_get($response, 'data.products.nodes', []);
+
+            foreach ($productNodes as $node) {
+                $allProducts[] = $this->normalizeProductNode($node, $locationId);
+            }
+
+            $pageInfo = data_get($response, 'data.products.pageInfo', []);
+            $hasNextPage = (bool) ($pageInfo['hasNextPage'] ?? false);
+            $nextCursor = $pageInfo['endCursor'] ?? null;
+
+            if (!$hasNextPage || empty($nextCursor) || empty($productNodes)) {
+                break;
+            }
+
+            if (isset($visitedCursors[$nextCursor]) || $nextCursor === $after) {
+                Log::warning('Shopify product pagination repeated cursor detected', [
+                    'shop' => $this->shop,
+                    'cursor' => $nextCursor,
+                    'page' => $pageCount,
+                ]);
+                break;
+            }
+
+            $visitedCursors[$nextCursor] = true;
+            $after = $nextCursor;
+        }
+
+        if ($hasNextPage && $pageCount >= $maxPages) {
+            Log::warning('Shopify product pagination reached maximum page safety limit', [
+                'shop' => $this->shop,
+                'max_pages' => $maxPages,
+                'synced_count' => count($allProducts),
+            ]);
+        }
+
+        Log::info('SHOPIFY GRAPHQL PRODUCT SYNC COMPLETE', [
+            'shop' => $this->shop,
+            'total_products' => count($allProducts),
+            'total_pages' => $pageCount,
+        ]);
+
+        return [
+            'error' => false,
+            'products' => $allProducts,
+        ];
+    }
+
+    /**
+     * Get single product details for view/edit page via GraphQL (API 2026-07).
+     *
+     * @param Shop|null $shop
+     * @param int|string $productId
+     * @param int|string|null $locationId
+     * @return array|null
+     */
+    public function getProductForView(?Shop $shop = null, $productId = null, $locationId = null): ?array
+    {
+        if ($shop instanceof Shop) {
+            $this->shop = $shop->shop;
+            $this->token = $shop->access_token;
+        }
+
+        if (blank($productId)) {
+            return null;
+        }
+
+        $productGid = str_starts_with((string) $productId, 'gid://')
+            ? (string) $productId
+            : "gid://shopify/Product/{$productId}";
+
+        $query = <<<'GRAPHQL'
+            query GetProductForView($id: ID!) {
+                product(id: $id) {
                     id
                     legacyResourceId
                     title
@@ -211,6 +401,11 @@ class ShopifyService
                     tags
                     createdAt
                     updatedAt
+                    featuredImage {
+                        id
+                        url
+                        altText
+                    }
                     options {
                         id
                         name
@@ -317,235 +512,7 @@ class ShopifyService
                     }
                 }
             }
-        }
-        GRAPHQL;
-
-        $allProducts = [];
-        $hasNextPage = true;
-        $after = null;
-        $pageCount = 0;
-        $maxPages = 250;
-        $visitedCursors = [];
-
-        Log::info('SHOPIFY GRAPHQL PRODUCT SYNC START', [
-            'shop' => $this->shop,
-            'location_id' => $locationId,
-            'page_size' => $pageSize,
-        ]);
-
-        while ($hasNextPage && $pageCount < $maxPages) {
-            $pageCount++;
-
-            $variables = [
-                'first' => min($pageSize, 250),
-                'after' => $after,
-            ];
-
-            $response = $this->graphql($query, $variables);
-
-            if (!empty($response['error']) || !empty($response['errors'])) {
-                $errorMsg = $response['message'] ?? (is_array($response['errors'] ?? null) ? json_encode($response['errors']) : 'Failed to fetch products via GraphQL.');
-                Log::error('Shopify GraphQL getProductsForSync Error', [
-                    'shop' => $this->shop,
-                    'response' => $response,
-                    'after' => $after,
-                    'page' => $pageCount,
-                ]);
-                return [
-                    'error' => true,
-                    'message' => $errorMsg,
-                    'products' => $allProducts,
-                ];
-            }
-
-            $productNodes = data_get($response, 'data.products.nodes', []);
-
-            foreach ($productNodes as $node) {
-                $allProducts[] = $this->normalizeProductNode($node, $locationId);
-            }
-
-            $pageInfo = data_get($response, 'data.products.pageInfo', []);
-            $hasNextPage = (bool) ($pageInfo['hasNextPage'] ?? false);
-            $nextCursor = $pageInfo['endCursor'] ?? null;
-
-            if (!$hasNextPage || empty($nextCursor) || empty($productNodes)) {
-                break;
-            }
-
-            if (isset($visitedCursors[$nextCursor]) || $nextCursor === $after) {
-                Log::warning('Shopify product pagination repeated cursor detected', [
-                    'shop' => $this->shop,
-                    'cursor' => $nextCursor,
-                    'page' => $pageCount,
-                ]);
-                break;
-            }
-
-            $visitedCursors[$nextCursor] = true;
-            $after = $nextCursor;
-        }
-
-        Log::info('SHOPIFY GRAPHQL PRODUCT SYNC COMPLETE', [
-            'shop' => $this->shop,
-            'total_products' => count($allProducts),
-            'total_pages' => $pageCount,
-        ]);
-
-        return [
-            'error' => false,
-            'products' => $allProducts,
-        ];
-    }
-
-    /**
-     * Get single product details for view/edit page via GraphQL (API 2026-07).
-     *
-     * @param Shop|null $shop
-     * @param int|string $productId
-     * @param int|string|null $locationId
-     * @return array|null
-     */
-    public function getProductForView(?Shop $shop = null, $productId = null, $locationId = null): ?array
-    {
-        if ($shop instanceof Shop) {
-            $this->shop = $shop->shop;
-            $this->token = $shop->access_token;
-        }
-
-        if (blank($productId)) {
-            return null;
-        }
-
-        $productGid = str_starts_with((string) $productId, 'gid://')
-            ? (string) $productId
-            : "gid://shopify/Product/{$productId}";
-
-        $query = <<<'GRAPHQL'
-        query GetProductForView($id: ID!) {
-            product(id: $id) {
-                id
-                legacyResourceId
-                title
-                handle
-                descriptionHtml
-                vendor
-                productType
-                status
-                tags
-                createdAt
-                updatedAt
-                featuredImage {
-                    id
-                    url
-                    altText
-                }
-                options {
-                    id
-                    name
-                    position
-                    values
-                }
-                media(first: 50) {
-                    nodes {
-                        id
-                        alt
-                        mediaContentType
-                        preview {
-                            image {
-                                id
-                                url
-                                altText
-                                width
-                                height
-                            }
-                        }
-                        ... on MediaImage {
-                            id
-                            image {
-                                id
-                                url
-                                altText
-                                width
-                                height
-                            }
-                        }
-                    }
-                }
-                images(first: 50) {
-                    nodes {
-                        id
-                        url
-                        altText
-                        width
-                        height
-                    }
-                }
-                variants(first: 250) {
-                    nodes {
-                        id
-                        legacyResourceId
-                        title
-                        sku
-                        barcode
-                        price
-                        compareAtPrice
-                        position
-                        selectedOptions {
-                            name
-                            value
-                        }
-                        media(first: 10) {
-                            nodes {
-                                id
-                                alt
-                                mediaContentType
-                                preview {
-                                    image {
-                                        id
-                                        url
-                                        altText
-                                        width
-                                        height
-                                    }
-                                }
-                                ... on MediaImage {
-                                    id
-                                    image {
-                                        id
-                                        url
-                                        altText
-                                        width
-                                        height
-                                    }
-                                }
-                            }
-                        }
-                        image {
-                            id
-                            url
-                        }
-                        inventoryQuantity
-                        inventoryItem {
-                            id
-                            legacyResourceId
-                            inventoryLevels(first: 50) {
-                                nodes {
-                                    location {
-                                        id
-                                        legacyResourceId
-                                    }
-                                    quantities(names: ["available", "on_hand", "committed"]) {
-                                        name
-                                        quantity
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        GRAPHQL;
+            GRAPHQL;
 
         $response = $this->graphql($query, ['id' => $productGid]);
 
@@ -584,7 +551,7 @@ class ShopifyService
         $options = [];
         foreach ($node['options'] ?? [] as $opt) {
             $optGid = $opt['id'] ?? '';
-            $optId = is_numeric($optGid) ? (int) $optGid : (str_contains((string)$optGid, '/') ? (int) substr($optGid, strrpos($optGid, '/') + 1) : $optGid);
+            $optId = is_numeric($optGid) ? (int) $optGid : (str_contains((string) $optGid, '/') ? (int) substr($optGid, strrpos($optGid, '/') + 1) : $optGid);
             $options[] = [
                 'id' => $optId,
                 'product_id' => $pNumericId,
@@ -603,7 +570,7 @@ class ShopifyService
         $mediaNodes = data_get($node, 'media.nodes', []);
         foreach ($mediaNodes as $media) {
             $mGid = $media['id'] ?? '';
-            $mNumericId = is_numeric($mGid) ? (int)$mGid : (str_contains((string)$mGid, '/') ? (int)substr($mGid, strrpos($mGid, '/') + 1) : $mGid);
+            $mNumericId = is_numeric($mGid) ? (int) $mGid : (str_contains((string) $mGid, '/') ? (int) substr($mGid, strrpos($mGid, '/') + 1) : $mGid);
             $imgUrl = data_get($media, 'image.url') ?? data_get($media, 'preview.image.url');
             $altText = data_get($media, 'image.altText') ?? ($media['alt'] ?? null);
             $width = data_get($media, 'image.width') ?? data_get($media, 'preview.image.width');
@@ -630,8 +597,8 @@ class ShopifyService
                 $mediaLookup[$mGid] = $mediaObj;
             }
             if (!empty($mNumericId)) {
-                $mediaLookup[(string)$mNumericId] = $mediaObj;
-                $mediaLookup[(int)$mNumericId] = $mediaObj;
+                $mediaLookup[(string) $mNumericId] = $mediaObj;
+                $mediaLookup[(int) $mNumericId] = $mediaObj;
             }
             if (!empty($imgUrl)) {
                 $mediaLookup[$imgUrl] = $mediaObj;
@@ -646,7 +613,7 @@ class ShopifyService
         $imgNodes = data_get($node, 'images.nodes', []);
         foreach ($imgNodes as $img) {
             $imgGid = $img['id'] ?? '';
-            $imgNumericId = is_numeric($imgGid) ? (int)$imgGid : (str_contains((string)$imgGid, '/') ? (int)substr($imgGid, strrpos($imgGid, '/') + 1) : $imgGid);
+            $imgNumericId = is_numeric($imgGid) ? (int) $imgGid : (str_contains((string) $imgGid, '/') ? (int) substr($imgGid, strrpos($imgGid, '/') + 1) : $imgGid);
             $imgUrl = $img['url'] ?? '';
             $altText = $img['altText'] ?? null;
             $width = $img['width'] ?? null;
@@ -670,9 +637,9 @@ class ShopifyService
             if (!empty($imgGid) && !isset($mediaLookup[$imgGid])) {
                 $mediaLookup[$imgGid] = $imgObj;
             }
-            if (!empty($imgNumericId) && !isset($mediaLookup[(string)$imgNumericId])) {
-                $mediaLookup[(string)$imgNumericId] = $imgObj;
-                $mediaLookup[(int)$imgNumericId] = $imgObj;
+            if (!empty($imgNumericId) && !isset($mediaLookup[(string) $imgNumericId])) {
+                $mediaLookup[(string) $imgNumericId] = $imgObj;
+                $mediaLookup[(int) $imgNumericId] = $imgObj;
             }
             if (!empty($imgUrl) && !isset($mediaLookup[$imgUrl])) {
                 $mediaLookup[$imgUrl] = $imgObj;
@@ -693,11 +660,11 @@ class ShopifyService
         $vPos = 1;
         foreach ($variantNodes as $v) {
             $vGid = $v['id'] ?? '';
-            $vNumericId = $v['legacyResourceId'] ?? (str_contains((string)$vGid, 'gid://shopify/ProductVariant/') ? substr($vGid, strrpos($vGid, '/') + 1) : $vGid);
+            $vNumericId = $v['legacyResourceId'] ?? (str_contains((string) $vGid, 'gid://shopify/ProductVariant/') ? substr($vGid, strrpos($vGid, '/') + 1) : $vGid);
             $vNumericId = is_numeric($vNumericId) ? (int) $vNumericId : $vNumericId;
 
             $invGid = data_get($v, 'inventoryItem.id', '');
-            $invNumericId = data_get($v, 'inventoryItem.legacyResourceId') ?? (str_contains((string)$invGid, 'gid://shopify/InventoryItem/') ? substr($invGid, strrpos($invGid, '/') + 1) : $invGid);
+            $invNumericId = data_get($v, 'inventoryItem.legacyResourceId') ?? (str_contains((string) $invGid, 'gid://shopify/InventoryItem/') ? substr($invGid, strrpos($invGid, '/') + 1) : $invGid);
             $invNumericId = is_numeric($invNumericId) ? (int) $invNumericId : $invNumericId;
 
             $selectedOptions = $v['selectedOptions'] ?? [];
@@ -713,8 +680,8 @@ class ShopifyService
                 $levelMatched = false;
                 foreach ($levels as $level) {
                     $locGid = data_get($level, 'location.id', '');
-                    $locNumeric = data_get($level, 'location.legacyResourceId') ?? (str_contains((string)$locGid, 'gid://shopify/Location/') ? substr($locGid, strrpos($locGid, '/') + 1) : $locGid);
-                    if ((string)$locNumeric === (string)$locationId || (string)$locGid === "gid://shopify/Location/{$locationId}") {
+                    $locNumeric = data_get($level, 'location.legacyResourceId') ?? (str_contains((string) $locGid, 'gid://shopify/Location/') ? substr($locGid, strrpos($locGid, '/') + 1) : $locGid);
+                    if ((string) $locNumeric === (string) $locationId || (string) $locGid === "gid://shopify/Location/{$locationId}") {
                         $levelMatched = true;
                         $available = null;
                         foreach ($level['quantities'] ?? [] as $q) {
@@ -741,7 +708,7 @@ class ShopifyService
             if (!empty($vMediaNodes)) {
                 $firstMedia = $vMediaNodes[0];
                 $vMediaGid = $firstMedia['id'] ?? null;
-                $vMediaNumericId = $vMediaGid ? (is_numeric($vMediaGid) ? (int)$vMediaGid : (str_contains((string)$vMediaGid, '/') ? (int)substr($vMediaGid, strrpos($vMediaGid, '/') + 1) : $vMediaGid)) : null;
+                $vMediaNumericId = $vMediaGid ? (is_numeric($vMediaGid) ? (int) $vMediaGid : (str_contains((string) $vMediaGid, '/') ? (int) substr($vMediaGid, strrpos($vMediaGid, '/') + 1) : $vMediaGid)) : null;
                 $vMediaUrl = data_get($firstMedia, 'image.url') ?? data_get($firstMedia, 'preview.image.url');
                 if ($vMediaUrl) {
                     $resolvedVariantImg = [
@@ -758,7 +725,7 @@ class ShopifyService
                 $vImgGid = data_get($v, 'image.id');
                 $vImgUrl = data_get($v, 'image.url');
                 if ($vImgGid || $vImgUrl) {
-                    $vImgNumericId = $vImgGid ? (is_numeric($vImgGid) ? (int)$vImgGid : (str_contains((string)$vImgGid, '/') ? (int)substr($vImgGid, strrpos($vImgGid, '/') + 1) : $vImgGid)) : null;
+                    $vImgNumericId = $vImgGid ? (is_numeric($vImgGid) ? (int) $vImgGid : (str_contains((string) $vImgGid, '/') ? (int) substr($vImgGid, strrpos($vImgGid, '/') + 1) : $vImgGid)) : null;
                     $resolvedVariantImg = [
                         'id' => $vImgNumericId,
                         'src' => $vImgUrl,
@@ -782,7 +749,7 @@ class ShopifyService
 
             $vFinalImgId = $resolvedVariantImg['id'] ?? $vMediaNumericId;
             $vFinalImgSrc = $resolvedVariantImg['src'] ?? null;
-            $vFinalMediaId = $vMediaGid ? (is_numeric($vMediaGid) ? (int)$vMediaGid : (str_contains((string)$vMediaGid, '/') ? (int)substr($vMediaGid, strrpos($vMediaGid, '/') + 1) : $vMediaGid)) : $vFinalImgId;
+            $vFinalMediaId = $vMediaGid ? (is_numeric($vMediaGid) ? (int) $vMediaGid : (str_contains((string) $vMediaGid, '/') ? (int) substr($vMediaGid, strrpos($vMediaGid, '/') + 1) : $vMediaGid)) : $vFinalImgId;
 
             $variants[] = [
                 'id' => $vNumericId,
@@ -883,7 +850,8 @@ class ShopifyService
         if (!empty($rawOptions)) {
             foreach ($rawOptions as $opt) {
                 $optName = trim((string) ($opt['name'] ?? ''));
-                if (empty($optName)) continue;
+                if (empty($optName))
+                    continue;
                 $optValues = [];
                 foreach ($opt['values'] ?? [] as $val) {
                     $valStr = trim((string) $val);
@@ -904,7 +872,7 @@ class ShopifyService
         $files = [];
         $seenFiles = [];
 
-        $addFile = function($src) use (&$files, &$seenFiles) {
+        $addFile = function ($src) use (&$files, &$seenFiles) {
             if (is_string($src) && filter_var($src, FILTER_VALIDATE_URL) && (str_starts_with($src, 'http://') || str_starts_with($src, 'https://'))) {
                 if (!isset($seenFiles[$src])) {
                     $seenFiles[$src] = true;
@@ -972,8 +940,8 @@ class ShopifyService
             // Inventory quantities
             $qty = isset($v['inventory_quantity']) ? (int) $v['inventory_quantity'] : (isset($v['qty']) ? (int) $v['qty'] : 0);
             if ($locationId !== null && $qty > 0) {
-                $locGid = str_starts_with((string)$locationId, 'gid://shopify/Location/')
-                    ? (string)$locationId
+                $locGid = str_starts_with((string) $locationId, 'gid://shopify/Location/')
+                    ? (string) $locationId
                     : "gid://shopify/Location/{$locationId}";
                 $variantInput['inventoryQuantities'] = [
                     [
@@ -1023,8 +991,8 @@ class ShopifyService
                         'contentType' => 'IMAGE',
                     ];
                 } elseif (!empty($vImgId)) {
-                    $vGid = str_starts_with((string)$vImgId, 'gid://shopify/')
-                        ? (string)$vImgId
+                    $vGid = str_starts_with((string) $vImgId, 'gid://shopify/')
+                        ? (string) $vImgId
                         : "gid://shopify/MediaImage/{$vImgId}";
                     $variantInput['file'] = [
                         'id' => $vGid,
@@ -1258,8 +1226,8 @@ class ShopifyService
 
         $gids = [];
         foreach ($fileIds as $id) {
-            if (str_starts_with((string)$id, 'gid://shopify/')) {
-                $gids[] = (string)$id;
+            if (str_starts_with((string) $id, 'gid://shopify/')) {
+                $gids[] = (string) $id;
             } elseif (is_numeric($id)) {
                 $gids[] = "gid://shopify/ProductImage/{$id}";
             }
@@ -1270,17 +1238,17 @@ class ShopifyService
         }
 
         $query = <<<'GRAPHQL'
-        mutation FileDelete($fileIds: [ID!]!) {
-            fileDelete(fileIds: $fileIds) {
-                deletedFileIds
-                userErrors {
-                    field
-                    message
-                    code
+            mutation FileDelete($fileIds: [ID!]!) {
+                fileDelete(fileIds: $fileIds) {
+                    deletedFileIds
+                    userErrors {
+                        field
+                        message
+                        code
+                    }
                 }
             }
-        }
-        GRAPHQL;
+            GRAPHQL;
 
         $res = $this->graphql($query, ['fileIds' => $gids]);
         if (!empty($res['errors'])) {
@@ -1318,8 +1286,8 @@ class ShopifyService
             ];
         }
 
-        $pGid = str_starts_with((string)$productId, 'gid://shopify/Product/')
-            ? (string)$productId
+        $pGid = str_starts_with((string) $productId, 'gid://shopify/Product/')
+            ? (string) $productId
             : "gid://shopify/Product/{$productId}";
 
         // Handle image deletions if specified
@@ -1343,7 +1311,8 @@ class ShopifyService
         if (!empty($rawOptions)) {
             foreach ($rawOptions as $opt) {
                 $optName = trim((string) ($opt['name'] ?? ''));
-                if (empty($optName)) continue;
+                if (empty($optName))
+                    continue;
                 $optValues = [];
                 foreach ($opt['values'] ?? [] as $val) {
                     $valStr = trim((string) $val);
@@ -1361,7 +1330,8 @@ class ShopifyService
         } elseif (!empty($existingOptions)) {
             foreach ($existingOptions as $opt) {
                 $optName = trim((string) ($opt['name'] ?? ''));
-                if (empty($optName)) continue;
+                if (empty($optName))
+                    continue;
                 $optValues = [];
                 foreach ($opt['values'] ?? [] as $val) {
                     $valStr = trim((string) $val);
@@ -1386,7 +1356,7 @@ class ShopifyService
         foreach ($submittedVariants as $v) {
             $vId = $v['id'] ?? ($v['variant_id'] ?? null);
             if (!empty($vId)) {
-                $numericVId = is_numeric($vId) ? (int)$vId : (str_contains((string)$vId, '/') ? (int)substr($vId, strrpos($vId, '/') + 1) : $vId);
+                $numericVId = is_numeric($vId) ? (int) $vId : (str_contains((string) $vId, '/') ? (int) substr($vId, strrpos($vId, '/') + 1) : $vId);
                 $submittedById[$numericVId] = $v;
             } else {
                 $newVariants[] = $v;
@@ -1402,7 +1372,7 @@ class ShopifyService
             if (filter_var($delStr, FILTER_VALIDATE_URL)) {
                 $deletedUrls[] = $delStr;
             } else {
-                $delNumeric = is_numeric($delStr) ? (int)$delStr : (str_contains($delStr, '/') ? (int)substr($delStr, strrpos($delStr, '/') + 1) : $delStr);
+                $delNumeric = is_numeric($delStr) ? (int) $delStr : (str_contains($delStr, '/') ? (int) substr($delStr, strrpos($delStr, '/') + 1) : $delStr);
                 foreach ($existingImages as $existImg) {
                     $existId = $existImg['id'] ?? null;
                     if ($existId == $delNumeric || $existId == $delStr) {
@@ -1417,7 +1387,7 @@ class ShopifyService
         $files = [];
         $seenFiles = [];
 
-        $addFile = function($src) use (&$files, &$seenFiles, $deletedUrls) {
+        $addFile = function ($src) use (&$files, &$seenFiles, $deletedUrls) {
             if (is_string($src) && filter_var($src, FILTER_VALIDATE_URL) && (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) && !in_array($src, $deletedUrls)) {
                 if (!isset($seenFiles[$src])) {
                     $seenFiles[$src] = true;
@@ -1437,7 +1407,7 @@ class ShopifyService
             $addFile($src);
         }
 
-        $resolveVariantFile = function(array $vData, ?array $existV = null) use (&$addFile) {
+        $resolveVariantFile = function (array $vData, ?array $existV = null) use (&$addFile) {
             if (!empty($vData['file']) && is_array($vData['file'])) {
                 if (!empty($vData['file']['originalSource'])) {
                     $addFile($vData['file']['originalSource']);
@@ -1484,8 +1454,8 @@ class ShopifyService
 
             // Explicit image / media ID supplied
             if (!empty($vImgId)) {
-                $gid = str_starts_with((string)$vImgId, 'gid://shopify/')
-                    ? (string)$vImgId
+                $gid = str_starts_with((string) $vImgId, 'gid://shopify/')
+                    ? (string) $vImgId
                     : "gid://shopify/MediaImage/{$vImgId}";
                 return [
                     'id' => $gid,
@@ -1496,8 +1466,8 @@ class ShopifyService
             if ($existV) {
                 $existMediaId = $existV['media_id'] ?? ($existV['image_id'] ?? ($existV['image']['id'] ?? null));
                 if (!empty($existMediaId)) {
-                    $gid = str_starts_with((string)$existMediaId, 'gid://shopify/')
-                        ? (string)$existMediaId
+                    $gid = str_starts_with((string) $existMediaId, 'gid://shopify/')
+                        ? (string) $existMediaId
                         : "gid://shopify/MediaImage/{$existMediaId}";
                     return [
                         'id' => $gid,
@@ -1511,15 +1481,15 @@ class ShopifyService
         // 1. Process all existing variants from Shopify (update modified, preserve unmodified)
         foreach ($existingVariants as $existV) {
             $existId = $existV['id'];
-            $vGid = str_starts_with((string)$existId, 'gid://shopify/ProductVariant/')
-                ? (string)$existId
+            $vGid = str_starts_with((string) $existId, 'gid://shopify/ProductVariant/')
+                ? (string) $existId
                 : "gid://shopify/ProductVariant/{$existId}";
 
             if (isset($submittedById[$existId])) {
                 // Update existing variant with submitted values
                 $formV = $submittedById[$existId];
-                $price = isset($formV['price']) ? (string)$formV['price'] : (string)($existV['price'] ?? '0.00');
-                $sku = isset($formV['sku']) ? (string)$formV['sku'] : (string)($existV['sku'] ?? '');
+                $price = isset($formV['price']) ? (string) $formV['price'] : (string) ($existV['price'] ?? '0.00');
+                $sku = isset($formV['sku']) ? (string) $formV['sku'] : (string) ($existV['sku'] ?? '');
 
                 $variantInput = [
                     'id' => $vGid,
@@ -1528,15 +1498,15 @@ class ShopifyService
                 ];
 
                 if (isset($formV['barcode'])) {
-                    $variantInput['barcode'] = (string)$formV['barcode'];
+                    $variantInput['barcode'] = (string) $formV['barcode'];
                 } elseif (!empty($existV['barcode'])) {
-                    $variantInput['barcode'] = (string)$existV['barcode'];
+                    $variantInput['barcode'] = (string) $existV['barcode'];
                 }
 
                 if (isset($formV['compare_at_price'])) {
-                    $variantInput['compareAtPrice'] = (string)$formV['compare_at_price'];
+                    $variantInput['compareAtPrice'] = (string) $formV['compare_at_price'];
                 } elseif (!empty($existV['compare_at_price'])) {
-                    $variantInput['compareAtPrice'] = (string)$existV['compare_at_price'];
+                    $variantInput['compareAtPrice'] = (string) $existV['compare_at_price'];
                 }
 
                 // Option values
@@ -1547,13 +1517,13 @@ class ShopifyService
                     $opt3 = $formV['option3'] ?? ($existV['option3'] ?? null);
 
                     if (!empty($opt1) && isset($productOptions[0]['name'])) {
-                        $optVals[] = ['optionName' => $productOptions[0]['name'], 'name' => trim((string)$opt1)];
+                        $optVals[] = ['optionName' => $productOptions[0]['name'], 'name' => trim((string) $opt1)];
                     }
                     if (!empty($opt2) && isset($productOptions[1]['name'])) {
-                        $optVals[] = ['optionName' => $productOptions[1]['name'], 'name' => trim((string)$opt2)];
+                        $optVals[] = ['optionName' => $productOptions[1]['name'], 'name' => trim((string) $opt2)];
                     }
                     if (!empty($opt3) && isset($productOptions[2]['name'])) {
-                        $optVals[] = ['optionName' => $productOptions[2]['name'], 'name' => trim((string)$opt3)];
+                        $optVals[] = ['optionName' => $productOptions[2]['name'], 'name' => trim((string) $opt3)];
                     }
                 }
                 if (!empty($optVals)) {
@@ -1564,8 +1534,8 @@ class ShopifyService
                 if (isset($formV['inventory_quantity']) || isset($formV['qty'])) {
                     $qty = (int) ($formV['inventory_quantity'] ?? $formV['qty']);
                     if ($locationId !== null) {
-                        $locGid = str_starts_with((string)$locationId, 'gid://shopify/Location/')
-                            ? (string)$locationId
+                        $locGid = str_starts_with((string) $locationId, 'gid://shopify/Location/')
+                            ? (string) $locationId
                             : "gid://shopify/Location/{$locationId}";
                         $variantInput['inventoryQuantities'] = [
                             [
@@ -1588,25 +1558,25 @@ class ShopifyService
                 // Untouched existing variant: PRESERVE verbatim to avoid accidental deletion
                 $variantInput = [
                     'id' => $vGid,
-                    'price' => (string)($existV['price'] ?? '0.00'),
-                    'sku' => (string)($existV['sku'] ?? ''),
+                    'price' => (string) ($existV['price'] ?? '0.00'),
+                    'sku' => (string) ($existV['sku'] ?? ''),
                 ];
                 if (!empty($existV['barcode'])) {
-                    $variantInput['barcode'] = (string)$existV['barcode'];
+                    $variantInput['barcode'] = (string) $existV['barcode'];
                 }
                 if (!empty($existV['compare_at_price'])) {
-                    $variantInput['compareAtPrice'] = (string)$existV['compare_at_price'];
+                    $variantInput['compareAtPrice'] = (string) $existV['compare_at_price'];
                 }
                 $optVals = [];
                 if (!empty($productOptions)) {
                     if (!empty($existV['option1']) && isset($productOptions[0]['name'])) {
-                        $optVals[] = ['optionName' => $productOptions[0]['name'], 'name' => trim((string)$existV['option1'])];
+                        $optVals[] = ['optionName' => $productOptions[0]['name'], 'name' => trim((string) $existV['option1'])];
                     }
                     if (!empty($existV['option2']) && isset($productOptions[1]['name'])) {
-                        $optVals[] = ['optionName' => $productOptions[1]['name'], 'name' => trim((string)$existV['option2'])];
+                        $optVals[] = ['optionName' => $productOptions[1]['name'], 'name' => trim((string) $existV['option2'])];
                     }
                     if (!empty($existV['option3']) && isset($productOptions[2]['name'])) {
-                        $optVals[] = ['optionName' => $productOptions[2]['name'], 'name' => trim((string)$existV['option3'])];
+                        $optVals[] = ['optionName' => $productOptions[2]['name'], 'name' => trim((string) $existV['option3'])];
                     }
                 }
                 if (!empty($optVals)) {
@@ -1624,8 +1594,8 @@ class ShopifyService
 
         // 2. Process newly created variants (from submitted payload)
         foreach ($newVariants as $nV) {
-            $price = isset($nV['price']) ? (string)$nV['price'] : '0.00';
-            $sku = (string)($nV['sku'] ?? '');
+            $price = isset($nV['price']) ? (string) $nV['price'] : '0.00';
+            $sku = (string) ($nV['sku'] ?? '');
 
             $variantInput = [
                 'price' => $price,
@@ -1633,22 +1603,22 @@ class ShopifyService
             ];
 
             if (!empty($nV['barcode'])) {
-                $variantInput['barcode'] = (string)$nV['barcode'];
+                $variantInput['barcode'] = (string) $nV['barcode'];
             }
             if (!empty($nV['compare_at_price'])) {
-                $variantInput['compareAtPrice'] = (string)$nV['compare_at_price'];
+                $variantInput['compareAtPrice'] = (string) $nV['compare_at_price'];
             }
 
             $optVals = [];
             if (!empty($productOptions)) {
                 if (!empty($nV['option1']) && isset($productOptions[0]['name'])) {
-                    $optVals[] = ['optionName' => $productOptions[0]['name'], 'name' => trim((string)$nV['option1'])];
+                    $optVals[] = ['optionName' => $productOptions[0]['name'], 'name' => trim((string) $nV['option1'])];
                 }
                 if (!empty($nV['option2']) && isset($productOptions[1]['name'])) {
-                    $optVals[] = ['optionName' => $productOptions[1]['name'], 'name' => trim((string)$nV['option2'])];
+                    $optVals[] = ['optionName' => $productOptions[1]['name'], 'name' => trim((string) $nV['option2'])];
                 }
                 if (!empty($nV['option3']) && isset($productOptions[2]['name'])) {
-                    $optVals[] = ['optionName' => $productOptions[2]['name'], 'name' => trim((string)$nV['option3'])];
+                    $optVals[] = ['optionName' => $productOptions[2]['name'], 'name' => trim((string) $nV['option3'])];
                 }
             }
             if (!empty($optVals)) {
@@ -1658,8 +1628,8 @@ class ShopifyService
             if (isset($nV['inventory_quantity']) || isset($nV['qty'])) {
                 $qty = (int) ($nV['inventory_quantity'] ?? $nV['qty']);
                 if ($locationId !== null) {
-                    $locGid = str_starts_with((string)$locationId, 'gid://shopify/Location/')
-                        ? (string)$locationId
+                    $locGid = str_starts_with((string) $locationId, 'gid://shopify/Location/')
+                        ? (string) $locationId
                         : "gid://shopify/Location/{$locationId}";
                     $variantInput['inventoryQuantities'] = [
                         [
@@ -1693,7 +1663,7 @@ class ShopifyService
             $input['productType'] = $payload['product_type'];
         }
         if (isset($payload['status'])) {
-            $statusRaw = strtoupper((string)$payload['status']);
+            $statusRaw = strtoupper((string) $payload['status']);
             $allowedStatuses = ['ACTIVE', 'DRAFT', 'ARCHIVED'];
             $input['status'] = in_array($statusRaw, $allowedStatuses) ? $statusRaw : 'DRAFT';
         }
@@ -1935,16 +1905,16 @@ class ShopifyService
             : "gid://shopify/Product/{$productId}";
 
         $query = <<<'GRAPHQL'
-        mutation ProductDelete($input: ProductDeleteInput!) {
-            productDelete(input: $input) {
-                deletedProductId
-                userErrors {
-                    field
-                    message
+            mutation ProductDelete($input: ProductDeleteInput!) {
+                productDelete(input: $input) {
+                    deletedProductId
+                    userErrors {
+                        field
+                        message
+                    }
                 }
             }
-        }
-        GRAPHQL;
+            GRAPHQL;
 
         try {
             $res = $this->graphql($query, [
@@ -2051,7 +2021,7 @@ class ShopifyService
                     'product_type' => $normalizedProduct['product_type'] ?? '',
                     'status' => $normalizedProduct['status'] ?? 'draft',
                     'tags' => $normalizedProduct['tags'] ?? '',
-                    'price' => $normalizedProduct['variants'][0]['price'] ?? 0.00,
+                    'price' => $normalizedProduct['variants'][0]['price'] ?? 0.0,
                     'variants' => json_encode($normalizedProduct['variants'] ?? []),
                     'options' => json_encode($normalizedProduct['options'] ?? []),
                     'images' => json_encode($normalizedProduct['images'] ?? []),
@@ -2131,27 +2101,27 @@ class ShopifyService
         }
 
         $query = <<<'GRAPHQL'
-        query GetInventoryItemLevels($id: ID!) {
-            inventoryItem(id: $id) {
-                id
-                legacyResourceId
-                inventoryLevels(first: 50) {
-                    nodes {
-                        id
-                        location {
+            query GetInventoryItemLevels($id: ID!) {
+                inventoryItem(id: $id) {
+                    id
+                    legacyResourceId
+                    inventoryLevels(first: 50) {
+                        nodes {
                             id
-                            legacyResourceId
-                            name
-                        }
-                        quantities(names: ["available", "on_hand", "committed"]) {
-                            name
-                            quantity
+                            location {
+                                id
+                                legacyResourceId
+                                name
+                            }
+                            quantities(names: ["available", "on_hand", "committed"]) {
+                                name
+                                quantity
+                            }
                         }
                     }
                 }
             }
-        }
-        GRAPHQL;
+            GRAPHQL;
 
         $response = $this->graphql($query, ['id' => $itemGid]);
 
@@ -2253,6 +2223,7 @@ class ShopifyService
      * @param mixed $param4 (int $quantity or Shop|null)
      * @return array
      */
+
     /**
      * Set the available inventory quantity for an item at a specific location using GraphQL.
      *
@@ -2318,32 +2289,32 @@ class ShopifyService
         $numericLocId = is_numeric($numericLocId) ? (int) $numericLocId : $numericLocId;
 
         $mutation = <<<'GRAPHQL'
-        mutation InventorySetQuantities($input: InventorySetQuantitiesInput!, $idempotencyKey: String!) {
-            inventorySetQuantities(input: $input) @idempotent(key: $idempotencyKey) {
-                inventoryAdjustmentGroup {
-                    reason
-                    changes {
-                        name
-                        delta
-                        quantityAfterChange
-                        item {
-                            id
-                            legacyResourceId
-                        }
-                        location {
-                            id
-                            legacyResourceId
+            mutation InventorySetQuantities($input: InventorySetQuantitiesInput!, $idempotencyKey: String!) {
+                inventorySetQuantities(input: $input) @idempotent(key: $idempotencyKey) {
+                    inventoryAdjustmentGroup {
+                        reason
+                        changes {
+                            name
+                            delta
+                            quantityAfterChange
+                            item {
+                                id
+                                legacyResourceId
+                            }
+                            location {
+                                id
+                                legacyResourceId
+                            }
                         }
                     }
-                }
-                userErrors {
-                    field
-                    message
-                    code
+                    userErrors {
+                        field
+                        message
+                        code
+                    }
                 }
             }
-        }
-        GRAPHQL;
+            GRAPHQL;
 
         $quantityInput = [
             'inventoryItemId' => $itemGid,
@@ -2444,18 +2415,18 @@ class ShopifyService
         $queryBody = $this->buildQuery($structure);
 
         $query = <<<GRAPHQL
-        query (\$cursor: String) {
-            products(first: {$first}, after: \$cursor) {
-                pageInfo {
-                    hasNextPage
-                    endCursor
-                }
-                nodes {
-                    {$queryBody}
+            query (\$cursor: String) {
+                products(first: {$first}, after: \$cursor) {
+                    pageInfo {
+                        hasNextPage
+                        endCursor
+                    }
+                    nodes {
+                        {$queryBody}
+                    }
                 }
             }
-        }
-        GRAPHQL;
+            GRAPHQL;
 
         $response = $this->graphql($query, [
             'cursor' => $cursor
@@ -2484,7 +2455,7 @@ class ShopifyService
     }
 
     /**
-     *  Helper: Convert array → GraphQL fields
+     * Helper: Convert array → GraphQL fields
      */
     private function buildQuery($fields)
     {
@@ -2501,25 +2472,23 @@ class ShopifyService
         return $query;
     }
 
-
     public function paginateRefunds($structure, $first = 50, $cursor = null, $search = null)
     {
         $queryBody = trim($this->buildQuery($structure));
 
         $query = <<<GRAPHQL
-        query (\$cursor: String) {
-            orders(first: {$first}, after: \$cursor, query: "financial_status:refunded") {
-                pageInfo {
-                    hasNextPage
-                    endCursor
-                }
-                nodes {
-                    {$queryBody}
+            query (\$cursor: String) {
+                orders(first: {$first}, after: \$cursor, query: "financial_status:refunded") {
+                    pageInfo {
+                        hasNextPage
+                        endCursor
+                    }
+                    nodes {
+                        {$queryBody}
+                    }
                 }
             }
-        }
-        GRAPHQL;
-
+            GRAPHQL;
 
         $response = $this->graphql($query, [
             'cursor' => $cursor
@@ -2542,8 +2511,7 @@ class ShopifyService
 
     public function getProductById($productId)
     {
-
-        $productId = "gid://shopify/Product/" . $productId;
+        $productId = 'gid://shopify/Product/' . $productId;
 
         $query = '
         query ProductFull($ownerId: ID!) {
@@ -2604,7 +2572,6 @@ class ShopifyService
           }
         }';
 
-
         $response = $this->graphql($query, ['ownerId' => $productId]);
 
         $productData = $response['data']['product'] ?? null;
@@ -2626,9 +2593,7 @@ class ShopifyService
                     'src' => $img['url']
                 ];
             })->toArray(),
-
             'variants' => collect($productData['variants']['nodes'])->map(function ($v) {
-
                 return [
                     'id' => $v['id'],
                     'title' => $v['title'],
@@ -2646,7 +2611,7 @@ class ShopifyService
     public function getRefundDetails($orderId)
     {
         if (!str_contains($orderId, 'gid://')) {
-            $orderId = "gid://shopify/Order/" . $orderId;
+            $orderId = 'gid://shopify/Order/' . $orderId;
         }
 
         $query = '
@@ -2702,41 +2667,41 @@ class ShopifyService
             : "gid://shopify/Order/{$orderId}";
 
         $query = <<<'GRAPHQL'
-    query ($id: ID!) {
-    order(id: $id) {
-        id legacyResourceId name orderNumber email phone createdAt processedAt cancelledAt
-        currencyCode displayFinancialStatus displayFulfillmentStatus note tags
-        customer { id firstName lastName email phone }
-        billingAddress { firstName lastName company address1 address2 city province provinceCode country countryCodeV2 zip phone }
-        shippingAddress { firstName lastName company address1 address2 city province provinceCode country countryCodeV2 zip phone }
-        subtotalPriceSet { shopMoney { amount } }
-        totalTaxSet { shopMoney { amount } }
-        totalDiscountsSet { shopMoney { amount } }
-        totalPriceSet { shopMoney { amount } }
-        lineItems(first: 250) {
-        nodes {
-            id name title quantity sku variantTitle
-            originalUnitPriceSet { shopMoney { amount } }
-            discountedUnitPriceSet { shopMoney { amount } }
-            variant { id legacyResourceId title sku }
-            product { id legacyResourceId title }
-        }
-        }
-        discountCodes { code applicable }
-        shippingLines(first: 50) {
-        nodes { title code originalPriceSet { shopMoney { amount } } }
-        }
-        taxLines { title rate priceSet { shopMoney { amount } } }
-    }
-    }
-    GRAPHQL;
+            query ($id: ID!) {
+            order(id: $id) {
+                id legacyResourceId name orderNumber email phone createdAt processedAt cancelledAt
+                currencyCode displayFinancialStatus displayFulfillmentStatus note tags
+                customer { id firstName lastName email phone }
+                billingAddress { firstName lastName company address1 address2 city province provinceCode country countryCodeV2 zip phone }
+                shippingAddress { firstName lastName company address1 address2 city province provinceCode country countryCodeV2 zip phone }
+                subtotalPriceSet { shopMoney { amount } }
+                totalTaxSet { shopMoney { amount } }
+                totalDiscountsSet { shopMoney { amount } }
+                totalPriceSet { shopMoney { amount } }
+                lineItems(first: 250) {
+                nodes {
+                    id name title quantity sku variantTitle
+                    originalUnitPriceSet { shopMoney { amount } }
+                    discountedUnitPriceSet { shopMoney { amount } }
+                    variant { id legacyResourceId title sku }
+                    product { id legacyResourceId title }
+                }
+                }
+                discountCodes { code applicable }
+                shippingLines(first: 50) {
+                nodes { title code originalPriceSet { shopMoney { amount } } }
+                }
+                taxLines { title rate priceSet { shopMoney { amount } } }
+            }
+            }
+            GRAPHQL;
 
         $response = $this->graphql($query, ['id' => $id]);
 
         if (!empty($response['error']) || !empty($response['errors'])) {
             throw new \RuntimeException(
-                'Shopify GraphQL error: ' .
-                ($response['message'] ?? json_encode($response['errors']))
+                'Shopify GraphQL error: '
+                . ($response['message'] ?? json_encode($response['errors']))
             );
         }
 
@@ -2748,7 +2713,7 @@ class ShopifyService
 
         $customer = $o['customer'] ?? [];
         $items = collect(data_get($o, 'lineItems.nodes', []))
-            ->map(fn ($i) => [
+            ->map(fn($i) => [
                 'id' => $i['id'] ?? null,
                 'name' => $i['name'] ?? null,
                 'title' => $i['title'] ?? null,

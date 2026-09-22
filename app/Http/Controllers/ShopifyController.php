@@ -1656,37 +1656,47 @@ class ShopifyController extends Controller
 
         //   REFRESH FLOW (correct order)
         if ($request->has('refresh')) {
-            $this->refreshProductsCache($shopModel);
+            $refreshSuccess = $this->refreshProductsCache($shopModel);
             return response()->json([
-                'success' => true
+                'success' => $refreshSuccess,
             ]);
         }
-        //   LOAD DATA (cache → DB fallback)
-        $allProducts = Cache::remember(
-            $cacheKey,
-            now()->addMinutes(15),
-            function () use ($shopModel) {
-                Log::info('PRODUCT CACHE MISS → SYNCING FROM SHOPIFY', [
-                    'shop_id' => $shopModel->id,
-                    'shop' => $shopModel->shop,
-                ]);
 
-                // Fetch latest products from Shopify and update DB
-                $this->syncProductsToDB($shopModel);
+        //   LOAD DATA (cache → sync/DB fallback)
+        $allProducts = Cache::get($cacheKey);
 
-                // Load freshly synced products
-                $products = Product::where('shop_id', $shopModel->id)
-                    ->latest()
-                    ->get();
+        if ($allProducts === null) {
+            Log::info('PRODUCT CACHE MISS → SYNCING FROM SHOPIFY', [
+                'shop_id' => $shopModel->id,
+                'shop' => $shopModel->shop,
+            ]);
 
+            $syncSuccess = $this->syncProductsToDB($shopModel);
+
+            $products = Product::where('shop_id', $shopModel->id)
+                ->latest()
+                ->get();
+
+            if ($syncSuccess) {
+                Cache::put(
+                    $cacheKey,
+                    $products,
+                    now()->addMinutes(15)
+                );
                 Log::info('PRODUCT CACHE REBUILT AFTER SHOPIFY SYNC', [
                     'shop_id' => $shopModel->id,
                     'products_count' => $products->count(),
                 ]);
-
-                return $products;
+            } else {
+                Log::warning('SHOPIFY PRODUCT SYNC FAILED → SERVING EXISTING DB RECORDS WITHOUT POISONING CACHE', [
+                    'shop_id' => $shopModel->id,
+                    'products_count' => $products->count(),
+                ]);
             }
-        );
+
+            $allProducts = $products;
+        }
+
         //   PAGINATION
         $products = $allProducts;
 
@@ -1750,7 +1760,7 @@ class ShopifyController extends Controller
         ));
     }
 
-    public function syncProductsToDB($shopModel)
+    public function syncProductsToDB($shopModel): bool
     {
         $this->ensureFreshAccessToken($shopModel);
         try {
@@ -1764,33 +1774,31 @@ class ShopifyController extends Controller
                     'shop' => $shopModel->shop,
                     'message' => $result['message'] ?? 'Unknown error',
                 ]);
-                return;
+                return false;
             }
 
             $products = $result['products'] ?? [];
 
             foreach ($products as $product) {
-                Log::info('SHOPIFY PRODUCT RAW', [
-                    'product_id' => $product['id'],
-                    'variants' => $product['variants']
-                ]);
+                $shopifyId = (string) $product['id'];
 
-                $existingProduct = Product::where('shopify_id', (string) $product['id'])->where('shop_id', $shopModel->id)->first();
+                $productModel = Product::withTrashed()
+                    ->where('shopify_id', $shopifyId)
+                    ->where('shop_id', $shopModel->id)
+                    ->first();
 
-                Log::info('EXISTING PRODUCT CHECK', [
-                    'shopify_id' => (string) $product['id'],
-                    'shop_id' => $shopModel->id,
-                    'found' => $existingProduct?->id,
-                    'existing_synced' => $existingProduct?->synced_to_amazon,
-                    'existing_resync' => $existingProduct?->needs_resync,
-                ]);
+                if ($productModel) {
+                    if ($productModel->trashed()) {
+                        $productModel->restore();
+                    }
+                } else {
+                    $productModel = new Product([
+                        'shopify_id' => $shopifyId,
+                        'shop_id' => $shopModel->id,
+                    ]);
+                }
 
-                $productModel = Product::firstOrNew([
-                    'shopify_id' => (string) $product['id'],
-                    'shop_id' => $shopModel->id,
-                ]);
-
-                $productModel->title = $product['title'];
+                $productModel->title = $product['title'] ?? '';
                 $productModel->description = html_to_plain_text($product['body_html'] ?? '');
                 $productModel->price = $product['variants'][0]['price'] ?? 0;
                 $productModel->status = $product['status'] ?? 'draft';
@@ -1800,33 +1808,25 @@ class ShopifyController extends Controller
                 $productModel->images = $product['images'] ?? [];
                 $productModel->variants = $product['variants'] ?? [];
                 $productModel->options = $product['options'] ?? [];
-                $productModel->metafields = null;
 
                 $productModel->save();
 
-                $saved = Product::where(
-                    'shopify_id',
-                    (string) $product['id']
-                )->where(
-                    'shop_id',
-                    $shopModel->id
-                )->first();
-
-                Log::info('REFRESH SAVE VERIFY', [
-                    'product_id' => $saved?->id,
-                    'synced_to_amazon' => $saved?->synced_to_amazon,
-                    'needs_resync' => $saved?->needs_resync,
-                ]);
-
-                Log::info('PRODUCT SAVED', [
-                    'shopify_id' => $product['id'],
-                    'variants' => $product['variants']
+                Log::info('PRODUCT SYNC SAVED', [
+                    'product_id' => $productModel->id,
+                    'shopify_id' => $shopifyId,
+                    'shop_id' => $shopModel->id,
+                    'synced_to_amazon' => $productModel->synced_to_amazon,
+                    'needs_resync' => $productModel->needs_resync,
                 ]);
             }
+
+            return true;
         } catch (\Exception $e) {
-            Log::error('SHOPIFY SYNC FAILED', [
+            Log::error('SHOPIFY SYNC EXCEPTION', [
+                'shop_id' => $shopModel->id ?? null,
                 'error' => $e->getMessage()
             ]);
+            return false;
         }
     }
 
@@ -2221,7 +2221,7 @@ class ShopifyController extends Controller
                 if (!empty($imgId)) {
                     if (is_string($imgId) && filter_var(trim($imgId), FILTER_VALIDATE_URL)) {
                         $imagesData[] = ['src' => trim($imgId)];
-                    } elseif (is_numeric($imgId) || str_starts_with((string)$imgId, 'gid://')) {
+                    } elseif (is_numeric($imgId) || str_starts_with((string) $imgId, 'gid://')) {
                         $imagesData[] = ['id' => $imgId];
                     }
                 }
@@ -2493,7 +2493,7 @@ class ShopifyController extends Controller
                 'shop' => $shopModel->shop,
             ]);
 
-            $numericId = is_numeric($id) ? (int)$id : (str_contains((string)$id, '/') ? (int)substr($id, strrpos($id, '/') + 1) : $id);
+            $numericId = is_numeric($id) ? (int) $id : (str_contains((string) $id, '/') ? (int) substr($id, strrpos($id, '/') + 1) : $id);
 
             $shopifyService = new ShopifyService($shopModel->shop, $shopModel->access_token);
             $response = $shopifyService->deleteProduct($shopModel, $id);
@@ -2529,23 +2529,30 @@ class ShopifyController extends Controller
         }
     }
 
-    private function refreshProductsCache($shopModel): void
+    private function refreshProductsCache($shopModel): bool
     {
         $cacheKey = "products_shop_{$shopModel->id}";
         Cache::forget($cacheKey);
-        $this->syncProductsToDB($shopModel);
+        $syncSuccess = $this->syncProductsToDB($shopModel);
         $products = Product::where('shop_id', $shopModel->id)
             ->latest()
             ->get();
-        Cache::put(
-            $cacheKey,
-            $products,
-            now()->addMinutes(15)
-        );
+
+        if ($syncSuccess || $products->isNotEmpty()) {
+            Cache::put(
+                $cacheKey,
+                $products,
+                now()->addMinutes(15)
+            );
+        }
+
         Log::info('PRODUCT CACHE REBUILT', [
             'shop_id' => $shopModel->id,
-            'products_count' => $products->count()
+            'products_count' => $products->count(),
+            'sync_success' => $syncSuccess,
         ]);
+
+        return $syncSuccess;
     }
 
     private function oauthScopes(): string
@@ -3028,11 +3035,13 @@ class ShopifyController extends Controller
         if (!empty($optionsInput) && is_array($optionsInput) && isset($optionsInput[0]['name'])) {
             foreach ($optionsInput as $opt) {
                 $optName = trim((string) ($opt['name'] ?? ''));
-                if (empty($optName)) continue;
+                if (empty($optName))
+                    continue;
                 $optVals = [];
                 foreach ($opt['values'] ?? [] as $val) {
                     $valStr = trim((string) $val);
-                    if ($valStr !== '') $optVals[] = $valStr;
+                    if ($valStr !== '')
+                        $optVals[] = $valStr;
                 }
                 if (!empty($optVals)) {
                     $options[] = [
@@ -3280,9 +3289,8 @@ class ShopifyController extends Controller
                         $orderId = $order['AmazonOrderId'] ?? null;
 
                         if ($orderId) {
-                            Cache::put( 'amazon_order_' . $orderId, $order,
-                                now()->addHours(24)
-                            );
+                            Cache::put('amazon_order_' . $orderId, $order,
+                                now()->addHours(24));
                         }
                     }
                     Cache::put($cacheKeyai, $orders, now()->addHours(24));
