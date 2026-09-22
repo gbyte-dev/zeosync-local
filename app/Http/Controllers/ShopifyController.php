@@ -1682,9 +1682,11 @@ class ShopifyController extends Controller
         //   REFRESH FLOW (correct order)
         if ($request->has('refresh')) {
             $refreshSuccess = $this->refreshProductsCache($shopModel);
-            return response()->json([
-                'success' => $refreshSuccess,
-            ]);
+            if ($request->expectsJson() || $request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => $refreshSuccess,
+                ]);
+            }
         }
 
         //   LOAD DATA (cache → sync/DB fallback)
