@@ -23,16 +23,16 @@ class CheckStoreStatusJob implements ShouldQueue
 
     public function handle(): void
     {
-        Log::info('CHECK STORE STATUS JOB STARTED', [
-            'shop_id' => $this->shop->id,
-            'shop' => $this->shop->shop,
-        ]);
+        // Log::info('CHECK STORE STATUS JOB STARTED', [
+        //     'shop_id' => $this->shop->id,
+        //     'shop' => $this->shop->shop,
+        // ]);
 
         app(StoreStatusService::class)->check($this->shop);
 
-        Log::info('CHECK STORE STATUS JOB COMPLETED', [
-            'shop_id' => $this->shop->id,
-            'shop' => $this->shop->shop,
-        ]);
+        // Log::info('CHECK STORE STATUS JOB COMPLETED', [
+        //     'shop_id' => $this->shop->id,
+        //     'shop' => $this->shop->shop,
+        // ]);
     }
 }

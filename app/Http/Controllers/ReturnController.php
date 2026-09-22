@@ -43,19 +43,13 @@ class ReturnController extends ShopifyController
             Cache::remember("amazon_returns_{$shop->id}", 600, function () use ($amazon, $shop) {
                 try {
                     $reportId = $amazon->createReturnsReport($shop->amazon_marketplace_id);
-                    if (!$reportId) {
-                        return [];
-                    }
+                    if (!$reportId) {    return [];       }
 
                     $content = $amazon->getReport($reportId);
-                    if (!$content) {
-                        return [];
-                    }
+                    if (!$content) {   return [];    }
 
                     $rows = $amazon->parseReport($content);
-                    if (!is_array($rows)) {
-                        return [];
-                    }
+                    if (!is_array($rows)) {  return [];  }
 
                     $result = [];
 
@@ -191,7 +185,6 @@ class ReturnController extends ShopifyController
         $shop = session('shop');
         $token = session('access_token');
         $shopify = new ShopifyService($shop, $token);
-
         $data = $shopify->getRefundDetails($orderId);
 
         $order = $data['data']['order'] ?? null;
@@ -251,9 +244,7 @@ class ReturnController extends ShopifyController
         $token = session('access_token');
      
         $shopify = new ShopifyService($shop, $token);
-
         $data = $shopify->getRefundDetails($orderId);
-
         $order = $data['data']['order'] ?? null;
 
         if (!$order) {
@@ -261,7 +252,6 @@ class ReturnController extends ShopifyController
         }
 
         $result = [];
-
         foreach ($order['refunds'] ?? [] as $refund) {
 
             $amount = $refund['totalRefundedSet']['shopMoney']['amount'] ?? 0;

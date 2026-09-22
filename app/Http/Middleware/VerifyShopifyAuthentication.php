@@ -370,33 +370,22 @@ class VerifyShopifyAuthentication
     protected function shouldBypass(Request $request): bool
     {
         // Webhook routes
-        if ($request->routeIs('shopify.webhooks.*') ||
-                $request->routeIs('webhooks.*') ||
-                $request->routeIs('stripe.webhook') ||
-                $request->routeIs('amazon.webhooks.*') ||
-                $request->is('webhooks/*') ||
-                $request->is('shopify/webhooks/*') ||
-                $request->is('customers/*') ||
-                $request->is('shop/*')) {
+        if ($request->routeIs('shopify.webhooks.*') || $request->routeIs('webhooks.*') ||
+            $request->routeIs('stripe.webhook') ||  $request->routeIs('amazon.webhooks.*') ||
+            $request->is('webhooks/*') || $request->is('shopify/webhooks/*') ||
+            $request->is('customers/*') || $request->is('shop/*')) {
             return true;
         }
 
         // OAuth lifecycle & public / CRM entry routes
-        if ($request->routeIs('crm.entry') ||
-                $request->routeIs('shopify.install') ||
-                $request->routeIs('shopify.callback') ||
-                $request->routeIs('api.shop.status') ||
-                $request->routeIs('setup.form') ||
-                $request->routeIs('setup.store') ||
-                $request->routeIs('setup.activation.status') ||
-                $request->routeIs('about') ||
-                $request->routeIs('pricing') ||
-                $request->routeIs('contact') ||
-                $request->routeIs('contact.store') ||
-                $request->routeIs('terms') ||
-                $request->routeIs('privacy') ||
-                $request->is('admin') ||
-                $request->is('admin/*')) {
+        if ($request->routeIs('crm.entry') || $request->routeIs('shopify.install') ||
+            $request->routeIs('shopify.callback') ||   $request->routeIs('api.shop.status') ||
+            $request->routeIs('setup.form') || $request->routeIs('setup.store') ||
+            $request->routeIs('setup.activation.status') ||
+            $request->routeIs('about') ||  $request->routeIs('pricing') ||
+            $request->routeIs('contact') || $request->routeIs('contact.store') ||
+            $request->routeIs('terms') || $request->routeIs('privacy') ||
+            $request->is('admin') || $request->is('admin/*')) {
             return true;
         }
 

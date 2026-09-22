@@ -144,14 +144,14 @@ class SettingsController extends ShopifyController
         $shopModel = $this->getActiveShop($request);
         $activeShop = $shopModel?->shop;
 
-        Log::info('SHOPIFY_DEBUG: activation_form_rendered', [
-            'event' => 'activation_form_rendered',
-            'request_shop' => $request->query('shop') ?? $request->input('shop'),
-            'resolved_shop_id' => $shopModel?->id,
-            'resolved_shop_domain' => $shopModel?->shop,
-            'session_active_shop' => session('active_shop'),
-            'session_verified_shop' => session('_shopify_verified_shop'),
-        ]);
+        // Log::info('SHOPIFY_DEBUG: activation_form_rendered', [
+        //     'event' => 'activation_form_rendered',
+        //     'request_shop' => $request->query('shop') ?? $request->input('shop'),
+        //     'resolved_shop_id' => $shopModel?->id,
+        //     'resolved_shop_domain' => $shopModel?->shop,
+        //     'session_active_shop' => session('active_shop'),
+        //     'session_verified_shop' => session('_shopify_verified_shop'),
+        // ]);
 
         if ($request->filled('shop') && $shopModel && strtolower(trim((string) $request->query('shop'))) !== strtolower(trim((string) $shopModel->shop))) {
             Log::warning('SHOPIFY_DEBUG: activation_form_shop_mismatch', [
@@ -223,13 +223,9 @@ class SettingsController extends ShopifyController
                 // Email failure should not block activation
             }
 
-            $dashboardUrl = route('dashboard', [
-                'shop' => $shop->shop,
-            ]);
+            $dashboardUrl = route('dashboard', [ 'shop' => $shop->shop ]);
 
-            $pollUrl = route('setup.activation.status', [
-                'shop' => $shop->shop,
-            ]);
+            $pollUrl = route('setup.activation.status', ['shop' => $shop->shop ]);
 
             return response()->json([
                 'success' => true,
@@ -241,10 +237,10 @@ class SettingsController extends ShopifyController
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            Log::error('SETUP_STORE: Exception during activation', [
-                'request_id' => $requestId,
-                'error' => $e->getMessage(),
-            ]);
+            // Log::error('SETUP_STORE: Exception during activation', [
+            //     'request_id' => $requestId,
+            //     'error' => $e->getMessage(),
+            // ]);
 
             return response()->json([
                 'success' => false,
@@ -278,12 +274,9 @@ class SettingsController extends ShopifyController
         if (!$shop) {
 
             return response()->json([
-                'activated' => false,
-                'shop' => $shopParam,
-                'shop_name' => null,
-                'email' => null,
-                'message' => 'Shop not found.',
-            ], 404);
+                'activated' => false, 'shop' => $shopParam, 'shop_name' => null,
+                'email' => null, 'message' => 'Shop not found.',
+            ], 403);
         }
 
         $shopName = trim((string) $shop->shop_name);
@@ -299,114 +292,6 @@ class SettingsController extends ShopifyController
         ]);
     }
 
-    // public function store(Request $request)
-    // {
-    //     Log::info('SHOPIFY_DEBUG: activation_form_submitted', [
-    //         'event'                 => 'activation_form_submitted',
-    //         'request_shop'          => $request->query('shop'),
-    //         'input_shop_url'        => $request->input('shop_url'),
-    //         'session_active_shop'   => session('active_shop'),
-    //         'session_verified_shop' => session('_shopify_verified_shop'),
-    //     ]);
-
-    //     if ($request->filled('shop') && $request->filled('shop_url') && strtolower(trim((string) $request->query('shop'))) !== strtolower(trim((string) $request->input('shop_url')))) {
-    //         Log::warning('SHOPIFY_DEBUG: activation_form_submitted_mismatch', [
-    //             'request_shop'        => $request->query('shop'),
-    //             'input_shop_url'      => $request->input('shop_url'),
-    //             'session_active_shop' => session('active_shop'),
-    //         ]);
-    //     }
-
-    //     $request->validate([
-    //         'shop_url' => 'required',
-    //         'shop_name' => 'required',
-    //         'email' => 'required|email',
-    //     ]);
-
-    //     $shop = Shop::whereRaw('LOWER(shop) = ?', [
-    //         strtolower($request->shop_url)
-    //     ])->first();
-
-    //     if (!$shop) {
-    //         \Log::error('SHOP NOT FOUND');
-    //         Log::warning('SHOPIFY_DEBUG: activation_shop_not_found_in_db', [
-    //             'input_shop_url' => $request->shop_url,
-    //         ]);
-    //         return back()->with('error', 'Shop not found');
-    //     }
-
-    //     Log::info('SHOPIFY_DEBUG: activation_database_update', [
-    //         'event'               => 'activation_database_update',
-    //         'input_shop_url'      => $request->input('shop_url'),
-    //         'matched_shop_id'     => $shop?->id,
-    //         'matched_shop_domain' => $shop?->shop,
-    //     ]);
-
-    //     // =========================
-    //     // STEP 4: UPDATE
-    //     // =========================
-    //     try {
-    //         $updated = $shop->update([
-    //             'shop_name' => $request->shop_name,
-    //             'email' => $request->email,
-    //             'is_active' => 1
-    //         ]);
-
-    //         Log::info('SHOPIFY_DEBUG: activation_database_update_completed', [
-    //             'event'               => 'activation_database_update_completed',
-    //             'updated_shop_id'     => $shop?->id,
-    //             'updated_shop_domain' => $shop?->shop,
-    //             'update_success'      => $updated,
-    //         ]);
-
-    //         \Log::info('UPDATE RESULT', [
-    //             'updated' => $updated
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         \Log::error('UPDATE FAILED', [
-    //             'error' => $e->getMessage()
-    //         ]);
-    //         return back()->with('error', 'Update failed');
-    //     }
-
-    //     session(['active_shop' => $shop->shop]);
-
-    //     // =========================
-    //     // STEP 7: EMAIL
-    //     // =========================
-    //     try {
-    //         $template = MailTemplate::active()
-    //             ->where('slug', 'welcome-email')
-    //             ->first();
-
-    //         \Log::info('EMAIL TEMPLATE', [
-    //             'found' => $template ? true : false
-    //         ]);
-
-    //         if ($template) {
-    //             app(\App\Services\EmailService::class)
-    //                 ->sendDynamicEmail($template, (object)[
-    //                     'name' => $shop->shop,
-    //                     'email' => $request->email
-    //                 ]);
-
-    //             \Log::info('EMAIL SENT SUCCESS');
-    //         }
-    //     } catch (\Exception $e) {
-    //         \Log::error('EMAIL FAILED', [
-    //             'error' => $e->getMessage()
-    //         ]);
-    //     }
-
-    //     // =========================
-    //     // STEP 8: REDIRECT
-    //     // =========================
-    //     \Log::info('REDIRECT TO DASHBOARD');
-
-    //     return redirect()->route('dashboard', [
-    //         'shop' => $shop->shop
-    //     ])->with('success', 'App activated successfully!');
-    // }
 
     public function logout(Request $request)
     {
