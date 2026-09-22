@@ -274,7 +274,7 @@
             <h5 class="saas-card-title">Video Tutorials</h5>
             <p class="saas-card-desc mb-3">Coming soon — step-by-step video walkthroughs.</p>
             <div class="saas-video-placeholder">
-                <iframe src="https://www.youtube.com/embed/-QYseKCaQyc?si=hAVLDgmSd62uo6p6" title="Zeosync tutorial" style="width: -webkit-fill-available;" allowfullscreen></iframe>
+                <iframe src="https://www.youtube.com/embed/-QYseKCaQyc?si=hAVLDgmSd62uo6p6" title="Zeosync tutorial" style="width: -webkit-fill-available;width: -moz-available; height: 400px;" allowfullscreen></iframe>
             </div>
         </div>
     </div>
