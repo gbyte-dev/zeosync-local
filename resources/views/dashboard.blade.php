@@ -216,10 +216,61 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
         transition: all 0.15s ease;
     }
 
-    .header-time-pill:hover {
+    .header-time-pill:hover,
+    .header-time-pill:focus {
         background-color: #F9FAFB;
         border-color: #D1D5DB;
         color: #111827;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+        outline: none;
+    }
+
+    /* SaaS Dropdown Menu Styling */
+    .shopify-dashboard .dropdown-menu {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 10px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+        padding: 6px;
+        min-width: 140px;
+        margin-top: 6px !important;
+        animation: saasDropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes saasDropdownFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-4px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .shopify-dashboard .dropdown-item {
+        font-size: 12.5px;
+        font-weight: 500;
+        color: #374151;
+        padding: 7px 12px;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .shopify-dashboard .dropdown-item:hover,
+    .shopify-dashboard .dropdown-item:focus {
+        background-color: #F3F4F6;
+        color: #111827;
+    }
+
+    .shopify-dashboard .dropdown-item.active,
+    .shopify-dashboard .dropdown-item:active {
+        background-color: #EFF6FF;
+        color: #2563EB;
+        font-weight: 600;
     }
 
     .header-location-select {
