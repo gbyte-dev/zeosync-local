@@ -594,69 +594,42 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                 <div class="card-body-content" style="min-height: 220px; height: 220px;">
                     <canvas id="topSellingProductsChart"></canvas>
                 </div>
-                @else
-                <div class="empty-state-container">
-                    <div class="empty-state-icon-circle empty-icon-blue">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <path d="M16 10a4 4 0 0 1-8 0"></path>
-                        </svg>
-                    </div>
-                    <div class="empty-state-title">No orders yet</div>
-                    <div class="empty-state-desc">
-                        Your top-selling products will appear here<br>once you receive orders.
-                    </div>
-                    <a href="{{ $shopifyOrdersUrl }}" class="btn-saas-primary">
-                        View Orders
-                    </a>
+                <div class="card-divider"></div>
+                <div class="card-footer-custom">
+                    Updated dynamically from Shopify orders
                 </div>
-                @endif
-            </div>
-
-            <!-- Footer -->
-            <div class="card-footer-clean">
-                <i class="bi bi-info-circle-fill"></i>
-                <span>Updated dynamically from Shopify orders</span>
             </div>
         </div>
+        <!-- shopify low inventory card  -->
+        <div class="col-md-6 d-flex">
+            <div class="premium-card" style="height:350px;">
 
-        <!-- ========================================== -->
-        <!-- ROW 1, CARD 2: Shopify Low Inventory Products -->
-        <!-- ========================================== -->
-        <div class="saas-dashboard-card" id="shopifyLowInventoryCard">
-            <!-- Header -->
-            <div class="card-header-clean">
-                <div class="card-header-left">
-                    <div class="card-icon-box card-icon-blue">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                        </svg>
+                <div class="row">
+                    <div class="col-sm-7">
+                        <h3 class="card-title-custom"> Low Inventory Products  </h3>
+                        <p class="card-subtitle-custom"> Products with inventory below 10 units
+                        </p>
                     </div>
-                    <div>
-                        <h3 class="card-title-clean">Low Inventory Products</h3>
-                        <p class="card-subtitle-clean">Products with inventory below 10 units</p>
+                    <div class="col-sm-5">
+                        @php
+                            $locations = $shop->shopify_locations ?? [];
+                            $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+                                ? (int) $shop->selected_location_index  : 0;
+                        @endphp
+                        <label style="font-size: x-small;">Update location from settings</label>
+                        <select name="selected_location_index" class="form-select form-select-sm" id="locationSelect" disabled="true">
+                            @if(!empty($locations))
+                                @foreach($locations as $index => $location)
+                                <option value="{{ $index }}" {{ (string) old('selected_location_index', $selectedIndex) === (string) $index ? 'selected' : '' }}>
+                                    {{ $location['name'] ?? 'Unnamed Location' }}
+                                </option>
+                                @endforeach
+                            @else
+                                <option value="" selected>No Location Available</option>
+                            @endif
+                        </select>
                     </div>
                 </div>
-                @php
-                    $locations = $shop->shopify_locations ?? [];
-                    $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
-                        ? (int) $shop->selected_location_index : 0;
-                @endphp
-                @if(!empty($locations) && count($locations) > 1)
-                <div>
-                    <select name="selected_location_index" class="form-select form-select-sm header-location-select" id="locationSelect" disabled="true" title="Update location from settings">
-                        @foreach($locations as $index => $location)
-                        <option value="{{ $index }}" {{ (string) old('selected_location_index', $selectedIndex) === (string) $index ? 'selected' : '' }}>
-                            {{ $location['name'] ?? 'Unnamed Location' }}
-                        </option>
-                        @endforeach
-                    </select>
-                </div>
-                @endif
-            </div>
 
             <!-- Body -->
             <div class="card-body-clean">

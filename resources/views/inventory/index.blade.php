@@ -587,7 +587,7 @@
                     Amazon
                 </button>
             </li>
-            <!-- <li class="nav-item">
+            <li class="nav-item">
                 <button
                     class="nav-link"
                     id="mapped-tab"
@@ -595,7 +595,7 @@
                     data-bs-target="#mappedAmazonTab">
                     Mappings
                 </button>
-            </li> -->
+            </li>
         </ul>
     </div>
 
@@ -773,11 +773,94 @@
         </div>
 
         <div class="tab-pane fade" id="mappedAmazonTab">
-            <div class="p-3">
-                <div class="alert alert-info mb-0 border-0" style="border-radius: 8px; font-size: 13px;">
-                    <i class="bi bi-info-circle-fill me-2"></i> The Mappings tab is under development and will be available soon.
+            <div class="saas-toolbar">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <div class="fw-semibold text-dark" style="font-size: 13px;">Mapped Products</div>
+                        <div class="text-muted" style="font-size: 11px;">All active Shopify to Amazon product mappings for this store.</div>
+                    </div>
                 </div>
             </div>
+
+            @if($mappedproducts->isEmpty())
+                <div class="no-data-msg">
+                    <i class="bi bi-link-45deg"></i>
+                    <h4>No Product Mappings Found</h4>
+                    <p>Map a Shopify product to an Amazon SKU to start syncing inventory.</p>
+                </div>
+            @else
+                <div class="table-responsive">
+                    <table class="saas-table" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Shopify Product</th>
+                                <th class="text-nowrap">Variant ID</th>
+                                <th class="text-nowrap">Amazon SKU</th>
+                                <th class="text-nowrap">Status</th>
+                                <th class="text-nowrap">Last Synced</th>
+                                <th class="text-nowrap text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody style="font-size: 12px;">
+                            @foreach($mappedproducts as $mapping)
+                                @if(!empty($mapping->amazon_sku))
+                                <tr>
+                                    @php
+                                        $shopifyProductId = $mapping->shopify_product_id ?? $mapping->product_id ?? null;
+                                        $shopifyProductLink = $shopifyProductId
+                                            ? route('shopify.product.view', ['id' => $shopifyProductId, 'shop' => request('shop') ?? session('active_shop')])
+                                            : null;
+                                    @endphp
+                                    <td>
+                                        @if($shopifyProductLink)
+                                            <a href="{{ $shopifyProductLink }}" class="fw-semibold text-dark text-decoration-none" title="View Shopify product">
+                                                {{ $mapping->shopify_product_title ?? 'Shopify Product #' . $shopifyProductId }}
+                                            </a>
+                                        @else
+                                            <div class="fw-semibold text-dark">N/A</div>
+                                        @endif
+                                        <small class="text-muted d-block">Product ID: {{ $shopifyProductId ?? '—' }}</small>
+                                    </td>
+                                    <td class="text-muted">
+                                        {{ $mapping->shopify_variant_id ?? '—' }}
+                                    </td>
+                                    <td>
+                                        @if(!empty($mapping->amazon_sku))
+                                            <a href="{{ route('user.product.amazonView', ['sku' => $mapping->amazon_sku]) }}" class="text-dark fw-semibold text-decoration-none">
+                                                {{ $mapping->amazon_sku }}
+                                            </a>
+                                        @else
+                                            <span class="text-muted">—</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @php
+                                            $status = strtolower((string) ($mapping->sync_status ?? 'active'));
+                                            $statusClass = match ($status) {
+                                                'synced' => 'bg-success-subtle text-success',
+                                                'pending' => 'bg-warning-subtle text-warning',
+                                                'error' => 'bg-danger-subtle text-danger',
+                                                default => 'bg-secondary-subtle text-secondary',
+                                            };
+                                            $statusLabel = ucfirst($status ?: 'Active');
+                                        @endphp
+                                        <span class="soft-badge {{ $statusClass }}">{{ $statusLabel }}</span>
+                                    </td>
+                                    <td class="text-muted">
+                                        {{ $mapping->last_synced_at ? $mapping->last_synced_at->format('M d, Y h:i A') : '—' }}
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-danger btn-sm unmap-product" data-mapping-id="{{ $mapping->id }}" title="Unmap Product" data-bs-toggle="tooltip" data-bs-placement="top">
+                                            <i class="bi bi-link"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                @endif
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
         </div>
 
         {{-- Mapped Tab --}}

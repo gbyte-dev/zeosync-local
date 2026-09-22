@@ -52,6 +52,7 @@ Route::post('settings', [SettingsController::class, 'update'])->name('settings.u
 Route::get('activate', [SettingsController::class, 'showForm'])->name('setup.form');
 Route::post('activate', [SettingsController::class, 'store'])->name('setup.store');
 Route::get('setup/activation-status', [SettingsController::class, 'activationStatus'])->name('setup.activation.status');
+
 // return refunds
 // Route::get('return_refunds', [ReturnController::class, 'index'])->name('shopify.return');
 // Route::get('returns/amazon', [ReturnController::class, 'amazon'])->name('shopify.returns.amazon');
@@ -61,12 +62,9 @@ Route::get('setup/activation-status', [SettingsController::class, 'activationSta
 // inventory
 // Route::get('/inventory', [InventoryController::class, 'index'])->name('shopify.inventory.index');
 
-Route::get('/clear-cache-temp', function () {
+Route::get('clear-cache-temp', function () {
     Artisan::call('optimize:clear');
-    return response()->json([
-        'success' => true,
-        'message' => Artisan::output(),
-    ]);
+    return response()->json([ 'success' => true, 'message' => Artisan::output() ]);
 });
 
 Route::post('/amazon/test-update/{sku}', function (Illuminate\Http\Request $request, $sku) {
@@ -93,8 +91,7 @@ Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::clas
    
     Route::middleware('guest:admin')->group(function () {
         Route::get('/login', function () {  return view('admin.auth.login'); })->name('admin.login');
-        Route::post('/login', [AdminAuthController::class, 'login'])
-            ->name('admin.login.submit');
+        Route::post('/login', [AdminAuthController::class, 'login'])->name('admin.login.submit');
     });
 
     Route::middleware(\App\Http\Middleware\EnsureAdminAuthenticated::class)->group(function () {
@@ -115,27 +112,22 @@ Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::clas
         Route::get('/contact-requests/{contact}', [ContactController::class, 'adminShow'])->name('admin.contact-requests.show');
         Route::post('/contact-requests/{contact}/mark-read', [ContactController::class, 'adminMarkRead'])->name('admin.contact-requests.markread');
         Route::delete('/contact-requests/{contact}', [ContactController::class, 'adminDestroy'])->name('admin.contact-requests.destroy');
-        // Bulk actions
         Route::post('/contact-requests/mark-read-all', [ContactController::class, 'adminMarkAllRead'])->name('admin.contact-requests.markall');
         Route::post('/contact-requests/delete-all', [ContactController::class, 'adminDestroyAll'])->name('admin.contact-requests.deleteall');
-        Route::get('/category/{id}/children', [AdminController::class, 'categoryChildren'])
-            ->name('admin.category.children');
+        Route::get('/category/{id}/children', [AdminController::class, 'categoryChildren'])->name('admin.category.children');
         Route::get('/allplans', [PlanController::class, 'index'])->name('admin.plans');
         Route::get('/plans/create', [PlanController::class, 'create'])->name('admin.plans.create');
         Route::post('/plans/create', [PlanController::class, 'store'])->name('admin.plans.store');
         Route::get('/plans/{plan}/edit', [PlanController::class, 'edit'])->name('admin.plans.edit');
-        Route::post('/shops/{shop}/cancel', [AdminController::class, 'cancel'])
-            ->name('admin.shops.cancel');
+        Route::post('/shops/{shop}/cancel', [AdminController::class, 'cancel'])->name('admin.shops.cancel');
         Route::put('/plans/{plan}', [PlanController::class, 'update'])->name('admin.plans.update');
-        Route::delete('/plans/{plan}', [PlanController::class, 'destroy'])
-            ->name('admin.plans.delete');
+        Route::delete('/plans/{plan}', [PlanController::class, 'destroy'])->name('admin.plans.delete');
         Route::get('/mailtemplates', [MailTemplateController::class, 'index'])->name('admin.mailtemplates');
         Route::get('/mailtemplates/create', [MailTemplateController::class, 'create'])->name('admin.mailtemplates.create');
         Route::post('/mailtemplates/create', [MailTemplateController::class, 'store'])->name('admin.mailtemplates.store');
         Route::get('/mailtemplates/{mailtemplate}/edit', [MailTemplateController::class, 'edit'])->name('admin.mailtemplates.edit');
         Route::put('/mailtemplates/{mailtemplate}', [MailTemplateController::class, 'update'])->name('admin.mailtemplates.update');
         Route::post('/mailtemplates/{mailtemplate}', [MailTemplateController::class, 'destroy'])->name('admin.mailtemplates.delete');
-
         Route::get('/cat_update/{category}', [ProductSchemaController::class, 'downloadScema'])->name('admin.downloadScema');
         Route::get('/categories_p', [ProductSchemaController::class, 'index'])->name('admin.categories');
         Route::get('/schema-create', [ProductSchemaController::class, 'create'])->name('admin.schema.create');
