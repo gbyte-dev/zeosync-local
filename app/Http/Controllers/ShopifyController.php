@@ -19,6 +19,7 @@ use App\Services\Amazon\ShopifyAmazonMapper;
 use App\Services\AmazonService;
 use App\Services\NotificationService;
 use App\Services\ShopifyBillingService;
+use App\Services\ShopifyInventoryService;
 use App\Services\ShopifyOrderSyncService;
 use App\Services\ShopifyService;
 use App\Services\ShopifyWebhookService;
@@ -43,6 +44,7 @@ class ShopifyController extends Controller
     protected ShopifyWebhookService $shopifyWebhook;
     protected AmazonService $amazonService;
     protected ShopifyOrderSyncService $orderSyncService;
+    protected ShopifyInventoryService $shopifyInventoryService;
 
     public function __construct()
     {
@@ -50,6 +52,7 @@ class ShopifyController extends Controller
         $this->shopifyWebhook = app(ShopifyWebhookService::class);
         $this->amazonService = app(AmazonService::class);
         $this->orderSyncService = app(ShopifyOrderSyncService::class);
+        $this->shopifyInventoryService = app(ShopifyInventoryService::class);
     }
 
     public function entry(Request $request)
@@ -1413,6 +1416,65 @@ class ShopifyController extends Controller
         return response('OK', 200);
     }
 
+    public function handleProductsCreateWebhook(Request $request)
+    {
+        return $this->handleInventoryInvalidationWebhook($request, 'products/create');
+    }
+
+    public function handleProductsUpdateWebhook(Request $request)
+    {
+        return $this->handleInventoryInvalidationWebhook($request, 'products/update');
+    }
+
+    public function handleProductsDeleteWebhook(Request $request)
+    {
+        return $this->handleInventoryInvalidationWebhook($request, 'products/delete');
+    }
+
+    public function handleInventoryLevelsUpdateWebhook(Request $request)
+    {
+        return $this->handleInventoryInvalidationWebhook($request, 'inventory_levels/update');
+    }
+
+    /**
+     * Shared handler for product & inventory webhooks to safely invalidate the shop's inventory cache.
+     */
+    private function handleInventoryInvalidationWebhook(Request $request, string $topic)
+    {
+        $payload = $request->getContent();
+        $shopDomain = strtolower(trim((string) $request->header('X-Shopify-Shop-Domain')));
+
+        if (!$this->shopifyWebhook->isValidWebhook($payload, $request->header('X-Shopify-Hmac-Sha256'))) {
+            Log::warning("Rejected Shopify {$topic} webhook because HMAC validation failed.", [
+                'shop' => $shopDomain,
+            ]);
+
+            return response('Invalid webhook signature', 401);
+        }
+
+        $shopModel = $this->findShopByIdentifier($shopDomain);
+
+        if (!$shopModel) {
+            Log::warning("Shopify {$topic} webhook received for unknown/inactive shop — acknowledged without processing.", [
+                'shop_domain' => $shopDomain,
+                'topic' => $topic,
+                'reason' => 'shop_not_found_or_inactive',
+            ]);
+
+            return response('OK', 200);
+        }
+
+        $this->shopifyInventoryService->invalidate($shopModel);
+
+        Log::info("Shopify {$topic} webhook processed; inventory cache invalidated.", [
+            'shop_domain' => $shopDomain,
+            'shop_id' => $shopModel->id,
+            'topic' => $topic,
+        ]);
+
+        return response('OK', 200);
+    }
+
     public function resolveAggregateShipmentStatus(array $fulfillments): ?string
     {
         $activeFulfillments = array_values(array_filter($fulfillments, function ($f) {
@@ -2385,6 +2447,7 @@ class ShopifyController extends Controller
             );
 
             $this->refreshProductsCache($shopModel);
+            $this->shopifyInventoryService->invalidate($shopModel);
 
             Log::info('END: updateProduct completed successfully for ID: ' . $id);
 
@@ -2451,6 +2514,7 @@ class ShopifyController extends Controller
             $updatesync->updatelog($numericId, 'shopify', 'deleted', true);
 
             $this->refreshProductsCache($shopModel);
+            $this->shopifyInventoryService->invalidate($shopModel);
             return response()->json(['success' => true, 'message' => 'Product deleted successfully']);
         } catch (\Exception $exception) {
             Log::error('Delete Product Exception', [

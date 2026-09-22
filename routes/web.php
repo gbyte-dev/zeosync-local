@@ -167,10 +167,13 @@ Route::withoutMiddleware([VerifyCsrfToken::class,])->group(function () {
     Route::post('webhooks/shopify/orders/delete', [ ShopifyController::class, 'handleOrdersDeleteWebhook'])->name('shopify.webhooks.orders.delete');
     Route::post('webhooks/shopify/returns/create', [ShopifyController::class, 'returnCreate'])->name('shopify.webhooks.returns.create');
     Route::post('webhooks/shopify/returns/update', [ShopifyController::class, 'returnUpdate'])->name('shopify.webhooks.returns.update');
+    Route::post('webhooks/shopify/products/create', [ShopifyController::class, 'handleProductsCreateWebhook'])->name('shopify.webhooks.products.create');
+    Route::post('webhooks/shopify/products/update', [ShopifyController::class, 'handleProductsUpdateWebhook'])->name('shopify.webhooks.products.update');
+    Route::post('webhooks/shopify/products/delete', [ShopifyController::class, 'handleProductsDeleteWebhook'])->name('shopify.webhooks.products.delete');
+    Route::post('webhooks/shopify/inventory_levels/update', [ShopifyController::class, 'handleInventoryLevelsUpdateWebhook'])->name('shopify.webhooks.inventory_levels.update');
     Route::post('customers/data_request', [ShopifyComplianceWebhookController::class, 'customersDataRequest'])->name('shopify.webhooks.customers.data_request');
     Route::post('customers/redact', [ShopifyComplianceWebhookController::class, 'customersRedact'])->name('shopify.webhooks.customers.redact');
     Route::post('shop/redact', [ShopifyComplianceWebhookController::class, 'shopRedact'])->name('shopify.webhooks.shop.redact');
-
 });
 
 
