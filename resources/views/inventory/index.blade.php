@@ -790,7 +790,7 @@
                 </div>
             @else
                 <div class="table-responsive">
-                    <table class="saas-table" id="mappedTable" style="width: 100%;">
+                    <table class="saas-table" style="width: 100%;">
                         <thead>
                             <tr>
                                 <th>Shopify Product</th>
@@ -1076,11 +1076,6 @@
                         mapping.shopify_variant_id :
                         null;
                 });
-            }
-
-            // Also update the Mapped Products DataTable if present
-            if (typeof renderMappedFromMappings === 'function') {
-                renderMappedFromMappings(mappings || []);
             }
         });
     }
@@ -1793,85 +1788,6 @@
                                 sendInventoryUpdate(1);
                                 return;
                             }
-
-                        // ==========================================
-                        // Mapped Products DataTable
-                        // ==========================================
-
-                        let dtMapped = null;
-
-                        function initMappedTable() {
-                            if (!document.querySelector('#mappedTable')) return;
-                            if ($.fn.DataTable.isDataTable('#mappedTable')) {
-                                dtMapped = $('#mappedTable').DataTable();
-                                return;
-                            }
-
-                            dtMapped = $('#mappedTable').DataTable({
-                                pageLength: 10,
-                                ordering: true,
-                                dom: 'rt<"saas-pagination-wrapper"ip>',
-                                language: { emptyTable: "No matching records found" },
-                                columns: [
-                                    {
-                                        data: 'shopify_product_title',
-                                        render: function(data, type, row) {
-                                            if (type === 'sort' || type === 'filter') return (row.shopify_product_title || '') + ' ' + (row.shopify_variant_id || '');
-                                            const title = row.shopify_product_title || ('Shopify Product #' + (row.shopify_product_id || ''));
-                                            if (row.shopify_product_link) {
-                                                return `<a href="${row.shopify_product_link}" class="fw-semibold text-dark text-decoration-none" title="View Shopify product">${title}</a><small class="text-muted d-block">Product ID: ${row.shopify_product_id || '—'}</small>`;
-                                            }
-                                            return `<div class="fw-semibold text-dark">${title}</div><small class="text-muted d-block">Product ID: ${row.shopify_product_id || '—'}</small>`;
-                                        }
-                                    },
-                                    { data: 'shopify_variant_id', render: function(d){ return d || '—'; } },
-                                    {
-                                        data: 'amazon_sku',
-                                        render: function(data, type) {
-                                            if (type === 'sort' || type === 'filter') return data || '';
-                                            if (data) {
-                                                const url = "{{ route('user.product.amazonView', ['sku' => '__SKU__']) }}".replace('__SKU__', encodeURIComponent(data));
-                                                return `<a href="${url}" class="text-dark fw-semibold text-decoration-none">${data}</a>`;
-                                            }
-                                            return `<span class="text-muted">—</span>`;
-                                        }
-                                    },
-                                    { data: 'sync_status', render: function(d){ return badge(d, 'mapped'); } },
-                                    { data: 'last_synced_at', render: function(d){ return d ? d : '—'; } },
-                                    { data: 'id', orderable: false, className: 'text-end', render: function(d){ return `<button class="btn btn-danger btn-sm unmap-product" data-mapping-id="${d}" title="Unmap Product" data-bs-toggle="tooltip" data-bs-placement="top"><i class="bi bi-link"></i></button>`; } }
-                                ],
-                                drawCallback: function() {
-                                    initTooltips();
-                                }
-                            });
-                        }
-
-                        function renderMappedFromMappings(mappings) {
-                            if (!Array.isArray(mappings)) mappings = [];
-
-                            const rows = mappings.filter(m => m.amazon_sku).map(m => {
-                                const shopifyProductId = m.shopify_product_id ?? m.product_id ?? null;
-                                const shopifyProductLink = shopifyProductId ? "{{ route('shopify.product.view', ['id' => '__ID__', 'shop' => request('shop') ?? session('active_shop')]) }}".replace('__ID__', encodeURIComponent(shopifyProductId)) : null;
-
-                                return {
-                                    shopify_product_title: m.shopify_product_title || ('Shopify Product #' + (shopifyProductId || '')),
-                                    shopify_product_id: shopifyProductId,
-                                    shopify_product_link: shopifyProductLink,
-                                    shopify_variant_id: m.shopify_variant_id || '—',
-                                    amazon_sku: m.amazon_sku || '',
-                                    sync_status: m.sync_status || 'active',
-                                    last_synced_at: m.last_synced_at ? m.last_synced_at : (m.last_synced_at_formatted || null),
-                                    id: m.id
-                                };
-                            });
-
-                            // Initialize table if not already
-                            initMappedTable();
-
-                            if (dtMapped) {
-                                dtMapped.clear().rows.add(rows).draw();
-                            }
-                        }
                         } catch (tokenErr) {
                             console.warn('App Bridge token retrieval failed on 401 retry:', tokenErr);
                         }
@@ -1894,7 +1810,7 @@
         sendInventoryUpdate(0);
     });
 
-initMappedTable();
+
     // ==========================================
     // Modals & Mappings Logic
     // ==========================================
