@@ -13,10 +13,10 @@ class VerifyShopifySession
 {
     public function handle(Request $request, Closure $next)
     {
-        DB::enableQueryLog(); // Enable query logging for debugging
+        DB::enableQueryLog(); 
         $apikey = DB::table('admin_settings')->where('option_key', 'SHOPIFY_API_KEY')->first()->option_value; // Example query to log
         $apisecret = DB::table('admin_settings')->where('option_key', 'SHOPIFY_API_SECRET')->first()->option_value; // Example query to log
-        $queries = DB::getQueryLog(); // Get the logged queries
+        $queries = DB::getQueryLog(); 
 
         $apikey = Crypt::decryptString($apikey);
         $apisecret = Crypt::decryptString($apisecret);
@@ -38,7 +38,6 @@ class VerifyShopifySession
         }
 
         if (!$result->ok) {
-            // Returns clean JSON, not a redirect — this is the fix for your loop
             return $next($request);
         }
         $idToken = $result->idToken; 
@@ -56,7 +55,7 @@ class VerifyShopifySession
         $request->attributes->set('shopify_shop', $result->shop);
         $request->attributes->set('shopify_result', $result);
 
-        return redirect()->route('dashboard', ['shop' => $shop->shop ])->with('success', 'Welcome '. $shop->shop . '! Please complete the setup process.');
+        return redirect()->route('dashboard', ['shop' => $shop->shop ])->with('success', 'Welcome '. $shop->shop . '.');
 
         // return $next($request);
     }
