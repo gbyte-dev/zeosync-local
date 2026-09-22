@@ -69,6 +69,7 @@ Route::middleware([ResolveActiveShop::class, \App\Http\Middleware\CheckSubscript
 
 Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware('shopify.session');
+    Route::get('/dashboard/top-selling-products', [DashboardController::class, 'topSellingProducts'])->name('dashboard.top-selling');
     Route::get('/products', [ShopifyController::class, 'products'])->name('shopify.products');
     Route::post('/createProduct', [ShopifyController::class, 'createProduct'])->name('shopify.product.create.post');
     // Route::get('/editProduct/{id}', [ShopifyController::class, 'editProduct'])->name('shopify.product.edit');

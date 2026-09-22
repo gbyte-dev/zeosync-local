@@ -97,53 +97,9 @@ class DashboardController extends ShopifyController
         if (class_exists(SyncLog::class)) {
             $recentLogs = SyncLog::where('shop_id', $shopId)->latest()->take(8)->get();
         }
-        $getTopSelling = function ($sinceDate, $cacheSuffix) use ($shopId, $cacheTtl) {
-            return Cache::remember(
-                "shop_{$shopId}_top_selling_{$cacheSuffix}",
-                $cacheTtl,
-                function () use ($shopId, $sinceDate) {
-                    $query = ShopifyOrder::where('shop_id', $shopId);
-                    if ($sinceDate !== null) {
-                        $query->where(function ($q) use ($sinceDate) {
-                            $q->where('order_created_at', '>=', $sinceDate)
-                              ->orWhere('created_at', '>=', $sinceDate);
-                        });
-                    }
-
-                    $orders = $query->get();
-
-                    return $orders->flatMap(function ($order) {
-                            $items = is_array($order->line_items)
-                                ? $order->line_items
-                                : json_decode($order->line_items, true);
-
-                            return is_array($items) ? $items : [];
-                        })
-                        ->filter(function ($item) {
-                            return !empty($item['title']) || !empty($item['name']) || !empty($item['product_id']);
-                        })
-                        ->groupBy(function ($item) {
-                            return $item['product_id'] ?? $item['variant_id'] ?? $item['title'] ?? $item['name'] ?? 'item';
-                        })
-                        ->map(function ($items) {
-                            $first = $items->first();
-                            return [
-                                'title' => $first['title'] ?? $first['name'] ?? 'Unknown Product',
-                                'quantity' => collect($items)->sum(fn($item) => (int)($item['quantity'] ?? 1)),
-                                'amount' => collect($items)->sum(function ($item) {
-                                    return (float)($item['price'] ?? 0) * (int)($item['quantity'] ?? 1);
-                                }),
-                            ];
-                        })
-                        ->sortByDesc('quantity')
-                        ->take(5)
-                        ->values();
-                }
-            );
-        };
-
-        $topSelling24h = $getTopSelling(now()->subHours(24), '24h');
-        $topSelling7d = $getTopSelling(now()->subDays(7), '7d');
+        // 4. Top Selling Products (Direct database query from shopify_orders without cache)
+        $topSelling24h = $this->queryTopSellingProducts($shopId, '24h');
+        $topSelling7d = $this->queryTopSellingProducts($shopId, '7d');
 
         $topSelling24hLabels = $topSelling24h->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 15))->values();
         $topSelling24hData = $topSelling24h->pluck('quantity')->values();
@@ -151,10 +107,10 @@ class DashboardController extends ShopifyController
         $topSelling7dLabels = $topSelling7d->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 15))->values();
         $topSelling7dData = $topSelling7d->pluck('quantity')->values();
 
-        $initialTimeframe = $topSelling24h->isNotEmpty() ? '24h' : ($topSelling7d->isNotEmpty() ? '7d' : '24h');
-        $topSellingProducts = $initialTimeframe === '24h' ? $topSelling24h : $topSelling7d;
-        $topSellingChartLabels = $topSellingProducts->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 15))->values();
-        $topSellingChartData = $topSellingProducts->pluck('quantity')->values();
+        $initialTimeframe = '24h';
+        $topSellingProducts = $topSelling24h;
+        $topSellingChartLabels = $topSelling24hLabels;
+        $topSellingChartData = $topSelling24hData;
 
         $lowInventoryProducts = collect($inventory)
             ->map(function ($item) {
@@ -190,6 +146,84 @@ class DashboardController extends ShopifyController
             'lowInventoryProducts',  'amazonLowInventoryProducts',
             'amazonInventoryCacheExists' ,'shop'
         ));
+    }
+
+    /**
+     * Authenticated endpoint to fetch fresh Top Selling Products directly from shopify_orders without cache.
+     */
+    public function topSellingProducts(Request $request)
+    {
+        $shop = $this->getActiveShop($request);
+
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Active shop not found.',
+            ], 403);
+        }
+
+        $period = $request->query('period', '24h');
+        if (!in_array($period, ['24h', '7d'], true)) {
+            $period = '24h';
+        }
+
+        $products = $this->queryTopSellingProducts((int) $shop->id, $period);
+
+        $labels = $products->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 15))->values();
+        $data = $products->pluck('quantity')->values();
+
+        return response()->json([
+            'success' => true,
+            'period' => $period,
+            'labels' => $labels,
+            'data' => $data,
+            'products' => $products,
+        ]);
+    }
+
+    /**
+     * Query top selling products directly from shopify_orders for the given shop_id and timeframe.
+     */
+    protected function queryTopSellingProducts(int $shopId, string $period = '24h'): Collection
+    {
+        $sinceDate = match ($period) {
+            '7d' => now()->subDays(7),
+            default => now()->subHours(24),
+        };
+
+        $orders = ShopifyOrder::where('shop_id', $shopId)
+            ->where(function ($q) use ($sinceDate) {
+                $q->where('order_created_at', '>=', $sinceDate)
+                  ->orWhere('created_at', '>=', $sinceDate);
+            })
+            ->get();
+
+        return $orders->flatMap(function ($order) {
+                $items = is_array($order->line_items)
+                    ? $order->line_items
+                    : json_decode($order->line_items, true);
+
+                return is_array($items) ? $items : [];
+            })
+            ->filter(function ($item) {
+                return !empty($item['title']) || !empty($item['name']) || !empty($item['product_id']);
+            })
+            ->groupBy(function ($item) {
+                return $item['product_id'] ?? $item['variant_id'] ?? $item['title'] ?? $item['name'] ?? 'item';
+            })
+            ->map(function ($items) {
+                $first = $items->first();
+                return [
+                    'title' => $first['title'] ?? $first['name'] ?? 'Unknown Product',
+                    'quantity' => collect($items)->sum(fn($item) => (int)($item['quantity'] ?? 1)),
+                    'amount' => collect($items)->sum(function ($item) {
+                        return (float)($item['price'] ?? 0) * (int)($item['quantity'] ?? 1);
+                    }),
+                ];
+            })
+            ->sortByDesc('quantity')
+            ->take(5)
+            ->values();
     }
 
     public function lowInventory(Request $request)

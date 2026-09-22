@@ -1226,7 +1226,7 @@ document.addEventListener("DOMContentLoaded", function() {
         loadAmazonInventory();
     }
 
-    // --- 2. Top Selling Products (Chart.js with 24h / 7d filter) ---
+    // --- 2. Top Selling Products (Chart.js with dynamic fresh query and 30s polling) ---
     const topSellingCanvas = document.getElementById('topSellingProductsChart');
     const chartContainerEl = document.getElementById('shopifyTopSellingChartContainer');
     const emptyStateEl = document.getElementById('shopifyTopSellingEmptyState');
@@ -1234,36 +1234,23 @@ document.addEventListener("DOMContentLoaded", function() {
     const subtitleEl = document.getElementById('shopifyTopSellingSubtitle');
     const emptyDescEl = document.getElementById('shopifyTopSellingEmptyDesc');
 
-    const datasets = {
-        '24h': {
-            labels: @json($topSelling24hLabels ?? []),
-            data: @json($topSelling24hData ?? []),
-            name: 'Last 24 Hours'
-        },
-        '7d': {
-            labels: @json($topSelling7dLabels ?? []),
-            data: @json($topSelling7dData ?? []),
-            name: 'Last 7 Days'
-        }
-    };
-
     let activePeriod = "{{ $initialTimeframe ?? '24h' }}";
     let topSellingChart = null;
+    let isFetchingTopSelling = false;
+    const topSellingApiUrl = "{{ route('dashboard.top-selling', [], false) }}";
+    const currentShopParam = "{{ $shop->shop ?? '' }}";
 
-    function renderTopSellingPeriod(period) {
-        activePeriod = period;
-        const config = datasets[period] || datasets['24h'];
+    function updateTopSellingUI(period, labels, data) {
+        const periodName = period === '7d' ? 'Last 7 Days' : 'Last 24 Hours';
+        if (selectedTextEl) selectedTextEl.textContent = periodName;
+        if (subtitleEl) subtitleEl.textContent = periodName;
 
-        if (selectedTextEl) selectedTextEl.textContent = config.name;
-        if (subtitleEl) subtitleEl.textContent = config.name;
-
-        // Update active dropdown item
         const item24h = document.getElementById('shopifyFilter24h');
         const item7d = document.getElementById('shopifyFilter7d');
         if (item24h) item24h.classList.toggle('active', period === '24h');
         if (item7d) item7d.classList.toggle('active', period === '7d');
 
-        const hasData = Array.isArray(config.data) && config.data.length > 0 && config.data.some(val => Number(val) > 0);
+        const hasData = Array.isArray(data) && data.length > 0 && data.some(val => Number(val) > 0);
 
         if (hasData) {
             if (chartContainerEl) chartContainerEl.style.display = 'block';
@@ -1271,18 +1258,18 @@ document.addEventListener("DOMContentLoaded", function() {
 
             if (topSellingCanvas && typeof Chart !== 'undefined') {
                 if (topSellingChart) {
-                    topSellingChart.data.labels = config.labels;
-                    topSellingChart.data.datasets[0].data = config.data;
+                    topSellingChart.data.labels = labels;
+                    topSellingChart.data.datasets[0].data = data;
                     topSellingChart.update();
                 } else {
                     const ctx = topSellingCanvas.getContext('2d');
                     topSellingChart = new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: config.labels,
+                            labels: labels,
                             datasets: [{
                                 label: 'Units Sold',
-                                data: config.data,
+                                data: data,
                                 backgroundColor: '#2563EB',
                                 borderRadius: 6,
                                 borderSkipped: false,
@@ -1324,27 +1311,75 @@ document.addEventListener("DOMContentLoaded", function() {
             if (chartContainerEl) chartContainerEl.style.display = 'none';
             if (emptyStateEl) emptyStateEl.style.display = 'flex';
             if (emptyDescEl) {
-                emptyDescEl.innerHTML = `Your top-selling products will appear here<br>once you receive orders in the ${config.name.toLowerCase()}.`;
+                emptyDescEl.innerHTML = `Your top-selling products will appear here<br>once you receive orders in the ${periodName.toLowerCase()}.`;
             }
         }
     }
 
+    async function fetchTopSellingProducts(period) {
+        if (isFetchingTopSelling) return;
+        isFetchingTopSelling = true;
+
+        try {
+            const url = new URL(topSellingApiUrl, window.location.origin);
+            url.searchParams.set('period', period);
+            if (currentShopParam) {
+                url.searchParams.set('shop', currentShopParam);
+            }
+
+            const response = await fetch(url.toString(), {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) {
+                console.warn('Top selling products fetch returned non-ok status:', response.status);
+                return;
+            }
+
+            const result = await response.json();
+            if (result && result.success && activePeriod === period) {
+                updateTopSellingUI(period, result.labels || [], result.data || []);
+            }
+        } catch (error) {
+            console.warn('Top selling products refresh error:', error);
+        } finally {
+            isFetchingTopSelling = false;
+        }
+    }
+
+    // Initial render with server-rendered non-cached data
+    updateTopSellingUI(activePeriod, @json($topSelling24hLabels ?? []), @json($topSelling24hData ?? []));
+
+    // Dropdown listeners
     const btn24h = document.getElementById('shopifyFilter24h');
     const btn7d = document.getElementById('shopifyFilter7d');
     if (btn24h) {
         btn24h.addEventListener('click', function(e) {
             e.preventDefault();
-            renderTopSellingPeriod('24h');
+            activePeriod = '24h';
+            fetchTopSellingProducts('24h');
         });
     }
     if (btn7d) {
         btn7d.addEventListener('click', function(e) {
             e.preventDefault();
-            renderTopSellingPeriod('7d');
+            activePeriod = '7d';
+            fetchTopSellingProducts('7d');
         });
     }
 
-    renderTopSellingPeriod(activePeriod);
+    // 30-second live polling interval
+    const topSellingPollingInterval = setInterval(() => {
+        fetchTopSellingProducts(activePeriod);
+    }, 30000);
+
+    window.addEventListener('beforeunload', () => {
+        clearInterval(topSellingPollingInterval);
+    });
 });
 </script>
 @endsection
