@@ -727,11 +727,7 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
             <div class="card-header-clean">
                 <div class="card-header-left">
                     <div class="amazon-header-icon-box">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M13.9 14.3c-.1-.7-.2-1.6-.2-2.6 0-1.9.5-3.3 1.5-4.2 1-.9 2.4-1.4 4.1-1.4.7 0 1.3.1 1.8.2v-.8c0-1.2-.3-2.1-.9-2.7-.6-.6-1.6-.8-3-.8-1 0-1.9.2-2.8.5-.9.3-1.6.8-2.2 1.4l-1.7-2c.8-.8 1.8-1.4 3.1-1.9C14.8.3 16.2.1 17.7.1c2.3 0 4 .6 5.2 1.6 1.2 1.1 1.8 2.7 1.8 4.7v8.8h-3.4v-1.8c-.6.7-1.3 1.2-2.2 1.6-.8.4-1.8.6-2.8.6-1.3 0-2.4-.3-3.2-1-.8-.6-1.3-1.5-1.4-2.7l.2.4zm6.8-4c-.5-.1-1-.2-1.6-.2-1 0-1.8.2-2.4.7-.5.5-.8 1.2-.8 2.2 0 .9.2 1.5.7 2 .5.4 1.1.6 1.9.6.7 0 1.4-.2 1.9-.5.5-.4.9-.8 1.2-1.5.1-.2.1-.5.1-.9v-2.4z" fill="#111827"/>
-                            <path d="M22.9 19.4C19.8 21.7 15.4 22.9 10.7 22.9c-6.2 0-11.8-2.3-16-6.1-.3-.3 0-.8.4-.5 4.6 2.8 10.3 4.5 16.3 4.5 4.1 0 8.2-.9 11.8-2.7.6-.3 1 .4.5.8z" fill="#FF9900"/>
-                            <path d="M24.1 21.3c-.4.6-1.4 1.1-2.1 1.3-.2.1-.4-.1-.3-.3.6-1.3 1.7-2.3 1.7-2.3s.9.4 1.9.8c.2.1.2.4 0 .5h-1.2z" fill="#FF9900"/>
-                        </svg>
+                        <img src="{{ asset('images/amazon-logo.png') }}" alt="Amazon" style="width: 24px; height: 24px; object-fit: contain;">
                     </div>
                     <div>
                         <h3 class="card-title-clean">Amazon Top Selling Products</h3>
@@ -802,11 +798,7 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
             <div class="card-header-clean">
                 <div class="card-header-left">
                     <div class="amazon-header-icon-box">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M13.9 14.3c-.1-.7-.2-1.6-.2-2.6 0-1.9.5-3.3 1.5-4.2 1-.9 2.4-1.4 4.1-1.4.7 0 1.3.1 1.8.2v-.8c0-1.2-.3-2.1-.9-2.7-.6-.6-1.6-.8-3-.8-1 0-1.9.2-2.8.5-.9.3-1.6.8-2.2 1.4l-1.7-2c.8-.8 1.8-1.4 3.1-1.9C14.8.3 16.2.1 17.7.1c2.3 0 4 .6 5.2 1.6 1.2 1.1 1.8 2.7 1.8 4.7v8.8h-3.4v-1.8c-.6.7-1.3 1.2-2.2 1.6-.8.4-1.8.6-2.8.6-1.3 0-2.4-.3-3.2-1-.8-.6-1.3-1.5-1.4-2.7l.2.4zm6.8-4c-.5-.1-1-.2-1.6-.2-1 0-1.8.2-2.4.7-.5.5-.8 1.2-.8 2.2 0 .9.2 1.5.7 2 .5.4 1.1.6 1.9.6.7 0 1.4-.2 1.9-.5.5-.4.9-.8 1.2-1.5.1-.2.1-.5.1-.9v-2.4z" fill="#111827"/>
-                            <path d="M22.9 19.4C19.8 21.7 15.4 22.9 10.7 22.9c-6.2 0-11.8-2.3-16-6.1-.3-.3 0-.8.4-.5 4.6 2.8 10.3 4.5 16.3 4.5 4.1 0 8.2-.9 11.8-2.7.6-.3 1 .4.5.8z" fill="#FF9900"/>
-                            <path d="M24.1 21.3c-.4.6-1.4 1.1-2.1 1.3-.2.1-.4-.1-.3-.3.6-1.3 1.7-2.3 1.7-2.3s.9.4 1.9.8c.2.1.2.4 0 .5h-1.2z" fill="#FF9900"/>
-                        </svg>
+                        <img src="{{ asset('images/amazon-logo.png') }}" alt="Amazon" style="width: 24px; height: 24px; object-fit: contain;">
                     </div>
                     <div>
                         <h3 class="card-title-clean">Amazon Low Inventory</h3>
