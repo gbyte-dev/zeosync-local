@@ -14,9 +14,9 @@ $amazonProductsUrl = route('user.product.showProducts', array_filter(['shop' => 
 $amazonConnectUrl = route('amazon.connect', array_filter(['shop' => $currentShop]));
 
 $isAmazonConnected = !empty($shop->amazon_seller_id);
-$hasShopifyTopSelling = !empty($topSellingProducts) && $topSellingProducts->isNotEmpty() && $topSellingChartData->sum() > 0;
-$hasShopifyLowInventory = !empty($lowInventoryProducts) && $lowInventoryProducts->isNotEmpty();
-$hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($amazonLowInventoryProducts) ? count($amazonLowInventoryProducts) > 0 : $amazonLowInventoryProducts->isNotEmpty());
+$hasShopifyTopSelling = !empty($topSellingProducts) && (is_countable($topSellingProducts) ? count($topSellingProducts) > 0 : true) && (!empty($topSellingChartData) && (is_countable($topSellingChartData) ? count($topSellingChartData) > 0 : true) && (is_object($topSellingChartData) ? $topSellingChartData->sum() > 0 : array_sum((array)$topSellingChartData) > 0));
+$hasShopifyLowInventory = !empty($lowInventoryProducts) && (is_countable($lowInventoryProducts) ? count($lowInventoryProducts) > 0 : !empty($lowInventoryProducts));
+$hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($amazonLowInventoryProducts) ? count($amazonLowInventoryProducts) > 0 : !empty($amazonLowInventoryProducts));
 @endphp
 @section('content')
 <style nonce="{{ $cspNonce }}">
@@ -223,9 +223,14 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
 
     .header-location-select {
         font-size: 12px;
+        font-weight: 500;
+        color: #374151;
+        background-color: #F9FAFB;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 5px 10px;
         max-width: 180px;
-        border-radius: 6px;
-        border-color: #E5E7EB;
+        cursor: not-allowed;
     }
 
     /* Card Body */
@@ -645,23 +650,25 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                     $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
                         ? (int) $shop->selected_location_index : 0;
                 @endphp
-                @if(!empty($locations) && count($locations) > 1)
-                <div>
-                    <select name="selected_location_index" class="form-select form-select-sm header-location-select" id="locationSelect" disabled="true" title="Update location from settings">
-                        @foreach($locations as $index => $location)
-                        <option value="{{ $index }}" {{ (string) old('selected_location_index', $selectedIndex) === (string) $index ? 'selected' : '' }}>
-                            {{ $location['name'] ?? 'Unnamed Location' }}
-                        </option>
-                        @endforeach
+                <div class="header-location-wrapper">
+                    <select name="selected_location_index" class="form-select form-select-sm header-location-select" id="locationSelect" disabled title="Selected location configured in Settings">
+                        @if(!empty($locations))
+                            @foreach($locations as $index => $location)
+                            <option value="{{ $index }}" {{ (string) old('selected_location_index', $selectedIndex) === (string) $index ? 'selected' : '' }}>
+                                {{ $location['name'] ?? 'Unnamed Location' }}
+                            </option>
+                            @endforeach
+                        @else
+                            <option value="0" selected>Default Location</option>
+                        @endif
                     </select>
                 </div>
-                @endif
             </div>
 
             <!-- Body -->
             <div class="card-body-clean">
                 @if($hasShopifyLowInventory)
-                <div class="card-body-content overflow-auto" style="max-height: 240px;">
+                <div class="card-body-content overflow-auto" style="max-height: 240px; width: 100%;">
                     <table class="saas-table low-inventory-table">
                         <thead>
                             <tr>
@@ -672,15 +679,19 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                         </thead>
                         <tbody>
                             @foreach($lowInventoryProducts as $product)
+                            @php
+                                $productTitle = is_object($product) ? ($product->product ?? $product->title ?? 'Product') : ($product['product'] ?? $product['title'] ?? 'Product');
+                                $productSku = is_object($product) ? ($product->sku ?? '-') : ($product['sku'] ?? '-');
+                                $qty = is_object($product) ? ($product->available ?? $product->qty ?? $product->quantity ?? null) : ($product['available'] ?? $product['qty'] ?? $product['quantity'] ?? null);
+                            @endphp
                             <tr>
-                                <td class="product-name" title="{{ $product['product'] }}">
-                                    {{ $product['product'] }}
+                                <td class="product-name" title="{{ $productTitle }}">
+                                    {{ $productTitle }}
                                 </td>
-                                <td>{{ $product['sku'] ?? '-' }}</td>
+                                <td>{{ $productSku }}</td>
                                 <td class="text-end">
-                                    @php $qty = $product['available'] ?? null; @endphp
                                     @if($qty !== null)
-                                    <span class="saas-badge {{ $qty <= 3 ? 'saas-badge-danger' : ($qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral') }}">
+                                    <span class="saas-badge {{ (int)$qty <= 3 ? 'saas-badge-danger' : ((int)$qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral') }}">
                                         {{ $qty }}
                                     </span>
                                     @else
