@@ -815,6 +815,7 @@
             }
         });
     </script>
+    @include('components.ai-support-robot')
 </body>
 
 </html>
