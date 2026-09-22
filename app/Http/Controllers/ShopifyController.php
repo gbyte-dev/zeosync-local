@@ -524,6 +524,7 @@ class ShopifyController extends Controller
             $this->shopifyWebhook->ensureOrdersCreateWebhook($shopModel);
             $this->shopifyWebhook->ensureOrdersUpdateWebhook($shopModel);
             $this->shopifyWebhook->ensureAppUninstalledWebhook($shopModel);
+            $this->shopifyWebhook->ensureProductsDeleteWebhook($shopModel);
         } catch (\Exception $e) {
             Log::error('WEBHOOK FAILED', [
                 'error' => $e->getMessage()
@@ -1360,6 +1361,69 @@ class ShopifyController extends Controller
         return response()->json([
             'success' => true,
             'deleted_rows' => $deleted,
+        ], 200);
+    }
+
+    /**
+     * products/delete — product deleted directly from Shopify Admin.
+     * Validates HMAC, resolves shop tenant from X-Shopify-Shop-Domain,
+     * invalidates ONLY that shop's Shopify inventory cache, and returns HTTP 200.
+     */
+    public function handleProductsDeleteWebhook(Request $request)
+    {
+        $payload = $request->getContent();
+        $shopDomain = strtolower(
+            trim((string) $request->header('X-Shopify-Shop-Domain', ''))
+        );
+        $webhookId = (string) ($request->header('X-Shopify-Webhook-Id') ?: $request->header('X-Shopify-Event-Id') ?: '');
+
+        if ($shopDomain === '') {
+            Log::warning('Shopify products/delete webhook rejected: missing shop domain header.', [
+                'webhook_id' => $webhookId,
+            ]);
+            return response('No shop domain', 400);
+        }
+
+        if (!$this->shopifyWebhook->isValidWebhook(
+            $payload,
+            $request->header('X-Shopify-Hmac-Sha256')
+        )) {
+            Log::warning(
+                'Rejected Shopify products/delete webhook because HMAC validation failed.',
+                [
+                    'shop' => $shopDomain,
+                    'webhook_id' => $webhookId,
+                ]
+            );
+
+            return response('Invalid webhook signature', 401);
+        }
+
+        $shopModel = $this->findShopByIdentifier($shopDomain);
+
+        if (!$shopModel) {
+            Log::warning('Shopify products/delete webhook shop not found.', [
+                'shop_domain' => $shopDomain,
+                'webhook_id' => $webhookId,
+            ]);
+
+            return response('Shop not found', 200);
+        }
+
+        $data = json_decode($payload, true);
+        $productId = is_array($data) ? ($data['id'] ?? null) : null;
+
+        app(\App\Services\ShopifyInventoryService::class)->invalidate($shopModel);
+
+        Log::info('Shopify products/delete webhook received and inventory cache invalidated.', [
+            'shop_id' => $shopModel->id,
+            'shop_domain' => $shopDomain,
+            'webhook_id' => $webhookId,
+            'product_id' => $productId,
+        ]);
+
+        return response()->json([
+            'success' => true,
         ], 200);
     }
 

@@ -165,6 +165,7 @@ Route::withoutMiddleware([VerifyCsrfToken::class,])->group(function () {
     Route::post('webhooks/shopify/orders/deleted', [ShopifyController::class, 'handleOrdersDeleteWebhook'])->name('shopify.webhooks.orders.deleted');
     Route::post('webhooks/shopify/orders/update', [ ShopifyController::class, 'handleOrdersUpdateWebhook'])->name('shopify.webhooks.orders.update');
     Route::post('webhooks/shopify/orders/delete', [ ShopifyController::class, 'handleOrdersDeleteWebhook'])->name('shopify.webhooks.orders.delete');
+    Route::post('webhooks/shopify/products/delete', [ShopifyController::class, 'handleProductsDeleteWebhook'])->name('shopify.webhooks.products.delete');
     Route::post('webhooks/shopify/returns/create', [ShopifyController::class, 'returnCreate'])->name('shopify.webhooks.returns.create');
     Route::post('webhooks/shopify/returns/update', [ShopifyController::class, 'returnUpdate'])->name('shopify.webhooks.returns.update');
     Route::post('customers/data_request', [ShopifyComplianceWebhookController::class, 'customersDataRequest'])->name('shopify.webhooks.customers.data_request');

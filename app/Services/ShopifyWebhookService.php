@@ -20,6 +20,12 @@ class ShopifyWebhookService
             . route('shopify.webhooks.orders.update', [], false);
     }
 
+    public function buildProductsDeleteWebhookUrl(): string
+    {
+        return rtrim($this->publicAppUrl(), '/')
+            . route('shopify.webhooks.products.delete', [], false);
+    }
+
     public function buildAppUninstalledWebhookUrl(): string
     {
         $url = rtrim($this->publicAppUrl(), '/')
@@ -165,6 +171,74 @@ GRAPHQL,
         );
     }
 
+    public function ensureProductsDeleteWebhook(Shop $shop): void
+    {
+        $targetUrl = $this->buildProductsDeleteWebhookUrl();
+
+        \Log::info('SHOPIFY WEBHOOK: ensureProductsDeleteWebhook attempted', [
+            'shop' => $shop->shop,
+            'target_url' => $targetUrl,
+        ]);
+
+        $existingWebhook = $this->findProductsDeleteWebhook($shop, $targetUrl);
+
+        if ($existingWebhook) {
+            \Log::info('SHOPIFY WEBHOOK: PRODUCTS_DELETE webhook already exists', [
+                'shop' => $shop->shop,
+                'target_url' => $targetUrl,
+                'webhook_id' => data_get($existingWebhook, 'id'),
+            ]);
+            return;
+        }
+
+        $response = $this->graphQl(
+            $shop,
+            <<<'GRAPHQL'
+mutation WebhookSubscriptionCreate($topic: WebhookSubscriptionTopic!, $webhookSubscription: WebhookSubscriptionInput!) {
+  webhookSubscriptionCreate(topic: $topic, webhookSubscription: $webhookSubscription) {
+    webhookSubscription {
+      id
+      topic
+    }
+    userErrors {
+      field
+      message
+    }
+  }
+}
+GRAPHQL,
+            [
+                'topic' => 'PRODUCTS_DELETE',
+                'webhookSubscription' => [
+                    'callbackUrl' => $targetUrl,
+                ],
+            ]
+        );
+
+        $errors = data_get($response, 'data.webhookSubscriptionCreate.userErrors', []);
+
+        if (!empty($errors)) {
+            $message = collect($errors)->pluck('message')->filter()->implode(' ');
+
+            \Log::error('SHOPIFY WEBHOOK: PRODUCTS_DELETE webhook registration failed with userErrors', [
+                'shop' => $shop->shop,
+                'errors' => $errors,
+            ]);
+
+            throw new RuntimeException(
+                $message !== ''
+                    ? $message
+                    : 'Unable to create Shopify products delete webhook subscription.'
+            );
+        }
+
+        \Log::info('SHOPIFY WEBHOOK: PRODUCTS_DELETE webhook successfully registered', [
+            'shop' => $shop->shop,
+            'target_url' => $targetUrl,
+            'subscription' => data_get($response, 'data.webhookSubscriptionCreate.webhookSubscription'),
+        ]);
+    }
+
     public function isValidWebhook(string $payload, ?string $hmacHeader): bool
     {
         $hmacHeader = trim((string) $hmacHeader);
@@ -223,6 +297,37 @@ GRAPHQL
             <<<'GRAPHQL'
 query OrdersUpdateWebhooks {
   webhookSubscriptions(first: 20, topics: [ORDERS_UPDATED]) {
+    edges {
+      node {
+        id
+        topic
+        endpoint {
+          __typename
+          ... on WebhookHttpEndpoint {
+            callbackUrl
+          }
+        }
+      }
+    }
+  }
+}
+GRAPHQL
+        );
+
+        return collect(data_get($response, 'data.webhookSubscriptions.edges', []))
+            ->pluck('node')
+            ->first(function ($webhook) use ($targetUrl) {
+                return data_get($webhook, 'endpoint.callbackUrl') === $targetUrl;
+            });
+    }
+
+    private function findProductsDeleteWebhook(Shop $shop, string $targetUrl): ?array
+    {
+        $response = $this->graphQl(
+            $shop,
+            <<<'GRAPHQL'
+query ProductsDeleteWebhooks {
+  webhookSubscriptions(first: 20, topics: [PRODUCTS_DELETE]) {
     edges {
       node {
         id
