@@ -396,21 +396,7 @@ class ShopifyInventoryService
 
     public function invalidate(Shop $shop): void
     {
-        $locations = $shop->shopify_locations ?? [];
-        $effectiveIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
-            ? (int) $shop->selected_location_index
-            : 0;
-
-        Cache::forget("shopify_inventory_{$shop->shop}_location_{$effectiveIndex}");
-        Cache::forget("shopify_inventory_{$shop->shop}_location_0");
-        if (isset($shop->selected_location_index)) {
-            Cache::forget("shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}");
-        }
-        if (is_array($locations)) {
-            foreach (array_keys($locations) as $idx) {
-                Cache::forget("shopify_inventory_{$shop->shop}_location_{$idx}");
-            }
-        }
+        Cache::forget("shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}");
         if (! empty($shop->selected_location_id)) {
             Cache::forget('shopify_inventory_'.$shop->id.'_location_'.$shop->selected_location_id);
         }
