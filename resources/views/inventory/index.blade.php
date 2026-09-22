@@ -1894,7 +1894,7 @@
         sendInventoryUpdate(0);
     });
 
-
+initMappedTable();
     // ==========================================
     // Modals & Mappings Logic
     // ==========================================
