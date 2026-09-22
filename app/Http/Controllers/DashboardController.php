@@ -97,47 +97,81 @@ class DashboardController extends ShopifyController
         if (class_exists(SyncLog::class)) {
             $recentLogs = SyncLog::where('shop_id', $shopId)->latest()->take(8)->get();
         }
-        $topSellingProducts = Cache::remember(
-            "shop_{$shopId}_top_selling_products",
-            $cacheTtl,
-            function () use ($shopId) {
-                return ShopifyOrder::where('shop_id', $shopId)
-                    ->where('order_created_at', '>=', now()->subDay())
-                    ->get()
-                    ->flatMap(function ($order) {
-                        $items = is_array($order->line_items)
-                            ? $order->line_items
-                            : json_decode($order->line_items, true);
+        $getTopSelling = function ($sinceDate, $cacheSuffix) use ($shopId, $cacheTtl) {
+            return Cache::remember(
+                "shop_{$shopId}_top_selling_{$cacheSuffix}",
+                $cacheTtl,
+                function () use ($shopId, $sinceDate) {
+                    $query = ShopifyOrder::where('shop_id', $shopId);
+                    if ($sinceDate !== null) {
+                        $query->where(function ($q) use ($sinceDate) {
+                            $q->where('order_created_at', '>=', $sinceDate)
+                              ->orWhere('created_at', '>=', $sinceDate);
+                        });
+                    }
 
-                        return is_array($items) ? $items : [];
-                    })
-                    ->groupBy('product_id')
-                    ->map(function ($items) {
-                        return [
-                            'title' => $items->first()['title'] ?? 'Unknown Product',
-                            'quantity' => collect($items)->sum('quantity'),
-                            'amount' => collect($items)->sum(function ($item) {
-                                return ($item['price'] ?? 0) * ($item['quantity'] ?? 0);
-                            }),
-                        ];
-                    })
-                    ->sortByDesc('quantity')
-                    ->take(5)
-                    ->values();
-            }
-        );
+                    $orders = $query->get();
 
-        $topSellingChartLabels = $topSellingProducts
-            ->pluck('title')
-            ->map(fn($title) => \Illuminate\Support\Str::limit($title, 15))
-            ->values();
+                    return $orders->flatMap(function ($order) {
+                            $items = is_array($order->line_items)
+                                ? $order->line_items
+                                : json_decode($order->line_items, true);
 
+                            return is_array($items) ? $items : [];
+                        })
+                        ->filter(function ($item) {
+                            return !empty($item['title']) || !empty($item['name']) || !empty($item['product_id']);
+                        })
+                        ->groupBy(function ($item) {
+                            return $item['product_id'] ?? $item['variant_id'] ?? $item['title'] ?? $item['name'] ?? 'item';
+                        })
+                        ->map(function ($items) {
+                            $first = $items->first();
+                            return [
+                                'title' => $first['title'] ?? $first['name'] ?? 'Unknown Product',
+                                'quantity' => collect($items)->sum(fn($item) => (int)($item['quantity'] ?? 1)),
+                                'amount' => collect($items)->sum(function ($item) {
+                                    return (float)($item['price'] ?? 0) * (int)($item['quantity'] ?? 1);
+                                }),
+                            ];
+                        })
+                        ->sortByDesc('quantity')
+                        ->take(5)
+                        ->values();
+                }
+            );
+        };
+
+        $topSelling24h = $getTopSelling(now()->subHours(24), '24h');
+        $topSelling7d = $getTopSelling(now()->subDays(7), '7d');
+
+        $topSelling24hLabels = $topSelling24h->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 15))->values();
+        $topSelling24hData = $topSelling24h->pluck('quantity')->values();
+
+        $topSelling7dLabels = $topSelling7d->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 15))->values();
+        $topSelling7dData = $topSelling7d->pluck('quantity')->values();
+
+        $initialTimeframe = $topSelling24h->isNotEmpty() ? '24h' : ($topSelling7d->isNotEmpty() ? '7d' : '24h');
+        $topSellingProducts = $initialTimeframe === '24h' ? $topSelling24h : $topSelling7d;
+        $topSellingChartLabels = $topSellingProducts->pluck('title')->map(fn($t) => \Illuminate\Support\Str::limit($t, 15))->values();
         $topSellingChartData = $topSellingProducts->pluck('quantity')->values();
 
         $lowInventoryProducts = collect($inventory)
+            ->map(function ($item) {
+                if (!isset($item['available']) || $item['available'] === null) {
+                    $item['available'] = $item['qty'] ?? 0;
+                }
+                return $item;
+            })
             ->filter(function ($item) {
-                return isset($item['available']) && $item['available'] !== null && $item['available'] < 10;
-            })->sortBy('available')->take(7)->values();
+                $avail = $item['available'] ?? $item['qty'] ?? null;
+                return $avail !== null && (int)$avail < 10;
+            })
+            ->sortBy(function ($item) {
+                return (int)($item['available'] ?? $item['qty'] ?? 0);
+            })
+            ->take(7)
+            ->values();
 
         $amazonLowInventoryProducts = collect($amazonInventory)
             ->filter(function ($item) {
@@ -151,7 +185,9 @@ class DashboardController extends ShopifyController
         return view('dashboard', compact( 'totalProducts','totalMapped',
             'totalOrders','isShopConnected','ordersTimeline','productTrend',
             'recentLogs', 'topSellingProducts', 'topSellingChartLabels',
-            'topSellingChartData','lowInventoryProducts',  'amazonLowInventoryProducts',
+            'topSellingChartData', 'topSelling24hLabels', 'topSelling24hData',
+            'topSelling7dLabels', 'topSelling7dData', 'initialTimeframe',
+            'lowInventoryProducts',  'amazonLowInventoryProducts',
             'amazonInventoryCacheExists' ,'shop'
         ));
     }

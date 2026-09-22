@@ -1,5 +1,6 @@
 @extends('layouts.app')
 
+@push('css')
 <style nonce="{{ $cspNonce }}">
     /* Global Clean SaaS Environment - Tighter Density */
     body {

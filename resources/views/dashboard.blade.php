@@ -11,6 +11,7 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
 ]));
 $shopifyProductsUrl = route('shopify.products', array_filter(['shop' => $currentShop]));
 $amazonProductsUrl = route('user.product.showProducts', array_filter(['shop' => $currentShop]));
+$amazonLowInventoryUrl = route('view-all-amazon-low-inventory', array_filter(['shop' => $currentShop]));
 $amazonConnectUrl = route('amazon.connect', array_filter(['shop' => $currentShop]));
 
 $isAmazonConnected = !empty($shop->amazon_seller_id);
@@ -580,27 +581,26 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                     </div>
                     <div>
                         <h3 class="card-title-clean">Top Selling Products</h3>
-                        <p class="card-subtitle-clean">Last 24 Hours</p>
+                        <p class="card-subtitle-clean" id="shopifyTopSellingSubtitle">{{ ($initialTimeframe ?? '24h') === '7d' ? 'Last 7 Days' : 'Last 24 Hours' }}</p>
                     </div>
                 </div>
                 <div class="dropdown">
-                    <button class="header-time-pill dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <span>Last 24 Hours</span>
+                    <button class="header-time-pill dropdown-toggle" type="button" id="shopifyTopSellingDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span id="shopifyTopSellingSelectedText">{{ ($initialTimeframe ?? '24h') === '7d' ? 'Last 7 Days' : 'Last 24 Hours' }}</span>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                        <li><a class="dropdown-item active" href="javascript:void(0)">Last 24 Hours</a></li>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="shopifyTopSellingDropdownBtn">
+                        <li><a class="dropdown-item {{ ($initialTimeframe ?? '24h') === '24h' ? 'active' : '' }}" href="javascript:void(0)" id="shopifyFilter24h">Last 24 Hours</a></li>
+                        <li><a class="dropdown-item {{ ($initialTimeframe ?? '24h') === '7d' ? 'active' : '' }}" href="javascript:void(0)" id="shopifyFilter7d">Last 7 Days</a></li>
                     </ul>
                 </div>
             </div>
 
             <!-- Body -->
             <div class="card-body-clean">
-                @if($hasShopifyTopSelling)
-                <div class="card-body-content" style="min-height: 220px; height: 220px;">
+                <div class="card-body-content" id="shopifyTopSellingChartContainer" style="min-height: 220px; height: 220px; width: 100%; display: none;">
                     <canvas id="topSellingProductsChart"></canvas>
                 </div>
-                @else
-                <div class="empty-state-container">
+                <div class="empty-state-container" id="shopifyTopSellingEmptyState" style="display: none;">
                     <div class="empty-state-icon-circle empty-icon-blue">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
@@ -608,15 +608,14 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                             <path d="M16 10a4 4 0 0 1-8 0"></path>
                         </svg>
                     </div>
-                    <div class="empty-state-title">No orders yet</div>
-                    <div class="empty-state-desc">
+                    <div class="empty-state-title" id="shopifyTopSellingEmptyTitle">No orders yet</div>
+                    <div class="empty-state-desc" id="shopifyTopSellingEmptyDesc">
                         Your top-selling products will appear here<br>once you receive orders.
                     </div>
                     <a href="{{ $shopifyOrdersUrl }}" class="btn-saas-primary">
                         View Orders
                     </a>
                 </div>
-                @endif
             </div>
 
             <!-- Footer -->
@@ -816,6 +815,13 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                         <p class="card-subtitle-clean">Products with inventory below 10 units</p>
                     </div>
                 </div>
+                @if($isAmazonConnected)
+                <div>
+                    <a href="{{ $amazonLowInventoryUrl }}" class="btn-saas-secondary" style="font-size: 12px; padding: 4px 10px; text-decoration: none; border-radius: 6px; line-height: 1.4; display: inline-flex; align-items: center; gap: 4px;">
+                        <span>View Low Inventory</span>
+                    </a>
+                </div>
+                @endif
             </div>
 
             <!-- Body -->
@@ -888,8 +894,8 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                     <div class="empty-state-desc">
                         All your Amazon products have sufficient inventory.<br>We'll show low stock items here.
                     </div>
-                    <a href="{{ $amazonProductsUrl }}" class="btn-saas-secondary">
-                        View Amazon Products
+                    <a href="{{ $amazonLowInventoryUrl }}" class="btn-saas-secondary">
+                        View Low Inventory
                     </a>
                 </div>
                 @endif
@@ -1181,88 +1187,125 @@ document.addEventListener("DOMContentLoaded", function() {
         loadAmazonInventory();
     }
 
-    // --- 2. Top Selling Products (Chart.js) ---
+    // --- 2. Top Selling Products (Chart.js with 24h / 7d filter) ---
     const topSellingCanvas = document.getElementById('topSellingProductsChart');
-    if (topSellingCanvas && typeof Chart !== 'undefined') {
-        const topSellingLabels = @json($topSellingChartLabels ?? []);
-        const topSellingData = @json($topSellingChartData ?? []);
+    const chartContainerEl = document.getElementById('shopifyTopSellingChartContainer');
+    const emptyStateEl = document.getElementById('shopifyTopSellingEmptyState');
+    const selectedTextEl = document.getElementById('shopifyTopSellingSelectedText');
+    const subtitleEl = document.getElementById('shopifyTopSellingSubtitle');
+    const emptyDescEl = document.getElementById('shopifyTopSellingEmptyDesc');
 
-        if (topSellingData.length > 0 && topSellingData.some(val => val > 0)) {
-            const ctx = topSellingCanvas.getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: topSellingLabels,
-                    datasets: [{
-                        label: 'Units Sold',
-                        data: topSellingData,
-                        backgroundColor: '#2563EB',
-                        borderRadius: 6,
-                        borderSkipped: false,
-                        maxBarThickness: 32
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
+    const datasets = {
+        '24h': {
+            labels: @json($topSelling24hLabels ?? []),
+            data: @json($topSelling24hData ?? []),
+            name: 'Last 24 Hours'
+        },
+        '7d': {
+            labels: @json($topSelling7dLabels ?? []),
+            data: @json($topSelling7dData ?? []),
+            name: 'Last 7 Days'
+        }
+    };
+
+    let activePeriod = "{{ $initialTimeframe ?? '24h' }}";
+    let topSellingChart = null;
+
+    function renderTopSellingPeriod(period) {
+        activePeriod = period;
+        const config = datasets[period] || datasets['24h'];
+
+        if (selectedTextEl) selectedTextEl.textContent = config.name;
+        if (subtitleEl) subtitleEl.textContent = config.name;
+
+        // Update active dropdown item
+        const item24h = document.getElementById('shopifyFilter24h');
+        const item7d = document.getElementById('shopifyFilter7d');
+        if (item24h) item24h.classList.toggle('active', period === '24h');
+        if (item7d) item7d.classList.toggle('active', period === '7d');
+
+        const hasData = Array.isArray(config.data) && config.data.length > 0 && config.data.some(val => Number(val) > 0);
+
+        if (hasData) {
+            if (chartContainerEl) chartContainerEl.style.display = 'block';
+            if (emptyStateEl) emptyStateEl.style.display = 'none';
+
+            if (topSellingCanvas && typeof Chart !== 'undefined') {
+                if (topSellingChart) {
+                    topSellingChart.data.labels = config.labels;
+                    topSellingChart.data.datasets[0].data = config.data;
+                    topSellingChart.update();
+                } else {
+                    const ctx = topSellingCanvas.getContext('2d');
+                    topSellingChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: config.labels,
+                            datasets: [{
+                                label: 'Units Sold',
+                                data: config.data,
+                                backgroundColor: '#2563EB',
+                                borderRadius: 6,
+                                borderSkipped: false,
+                                maxBarThickness: 32
+                            }]
                         },
-                        tooltip: {
-                            backgroundColor: '#111827',
-                            padding: 10,
-                            cornerRadius: 6,
-                            displayColors: false,
-                            titleFont: {
-                                size: 12,
-                                family: "'Inter', sans-serif"
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: '#111827',
+                                    padding: 10,
+                                    cornerRadius: 6,
+                                    displayColors: false,
+                                    titleFont: { size: 12, family: "'Inter', sans-serif" },
+                                    bodyFont: { size: 13, family: "'Inter', sans-serif", weight: 'bold' }
+                                }
                             },
-                            bodyFont: {
-                                size: 13,
-                                family: "'Inter', sans-serif",
-                                weight: 'bold'
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            border: {
-                                display: false
-                            },
-                            ticks: {
-                                color: '#9CA3AF',
-                                font: {
-                                    family: "'Inter', sans-serif",
-                                    size: 11
+                            scales: {
+                                x: {
+                                    grid: { display: false },
+                                    border: { display: false },
+                                    ticks: { color: '#9CA3AF', font: { family: "'Inter', sans-serif", size: 11 } }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    border: { display: false },
+                                    grid: { color: '#F3F4F6' },
+                                    ticks: { precision: 0, color: '#9CA3AF', font: { family: "'Inter', sans-serif", size: 11 } }
                                 }
                             }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            border: {
-                                display: false
-                            },
-                            grid: {
-                                color: '#F3F4F6'
-                            },
-                            ticks: {
-                                precision: 0,
-                                color: '#9CA3AF',
-                                font: {
-                                    family: "'Inter', sans-serif",
-                                    size: 11
-                                }
-                            }
                         }
-                    }
+                    });
                 }
-            });
+            }
+        } else {
+            if (chartContainerEl) chartContainerEl.style.display = 'none';
+            if (emptyStateEl) emptyStateEl.style.display = 'flex';
+            if (emptyDescEl) {
+                emptyDescEl.innerHTML = `Your top-selling products will appear here<br>once you receive orders in the ${config.name.toLowerCase()}.`;
+            }
         }
     }
+
+    const btn24h = document.getElementById('shopifyFilter24h');
+    const btn7d = document.getElementById('shopifyFilter7d');
+    if (btn24h) {
+        btn24h.addEventListener('click', function(e) {
+            e.preventDefault();
+            renderTopSellingPeriod('24h');
+        });
+    }
+    if (btn7d) {
+        btn7d.addEventListener('click', function(e) {
+            e.preventDefault();
+            renderTopSellingPeriod('7d');
+        });
+    }
+
+    renderTopSellingPeriod(activePeriod);
 });
 </script>
 @endsection
