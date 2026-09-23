@@ -169,7 +169,7 @@ it('1. Anonymous GET / renders the public ZeoSync landing page (welcomemain)', f
 
     $response->assertStatus(200);
     $response->assertViewIs('welcomemain');
-    $response->assertSee('Install on Shopify');
+    $response->assertSee('Connect Store');
     $response->assertDontSee('Exception');
 });
 

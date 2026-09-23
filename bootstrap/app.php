@@ -52,6 +52,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ip.rate'              => \App\Http\Middleware\EnforceIpAndRateLimit::class,
             'admin.verify'         => \App\Http\Middleware\VerifyAdminRequest::class,
             'admin.auth'           => \App\Http\Middleware\EnsureAdminAuthenticated::class,
+            'shopify.session' => \App\Http\Middleware\VerifyShopifySession::class,
         ]);
 
         // $middleware->validateCsrfTokens(except: [

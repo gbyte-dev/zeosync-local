@@ -187,7 +187,7 @@ it('2. Embedded session expiry on /inventory preserves original destination', fu
     expect($targetUrl)->toContain('shop=store-test.myshopify.com');
 });
 
-it('3. Fresh valid ID token authenticates correct Shop, establishes session, and renders page directly', function () {
+it('3. Fresh valid ID token authenticates correct Shop, establishes session, and redirects cleanly', function () {
     $shop = Shop::create([
         'shop'         => 'store-test.myshopify.com',
         'shop_name'    => 'Test Store',
@@ -200,8 +200,11 @@ it('3. Fresh valid ID token authenticates correct Shop, establishes session, and
 
     $response = $this->get('/inventory?id_token=' . urlencode($token) . '&shop=store-test.myshopify.com');
 
-    // Must directly render page (200) without redirect bounce
-    $response->assertStatus(200);
+    // Must redirect cleanly without id_token
+    $response->assertStatus(302);
+    $location = $response->headers->get('Location');
+    expect($location)->toContain('/inventory');
+    expect($location)->not->toContain('id_token');
 
     // Session must be established
     expect(session('_shopify_verified_shop'))->toBe('store-test.myshopify.com');
@@ -287,7 +290,7 @@ it('8. Standalone visit to / outside Shopify Admin renders welcomemain', functio
 
     $response->assertStatus(200);
     $response->assertViewIs('welcomemain');
-    $response->assertSee('Install on Shopify');
+    $response->assertSee('Connect Store');
 });
 
 it('8b. Standalone visit to /dashboard outside Shopify Admin redirects to crm.entry', function () {
