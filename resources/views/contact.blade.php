@@ -18,12 +18,14 @@
                 
                 <h3>Email support</h3>
                 <p>For general inquiries and support.</p>
-                <a class="textlink" href="mailto:support@zeosync.app">support@zeosync.app</a>
+                 @php $support_email = setting('support_email');  @endphp
+                <a class="textlink" href="mailto:{{$support_email??'support@zeosync.app'}}">{{$support_email??'support@zeosync.app'}}</a>
             </article>
             <article class="card">
                 <h3>Phone support</h3>
                 <p>Mon&ndash;Fri, 9am&ndash;6pm EST.</p>
-                <a class="textlink" href="tel:+1-555-123-4567">+1 (555) 123-4567</a>
+                @php $phone_setting = setting('support_contact_no');  @endphp
+                <a class="textlink" href="tel:{{$phone_setting??'+1-555-123-4567'}}">{{$phone_setting??''}}</a>
             </article>
         </div>
     </section>
