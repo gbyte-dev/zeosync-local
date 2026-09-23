@@ -66,9 +66,7 @@
         border: 0;
         background: transparent;
         color: #64748b;
-        padding: 10px 16px;
-        border-radius: 12px;
-        font-weight: 800;
+        padding: 10px 12px;
     }
 
     .returns-tab.active {
@@ -172,11 +170,6 @@
     }
 
     .pagination-box {
-        background: #fff;
-        border: 1px solid #eef2f7;
-        border-radius: 18px;
-        padding: 16px 20px;
-        margin-top: 24px;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -217,10 +210,6 @@
             gap: 12px;
         }
 
-        .returns-tabs {
-            width: 100%;
-        }
-
         .returns-tab {
             flex: 1;
         }
@@ -258,6 +247,15 @@
         </div>
     </div>
 
+    <div class="returns-tabs">
+        <button class="returns-tab active" id="shopifyTabBtn" onclick="switchTab('shopify')">
+            Shopify
+        </button>
+
+        <button class="returns-tab" id="amazonTabBtn" onclick="switchTab('amazon')">
+            Amazon
+        </button>
+    </div>
     <div class="card filter-card">
         <div class="card-body">
             <div class="row g-3 align-items-end">
@@ -295,16 +293,6 @@
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="returns-tabs">
-        <button class="returns-tab active" id="shopifyTabBtn" onclick="switchTab('shopify')">
-            Shopify
-        </button>
-
-        <button class="returns-tab" id="amazonTabBtn" onclick="switchTab('amazon')">
-            Amazon
-        </button>
     </div>
 
     <div class="row g-4" id="returnGrid"></div>
