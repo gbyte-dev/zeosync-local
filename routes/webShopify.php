@@ -81,71 +81,71 @@ Route::post('webhooks/stripe', [StripeWebhookController::class, 'handle'])
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
     ->name('stripe.webhook');
 Route::get('payment/success', [SubscriptionController::class, 'success'])->name('payment.success');
-Route::get('/payment/success/page', [SubscriptionController::class, 'paymentSuccessPage'])->name('payment.success.page');
+Route::get('payment/success/page', [SubscriptionController::class, 'paymentSuccessPage'])->name('payment.success.page');
 Route::get('payment/cancel', [SubscriptionController::class, 'cancel'])->name('payment.cancel');
-Route::get('/check-payment-status', [SubscriptionController::class, 'checkStatus'])
+Route::get('check-payment-status', [SubscriptionController::class, 'checkStatus'])
     ->name('payment.status');
 
 // admin routes
 Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::class)->group(function () {
    
     Route::middleware('guest:admin')->group(function () {
-        Route::get('/login', function () {  return view('admin.auth.login'); })->name('admin.login');
-        Route::post('/login', [AdminAuthController::class, 'login'])->name('admin.login.submit');
+        Route::get('login', function () {  return view('admin.auth.login'); })->name('admin.login');
+        Route::post('login', [AdminAuthController::class, 'login'])->name('admin.login.submit');
     });
 
     Route::middleware(\App\Http\Middleware\EnsureAdminAuthenticated::class)->group(function () {
         Route::get('/', [AdminController::class, 'dashboard'])->name('admin.dashboard');
-        Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin.main.dashboard');
-        Route::post('/logout', [AdminAuthController::class, 'logout'])->name('admin.logout');
-        Route::get('/shops', [AdminController::class, 'shops'])->name('admin.shops');
-        Route::post('/shops/{shop}/update', [AdminController::class, 'updateShop'])->name('admin.shops.update');
-        Route::post('/shops/{shop}/deactivate', [AdminController::class, 'deactivateShop'])->name('admin.shops.deactivate');
-        Route::get('/orders', [AdminController::class, 'order'])->name('admin.orders');
-        Route::get('/products', [AdminController::class, 'product'])->name('admin.products');
-        Route::get('/settings', [AdminController::class, 'settings'])->name('admin.settings');
-        Route::post('/settings', [AdminController::class, 'settingsupdate'])->name('admin.settings.update');
-        Route::get('/app-settings', [AdminController::class, 'appSettings'])->name('admin.app.settings');
-        Route::post('/app-settings', [AdminController::class, 'appSettingsUpdate'])->name('admin.app.settings.update');
-        Route::get('/category', [AdminController::class, 'category'])->name('admin.category');
-        Route::get('/contact-requests', [ContactController::class, 'adminIndex'])->name('admin.contact-requests');
-        Route::get('/contact-requests/{contact}', [ContactController::class, 'adminShow'])->name('admin.contact-requests.show');
-        Route::post('/contact-requests/{contact}/mark-read', [ContactController::class, 'adminMarkRead'])->name('admin.contact-requests.markread');
-        Route::delete('/contact-requests/{contact}', [ContactController::class, 'adminDestroy'])->name('admin.contact-requests.destroy');
-        Route::post('/contact-requests/mark-read-all', [ContactController::class, 'adminMarkAllRead'])->name('admin.contact-requests.markall');
-        Route::post('/contact-requests/delete-all', [ContactController::class, 'adminDestroyAll'])->name('admin.contact-requests.deleteall');
-        Route::get('/category/{id}/children', [AdminController::class, 'categoryChildren'])->name('admin.category.children');
-        Route::get('/allplans', [PlanController::class, 'index'])->name('admin.plans');
-        Route::get('/plans/create', [PlanController::class, 'create'])->name('admin.plans.create');
-        Route::post('/plans/create', [PlanController::class, 'store'])->name('admin.plans.store');
-        Route::get('/plans/{plan}/edit', [PlanController::class, 'edit'])->name('admin.plans.edit');
-        Route::post('/shops/{shop}/cancel', [AdminController::class, 'cancel'])->name('admin.shops.cancel');
-        Route::put('/plans/{plan}', [PlanController::class, 'update'])->name('admin.plans.update');
-        Route::delete('/plans/{plan}', [PlanController::class, 'destroy'])->name('admin.plans.delete');
-        Route::get('/mailtemplates', [MailTemplateController::class, 'index'])->name('admin.mailtemplates');
-        Route::get('/mailtemplates/create', [MailTemplateController::class, 'create'])->name('admin.mailtemplates.create');
-        Route::post('/mailtemplates/create', [MailTemplateController::class, 'store'])->name('admin.mailtemplates.store');
-        Route::get('/mailtemplates/{mailtemplate}/edit', [MailTemplateController::class, 'edit'])->name('admin.mailtemplates.edit');
-        Route::put('/mailtemplates/{mailtemplate}', [MailTemplateController::class, 'update'])->name('admin.mailtemplates.update');
-        Route::post('/mailtemplates/{mailtemplate}', [MailTemplateController::class, 'destroy'])->name('admin.mailtemplates.delete');
-        Route::get('/cat_update/{category}', [ProductSchemaController::class, 'downloadScema'])->name('admin.downloadScema');
-        Route::get('/categories_p', [ProductSchemaController::class, 'index'])->name('admin.categories');
-        Route::get('/schema-create', [ProductSchemaController::class, 'create'])->name('admin.schema.create');
-        Route::post('/schema-store', [ProductSchemaController::class, 'store'])->name('product-schemas.store');
+        Route::get('dashboard', [AdminController::class, 'dashboard'])->name('admin.main.dashboard');
+        Route::post('logout', [AdminAuthController::class, 'logout'])->name('admin.logout');
+        Route::get('shops', [AdminController::class, 'shops'])->name('admin.shops');
+        Route::post('shops/{shop}/update', [AdminController::class, 'updateShop'])->name('admin.shops.update');
+        Route::post('shops/{shop}/deactivate', [AdminController::class, 'deactivateShop'])->name('admin.shops.deactivate');
+        Route::get('orders', [AdminController::class, 'order'])->name('admin.orders');
+        Route::get('products', [AdminController::class, 'product'])->name('admin.products');
+        Route::get('settings', [AdminController::class, 'settings'])->name('admin.settings');
+        Route::post('settings', [AdminController::class, 'settingsupdate'])->name('admin.settings.update');
+        Route::get('app-settings', [AdminController::class, 'appSettings'])->name('admin.app.settings');
+        Route::post('app-settings', [AdminController::class, 'appSettingsUpdate'])->name('admin.app.settings.update');
+        Route::get('category', [AdminController::class, 'category'])->name('admin.category');
+        Route::get('contact-requests', [ContactController::class, 'adminIndex'])->name('admin.contact-requests');
+        Route::get('contact-requests/{contact}', [ContactController::class, 'adminShow'])->name('admin.contact-requests.show');
+        Route::post('contact-requests/{contact}/mark-read', [ContactController::class, 'adminMarkRead'])->name('admin.contact-requests.markread');
+        Route::delete('contact-requests/{contact}', [ContactController::class, 'adminDestroy'])->name('admin.contact-requests.destroy');
+        Route::post('contact-requests/mark-read-all', [ContactController::class, 'adminMarkAllRead'])->name('admin.contact-requests.markall');
+        Route::post('contact-requests/delete-all', [ContactController::class, 'adminDestroyAll'])->name('admin.contact-requests.deleteall');
+        Route::get('category/{id}/children', [AdminController::class, 'categoryChildren'])->name('admin.category.children');
+        Route::get('allplans', [PlanController::class, 'index'])->name('admin.plans');
+        Route::get('plans/create', [PlanController::class, 'create'])->name('admin.plans.create');
+        Route::post('plans/create', [PlanController::class, 'store'])->name('admin.plans.store');
+        Route::get('plans/{plan}/edit', [PlanController::class, 'edit'])->name('admin.plans.edit');
+        Route::post('shops/{shop}/cancel', [AdminController::class, 'cancel'])->name('admin.shops.cancel');
+        Route::put('plans/{plan}', [PlanController::class, 'update'])->name('admin.plans.update');
+        Route::delete('plans/{plan}', [PlanController::class, 'destroy'])->name('admin.plans.delete');
+        Route::get('mailtemplates', [MailTemplateController::class, 'index'])->name('admin.mailtemplates');
+        Route::get('mailtemplates/create', [MailTemplateController::class, 'create'])->name('admin.mailtemplates.create');
+        Route::post('mailtemplates/create', [MailTemplateController::class, 'store'])->name('admin.mailtemplates.store');
+        Route::get('mailtemplates/{mailtemplate}/edit', [MailTemplateController::class, 'edit'])->name('admin.mailtemplates.edit');
+        Route::put('mailtemplates/{mailtemplate}', [MailTemplateController::class, 'update'])->name('admin.mailtemplates.update');
+        Route::post('mailtemplates/{mailtemplate}', [MailTemplateController::class, 'destroy'])->name('admin.mailtemplates.delete');
+        Route::get('cat_update/{category}', [ProductSchemaController::class, 'downloadScema'])->name('admin.downloadScema');
+        Route::get('categories_p', [ProductSchemaController::class, 'index'])->name('admin.categories');
+        Route::get('schema-create', [ProductSchemaController::class, 'create'])->name('admin.schema.create');
+        Route::post('schema-store', [ProductSchemaController::class, 'store'])->name('product-schemas.store');
     });
 });
 
 Route::middleware([\App\Http\Middleware\CheckSubscription::class])->group(function () {
     Route::match(['get', 'post'], '/selectCategory', [ProductSchemaController::class, 'addProductCategory'])->name('user.addProductCategory');
-    Route::get('/addproduct/{schemaId}', [ProductSchemaController::class, 'productcreate'])->name('admin.product.store');
-    Route::post('/addproduct', [ProductSchemaController::class, 'productstore'])->name('admin.product.store.post');
-    Route::get('/generatePayload/{product}', [ProductSchemaController::class, 'buildListingRequest'])->name('admin.product.generatePayload');
-    Route::get('/productEdit/{product}', [ProductSchemaController::class, 'productEdit'])->name('admin.product.productEdit');
-    Route::get('/child/product/{product}', [ProductSchemaController::class, 'productEdit'])->name('admin.product.product.child');
-    Route::post('/addproduct/{product_id}', [ProductSchemaController::class, 'productstore'])->name('admin.product.edit.post');
-    Route::get('/generatePayload/{product}/{sku}', [ProductSchemaController::class, 'addChildListing'])->name('admin.product.generatePayload.child');
-    Route::get('/showProducts', [ProductSchemaController::class, 'showProducts'])->name('user.product.showProducts');
-    Route::get('/remove_drafts/{product}', [ProductSchemaController::class, 'removeDrafts'])->name('user.product.removeDrafts');
+    Route::get('addproduct/{schemaId}', [ProductSchemaController::class, 'productcreate'])->name('admin.product.store');
+    Route::post('addproduct', [ProductSchemaController::class, 'productstore'])->name('admin.product.store.post');
+    Route::get('generatePayload/{product}', [ProductSchemaController::class, 'buildListingRequest'])->name('admin.product.generatePayload');
+    Route::get('productEdit/{product}', [ProductSchemaController::class, 'productEdit'])->name('admin.product.productEdit');
+    Route::get('child/product/{product}', [ProductSchemaController::class, 'productEdit'])->name('admin.product.product.child');
+    Route::post('addproduct/{product_id}', [ProductSchemaController::class, 'productstore'])->name('admin.product.edit.post');
+    Route::get('generatePayload/{product}/{sku}', [ProductSchemaController::class, 'addChildListing'])->name('admin.product.generatePayload.child');
+    Route::get('showProducts', [ProductSchemaController::class, 'showProducts'])->name('user.product.showProducts');
+    Route::get('remove_drafts/{product}', [ProductSchemaController::class, 'removeDrafts'])->name('user.product.removeDrafts');
 });
 Route::group([], function () {
     // store settings
@@ -160,15 +160,15 @@ Route::group([], function () {
     Route::get('product/category', [InventoryController::class, 'getProductCategory'])->name('shopify.product.category');
     Route::get('inventory/amazon/{parentSku}/variants', [InventoryController::class, 'variants'])->name('shopify.inventory.amazon.variants');
     Route::post('inventory/amazon/{childSku}/update-quantity', [InventoryController::class, 'updateAmazonQuantity'])->name('shopify.inventory.amazon.update');
-    Route::get('/inventory/shopify-products', [InventoryMappingController::class, 'shopifyProducts'])
+    Route::get('inventory/shopify-products', [InventoryMappingController::class, 'shopifyProducts'])
         ->name('inventory.shopify.products');
-    Route::get('/inventory/shopify-product-variants/{product}', [InventoryMappingController::class, 'variants'])->name('inventory.shopify.variants');
-    Route::post('/inventory/save-product-mapping', [InventoryMappingController::class, 'saveProductMapping'])->name('inventory.save.mapping');
-    Route::post('/inventory/save-amazon-mapping', [InventoryMappingController::class, 'saveAmazonMapping'])->name('inventory.save.amazon.mapping');
-    Route::delete('/inventory/unmap/{mapping}', [InventoryMappingController::class, 'unmap'])
+    Route::get('inventory/shopify-product-variants/{product}', [InventoryMappingController::class, 'variants'])->name('inventory.shopify.variants');
+    Route::post('inventory/save-product-mapping', [InventoryMappingController::class, 'saveProductMapping'])->name('inventory.save.mapping');
+    Route::post('inventory/save-amazon-mapping', [InventoryMappingController::class, 'saveAmazonMapping'])->name('inventory.save.amazon.mapping');
+    Route::delete('inventory/unmap/{mapping}', [InventoryMappingController::class, 'unmap'])
         ->name('inventory.unmap');
-    Route::post('/inventory/shopify/update', [InventoryMappingController::class, 'updateShopifyInventory'])->name('inventory.shopify.update');
-    Route::get('/inventory/mappings', [InventoryMappingController::class, 'mappings'])->name('inventory.mappings');
+    Route::post('inventory/shopify/update', [InventoryMappingController::class, 'updateShopifyInventory'])->name('inventory.shopify.update');
+    Route::get('inventory/mappings', [InventoryMappingController::class, 'mappings'])->name('inventory.mappings');
     Route::post('inventory/page-length', [InventoryController::class, 'updatePageLength'])->name('shopify.inventory.page_length');
 });
 
@@ -182,12 +182,12 @@ Route::get('getAllProductTypes', [TestController::class, 'getAllProductTypes'])-
 Route::get('test-category-map', [TestController::class, 'testCategoryMapping']);
 Route::get('amazon-schema-test', [TestController::class, 'amazonSchemaTest'])->name('amazon.schema.test');
 Route::get('amazon-check/{sku}', [TestController::class, 'amazonSchemaTestSku'])->name('amazon.schema.test.sku');
-Route::get( '/amazon/schema-fields/{slug}',[AmazonSchemaController::class, 'getFields']);
+Route::get( 'amazon/schema-fields/{slug}',[AmazonSchemaController::class, 'getFields']);
 Route::post('amazon/evaluate-conditions', [AmazonSchemaController::class, 'evaluateConditions'])
     ->name('amazon.evaluate.conditions');
-Route::post('/amazon/manual-sync', [AmazonSchemaController::class, 'manualSync'])->name('amazon.manual.sync');
-Route::post('/amazon/generate-sync-payload', [ AmazonSchemaController::class, 'generateSyncPayload']);
-Route::get('/amazon/search-schema/{keyword}', [ShopifyController::class, 'searchAmazonSchema']);
+Route::post('amazon/manual-sync', [AmazonSchemaController::class, 'manualSync'])->name('amazon.manual.sync');
+Route::post('amazon/generate-sync-payload', [ AmazonSchemaController::class, 'generateSyncPayload']);
+Route::get('amazon/search-schema/{keyword}', [ShopifyController::class, 'searchAmazonSchema']);
 Route::get('keyboard-schema', [TestController::class, 'keyboardSchema']);
 Route::post('amazon/load-missing-fields', [AmazonSchemaController::class, 'loadMissingFields'])->name('amazon.load.missingfield');
 
@@ -196,23 +196,23 @@ Route::post('webhooks/amazon/orders', [AmazonWebhookController::class, 'handleOr
 Route::get('amazon/connect/progress', [AmazonConnect::class, 'progress'])->name('amazon.connect.progress');
 // Route::get('test/store-status', [TestController::class, 'checkStoreStatus']);
 
-Route::get('/test/store-status-command', function () {
+Route::get('test/store-status-command', function () {
     Artisan::call('stores:check-status');
     return nl2br(Artisan::output());
 });
 
-Route::post('/custom-plans', [CustomPlanController::class, 'store'])->name('custom-plans.store');
-Route::post('/custom-plans/{plan}/activate', [CustomPlanController::class, 'activate'])->name('custom-plans.activate');
-Route::post('/custom-plans/{plan}/cancel', [CustomPlanController::class, 'cancel'])->name('custom-plans.cancel');
-Route::get('/shopify/categories/search', [ShopifyController::class, 'searchCategories'])->name('shopify.categories.search');
+Route::post('custom-plans', [CustomPlanController::class, 'store'])->name('custom-plans.store');
+Route::post('custom-plans/{plan}/activate', [CustomPlanController::class, 'activate'])->name('custom-plans.activate');
+Route::post('custom-plans/{plan}/cancel', [CustomPlanController::class, 'cancel'])->name('custom-plans.cancel');
+Route::get('shopify/categories/search', [ShopifyController::class, 'searchCategories'])->name('shopify.categories.search');
 
-Route::get('/test-plan-sync/{shop}', function (string $shop) {
+Route::get('test-plan-sync/{shop}', function (string $shop) {
     $shopModel = \App\Models\Shop::where('shop', $shop)->firstOrFail();
     $result = app(\App\Services\ShopifyPlanSyncService::class)->sync($shopModel);
     return response()->json([ 'success' => $result !== null, 'subscription' => $result, ]);
 });
 
-Route::get('/debug/shopify-subscription/{chargeId}', function (
+Route::get('debug/shopify-subscription/{chargeId}', function (
     Request $request, string $chargeId) {
     $shop = Shop::where('shop', $request->query('shop'))->firstOrFail();
     $gid = 'gid://shopify/AppSubscription/' . $chargeId;

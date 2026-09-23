@@ -19,10 +19,10 @@ $groups = [
         <div class="card-header bg-white border-0 py-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h4 class="mb-1 fw-bold">Settings</h4>
+                    <h5 class="mb-1 fw-bold">Settings</h5>
                     <p class="mb-0 text-muted small">Configure app details, integrations, and notification behavior</p>
                 </div>
-                <button type="submit" form="adminSettingsForm" class="btn btn-primary">
+                <button type="submit" form="adminSettingsForm" class="btn btn-primary btn-sm">
                     <i class="bi bi-check2-circle me-2"></i>Save Changes
                 </button>
             </div>
