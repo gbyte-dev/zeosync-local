@@ -109,6 +109,7 @@
         </div>
     </div>
 </div>
+@endsection
 @section('scripts')
 <script nonce="{{ $cspNonce }}">
     $(document).ready(function() {
