@@ -2333,6 +2333,50 @@ class ShopifyController extends Controller
 
             $locationId = $this->getSelectedShopifyLocationId($shopModel);
 
+            $optionsInput = $request->input('options', []);
+            $variantNames = $request->input('variant_names', []);
+            $options = [];
+            
+            if (!empty($optionsInput) && is_array($optionsInput) && isset($optionsInput[0]['name'])) {
+                foreach ($optionsInput as $opt) {
+                    $optName = trim((string) ($opt['name'] ?? ''));
+                    if (empty($optName))
+                        continue;
+                    $optVals = [];
+                    foreach ($opt['values'] ?? [] as $val) {
+                        $valStr = trim((string) $val);
+                        if ($valStr !== '')
+                            $optVals[] = $valStr;
+                    }
+                    if (!empty($optVals)) {
+                        $options[] = [
+                            'name' => $optName,
+                            'values' => $optVals,
+                        ];
+                    }
+                }
+            } elseif (!empty($variantsPayload) && !empty($variantNames)) {
+                foreach ($variantNames as $i => $name) {
+                    $name = trim((string) $name);
+                    if (empty($name)) {
+                        continue;
+                    }
+                    $values = collect($variantsPayload)
+                        ->pluck('option' . ($i + 1))
+                        ->filter(fn($val) => !is_null($val) && trim((string) $val) !== '')
+                        ->map(fn($val) => trim((string) $val))
+                        ->unique()
+                        ->values()
+                        ->all();
+                    if (!empty($values)) {
+                        $options[] = [
+                            'name' => $name,
+                            'values' => $values,
+                        ];
+                    }
+                }
+            }
+
             $updatePayload = [
                 'title' => $request->title,
                 'description' => $this->formatDescription($request->description),
@@ -2345,6 +2389,10 @@ class ShopifyController extends Controller
                 'deleted_images' => $deletedImages,
                 'variants' => $variantsPayload,
             ];
+
+            if (!empty($options)) {
+                $updatePayload['options'] = $options;
+            }
 
             $shopifyService = new ShopifyService($shopModel->shop, $shopModel->access_token);
             $result = $shopifyService->updateProduct($shopModel, $id, $updatePayload, $locationId);
