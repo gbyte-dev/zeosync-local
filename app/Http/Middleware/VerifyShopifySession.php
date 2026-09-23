@@ -41,10 +41,8 @@ class VerifyShopifySession
             return $next($request);
         }
         $idToken = $result->idToken; 
-        $verifiedShopDomain = $result->shop.'.myshopify.com';
-        if (!$verifiedShopDomain) {
-            $verifiedShopDomain = session('active_shop');
-        }
+        $verifiedShopDomain = $result->shop?$result->shop.'.myshopify.com':session('active_shop');
+
         $shop = Shop::where('shop', $verifiedShopDomain)->first();
 
         if (!$shop) {
