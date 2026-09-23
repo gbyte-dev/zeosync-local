@@ -86,7 +86,7 @@
     }
 
     .zeo-card-body {
-        padding: 12px 16px 16px 16px;
+        padding: 18px 20px 20px 20px;
     }
 
     /* Table Styles - Vertically Tight */
@@ -129,9 +129,9 @@
     /* Truncated Product Title */
     .product-title {
         display: block;
-        max-width: 240px;
+        max-width: 320px;
         font-weight: 500;
-        font-size: 12px !important;
+        font-size: 13px !important;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -145,9 +145,9 @@
     }
 
     .qty-input {
-        width: 70px;
-        height: 30px;
-        padding: 2px 6px;
+        width: 86px;
+        height: 34px;
+        padding: 4px 8px;
         text-align: center;
         border-radius: 6px;
         border: 1px solid #C9CCCF;
@@ -285,6 +285,20 @@
         border: 1px solid #d1d5db !important;
     }
 
+    /* Action button tweaks */
+    .update-amazon-qty {
+        min-width: 88px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 768px) {
+        .product-title { max-width: 180px; }
+        .qty-input { width: 72px; height: 32px; }
+        .zeo-card-body { padding: 12px; }
+    }
+
     /* Responsive */
     @media (max-width: 1024px) {
         .zeo-stats-grid {
@@ -419,7 +433,7 @@
 @push('scripts')
 <script nonce="{{ $cspNonce??'' }}">
     $(document).ready(function() {
-        if ($('#amazonLowInventoryTable').length) {
+            if ($('#amazonLowInventoryTable').length) {
             $('#amazonLowInventoryTable').DataTable({
                 responsive: true,
                 autoWidth: false,
@@ -431,14 +445,20 @@
                 order: [
                     [2, 'asc']
                 ],
-                columnDefs: [{   targets: 0,  width: '55%'   },
-                    {  targets: 1,  width: '35%'  },
-                    {  targets: 2,  width: '10%', type: 'num' }
+                columnDefs: [
+                    { targets: 0, width: '55%', responsivePriority: 1 },
+                    { targets: 1, width: '35%', responsivePriority: 2 },
+                    { targets: 2, width: '10%', type: 'num', responsivePriority: 3 },
+                    { targets: 3, orderable: false, searchable: false, className: 'text-end', responsivePriority: 4 }
                 ],
                 language: {
                     search: "",
                     searchPlaceholder: "Search Product / SKU...",
-                    lengthMenu: "_MENU_"
+                    lengthMenu: "_MENU_",
+                    paginate: {
+                        previous: '&larr;',
+                        next: '&rarr;'
+                    }
                 },
                 dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
                     "<'row'<'col-sm-12'tr>>" +
@@ -463,22 +483,18 @@
         $.ajax({
             url: `${window.location.origin}/inventory/amazon/${encodeURIComponent(sku)}/update-quantity?shop=${encodeURIComponent(shop)}`,
             type: 'POST',
-
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
-
             data: {
                 quantity: quantity
             },
-
             success: function(response) {
                 Swal.fire({
                     text: 'Inventory updated successfully. Latest inventory will reflect in the app in approximately 15 minutes.',
                     confirmButtonText: 'OK'
                 });
             },
-
             error: function(xhr) {
                 Swal.fire({
                     icon: 'error',
@@ -487,7 +503,6 @@
                     confirmButtonText: 'OK'
                 });
             },
-
             complete: function() {
                 button.prop('disabled', false).text('Update');
                 qtyInput.prop('disabled', false);
