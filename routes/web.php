@@ -36,16 +36,14 @@ Route::get('/install', [ShopifyController::class, 'install'])->name('shopify.ins
 Route::get('/callback', [ShopifyController::class, 'callback'])->name('shopify.callback');
 Route::get('/api/shop-status', [ShopifyController::class, 'checkShopStatus'])->name('api.shop.status');
 
-Route::middleware('shopify.session')->group(function () {
-    Route::view('/about', 'about')->name('about');
-    Route::get('/pricing', [PlanController::class, 'pricing'])->name('pricing');
-    Route::view('/contact', 'contact')->name('contact');
-    Route::post('/contact', [ContactController::class, 'store'])->middleware('ip.rate:5,60')->name('contact.store');
-    Route::view('/terms', 'terms')->name('terms');
-    Route::view('/privacy', 'privacy')->name('privacy');
-});
+Route::view('/about', 'about')->name('about');
+Route::get('/pricing', [PlanController::class, 'pricing'])->name('pricing');
+Route::view('/contact', 'contact')->name('contact');
+Route::post('/contact', [ContactController::class, 'store'])->middleware('ip.rate:5,60')->name('contact.store');
+Route::view('/terms', 'terms')->name('terms');
+Route::view('/privacy', 'privacy')->name('privacy');
 
-Route::middleware([ResolveActiveShop::class, \App\Http\Middleware\CheckSubscription::class])->group(function () {
+Route::middleware([\App\Http\Middleware\CheckSubscription::class])->group(function () {
     // Route::get('/products', [ShopifyController::class, 'products'])
     //     ->name('shopify.products');
     Route::get('/product/{id}', [ShopifyController::class, 'viewProduct'])->name('shopify.product.view');
@@ -67,8 +65,8 @@ Route::middleware([ResolveActiveShop::class, \App\Http\Middleware\CheckSubscript
     Route::get('/amazon/low-inventory', [DashboardController::class, 'lowInventory'])->name('view-all-amazon-low-inventory');
 });
 
-Route::middleware([ResolveActiveShop::class])->group(function () {
-    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware('shopify.session');
+Route::group([], function () {
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/top-selling-products', [DashboardController::class, 'topSellingProducts'])->name('dashboard.top-selling');
     Route::get('/products', [ShopifyController::class, 'products'])->name('shopify.products');
     Route::post('/createProduct', [ShopifyController::class, 'createProduct'])->name('shopify.product.create.post');
@@ -116,7 +114,7 @@ Route::get('/api/shopify/patch-id-token', function (Request $request) {
         $response->header($key, $value);
     }
     return $response;
-})->withoutMiddleware(['shopify.session']);
+});
 
 Route::get('/get-seller-id', [ShopifyController::class, 'getSellerIdFull']);
 Route::get('/amazon/orders', [ShopifyController::class, 'getAmazonOrders']);

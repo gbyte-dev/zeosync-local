@@ -59,19 +59,50 @@
             font-size: 13px;
             color: #6B7280;
         }
+        .reauth-btn {
+            display: inline-block;
+            margin-top: 14px;
+            padding: 8px 16px;
+            background-color: #2563EB;
+            color: #FFFFFF;
+            font-size: 13px;
+            font-weight: 500;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .reauth-btn:hover {
+            background-color: #1D4ED8;
+        }
+        .reauth-btn-secondary {
+            background-color: #F3F4F6;
+            color: #374151;
+            margin-left: 8px;
+        }
+        .reauth-btn-secondary:hover {
+            background-color: #E5E7EB;
+        }
     </style>
 </head>
 <body>
     <div class="reauth-container">
-        <div class="spinner"></div>
-        <div class="reauth-title">Connecting to Shopify...</div>
-        <div class="reauth-desc">Refreshing your session. Please wait a moment.</div>
+        <div class="spinner" id="reauth-spinner"></div>
+        <div class="reauth-title" id="reauth-title">Connecting to Shopify...</div>
+        <div class="reauth-desc" id="reauth-desc">Refreshing your session. Please wait a moment.</div>
+        <div id="reauth-actions" style="display: none; margin-top: 16px;">
+            <button type="button" class="reauth-btn" id="reauth-retry-btn">Retry Connection</button>
+            <a href="{{ route('crm.entry') }}" class="reauth-btn reauth-btn-secondary">Go Home</a>
+        </div>
     </div>
 
     <script nonce="{{ $cspNonce }}">
         (function() {
             const rawTarget = @json($targetUrl ?? request()->fullUrl());
             const shopParam = @json($shop ?? request('shop') ?? '');
+            const GUARD_KEY = 'zeosync_reauth_guard_' + (shopParam || 'global');
+            const MAX_ATTEMPTS = 3;
+            const WINDOW_MS = 15000;
 
             function sanitizeDestination(urlStr) {
                 try {
@@ -87,8 +118,58 @@
 
             const targetPath = sanitizeDestination(rawTarget);
 
+            function showFallbackUI() {
+                const spinner = document.getElementById('reauth-spinner');
+                const title = document.getElementById('reauth-title');
+                const desc = document.getElementById('reauth-desc');
+                const actions = document.getElementById('reauth-actions');
+
+                if (spinner) spinner.style.display = 'none';
+                if (title) title.textContent = 'Connection paused';
+                if (desc) desc.textContent = 'Automatic authentication took longer than expected. Click below to reconnect.';
+                if (actions) actions.style.display = 'block';
+
+                const retryBtn = document.getElementById('reauth-retry-btn');
+                if (retryBtn) {
+                    retryBtn.onclick = function() {
+                        sessionStorage.removeItem(GUARD_KEY);
+                        if (spinner) spinner.style.display = 'block';
+                        if (title) title.textContent = 'Connecting to Shopify...';
+                        if (desc) desc.textContent = 'Refreshing your session. Please wait a moment.';
+                        if (actions) actions.style.display = 'none';
+                        obtainTokenAndRedirect();
+                    };
+                }
+            }
+
             async function obtainTokenAndRedirect() {
                 try {
+                    // Check loop protection guard
+                    let guardData = null;
+                    try {
+                        const raw = sessionStorage.getItem(GUARD_KEY);
+                        if (raw) guardData = JSON.parse(raw);
+                    } catch (e) {
+                        guardData = null;
+                    }
+
+                    const now = Date.now();
+                    if (guardData && (now - guardData.timestamp) < WINDOW_MS) {
+                        if (guardData.attempts >= MAX_ATTEMPTS) {
+                            showFallbackUI();
+                            return;
+                        }
+                        sessionStorage.setItem(GUARD_KEY, JSON.stringify({
+                            attempts: guardData.attempts + 1,
+                            timestamp: now
+                        }));
+                    } else {
+                        sessionStorage.setItem(GUARD_KEY, JSON.stringify({
+                            attempts: 1,
+                            timestamp: now
+                        }));
+                    }
+
                     if (typeof shopify === 'undefined' || !shopify.idToken) {
                         if (shopParam) {
                             window.location.href = "{{ route('shopify.install') }}?shop=" + encodeURIComponent(shopParam);

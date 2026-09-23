@@ -135,7 +135,7 @@ Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::clas
     });
 });
 
-Route::middleware([ResolveActiveShop::class, \App\Http\Middleware\CheckSubscription::class])->group(function () {
+Route::middleware([\App\Http\Middleware\CheckSubscription::class])->group(function () {
     Route::match(['get', 'post'], '/selectCategory', [ProductSchemaController::class, 'addProductCategory'])->name('user.addProductCategory');
     Route::get('/addproduct/{schemaId}', [ProductSchemaController::class, 'productcreate'])->name('admin.product.store');
     Route::post('/addproduct', [ProductSchemaController::class, 'productstore'])->name('admin.product.store.post');
@@ -147,7 +147,7 @@ Route::middleware([ResolveActiveShop::class, \App\Http\Middleware\CheckSubscript
     Route::get('/showProducts', [ProductSchemaController::class, 'showProducts'])->name('user.product.showProducts');
     Route::get('/remove_drafts/{product}', [ProductSchemaController::class, 'removeDrafts'])->name('user.product.removeDrafts');
 });
-Route::middleware([ResolveActiveShop::class])->group(function () {
+Route::group([], function () {
     // store settings
     Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::get('planview', [SubscriptionController::class, 'plans'])->name('shopify.plans');
