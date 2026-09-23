@@ -36,8 +36,7 @@ class AdminController extends Controller
         ];
 
         $recentActivities = AdminNotification::latest()
-            ->take(5)
-            ->get()
+            ->take(5)->get()
             ->map(function ($activity) {
                 return [
                     'title' => $activity->title,
@@ -200,7 +199,7 @@ class AdminController extends Controller
             'timezone',
             'app_logo',
             'app_favicon',
-
+            'support_email',
             'admin_email',
             'SMTP_host',
             'SMTP_port',
@@ -209,7 +208,7 @@ class AdminController extends Controller
             'SMTP_encryption',
             'from_email',
             'from_name',
-
+            'support_contact_no',
             'stripe_secret_key',
             'stripe_publishable_key',
             'stripe_webhook_secret',
@@ -238,13 +237,9 @@ class AdminController extends Controller
         ];
 
         foreach ($keys as $key) {
-
             if ($key === 'app_logo' || $key === 'app_favicon') {
-
                 if ($request->hasFile($key)) {
-
                     $file = $request->file($key);
-
                     $filename = time() . '_' . $file->getClientOriginalName();
 
                     // Delete old file if exists
@@ -255,11 +250,7 @@ class AdminController extends Controller
                     }
 
                     // Store file in storage/app/public/logo
-                    $path = $file->storeAs(
-                        'logo',
-                        $filename,
-                        'public'
-                    );
+                    $path = $file->storeAs( 'logo', $filename, 'public'  );
 
                     // Save relative path in database
                     AdminSetting::updateOrCreate(
@@ -302,12 +293,8 @@ class AdminController extends Controller
             ($newProdClientSecret !== null && trim((string) $newProdClientSecret) !== '' && $oldProductionClientSecret !== trim((string) $newProdClientSecret));
 
         if ($credentialsChanged) {
-
             $shops = Shop::where('is_active', 1)->get();
-
-            $template = MailTemplate::active()
-                ->where('slug', 'amazon-reconnect')
-                ->first();
+            $template = MailTemplate::active()->where('slug', 'amazon-reconnect')->first();
 
             $notificationSetting = NotificationSetting::where(
                 'notification_key',
@@ -315,19 +302,13 @@ class AdminController extends Controller
             )->first();
 
             foreach ($shops as $shop) {
-
-                // In-App Notification
                 UserNotificationService::send(
-                    $shop->id,
-                    'amazon_reconnect',
-                    'Amazon Reconnection Required',
+                    $shop->id,  'amazon_reconnect', 'Amazon Reconnection Required',
                     'We have updated our Amazon integration . Please disconnect your Amazon account and reconnect it to continue using Amazon features without interruption.'
                 );
 
-                // Dynamic Email
                 if ($notificationSetting &&  $notificationSetting->mail_enabled &&
-                    $template && !empty($shop->email)) 
-                {
+                    $template && !empty($shop->email)) {
 
                     app(EmailService::class)->sendDynamicEmail(
                         $template,
@@ -347,8 +328,7 @@ class AdminController extends Controller
         foreach (NotificationSetting::all() as $notification) {
 
             $data = $request->input(
-                'notifications.' . $notification->notification_key,
-                []
+                'notifications.' . $notification->notification_key,  []
             );
 
             $notification->update([
@@ -359,6 +339,7 @@ class AdminController extends Controller
 
         return back()->with('success', 'Settings updated successfully.');
     }
+
     public function shops(Request $request)
     {
         $shops = Shop::with('subscription')->latest()->get();
@@ -445,11 +426,11 @@ class AdminController extends Controller
         }
 
         if (empty($shop->access_token) || empty($shop->shop)) {
-            Log::error('Admin cancellation failed: Shop access token or domain is missing', [
-                'shop_id' => $shop->id,
-                'has_shop' => !empty($shop->shop),
-                'has_token' => !empty($shop->access_token),
-            ]);
+            // Log::error('Admin cancellation failed: Shop access token or domain is missing', [
+            //     'shop_id' => $shop->id,
+            //     'has_shop' => !empty($shop->shop),
+            //     'has_token' => !empty($shop->access_token),
+            // ]);
 
             return back()->with('error', 'Shop access token or domain is missing.');
         }
@@ -458,34 +439,29 @@ class AdminController extends Controller
             $billingService = app(ShopifyBillingService::class);
 
             $result = $billingService->cancelSubscription(
-                $shop,
-                $subscription->shopify_subscription_gid
+                $shop,  $subscription->shopify_subscription_gid
             );
 
             if (!$result) {
-                Log::error('Admin Shopify Subscription Cancellation Failed via API', [
-                    'shop_id' => $shop->id,
-                    'subscription_id' => $subscription->id,
-                    'has_gid' => !empty($subscription->shopify_subscription_gid),
-                ]);
+                // Log::error('Admin Shopify Subscription Cancellation Failed via API', [
+                //     'shop_id' => $shop->id,
+                //     'subscription_id' => $subscription->id,
+                //     'has_gid' => !empty($subscription->shopify_subscription_gid),
+                // ]);
 
                 return back()->with('error', 'Shopify subscription cancellation failed. Please check Shopify connection and credentials.');
             }
 
             DB::transaction(function () use ($subscription) {
                 $subscription->update([
-                    'status' => 'cancelled',
-                    'price' => 0,
-                    'trial_ends_at' => null,
-                    'current_period_end' => null,
-                    'cancelled_at' => now(),
-                    'ended_at' => now(),
+                    'status' => 'cancelled', 'price' => 0,
+                    'trial_ends_at' => null, 'current_period_end' => null,
+                    'cancelled_at' => now(), 'ended_at' => now(),
                 ]);
             });
 
             try {
-                $template = MailTemplate::active()
-                    ->where('slug', 'payment-cancelled')
+                $template = MailTemplate::active()->where('slug', 'payment-cancelled')
                     ->first();
 
                 if ($template) {
@@ -509,22 +485,22 @@ class AdminController extends Controller
                 ]);
             }
 
-            Log::info('Admin Shopify Subscription Cancelled', [
-                'shop_id' => $shop->id,
-                'subscription_id' => $subscription->id,
-                'shopify_subscription_gid' => $subscription->shopify_subscription_gid,
-            ]);
+            // Log::info('Admin Shopify Subscription Cancelled', [
+            //     'shop_id' => $shop->id,
+            //     'subscription_id' => $subscription->id,
+            //     'shopify_subscription_gid' => $subscription->shopify_subscription_gid,
+            // ]);
 
             return back()->with('success', 'Subscription cancelled successfully.');
         } catch (\Throwable $e) {
-            Log::error('Admin Shopify Subscription Cancellation Failed', [
-                'shop_id' => $shop->id,
-                'subscription_id' => $subscription->id ?? null,
-                'shopify_subscription_gid' => $subscription->shopify_subscription_gid ?? null,
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // Log::error('Admin Shopify Subscription Cancellation Failed', [
+            //     'shop_id' => $shop->id,
+            //     'subscription_id' => $subscription->id ?? null,
+            //     'shopify_subscription_gid' => $subscription->shopify_subscription_gid ?? null,
+            //     'message' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
 
             return back()->with('error', 'Unable to cancel Shopify subscription: ' . $e->getMessage());
         }
