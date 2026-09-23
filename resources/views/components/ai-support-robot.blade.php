@@ -255,7 +255,10 @@ $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
         background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
         border: 2px solid #38BDF8;
         box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.35), 0 0 16px rgba(56, 189, 248, 0.35);
-        cursor: pointer;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -269,6 +272,12 @@ $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
         transform: scale(1.08) translateY(-2px);
         box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.45), 0 0 22px rgba(56, 189, 248, 0.55);
         border-color: #60A5FA;
+    }
+
+    .zeosync-ai-support__robot-btn:active,
+    .zeosync-ai-support__robot-btn.is-dragging {
+        cursor: grabbing;
+        animation: none;
     }
 
     .zeosync-ai-support__robot-btn:focus-visible {
@@ -1009,7 +1018,184 @@ $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
             if (dropdownMenu) dropdownMenu.style.display = 'none';
         };
 
-        if (robotBtn) robotBtn.addEventListener('click', openChat);
+        // ----------------------------------------------------
+        // DRAGGABLE FLOATING LAUNCHER (Pointer Events + sessionStorage)
+        // ----------------------------------------------------
+        const STORAGE_KEY = 'zeosync_ai_chat_btn_pos';
+        const contentContainer = document.querySelector('.app-layout .content') || document.querySelector('.content');
+
+        // Check Navigation Reload (modern Navigation Timing API)
+        try {
+            const navEntries = typeof performance !== 'undefined' && typeof performance.getEntriesByType === 'function'
+                ? performance.getEntriesByType('navigation')
+                : [];
+            const isReload = navEntries.length > 0 && navEntries[0].type === 'reload';
+            if (isReload) {
+                sessionStorage.removeItem(STORAGE_KEY);
+            }
+        } catch (e) {
+            console.warn('Navigation timing check error:', e);
+        }
+
+        // Apply Position Helper (converts relative .content coordinates to fixed viewport style)
+        const applyPosition = (relX, relY) => {
+            if (!contentContainer || !launcherWrapper || !robotBtn) return null;
+            const contentRect = contentContainer.getBoundingClientRect();
+            const btnWidth = robotBtn.offsetWidth || 62;
+            const btnHeight = robotBtn.offsetHeight || 62;
+            const margin = 12;
+
+            const minX = margin;
+            const maxX = Math.max(minX, contentRect.width - btnWidth - margin);
+            const minY = margin;
+            const maxY = Math.max(minY, contentRect.height - btnHeight - margin);
+
+            const clampedX = Math.min(Math.max(relX, minX), maxX);
+            const clampedY = Math.min(Math.max(relY, minY), maxY);
+
+            const viewportX = contentRect.left + clampedX;
+            const viewportY = contentRect.top + clampedY;
+
+            launcherWrapper.style.position = 'fixed';
+            launcherWrapper.style.left = viewportX + 'px';
+            launcherWrapper.style.top = viewportY + 'px';
+            launcherWrapper.style.right = 'auto';
+            launcherWrapper.style.bottom = 'auto';
+
+            return { x: clampedX, y: clampedY };
+        };
+
+        // Restore Position from sessionStorage
+        const restorePosition = () => {
+            if (!contentContainer || !launcherWrapper) return;
+            let raw = null;
+            try {
+                raw = sessionStorage.getItem(STORAGE_KEY);
+            } catch (e) {
+                return;
+            }
+            if (!raw) return;
+
+            let parsed = null;
+            try {
+                parsed = JSON.parse(raw);
+            } catch (e) {
+                try { sessionStorage.removeItem(STORAGE_KEY); } catch (_) {}
+                return;
+            }
+
+            if (!parsed || typeof parsed.x !== 'number' || typeof parsed.y !== 'number' || !Number.isFinite(parsed.x) || !Number.isFinite(parsed.y)) {
+                try { sessionStorage.removeItem(STORAGE_KEY); } catch (_) {}
+                return;
+            }
+
+            applyPosition(parsed.x, parsed.y);
+        };
+
+        restorePosition();
+
+        // Window resize re-clamping
+        window.addEventListener('resize', () => {
+            try {
+                const raw = sessionStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    restorePosition();
+                }
+            } catch (_) {}
+        });
+
+        // Pointer Drag Engine
+        let isPointerDown = false;
+        let isDragging = false;
+        let wasDragged = false;
+        let startPointerX = 0;
+        let startPointerY = 0;
+        let startRelX = 0;
+        let startRelY = 0;
+        let currentRelPos = null;
+
+        if (robotBtn && contentContainer) {
+            robotBtn.addEventListener('pointerdown', (e) => {
+                if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+                isPointerDown = true;
+                isDragging = false;
+                wasDragged = false;
+                startPointerX = e.clientX;
+                startPointerY = e.clientY;
+
+                const contentRect = contentContainer.getBoundingClientRect();
+                const btnRect = robotBtn.getBoundingClientRect();
+                startRelX = btnRect.left - contentRect.left;
+                startRelY = btnRect.top - contentRect.top;
+
+                try {
+                    robotBtn.setPointerCapture(e.pointerId);
+                } catch (_) {}
+            });
+
+            robotBtn.addEventListener('pointermove', (e) => {
+                if (!isPointerDown) return;
+
+                const deltaX = e.clientX - startPointerX;
+                const deltaY = e.clientY - startPointerY;
+                const dist = Math.hypot(deltaX, deltaY);
+
+                if (!isDragging && dist > 6) {
+                    isDragging = true;
+                    wasDragged = true;
+                    robotBtn.classList.add('is-dragging');
+                }
+
+                if (isDragging) {
+                    e.preventDefault();
+                    currentRelPos = applyPosition(startRelX + deltaX, startRelY + deltaY);
+                }
+            });
+
+            const onPointerEnd = (e) => {
+                if (!isPointerDown) return;
+                isPointerDown = false;
+
+                try {
+                    robotBtn.releasePointerCapture(e.pointerId);
+                } catch (_) {}
+
+                robotBtn.classList.remove('is-dragging');
+
+                if (isDragging) {
+                    isDragging = false;
+                    if (currentRelPos) {
+                        try {
+                            sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+                                x: Math.round(currentRelPos.x),
+                                y: Math.round(currentRelPos.y)
+                            }));
+                        } catch (err) {
+                            console.warn('Could not save AI button position to sessionStorage:', err);
+                        }
+                    }
+                    setTimeout(() => {
+                        wasDragged = false;
+                    }, 150);
+                }
+            };
+
+            robotBtn.addEventListener('pointerup', onPointerEnd);
+            robotBtn.addEventListener('pointercancel', onPointerEnd);
+
+            robotBtn.addEventListener('click', (e) => {
+                if (wasDragged) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
+                openChat();
+            });
+        } else if (robotBtn) {
+            robotBtn.addEventListener('click', openChat);
+        }
+
         if (speechBubble) speechBubble.addEventListener('click', openChat);
         if (closeBtn) closeBtn.addEventListener('click', closeChat);
 
