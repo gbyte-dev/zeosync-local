@@ -15,10 +15,10 @@
         <div class="card-header bg-white border-0 py-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h4 class="mb-1 fw-bold">Mail Templates</h4>
+                    <h5 class="mb-1 fw-bold">Mail Templates</h5>
                     <p class="mb-0 text-muted small">Create and manage email templates for your app</p>
                 </div>
-                <a class="btn btn-primary" href="{{ route('admin.mailtemplates.create') }}">
+                <a class="btn btn-primary btn-sm" href="{{ route('admin.mailtemplates.create') }}">
                     <i class="bi bi-plus-lg me-2"></i>Create Template
                 </a>
             </div>

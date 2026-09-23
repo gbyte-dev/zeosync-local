@@ -81,7 +81,7 @@ class NotificationController extends Controller
         $totalNotifications = UserNotification::where('shop_id', $shopId)->count();
         $emailEnabled = UserNotificationSetting::where('mail_enabled', 1)->count();
         $inAppEnabled = UserNotificationSetting::where('app_enabled', 1)->count();
-        $lastUpdated = UserNotification::where('shop_id', $shopId)->max('created_at');
+        $lastUpdated = UserNotification::where('shop_id', $shopId)->orderByDesc('created_at')->value('created_at');
 
         return view('notification.index', compact(
             'latestNotifications',
