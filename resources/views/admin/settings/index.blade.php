@@ -5,7 +5,7 @@
 
 @php
 $groups = [
-    'App Basic Details' => ['app_name','currency','timezone', 'app_logo','app_favicon'],
+    'App Basic Details' => ['app_name','currency','timezone', 'app_logo','app_favicon','support_email','support_contact_no'],
     'Email / SMTP Settings' => ['admin_email','SMTP_host','SMTP_port','SMTP_username','SMTP_password','SMTP_encryption','from_email','from_name'],
     'Stripe Settings' => ['stripe_secret_key','stripe_publishable_key','stripe_webhook_secret'],
     'Amazon Credentials' => ['production_client_id','production_client_secret','amazon_refresh_token','amazon_seller_id','amazon_app_id'],
