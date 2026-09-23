@@ -16,11 +16,11 @@
         <div class="card-header bg-white border-0 py-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h4 class="mb-1 fw-bold">Categories</h4>
+                    <h5 class="mb-1 fw-bold">Categories</h5>
                     <p class="mb-0 text-muted small">Manage categories and subcategories</p>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <button class="btn btn-primary btn-add-category">
+                    <button class="btn btn-primary btn-add-category btn-sm">
                         <i class="bi bi-plus-lg me-1"></i>Add Category
                     </button>
                     <form action="{{ route('admin.search.categories') }}" class="d-inline-flex">
