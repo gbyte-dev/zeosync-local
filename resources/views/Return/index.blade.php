@@ -5,14 +5,14 @@
 <style nonce="{{ $cspNonce??'' }}">
 
     .returns-page {
-        padding: 24px;
+        padding: 12px 16px;
     }
 
     .returns-hero {
         background: linear-gradient(135deg, #111827, #2563eb);
         color: #fff;
         border-radius: 22px;
-        padding: 30px;
+        padding: 16px;
         margin-bottom: 24px;
         box-shadow: 0 18px 40px rgba(37, 99, 235, .18);
     }
@@ -36,7 +36,6 @@
         color: #6b7280;
         font-size: 13px;
         font-weight: 700;
-        margin-bottom: 6px;
     }
 
     .summary-value {
@@ -53,21 +52,13 @@
         margin-bottom: 20px;
     }
 
-    .form-control,
-    .form-select {
-        border-radius: 12px;
-        border: 1px solid #dbe3ef;
-        padding: 12px 14px;
-    }
 
     .returns-tabs {
         background: #fff;
         border: 1px solid #eef2f7;
         border-radius: 16px;
-        padding: 8px;
         display: inline-flex;
         gap: 8px;
-        margin-bottom: 24px;
         box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
     }
 
@@ -75,7 +66,7 @@
         border: 0;
         background: transparent;
         color: #64748b;
-        padding: 10px 22px;
+        padding: 10px 16px;
         border-radius: 12px;
         font-weight: 800;
     }
@@ -236,15 +227,10 @@
     }
 </style>
 
-<div class="returns-page">
+<div class="container-fluid py-3 px-3 saas-wrapper">
 
-    <div class="returns-hero">
-        <!-- <span class="badge bg-light text-primary mb-3 px-3 py-2">
-            Returns Center
-        </span> -->
-
-        <h3 class="fw-bold mb-1">Returns & Refunds</h3>
-
+    <div class="saas-page-header">
+        <h5 class="fw-bold mb-1">Returns & Refunds</h5>
         <p class="mb-0 opacity-75">
             Track Shopify and Amazon returns, approvals and refund status
         </p>
@@ -273,7 +259,7 @@
     </div>
 
     <div class="card filter-card">
-        <div class="card-body p-4">
+        <div class="card-body">
             <div class="row g-3 align-items-end">
                 <div class="col-md-4">
                     <label class="form-label small fw-bold text-muted">Search</label>
@@ -291,19 +277,19 @@
                 </div>
 
                 <div class="col-md-2">
-                    <button class="btn btn-primary w-100 fw-bold" style="border-radius:12px;padding:12px;" onclick="applyFilter()">
+                    <button class="btn btn-primary w-100 fw-bold" onclick="applyFilter()">
                         Filter
                     </button>
                 </div>
 
                 <div class="col-md-2">
-                    <button class="btn btn-light border w-100 fw-bold" style="border-radius:12px;padding:12px;" onclick="resetFilter()">
+                    <button class="btn btn-light border w-100 fw-bold"  onclick="resetFilter()">
                         Reset
                     </button>
                 </div>
 
                 <div class="col-md-1">
-                    <button class="btn btn-danger w-100 fw-bold" style="border-radius:12px;padding:12px;" onclick="refreshReturns()">
+                    <button class="btn btn-danger w-100 fw-bold" onclick="refreshReturns()">
                         ⟳
                     </button>
                 </div>

@@ -7,7 +7,7 @@
     .zeo-inventory-page {
         background-color: #f4f6f8;
         min-height: 100vh;
-        padding: 24px 32px;
+        padding: 12px 16px;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
@@ -317,7 +317,7 @@
     }
 </style>
 
-<div class="zeo-inventory-page">
+<div class="zeo-inventory-page mt-3">
 
     <div class="zeo-page-header">
         <h5>Amazon Low Inventory</h5>
@@ -380,18 +380,14 @@
                             <td>
                                 @php
                                 $title = $product['title'] ?? '-';
-                                $shortTitle = mb_strlen($title) > 25
-                                ? mb_substr($title, 0, 25) . '...'
-                                : $title;
+                                $shortTitle = mb_strlen($title) > 25 ? mb_substr($title, 0, 25) . '...'   : $title;
                                 @endphp
                                 <div class="product-title" title="{{ $title }}">
                                     {{ $shortTitle }}
                                 </div>
                             </td>
                             <td>
-                                <span class="sku-text">
-                                    {{ $product['sku'] ?? '-' }}
-                                </span>
+                                <span class="sku-text">  {{ $product['sku'] ?? '-' }}    </span>
                             </td>
                             <td>
                                 @php
