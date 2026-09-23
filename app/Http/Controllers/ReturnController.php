@@ -86,27 +86,18 @@ class ReturnController extends ShopifyController
         $shopify = new ShopifyService($shop, $token);
     
         $structure = [
-            'id',
-            'name',
-            'createdAt',
-    
+            'id', 'name', 'createdAt',
             'customer' => [
-                'firstName',
-                'lastName',
-                'email'
+                'firstName', 'lastName', 'email'
             ],
-    
             'refunds' => [
-                'id',
-                'createdAt',
-    
+                'id', 'createdAt',
                 'totalRefundedSet' => [
                     'shopMoney' => [
                         'amount',
                         'currencyCode'
                     ]
                 ],
-    
                 'refundLineItems(first: 10)' => [
                     'nodes' => [
                         'quantity',
@@ -124,7 +115,6 @@ class ReturnController extends ShopifyController
     
         do {
             $res = $shopify->paginateRefunds($structure, 50, $cursor, "financial_status:refunded");
-    
             $allData = array_merge($allData, $res['data']);
             $cursor = $res['next_cursor'];
     
@@ -132,48 +122,24 @@ class ReturnController extends ShopifyController
     
         $result = [];
         foreach ($allData as $order) {
-
             foreach ($order['refunds'] ?? [] as $refund) {
-    
                 $amount = $refund['totalRefundedSet']['shopMoney']['amount'] ?? 0;
                 $currency = $refund['totalRefundedSet']['shopMoney']['currencyCode'] ?? '';
-                $items = $refund['refundLineItems']['nodes'] ?? [];
-                if (!empty($items)) {
-    
-                    foreach ($items as $item) {
-    
-                        $line = $item['lineItem'] ?? [];
-                        $oid = str_replace('gid://shopify/Order/', '', $order['id']);
-                        $result[] = [
-                            'oid' => $oid,
-                            'order_id' => $order['name'],
-                            'product_name' => $line['title'] ?? 'N/A',
-                            'sku' => $line['sku'] ?? 'N/A',
-                            'quantity' => $item['quantity'] ?? 1,
-                            'status' => 'refunded',
-                            'refund_amount' => $amount,
-                            'currency' => $currency,
-                            'type' => 'product', 
-                            'created_at' => $refund['createdAt'] ?? $order['createdAt'],
-                        ];
-                    }
-    
-                } else {
-                 
-                    $oid = str_replace('gid://shopify/Order/', '', $order['id']);
-                    $result[] = [
-                        'oid' => $oid,
-                        'order_id' => $order['name'],
-                        'product_name' => 'Manual Refund',
-                        'sku' => '-',
-                        'quantity' => 1,
-                        'status' => 'refunded',
-                        'refund_amount' => $amount,
-                        'currency' => $currency,
-                        'type' => 'manual', 
-                        'created_at' => $refund['createdAt'] ?? $order['createdAt'],
-                    ];
-                }
+
+                // Emit a single refund summary per refund entry (no product-level details)
+                $oid = str_replace('gid://shopify/Order/', '', $order['id']);
+                $result[] = [
+                    'oid' => $oid,
+                    'order_id' => $order['name'],
+                    'product_name' => null,
+                    'sku' => null,
+                    'quantity' => null,
+                    'status' => 'refunded',
+                    'refund_amount' => $amount,
+                    'currency' => $currency,
+                    'type' => 'order',
+                    'created_at' => $refund['createdAt'] ?? $order['createdAt'],
+                ];
             }
         }
     
