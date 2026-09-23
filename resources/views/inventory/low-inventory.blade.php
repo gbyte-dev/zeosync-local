@@ -306,7 +306,7 @@
 <div class="zeo-inventory-page">
 
     <div class="zeo-page-header">
-        <h1>Amazon Low Inventory</h1>
+        <h5>Amazon Low Inventory</h5>
         <p>Products with Amazon inventory below 10 units</p>
     </div>
 
@@ -420,40 +420,7 @@
 <script nonce="{{ $cspNonce??'' }}">
     $(document).ready(function() {
         if ($('#amazonLowInventoryTable').length) {
-            $('#amazonLowInventoryTable').DataTable({
-                responsive: true,
-                autoWidth: false,
-                pageLength: 25,
-                lengthMenu: [
-                    [10, 25, 50, 100],
-                    [10, 25, 50, 100]
-                ],
-                order: [
-                    [2, 'asc']
-                ],
-                columnDefs: [{
-                        targets: 0,
-                        width: '55%'
-                    },
-                    {
-                        targets: 1,
-                        width: '35%'
-                    },
-                    {
-                        targets: 2,
-                        width: '10%',
-                        type: 'num'
-                    }
-                ],
-                language: {
-                    search: "",
-                    searchPlaceholder: "Search Product / SKU...",
-                    lengthMenu: "_MENU_"
-                },
-                dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
-                    "<'row'<'col-sm-12'tr>>" +
-                    "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
-            });
+            $('#amazonLowInventoryTable').DataTable();
         }
     });
 

@@ -15,11 +15,8 @@
     $fallback = asset('logo/favamzsync.png');
     $faviconUrl = $fallback;
 
-    if (
-    !empty($favicon) &&
-    \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon)
-    ) {
-    $faviconUrl = asset('storage/' . $favicon);
+    if ( !empty($favicon) &&  \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon) ) {
+        $faviconUrl = asset('storage/' . $favicon);
     }
     $shopifyclient_id = \App\Models\AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key'));
     @endphp
