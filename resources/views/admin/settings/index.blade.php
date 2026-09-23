@@ -22,7 +22,7 @@ $groups = [
                     <h4 class="mb-1 fw-bold">Settings</h4>
                     <p class="mb-0 text-muted small">Configure app details, integrations, and notification behavior</p>
                 </div>
-                <button type="submit" form="adminSettingsForm" class="btn btn-primary">
+                <button type="submit" form="adminSettingsForm" class="btn btn-primary btn-sm">
                     <i class="bi bi-check2-circle me-2"></i>Save Changes
                 </button>
             </div>
