@@ -26,14 +26,9 @@ class NotificationController extends Controller
         $latestNotifications = AdminNotification::latest()->paginate(10);
 
         $lastUpdated = $notifications->max('updated_at');
-        return view('admin.notification.index', compact(
-            'notifications',
-            'totalNotifications',
-            'emailEnabled',
-            'inAppEnabled',
-            'lastUpdated',
-            'latestNotifications',
-            'adminNotifications'
+        return view('admin.notification.index', compact(  'notifications', 
+            'totalNotifications',  'emailEnabled', 'inAppEnabled', 
+             'lastUpdated',  'latestNotifications', 'adminNotifications'
         ));
     }
 
@@ -62,8 +57,7 @@ class NotificationController extends Controller
         $shopId = $shopModel?->id;
 
         $latestNotifications = UserNotification::where('shop_id', $shopId)
-            ->latest()
-            ->paginate(10);
+            ->latest()->paginate(10);
 
         if ($shopId && $latestNotifications->isNotEmpty()) {
             $unreadIds = $latestNotifications->where('is_read', 0)->pluck('id');
@@ -106,8 +100,7 @@ class NotificationController extends Controller
 
         if (!$shopModel) {
             return response()->json([
-                'success' => false,
-                'message' => 'Shop not found.',
+                'success' => false, 'message' => 'Shop not found.',
             ], 404);
         }
 
@@ -115,8 +108,7 @@ class NotificationController extends Controller
 
         if (!is_array($notificationIds) || empty($notificationIds)) {
             return response()->json([
-                'success' => true,
-                'updated' => 0,
+                'success' => true,  'updated' => 0,
             ]);
         }
 
@@ -138,11 +130,8 @@ class NotificationController extends Controller
         \Log::info('Trial Ending Button Clicked');
 
         $subscriptions = ShopSubscription::where('status', 'trialing')
-            ->whereBetween('trial_ends_at', [
-                now(),
-                now()->addDay()
-            ])
-            ->get();
+            ->whereBetween('trial_ends_at', [ now(),  now()->addDay()
+            ])->get();
 
         $count = 0;
         $skipped = 0;
@@ -171,20 +160,18 @@ class NotificationController extends Controller
 
         if ($count > 0) {
             return back()->with(
-                'success',
-                "{$count} trial ending notification sent successfully."
+                'success', "{$count} trial ending notification sent successfully."
             );
         }
 
         return back()->with(
-            'warning',
-            'Today\'s trial ending notification has already been sent. It can be sent again tomorrow.'
+            'warning', 'Today\'s trial ending notification has already been sent. It can be sent again tomorrow.'
         );
     }
 
     public function markAdminNotificationRead($id)
     {
-        \Log::info('Admin notification read hit', ['id' => $id]);
+        // \Log::info('Admin notification read hit', ['id' => $id]);
 
         $notification = AdminNotification::findOrFail($id);
 

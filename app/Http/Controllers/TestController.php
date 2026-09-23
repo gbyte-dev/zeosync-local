@@ -145,66 +145,23 @@ class TestController extends Controller
         $service = new CategoryService();
         $result = $service->updateParentBySearch(
             $keywords = [
-                // industrial / construction
-                'hardware',
-                'industrial hardware',
-                'construction hardware',
-                'bolt',
-                'nut',
-                'screw',
-                'fastener',
-                'drill',
-                'hammer',
-                'spanner',
-                'adhesive',
-                'sealant',
-                'abrasive',
-                'metal parts',
-                'building material',
-                // computer hardware
-                'computer hardware',
-                'motherboard',
-                'processor',
-                'cpu',
-                'ram',
-                'ssd',
-                'hard disk',
-                'graphics card',
-                'gpu',
-                'power supply',
-                'smps',
-                // electrical
-                'electrical hardware',
-                'switch',
-                'socket',
-                'circuit breaker',
-                'wire',
-                'cable',
-                'fuse',
-                'electrical panel',
-                'distribution board',
-                // plumbing
-                'plumbing hardware',
-                'pipe',
-                'pipe fitting',
-                'tap',
-                'valve',
-                'faucet',
-                'water connector',
-                // tools
-                'hand tools',
-                'power tools',
-                'tool kit',
-                'wrench',
-                'screwdriver',
-                'cutting tool',
-                'measuring tool'
-            ], // 🔥 keywords
-            40,                   // 🔥 parent_id
-            false                 // partial match
-        );
+                'hardware', 'industrial hardware', 'construction hardware',
+                'bolt', 'nut', 'screw', 'fastener', 'drill', 'hammer',
+                'spanner', 'adhesive', 'sealant', 'abrasive', 'metal parts',
+                'building material', 'computer hardware', 'motherboard',
+                'processor', 'cpu', 'ram', 'ssd', 'hard disk', 'graphics card',
+                'gpu', 'power supply',  'smps', 'electrical hardware',
+                'switch', 'socket', 'circuit breaker', 'wire',  'cable',
+                'fuse',  'electrical panel', 'distribution board',
+                'plumbing hardware',  'pipe', 'pipe fitting', 'tap',
+                'valve', 'faucet', 'water connector', 'hand tools',
+                'power tools', 'tool kit', 'wrench', 'screwdriver',
+                'cutting tool',  'measuring tool'
+            ],   40,  false  );
+
         return response()->json($result);
     }
+    
     public function createSandboxProduct()
     {
         try {
