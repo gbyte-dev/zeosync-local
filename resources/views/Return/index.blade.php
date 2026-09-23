@@ -226,6 +226,31 @@
             flex: 1;
         }
     }
+    .table-responsive { position: relative; }
+
+    .table-loader {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255,255,255,0.85);
+        z-index: 3;
+        border-radius: 6px;
+    }
+
+    .table-loader .spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(0,0,0,0.08);
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 12px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 
 <div class="container-fluid py-3 px-3 saas-wrapper">
@@ -307,20 +332,29 @@
         </div>
     </div>
 
-    <div class="row g-4" id="returnGrid"></div>
-
-    <div class="pagination-box">
-        <button class="btn btn-light border page-btn" onclick="prevPage()">
-            ← Prev
-        </button>
-
-        <span class="fw-bold text-muted">
-            Page <span id="currentPage">1</span>
-        </span>
-
-        <button class="btn btn-primary page-btn" onclick="nextPage()">
-            Next →
-        </button>
+    <div class="card mt-3">
+        <div class="card-body">
+            <div class="table-responsive">
+                <div id="returnsLoader" class="table-loader">
+                    <div class="spinner" aria-hidden="true"></div>
+                    <div class="fw-semibold">Loading returns…</div>
+                </div>
+                <table id="returnsTable" class="table table-hover table-striped" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th style="width:56px"></th>
+                            <th>Detail</th>
+                            <th>Type</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-end">Date</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="returnsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
 </div>
@@ -332,8 +366,8 @@
     let returnsData = [];
     let filteredData = [];
     let activeTab = 'shopify';
-    let currentPage = 1;
     let perPage = 9;
+    let returnsTable = null;
 
     function escapeHtml(str) {
         if (str === null || str === undefined) return '';
@@ -367,121 +401,105 @@
 
     function loadReturns(type = 'shopify') {
         activeTab = type;
-        currentPage = 1;
 
         let url = type === 'amazon'
             ? '{{ route("shopify.returns.amazon") }}'
             : '{{ route("shopify.returns.shopify") }}';
+
+        // show loader
+        try { document.getElementById('returnsLoader').style.display = 'flex'; } catch (e) {}
 
         fetch(url)
             .then(res => res.json())
             .then(data => {
                 returnsData = Array.isArray(data) ? data : [];
                 filteredData = [...returnsData];
-                renderCards();
+                try { document.getElementById('returnsLoader').style.display = 'none'; } catch (e) {}
+                renderTable();
             })
             .catch(() => {
                 returnsData = [];
                 filteredData = [];
-                renderCards();
+                try { document.getElementById('returnsLoader').style.display = 'none'; } catch (e) {}
+                renderTable();
             });
     }
 
-    function renderCards() {
-        let start = (currentPage - 1) * perPage;
-        let paginated = filteredData.slice(start, start + perPage);
+    function renderTable() {
         let isAmazonConnected = {{ !empty($shop->amazon_refresh_token) ? 'true' : 'false' }};
 
-        let html = '';
         let requested = 0, approved = 0, refunded = 0;
-
         filteredData.forEach(i => {
             if (i.status === 'requested') requested++;
             if (i.status === 'approved') approved++;
             if (i.status === 'refunded') refunded++;
         });
 
-        if (!isAmazonConnected && activeTab === 'amazon') {
-            html = `
-                <div class="col-12">
-                    <div class="alert alert-warning rounded-4 p-4">
-                        Please connect your Amazon account to view returns.
-                    </div>
-                </div>
-            `;
-        } else if (paginated.length === 0) {
-            html = `
-                <div class="col-12">
-                    <div class="text-center text-muted py-5 bg-white rounded-4 border">
-                        No returns found
-                    </div>
-                </div>
-            `;
-        }
-
-        paginated.forEach(item => {
-            const safeImage = sanitizeImageUrl(item.image, 'https://via.placeholder.com/80');
-            const safeName = escapeHtml(item.product_name || 'Product');
-            const safeOrderId = escapeHtml(item.order_id || '-');
-            const safeSku = escapeHtml(item.sku || '-');
-            const safeRefund = escapeHtml(item.refund_amount || 0);
-            const safeDate = escapeHtml(formatDate(item.created_at));
-            const safeStatus = escapeHtml(item.status || 'requested');
-            const viewUrl = escapeHtml(getViewUrl(item));
-
-            html += `
-                <div class="col-md-6 col-lg-4">
-                    <div class="return-card">
-
-                        <div class="return-header">
-                            <img src="${safeImage}" class="return-img" alt="${safeName}">
-                            <div>
-                                <div class="return-title">${safeName}</div>
-                                <div class="return-meta">Order: ${safeOrderId}</div>
-                                <div class="return-meta">SKU: ${safeSku}</div>
-                            </div>
-                        </div>
-
-                        <div class="return-grid">
-                            <div class="return-info-box">
-                                <small>Refund</small>
-                                <div>$${safeRefund}</div>
-                            </div>
-
-                            <div class="return-info-box">
-                                <small>Date</small>
-                                <div>${safeDate}</div>
-                            </div>
-
-                            <div class="return-info-box">
-                                <small>Status</small>
-                                <div>
-                                    <span class="badge-status ${safeStatus}">
-                                        ${safeStatus}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mt-3 text-end">
-                            <button class="btn btn-dark btn-sm fw-bold"
-                                    style="border-radius:10px;"
-                                    onclick="window.location.href='${viewUrl}'">
-                                View
-                            </button>
-                        </div>
-
-                    </div>
-                </div>
-            `;
-        });
-
-        document.getElementById('returnGrid').innerHTML = html;
+        // Update summaries
         document.getElementById('totalCount').innerText = filteredData.length;
         document.getElementById('requestedCount').innerText = requested;
         document.getElementById('approvedCount').innerText = approved;
         document.getElementById('refundedCount').innerText = refunded;
-        document.getElementById('currentPage').innerText = currentPage;
+
+        // Handle no data / not connected message
+        if (!isAmazonConnected && activeTab === 'amazon') {
+            const body = document.getElementById('returnsTableBody');
+            body.innerHTML = `<tr><td colspan="7"><div class="alert alert-warning mb-0">Please connect your Amazon account to view returns.</div></td></tr>`;
+            if (returnsTable) { returnsTable.clear().draw(); }
+            return;
+        }
+
+        if (!Array.isArray(filteredData) || filteredData.length === 0) {
+            const body = document.getElementById('returnsTableBody');
+            body.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No returns found</td></tr>`;
+            if (returnsTable) { returnsTable.clear().draw(); }
+            return;
+        }
+
+        // Build rows
+        let rows = '';
+        filteredData.forEach(item => {
+            const safeImage = sanitizeImageUrl(item.image, 'https://via.placeholder.com/80');
+            const detailHtml = item.product_name ?
+                `<div class="fw-semibold">${escapeHtml(item.product_name)}</div><div class="text-muted small">SKU: ${escapeHtml(item.sku || '-')}</div>` :
+                `<div class="fw-semibold">Order-level refund</div><div class="text-muted small">Order: ${escapeHtml(item.order_id || '-')}</div>`;
+            const type = (item.type === 'manual') ? 'Manual' : (item.type === 'product' ? 'Product' : 'Order');
+            const amount = Number(item.refund_amount || 0).toFixed(2);
+            const date = escapeHtml(formatDate(item.created_at));
+            const status = escapeHtml(item.status || 'requested');
+            const viewUrl = escapeHtml(getViewUrl(item));
+
+            rows += `
+                <tr>
+                    <td><img src="${safeImage}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #eef2f7"></td>
+                    <td>${detailHtml}</td>
+                    <td>${type}</td>
+                    <td class="text-end">${amount} ${escapeHtml(item.currency || '')}</td>
+                    <td class="text-end">${date}</td>
+                    <td><span class="badge-status ${status}">${status}</td>
+                    <td class="text-end"><a href="${viewUrl}" class="btn btn-sm btn-primary">View</a></td>
+                </tr>`;
+        });
+
+        document.getElementById('returnsTableBody').innerHTML = rows;
+
+        // Initialize or refresh DataTable
+        if (returnsTable) {
+            try { returnsTable.destroy(); } catch (e) {}
+            document.getElementById('returnsTable').querySelector('tbody').style.display = '';
+        }
+
+        returnsTable = $('#returnsTable').DataTable({
+            responsive: true,
+            autoWidth: false,
+            pageLength: perPage,
+            lengthMenu: [[9, 25, 50], [9, 25, 50]],
+            order: [[4, 'desc']],
+            columnDefs: [
+                { orderable: false, targets: [0,6] },
+                { className: 'text-end', targets: [3,4,6] }
+            ],
+        });
     }
 
     function applyFilter() {
@@ -498,40 +516,24 @@
             );
         });
 
-        currentPage = 1;
-        renderCards();
+        renderTable();
     }
 
     function resetFilter() {
         filteredData = [...returnsData];
         document.getElementById('searchInput').value = '';
         document.getElementById('statusFilter').value = '';
-        currentPage = 1;
-        renderCards();
+        renderTable();
     }
 
-    function nextPage() {
-        if (currentPage * perPage < filteredData.length) {
-            currentPage++;
-            renderCards();
-        }
-    }
-
-    function prevPage() {
-        if (currentPage > 1) {
-            currentPage--;
-            renderCards();
-        }
-    }
+    // DataTable provides pagination controls; next/prev not used.
 
     function formatDate(date) {
         if (!date) return '-';
         return new Date(date).toLocaleDateString();
     }
 
-    function refreshReturns() {
-        loadReturns(activeTab);
-    }
+    function refreshReturns() { loadReturns(activeTab); }
 
     function switchTab(tab) {
         document.getElementById('shopifyTabBtn').classList.remove('active');
@@ -544,8 +546,6 @@
         loadReturns(tab);
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        loadReturns('shopify');
-    });
+    document.addEventListener('DOMContentLoaded', () => { loadReturns('shopify'); });
 </script>
 @endpush
