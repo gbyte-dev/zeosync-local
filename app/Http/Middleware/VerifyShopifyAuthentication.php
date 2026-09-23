@@ -175,15 +175,7 @@ class VerifyShopifyAuthentication
                     ]);
                 }
             } elseif ($requestedShop && strcasecmp($requestedShop, $sessionShopDomain) !== 0) {
-                // Log::warning('SHOPIFY_DEBUG: verify_auth_session_fallback_shop_mismatch', [
-                //     'requested_shop'        => $requestedShop,
-                //     'session_verified_shop' => $sessionShopDomain,
-                //     'session_active_shop'   => session('active_shop'),
-                //     'auth_strategy'         => 'session_fallback_rejected',
-                //     'result'                => 'redirect_to_install',
-                // ]);
-
-                // Clear stale session context.
+                // Clear stale session context for the old shop.
                 session()->forget([
                     '_shopify_verified_shop',
                     '_shopify_verified_at',
@@ -195,12 +187,34 @@ class VerifyShopifyAuthentication
                     'shopify_auth_source',
                 ]);
 
-                // Never set verified attributes for the old shop.
-                // Never call $next($request).
+                // Check if the requested target shop already exists and is active in the database
+                try {
+                    $targetShop = Shop::where('shop', $requestedShop)
+                        ->where('is_active', 1)
+                        ->first();
+                } catch (\Throwable $e) {
+                    $targetShop = null;
+                }
 
-                return redirect()->route('shopify.install', [
-                    'shop' => $requestedShop,
-                ]);
+                if ($targetShop && !empty($targetShop->access_token)) {
+                    // Existing active shop: do not force OAuth reinstall.
+                    // Allow the request to continue to ResolveActiveShop to seamlessly reauthenticate via App Bridge.
+                } else {
+                    // Unknown or inactive shop: genuinely requires OAuth installation
+                    if ($request->ajax() || $request->expectsJson()) {
+                        return response()->json([
+                            'success' => false,
+                            'requires_reauth' => true,
+                            'redirect_url' => route('shopify.install', ['shop' => $requestedShop]),
+                            'error' => 'Unauthorized',
+                            'message' => 'Shopify authentication required.',
+                        ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');
+                    }
+
+                    return redirect()->route('shopify.install', [
+                        'shop' => $requestedShop,
+                    ]);
+                }
             } else {
                 try {
                     $sessionShop = Shop::where('shop', $sessionShopDomain)
@@ -470,7 +484,10 @@ class VerifyShopifyAuthentication
         $canonicalized = $this->normalizeShopifyQueryParams($canonicalQuery);
         $candidates = [
             http_build_query($canonicalized, '', '&', PHP_QUERY_RFC3986),
+            http_build_query($canonicalized, '', '&', PHP_QUERY_RFC1738),
+            http_build_query($canonicalized),
             urldecode(http_build_query($canonicalized, '', '&', PHP_QUERY_RFC3986)),
+            urldecode(http_build_query($canonicalized, '', '&', PHP_QUERY_RFC1738)),
             urldecode(http_build_query($canonicalized)),
         ];
 

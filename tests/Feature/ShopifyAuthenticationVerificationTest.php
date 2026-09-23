@@ -324,16 +324,14 @@ it('Test 10: Valid Store A launch + /dashboard?shop=Store-B maintains Store A', 
     expect(session('_shopify_verified_shop'))->toBe('store-a.myshopify.com');
 
     // 2. Follow to protected endpoint with ?shop=store-b.myshopify.com
+    // Should clear Store A session and not blindly authenticate Store A's data for Store B
     $response = $this->withSession([
         '_shopify_verified_shop' => 'store-a.myshopify.com',
-    ])->get('/shopify-auth-test-endpoint?shop=store-b.myshopify.com');
+    ])->get('/shopify-auth-test-endpoint?shop=store-b.myshopify.com&embedded=1&host=dGVzdA==');
 
     $response->assertStatus(200);
-    $data = $response->json();
-
-    expect($data['active_shop'])->toBe('store-a.myshopify.com');
-    expect($data['verified_shop'])->toBe('store-a.myshopify.com');
-    expect($data['active_shop'])->not->toBe('store-b.myshopify.com');
+    $response->assertViewIs('shopify.reauth');
+    expect(session('_shopify_verified_shop'))->toBeNull();
 });
 
 it('Test 11: Forged launch HMAC is rejected without authenticating', function () {
