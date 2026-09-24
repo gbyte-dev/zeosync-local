@@ -81,27 +81,27 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
 
     <!-- Products (Dropdown) -->
     <div class="sidebar__item">
-        <a class="sidebar__link {{ (request()->routeIs('shopify.products*') || request()->routeIs('user.product*') || request()->routeIs('user.addProductCategory*') || request()->routeIs('admin.product.*')) ? 'active' : '' }}"
+        <a class="sidebar__link {{ (request()->routeIs('shopify.products*')|| request()->routeIs('user.product*')) ? 'active' : '' }}"
             data-bs-toggle="collapse"
             href="#productsMenu"
             role="button"
-            aria-expanded="{{ (request()->routeIs('shopify.products*') || request()->routeIs('user.product*') || request()->routeIs('user.addProductCategory*') || request()->routeIs('admin.product.*')) ? 'true' : 'false' }}"
+            aria-expanded="{{ request()->routeIs('shopify.products*') ? 'true' : 'false' }}"
             aria-controls="productsMenu">
             <i class="bi bi-box-seam sidebar__icon"></i>
             <span class="sidebar__text">Products</span>
             <i class="bi bi-chevron-down sidebar__chevron"></i>
         </a>
 
-        <div class="collapse {{ (request()->routeIs('shopify.products*') || request()->routeIs('user.product*') || request()->routeIs('user.addProductCategory*') || request()->routeIs('admin.product.*')) ? 'show' : '' }}"
+        <div class="collapse {{ request()->routeIs('shopify.products*') || request()->routeIs('user.product*') ? 'show' : '' }}"
             id="productsMenu">
             <div class="sidebar__submenu">
                 <a href="{{ route('shopify.products').($currentShop ? '?shop='.$currentShop : '') }}"
-                    class="sidebar__sublink {{ request()->routeIs('shopify.products*') ? 'active' : '' }}">
+                    class="sidebar__sublink {{ request()->routeIs('shopify.products') ? 'active' : '' }}">
                     <i class="bi bi-plus-circle sidebar__subicon"></i>
                     <span class="sidebar__text">Shopify Products</span>
                 </a>
                 <a href="{{ route('user.product.showProducts').($currentShop ? '?shop='.$currentShop : '') }}"
-                    class="sidebar__sublink {{ (request()->routeIs('user.product*') || request()->routeIs('user.addProductCategory*') || request()->routeIs('admin.product.*')) ? 'active' : '' }}">
+                    class="sidebar__sublink {{ request()->routeIs('user.product*') ? 'active' : '' }}">
                     <i class="bi bi-eye sidebar__subicon"></i>
                     <span class="sidebar__text">Amazon Products</span>
                 </a>
@@ -223,7 +223,7 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
 
 </nav>
 
-<script nonce="{{ $cspNonce ?? '' }}" >
+<script nonce="{{ $cspNonce }}" >
     document.addEventListener('DOMContentLoaded', function() {
         if (window.self !== window.top) {
             document.getElementById('logout-button').style.display = 'none';

@@ -2,7 +2,7 @@
 
 @section('content')
 
-<style nonce="{{ $cspNonce??'' }}">
+<style nonce="{{ $cspNonce ?? '' }}">
     /* Shopify Admin Inspired UI - Ultra Compact & Tight */
     .sp-page {
         background-color: #F6F6F7;
