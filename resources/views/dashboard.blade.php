@@ -10,7 +10,7 @@ $amazonOrdersUrl = url('/orders') . '?' . http_build_query(array_filter([
     'source' => 'amazon',
 ]));
 $shopifyProductsUrl = route('shopify.products', array_filter(['shop' => $currentShop]));
-$amazonProductsUrl = route('user.product.showProducts', array_filter(['shop' => $currentShop]));
+$amazonProductsUrl = route('shopify.inventory.index', array_filter(['shop' => $currentShop, 'tab' => 'amazon']));
 $amazonLowInventoryUrl = route('view-all-amazon-low-inventory', array_filter(['shop' => $currentShop]));
 $amazonConnectUrl = route('amazon.connect', array_filter(['shop' => $currentShop]));
 $mappedProductsUrl = route('shopify.inventory.index', array_filter(['shop' => $currentShop, 'tab' => 'mapped']));
@@ -600,7 +600,11 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                 <div class="saas-stat-label">Amazon Products</div>
             </div>
             <div class="saas-stat-value">
-                {{ number_format($totalAmazonProducts ?? 0) }}
+                @if(!empty($isAmazonInventoryLoading))
+                    <span class="spinner-border spinner-border-sm text-secondary amazon-products-spinner" role="status" aria-hidden="true" style="width: 16px; height: 16px; border-width: 2px; vertical-align: middle;"></span>
+                @else
+                    {{ number_format($totalAmazonProducts ?? 0) }}
+                @endif
             </div>
         </a>
         {{-- Row 2: Card 5 - Mapped Products --}}

@@ -120,15 +120,17 @@ beforeEach(function () {
     ProductMarketplaceMapping::query()->delete();
     ProductMapping::query()->delete();
     ShopifyOrder::query()->delete();
+    Cache::flush();
 });
 
 function createDashboardTestShop(array $attributes = []): Shop
 {
+    $random = uniqid() . '-' . mt_rand(1000, 9999);
     return Shop::create(array_merge([
-        'shop' => 'dash-test-' . uniqid() . '.myshopify.com',
-        'shop_name' => 'Dashboard Test Store',
-        'email' => 'dash@example.com',
-        'access_token' => 'shpat_test_' . uniqid(),
+        'shop' => 'dash-test-' . $random . '.myshopify.com',
+        'shop_name' => 'Dashboard Test Store ' . $random,
+        'email' => 'dash' . $random . '@example.com',
+        'access_token' => 'shpat_test_' . $random,
         'is_active' => true,
     ], $attributes));
 }
@@ -144,10 +146,9 @@ function authDashboardSession(Shop $shop): array
 }
 
 test('dashboard accurately displays all six cards for a shop with amazon connected', function () {
+    $sellerId = 'SELLER_A_' . uniqid();
     $shopA = createDashboardTestShop([
-        'shop' => 'store-a.myshopify.com',
-        'shop_name' => 'Store A',
-        'amazon_seller_id' => 'SELLER_A_123',
+        'amazon_seller_id' => $sellerId,
         'amazon_refresh_token' => 'dummy_refresh_token_a',
     ]);
 
@@ -160,9 +161,12 @@ test('dashboard accurately displays all six cards for a shop with amazon connect
     ProductMarketplaceMapping::create(['shop_id' => $shopA->id, 'shopify_product_id' => '111']);
     ProductMarketplaceMapping::create(['shop_id' => $shopA->id, 'shopify_product_id' => '222']);
 
-    // Amazon Products for Shop A (user_id = shopA->id)
-    AllProduct::create(['sku' => 'AMZ-SKU-1', 'user_id' => $shopA->id, 'status' => 'draft']);
-    AllProduct::create(['sku' => 'AMZ-SKU-2', 'user_id' => $shopA->id, 'submission_status' => 'SUCCESS']);
+    // Amazon Products in Inventory Cache for Shop A
+    Cache::put("amazon_inventory_{$shopA->id}_{$sellerId}", [
+        ['sku' => 'AMZ-SKU-1', 'title' => 'Amazon Prod 1', 'quantity' => 10],
+        ['sku' => 'AMZ-SKU-2', 'title' => 'Amazon Prod 2', 'quantity' => 20],
+        ['sku' => 'AMZ-SKU-3', 'title' => 'Amazon Prod 3', 'quantity' => 5],
+    ], 3600);
 
     // Shopify Orders for Shop A
     ShopifyOrder::create(['shop_id' => $shopA->id, 'order_id' => 'ORD-A-1']);
@@ -171,7 +175,7 @@ test('dashboard accurately displays all six cards for a shop with amazon connect
     ShopifyOrder::create(['shop_id' => $shopA->id, 'order_id' => 'ORD-A-4']);
 
     // Amazon Orders in Cache for Shop A
-    Cache::put('amazon_orders_store-a.myshopify.com_SELLER_A_123', [
+    Cache::put('amazon_orders_' . $shopA->shop . '_' . $sellerId, [
         ['AmazonOrderId' => 'AMZ-ORD-1'],
         ['AmazonOrderId' => 'AMZ-ORD-2'],
         ['AmazonOrderId' => 'AMZ-ORD-3'],
@@ -196,7 +200,7 @@ test('dashboard accurately displays all six cards for a shop with amazon connect
     $response->assertViewHas('totalShopifyProducts', 3);
     $response->assertViewHas('totalMappedProducts', 2);
     $response->assertViewHas('totalAmazonOrders', 5);
-    $response->assertViewHas('totalAmazonProducts', 2);
+    $response->assertViewHas('totalAmazonProducts', 3);
     $response->assertViewHas('totalShopifyOrders', 4);
     $response->assertViewHas('isAmazonConnected', true);
 
@@ -206,8 +210,6 @@ test('dashboard accurately displays all six cards for a shop with amazon connect
 
 test('dashboard accurately displays all six cards for a shop with amazon disconnected', function () {
     $shopB = createDashboardTestShop([
-        'shop' => 'store-b.myshopify.com',
-        'shop_name' => 'Store B',
         'amazon_seller_id' => null,
         'amazon_refresh_token' => null,
     ]);
@@ -217,9 +219,6 @@ test('dashboard accurately displays all six cards for a shop with amazon disconn
 
     // Mapped Products for Shop B
     ProductMarketplaceMapping::create(['shop_id' => $shopB->id, 'shopify_product_id' => '999']);
-
-    // Amazon Products for Shop B
-    AllProduct::create(['sku' => 'AMZ-SKU-B1', 'user_id' => $shopB->id, 'status' => 'draft']);
 
     // Shopify Orders for Shop B
     ShopifyOrder::create(['shop_id' => $shopB->id, 'order_id' => 'ORD-B-1']);
@@ -233,7 +232,7 @@ test('dashboard accurately displays all six cards for a shop with amazon disconn
     $response->assertViewHas('totalShopifyProducts', 1);
     $response->assertViewHas('totalMappedProducts', 1);
     $response->assertViewHas('totalAmazonOrders', 0);
-    $response->assertViewHas('totalAmazonProducts', 1);
+    $response->assertViewHas('totalAmazonProducts', 0);
     $response->assertViewHas('totalShopifyOrders', 1);
     $response->assertViewHas('isAmazonConnected', false);
 
@@ -242,16 +241,13 @@ test('dashboard accurately displays all six cards for a shop with amazon disconn
 });
 
 test('strict multi-store tenant isolation: Store A counts never leak into Store B dashboard', function () {
+    $sellerA = 'SELLER_A_TENANT_' . uniqid();
     $shopA = createDashboardTestShop([
-        'shop' => 'store-tenant-a.myshopify.com',
-        'shop_name' => 'Store Tenant A',
-        'amazon_seller_id' => 'SELLER_A_TENANT',
+        'amazon_seller_id' => $sellerA,
         'amazon_refresh_token' => 'dummy_token_a',
     ]);
 
     $shopB = createDashboardTestShop([
-        'shop' => 'store-tenant-b.myshopify.com',
-        'shop_name' => 'Store Tenant B',
         'amazon_seller_id' => null,
         'amazon_refresh_token' => null,
     ]);
@@ -260,7 +256,9 @@ test('strict multi-store tenant isolation: Store A counts never leak into Store 
     Product::create(['title' => 'Shopify Prod A1', 'shop_id' => $shopA->id]);
     Product::create(['title' => 'Shopify Prod A2', 'shop_id' => $shopA->id]);
     ProductMarketplaceMapping::create(['shop_id' => $shopA->id, 'shopify_product_id' => '101']);
-    AllProduct::create(['sku' => 'AMZ-SKU-A1', 'user_id' => $shopA->id, 'status' => 'draft']);
+    Cache::put("amazon_inventory_{$shopA->id}_{$sellerA}", [
+        ['sku' => 'AMZ-SKU-A1', 'title' => 'Amz Product A1', 'quantity' => 15],
+    ], 3600);
     ShopifyOrder::create(['shop_id' => $shopA->id, 'order_id' => 'ORD-A-1']);
 
     // Store B data is empty
@@ -322,8 +320,11 @@ test('all six dashboard cards are clickable and navigate to correct shop-scoped 
     ]);
     expect($content)->toContain('href="' . e($expectedAmazonOrdersUrl) . '"');
 
-    // 4. Amazon Products link
-    $expectedAmazonProductsUrl = route('user.product.showProducts', ['shop' => $shop->shop]);
+    // 4. Amazon Products link (Inventory page with Amazon tab)
+    $expectedAmazonProductsUrl = route('shopify.inventory.index', [
+        'shop' => $shop->shop,
+        'tab' => 'amazon',
+    ]);
     expect($content)->toContain('href="' . e($expectedAmazonProductsUrl) . '"');
 
     // 5. Mapped Products link (Inventory page with Mapped tab)
@@ -340,8 +341,6 @@ test('all six dashboard cards are clickable and navigate to correct shop-scoped 
 
 test('inventory page opens with mapped tab active when navigating with tab=mapped', function () {
     $shop = createDashboardTestShop([
-        'shop' => 'tab-test.myshopify.com',
-        'shop_name' => 'Tab Store',
         'amazon_seller_id' => 'SELLER_TAB_123',
         'amazon_refresh_token' => 'dummy_token',
     ]);
@@ -358,4 +357,119 @@ test('inventory page opens with mapped tab active when navigating with tab=mappe
 
     // Mappings tab content pane must have show active
     expect($content)->toMatch('/<div[^>]*class="[^"]*show\s+active[^"]*"[^>]*id="mappedAmazonTab"/');
+});
+
+test('inventory page opens with amazon tab active when navigating with tab=amazon', function () {
+    $shop = createDashboardTestShop([
+        'amazon_seller_id' => 'SELLER_AMZ_TAB_123',
+        'amazon_refresh_token' => 'dummy_token',
+    ]);
+
+    $response = $this->withSession(authDashboardSession($shop))
+        ->get(route('shopify.inventory.index', ['shop' => $shop->shop, 'tab' => 'amazon']));
+
+    $response->assertStatus(200);
+
+    $content = $response->getContent();
+
+    // Amazon tab button must be active
+    expect($content)->toMatch('/<button[^>]*class="[^"]*active[^"]*"[^>]*id="amazon-tab"/');
+});
+
+test('amazon products card shows inline spinner when cache is not ready and sync is refreshing', function () {
+    $sellerId = 'SELLER_LOADING_' . uniqid();
+    $shop = createDashboardTestShop([
+        'amazon_seller_id' => $sellerId,
+        'amazon_refresh_token' => 'dummy_refresh_token',
+    ]);
+
+    // Ensure inventory cache does NOT exist
+    Cache::forget("amazon_inventory_{$shop->id}_{$sellerId}");
+
+    // Set status indicating sync/cache generation is in progress
+    Cache::forever("amazon_inventory_status_{$shop->id}_{$sellerId}", [
+        'refreshing' => true,
+        'sync_completed' => false,
+    ]);
+
+    $response = $this->withSession(authDashboardSession($shop))
+        ->get('/dashboard?shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+    $response->assertViewHas('isAmazonInventoryLoading', true);
+
+    $content = $response->getContent();
+    expect($content)->toContain('amazon-products-spinner');
+});
+
+test('amazon products card displays 0 and not loading spinner when cache is valid and empty', function () {
+    $sellerId = 'SELLER_EMPTY_' . uniqid();
+    $shop = createDashboardTestShop([
+        'amazon_seller_id' => $sellerId,
+        'amazon_refresh_token' => 'dummy_refresh_token',
+    ]);
+
+    // Inventory cache exists with 0 products
+    Cache::put("amazon_inventory_{$shop->id}_{$sellerId}", [], 3600);
+
+    Cache::forever("amazon_inventory_status_{$shop->id}_{$sellerId}", [
+        'refreshing' => false,
+        'sync_completed' => true,
+    ]);
+
+    $response = $this->withSession(authDashboardSession($shop))
+        ->get('/dashboard?shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+    $response->assertViewHas('isAmazonInventoryLoading', false);
+    $response->assertViewHas('totalAmazonProducts', 0);
+
+    $content = $response->getContent();
+    expect($content)->not->toContain('amazon-products-spinner');
+    expect($content)->toContain('0');
+});
+
+test('multi-store: Store A loading state does not affect Store B with cached Amazon products', function () {
+    $sellerA = 'SELLER_A_LOAD_' . uniqid();
+    $shopA = createDashboardTestShop([
+        'amazon_seller_id' => $sellerA,
+        'amazon_refresh_token' => 'dummy_token_a',
+    ]);
+
+    $sellerB = 'SELLER_B_READY_' . uniqid();
+    $shopB = createDashboardTestShop([
+        'amazon_seller_id' => $sellerB,
+        'amazon_refresh_token' => 'dummy_token_b',
+    ]);
+
+    // Store A is refreshing without cache
+    Cache::forget("amazon_inventory_{$shopA->id}_{$sellerA}");
+    Cache::forever("amazon_inventory_status_{$shopA->id}_{$sellerA}", [
+        'refreshing' => true,
+        'sync_completed' => false,
+    ]);
+
+    // Store B has cached 25 products
+    $storeBProducts = array_map(fn($i) => ['sku' => "SKU-{$i}", 'quantity' => 10], range(1, 25));
+    Cache::put("amazon_inventory_{$shopB->id}_{$sellerB}", $storeBProducts, 3600);
+    Cache::forever("amazon_inventory_status_{$shopB->id}_{$sellerB}", [
+        'refreshing' => false,
+        'sync_completed' => true,
+    ]);
+
+    // Check Store A
+    $responseA = $this->withSession(authDashboardSession($shopA))
+        ->get('/dashboard?shop=' . $shopA->shop);
+    $responseA->assertStatus(200);
+    $responseA->assertViewHas('isAmazonInventoryLoading', true);
+    expect($responseA->getContent())->toContain('amazon-products-spinner');
+
+    // Check Store B
+    $responseB = $this->withSession(authDashboardSession($shopB))
+        ->get('/dashboard?shop=' . $shopB->shop);
+    $responseB->assertStatus(200);
+    $responseB->assertViewHas('isAmazonInventoryLoading', false);
+    $responseB->assertViewHas('totalAmazonProducts', 25);
+    expect($responseB->getContent())->not->toContain('amazon-products-spinner');
+    expect($responseB->getContent())->toContain('25');
 });

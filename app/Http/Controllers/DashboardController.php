@@ -55,12 +55,22 @@ class DashboardController extends ShopifyController
 
         $amazonInventory = [];
         $amazonInventoryCacheExists = false;
+        $isAmazonInventoryLoading = false;
 
         if (!empty($shop->amazon_seller_id)) {
             $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}";
 
             $amazonInventoryCacheExists = Cache::has($cacheKey);
-            $amazonInventory = Cache::get($cacheKey, []);
+            if ($amazonInventoryCacheExists) {
+                $amazonInventory = Cache::get($cacheKey, []);
+            } else {
+                $statusKey = "amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}";
+                $status = Cache::get($statusKey, []);
+                $isRefreshing = ($status['refreshing'] ?? false) || Cache::has("amazon_progress_{$shop->shop}");
+                if ($isRefreshing) {
+                    $isAmazonInventoryLoading = true;
+                }
+            }
         }
         $thirtyDaysAgo = \Carbon\Carbon::today()->subDays(30);
         $cacheTtl = 300;  // Cache heavy charts for 5 minutes
@@ -68,13 +78,7 @@ class DashboardController extends ShopifyController
         // 1. Top KPI Aggregates (Eager & efficient counts)
         $totalShopifyProducts = Product::where('shop_id', $shopId)->count();
         $totalMappedProducts = ProductMarketplaceMapping::where('shop_id', $shopId)->count();
-        $totalAmazonProducts = AllProduct::where('user_id', $shopId)
-            ->whereNull('parent_id')
-            ->where(function ($query) {
-                $query->whereNotNull('submission_status')
-                    ->orWhere('status', 'draft');
-            })
-            ->count();
+        $totalAmazonProducts = is_countable($amazonInventory) ? count($amazonInventory) : 0;
         $totalShopifyOrders = ShopifyOrder::where('shop_id', $shopId)->count();
 
         // Amazon Orders: Check existing local/cache-backed Amazon order data source
@@ -173,7 +177,7 @@ class DashboardController extends ShopifyController
             'topSellingChartLabels', 'topSellingChartData', 'topSelling24hLabels',
             'topSelling24hData', 'topSelling7dLabels', 'topSelling7dData',
             'initialTimeframe', 'lowInventoryProducts', 'amazonLowInventoryProducts',
-            'amazonInventoryCacheExists', 'shop'
+            'amazonInventoryCacheExists', 'isAmazonInventoryLoading', 'shop'
         ));
     }
 
