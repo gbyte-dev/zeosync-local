@@ -18,7 +18,8 @@
     }
     #subcategory-table_info{
         float: inline-start;
-        margin-top: 10px;
+        margin: 10px;
+        font-size: smaller;
     }
 
     #subcategory-table_length{
