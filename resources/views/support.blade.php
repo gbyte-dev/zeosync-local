@@ -282,49 +282,118 @@
     {{-- FAQs --}}
     <div class="saas-card mb-0" id="faq">
         <div class="saas-card-body">
-            <h5 class="saas-card-title mb-3">Frequently Asked Questions</h5>
+            <h5 class="saas-card-title mb-2">Frequently Asked Questions</h5>
+
+            <div class="d-flex align-items-center mb-3">
+                <input id="faqSearch" class="form-control me-2" type="search" placeholder="Search FAQs..." aria-label="Search FAQs" style="max-width:420px; height:36px; font-size:13px;" />
+                <a href="#product-sync" class="saas-btn saas-btn-outline">Product Sync Guide</a>
+            </div>
 
             <div class="accordion" id="faqAccordion">
 
                 <div class="accordion-item">
                     <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1" aria-expanded="false" aria-controls="faq1">
                             Why are my products not syncing?
                         </button>
                     </h2>
                     <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                         <div class="accordion-body">
-                            Ensure SKUs match between Amazon and Shopify and that auto-sync is enabled.
+                            Check SKU mapping between Amazon and Shopify, ensure the Amazon store is connected, and verify auto-sync is enabled. If SKUs differ, set up manual mapping in the Inventory page.
                         </div>
                     </div>
                 </div>
 
                 <div class="accordion-item">
                     <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2" aria-expanded="false" aria-controls="faq2">
                             How often does syncing run?
                         </button>
                     </h2>
                     <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                         <div class="accordion-body">
-                            Sync runs every hour when auto-sync is enabled.
+                            By default, automatic sync runs every hour when auto-sync is enabled. You can run a manual sync from the Inventory page for immediate updates.
                         </div>
                     </div>
                 </div>
 
                 <div class="accordion-item">
                     <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3" aria-expanded="false" aria-controls="faq3">
                             Can I manually trigger sync?
                         </button>
                     </h2>
                     <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                         <div class="accordion-body">
-                            Yes, manual sync options are available in the inventory page.
+                            Yes — open the Inventory page and use the "Manual Sync" action. Manual sync will process selected SKUs immediately, subject to rate limits.
                         </div>
                     </div>
                 </div>
 
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4" aria-expanded="false" aria-controls="faq4">
+                            What if my inventory shows negative or incorrect values?
+                        </button>
+                    </h2>
+                    <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Negative inventory usually indicates mismatched SKUs or duplicate listings. Check the Sync Logs for errors and reconcile mismatched SKUs using the Inventory mapping tools.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5" aria-expanded="false" aria-controls="faq5">
+                            How do I disconnect or reconnect my Amazon account?
+                        </button>
+                    </h2>
+                    <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Go to Amazon Connect settings in the app and choose "Disconnect" to remove the link. To reconnect, follow the "Connect Amazon" guide and re-authenticate via Seller Central.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq6" aria-expanded="false" aria-controls="faq6">
+                            Do you support variants, bundles or multi-location stock?
+                        </button>
+                    </h2>
+                    <div id="faq6" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            The app matches by SKU and supports variant sync if SKUs are mapped per variant. Bundles require manual handling; multi-location stock depends on your Shopify plan and settings — check the Inventory & Locations docs.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq7" aria-expanded="false" aria-controls="faq7">
+                            Where can I find logs and troubleshooting information?
+                        </button>
+                    </h2>
+                    <div id="faq7" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Check the Sync Logs page for detailed error messages. Copy error IDs and include them when contacting support to speed up troubleshooting.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="mt-3 d-flex gap-2">
+                <a href="mailto:support@zeosync.io" class="saas-btn saas-btn-outline">Contact Support</a>
+                <a href="/docs" class="saas-btn saas-btn-outline">View Documentation</a>
+            </div>
+
+            <div class="saas-banner-success mt-3" id="contact-support" style="font-size:13px;">
+                <i class="bi bi-info-circle-fill"></i>
+                <div>
+                    Need personalized help? Email <strong>support@zeosync.io</strong> with your store URL and any Sync Log IDs — our team typically responds within one business day.
+                </div>
             </div>
 
         </div>

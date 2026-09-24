@@ -53,15 +53,6 @@ Route::get('activate', [SettingsController::class, 'showForm'])->name('setup.for
 Route::post('activate', [SettingsController::class, 'store'])->name('setup.store');
 Route::get('setup/activation-status', [SettingsController::class, 'activationStatus'])->name('setup.activation.status');
 
-// return refunds
-// Route::get('return_refunds', [ReturnController::class, 'index'])->name('shopify.return');
-// Route::get('returns/amazon', [ReturnController::class, 'amazon'])->name('shopify.returns.amazon');
-// Route::get('returns/shopify', [ReturnController::class, 'shopify'])->name('shopify.returns.shopify');
-// Route::get('returns/amazon/{id}', [ReturnController::class, 'viewAmazon'])->name('shopify.returns.view.amazon');
-// Route::get('returns/shopify/{id}', [ReturnController::class, 'viewShopify'])->name('shopify.returns.view.shopify');
-// inventory
-// Route::get('/inventory', [InventoryController::class, 'index'])->name('shopify.inventory.index');
-
 Route::get('clear-cache-temp', function () {
     Artisan::call('optimize:clear');
     return response()->json([ 'success' => true, 'message' => Artisan::output() ]);
@@ -72,7 +63,6 @@ Route::post('/amazon/test-update/{sku}', function (Illuminate\Http\Request $requ
     if (!$shop) {
         return response()->json(['success' => false, 'message' => 'Unauthorized or shop not found.'], 401);
     }
-
     return app(\App\Services\AmazonService::class)->updateInventory($shop, $sku, (int) $request->quantity);
 });
 
@@ -153,20 +143,17 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::get('planview', [SubscriptionController::class, 'plans'])->name('shopify.plans');
     Route::get('connect', [AmazonConnect::class, 'connect'])->name('amazon.connect');
     Route::get('inventory/shopify', [InventoryController::class, 'shopify'])->name('shopify.inventory.shopify');
-    Route::get('inventory/amazon', [InventoryController::class, 'amazon'])
-        ->name('shopify.inventory.amazon');
+    Route::get('inventory/amazon', [InventoryController::class, 'amazon'])->name('shopify.inventory.amazon');
     Route::get('inventory/refresh', [InventoryController::class, 'refresh'])->name('shopify.inventory.refresh');
     Route::get('inventory/product/{id}', [InventoryController::class, 'productDetails'])->name('shopify.inventory.details');
     Route::get('product/category', [InventoryController::class, 'getProductCategory'])->name('shopify.product.category');
     Route::get('inventory/amazon/{parentSku}/variants', [InventoryController::class, 'variants'])->name('shopify.inventory.amazon.variants');
     Route::post('inventory/amazon/{childSku}/update-quantity', [InventoryController::class, 'updateAmazonQuantity'])->name('shopify.inventory.amazon.update');
-    Route::get('/inventory/shopify-products', [InventoryMappingController::class, 'shopifyProducts'])
-        ->name('inventory.shopify.products');
+    Route::get('/inventory/shopify-products', [InventoryMappingController::class, 'shopifyProducts'])->name('inventory.shopify.products');
     Route::get('/inventory/shopify-product-variants/{product}', [InventoryMappingController::class, 'variants'])->name('inventory.shopify.variants');
     Route::post('/inventory/save-product-mapping', [InventoryMappingController::class, 'saveProductMapping'])->name('inventory.save.mapping');
     Route::post('/inventory/save-amazon-mapping', [InventoryMappingController::class, 'saveAmazonMapping'])->name('inventory.save.amazon.mapping');
-    Route::delete('/inventory/unmap/{mapping}', [InventoryMappingController::class, 'unmap'])
-        ->name('inventory.unmap');
+    Route::delete('/inventory/unmap/{mapping}', [InventoryMappingController::class, 'unmap'])->name('inventory.unmap');
     Route::post('/inventory/shopify/update', [InventoryMappingController::class, 'updateShopifyInventory'])->name('inventory.shopify.update');
     Route::get('/inventory/mappings', [InventoryMappingController::class, 'mappings'])->name('inventory.mappings');
     Route::post('inventory/page-length', [InventoryController::class, 'updatePageLength'])->name('shopify.inventory.page_length');
@@ -183,10 +170,9 @@ Route::get('test-category-map', [TestController::class, 'testCategoryMapping']);
 Route::get('amazon-schema-test', [TestController::class, 'amazonSchemaTest'])->name('amazon.schema.test');
 Route::get('amazon-check/{sku}', [TestController::class, 'amazonSchemaTestSku'])->name('amazon.schema.test.sku');
 Route::get( '/amazon/schema-fields/{slug}',[AmazonSchemaController::class, 'getFields']);
-Route::post('amazon/evaluate-conditions', [AmazonSchemaController::class, 'evaluateConditions'])
-    ->name('amazon.evaluate.conditions');
+Route::post('amazon/evaluate-conditions', [AmazonSchemaController::class, 'evaluateConditions'])->name('amazon.evaluate.conditions');
 Route::post('/amazon/manual-sync', [AmazonSchemaController::class, 'manualSync'])->name('amazon.manual.sync');
-Route::post('/amazon/generate-sync-payload', [ AmazonSchemaController::class, 'generateSyncPayload']);
+Route::post('/amazon/generate-sync-payload', [ AmazonSchemaController::class, 'generateSyncPayload'])->name('amazon.generate.sync.payload');
 Route::get('/amazon/search-schema/{keyword}', [ShopifyController::class, 'searchAmazonSchema']);
 Route::get('keyboard-schema', [TestController::class, 'keyboardSchema']);
 Route::post('amazon/load-missing-fields', [AmazonSchemaController::class, 'loadMissingFields'])->name('amazon.load.missingfield');

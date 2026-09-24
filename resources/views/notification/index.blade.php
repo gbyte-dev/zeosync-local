@@ -218,10 +218,10 @@
 </style>
 
 <div class="content">
-    <div class="saas-wrapper">
+    <div class="saas-wrapper mt-3">
 
         {{-- Page Header --}}
-        <div class="saas-page-header mt-4">
+        <div class="saas-page-header">
             <div class="col-6 col-md-6">
                 <h1 class="saas-page-title">
                     <i class="fa fa-bell me-2"></i> Latest Notifications

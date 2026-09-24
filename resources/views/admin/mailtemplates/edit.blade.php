@@ -11,7 +11,7 @@
                 <div>
                     <h5 class="mb-1 fw-bold">Edit Mail Template</h5>
                 </div>
-                <a href="{{ route('admin.mailtemplates') }}" class="btn btn-light btn-sm">← Back</a>
+                <a href="{{ route('admin.mailtemplates') }}" class="btn btn-light btn-sm"> <i class="fa fa-arrow-left"></i> Back</a>
             </div>
         </div>
 

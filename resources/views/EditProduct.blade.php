@@ -869,7 +869,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
             </div>
 
             <div class="float-end">
-                <a href="{{ route('shopify.products') }}{{ $shopQuery }}" class="btn btn-primary"> Back </a>
+                <a href="{{ route('shopify.products') }}{{ $shopQuery }}" class="btn btn-primary"> <i class="fa fa-arrow-left"></i> Back </a>
                 <button type="submit" class="btn btn-success" id="updateProductBtn">
                     Update Product
                 </button>

@@ -8,7 +8,7 @@
                 <div>
                     <h5 class="mb-1 fw-bold">Create Mail Template</h5>
                 </div>
-                <a class="btn btn-light btn-sm" href="{{ route('admin.mailtemplates') }}">← Back</a>
+                <a class="btn btn-light btn-sm" href="{{ route('admin.mailtemplates') }}"> <i class="fa fa-arrow-left"></i> Back</a>
             </div>
         </div>
 
