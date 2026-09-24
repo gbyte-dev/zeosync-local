@@ -53,6 +53,8 @@ class DashboardController extends ShopifyController
         $shopId = $shop->id;
         $inventory = $this->shopifyInventoryService->getInventory($shop);
 
+        $isAmazonConnected = !empty($shop->amazon_seller_id) && !empty($shop->amazon_refresh_token);
+
         $amazonInventory = [];
         $amazonInventoryCacheExists = false;
         $isAmazonInventoryLoading = false;
@@ -63,13 +65,9 @@ class DashboardController extends ShopifyController
             $amazonInventoryCacheExists = Cache::has($cacheKey);
             if ($amazonInventoryCacheExists) {
                 $amazonInventory = Cache::get($cacheKey, []);
-            } else {
-                $statusKey = "amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}";
-                $status = Cache::get($statusKey, []);
-                $isRefreshing = ($status['refreshing'] ?? false) || Cache::has("amazon_progress_{$shop->shop}");
-                if ($isRefreshing) {
-                    $isAmazonInventoryLoading = true;
-                }
+                $isAmazonInventoryLoading = false;
+            } elseif ($isAmazonConnected) {
+                $isAmazonInventoryLoading = true;
             }
         }
         $thirtyDaysAgo = \Carbon\Carbon::today()->subDays(30);
@@ -93,9 +91,6 @@ class DashboardController extends ShopifyController
             $cachedAmazonOrders = Cache::get('amazon_orders_' . $shop->shop, []);
         }
         $totalAmazonOrders = is_countable($cachedAmazonOrders) ? count($cachedAmazonOrders) : 0;
-
-        // Amazon Connection Status (Real state from current Shop model)
-        $isAmazonConnected = !empty($shop->amazon_seller_id) && !empty($shop->amazon_refresh_token);
 
         // Aliases for backwards compatibility
         $totalProducts = $totalShopifyProducts;

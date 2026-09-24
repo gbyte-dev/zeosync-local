@@ -405,7 +405,7 @@ test('amazon products card shows inline spinner when cache is not ready and sync
     $response->assertViewHas('isAmazonInventoryLoading', true);
 
     $content = $response->getContent();
-    expect($content)->toContain('amazon-products-spinner');
+    expect($content)->toMatch('/<div class="saas-stat-value" id="amazonProductsStatValue">\s*<span class="[^"]*amazon-products-spinner/');
 });
 
 test('amazon products card displays 0 and not loading spinner when cache is valid and empty', function () {
@@ -431,7 +431,7 @@ test('amazon products card displays 0 and not loading spinner when cache is vali
     $response->assertViewHas('totalAmazonProducts', 0);
 
     $content = $response->getContent();
-    expect($content)->not->toContain('amazon-products-spinner');
+    expect($content)->not->toMatch('/<div class="saas-stat-value" id="amazonProductsStatValue">\s*<span class="[^"]*amazon-products-spinner/');
     expect($content)->toContain('0');
 });
 
@@ -468,7 +468,7 @@ test('multi-store: Store A loading state does not affect Store B with cached Ama
         ->get('/dashboard?shop=' . $shopA->shop);
     $responseA->assertStatus(200);
     $responseA->assertViewHas('isAmazonInventoryLoading', true);
-    expect($responseA->getContent())->toContain('amazon-products-spinner');
+    expect($responseA->getContent())->toMatch('/<div class="saas-stat-value" id="amazonProductsStatValue">\s*<span class="[^"]*amazon-products-spinner/');
 
     // Check Store B
     $responseB = $this->withSession(authDashboardSession($shopB))
@@ -476,6 +476,6 @@ test('multi-store: Store A loading state does not affect Store B with cached Ama
     $responseB->assertStatus(200);
     $responseB->assertViewHas('isAmazonInventoryLoading', false);
     $responseB->assertViewHas('totalAmazonProducts', 25);
-    expect($responseB->getContent())->not->toContain('amazon-products-spinner');
+    expect($responseB->getContent())->not->toMatch('/<div class="saas-stat-value" id="amazonProductsStatValue">\s*<span class="[^"]*amazon-products-spinner/');
     expect($responseB->getContent())->toContain('25');
 });
