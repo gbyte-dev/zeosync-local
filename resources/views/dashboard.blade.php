@@ -569,13 +569,13 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                 {{ number_format($totalShopifyProducts ?? $totalProducts ?? 0) }}
             </div>
         </div>
-        {{-- Row 1: Card 2 - Mapped Products --}}
+        {{-- Row 1: Card 2 - Shopify Orders --}}
         <div class="saas-stat-card">
             <div>
-                <div class="saas-stat-label">Mapped Products</div>
+                <div class="saas-stat-label">Shopify Orders</div>
             </div>
             <div class="saas-stat-value">
-                {{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}
+                {{ number_format($totalShopifyOrders ?? $totalOrders ?? 0) }}
             </div>
         </div>
         {{-- Row 1: Card 3 - Amazon Orders --}}
@@ -596,19 +596,19 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                 {{ number_format($totalAmazonProducts ?? 0) }}
             </div>
         </div>
-        {{-- Row 2: Card 5 - Shopify Orders --}}
+        {{-- Row 2: Card 5 - Mapped Products --}}
         <div class="saas-stat-card">
             <div>
-                <div class="saas-stat-label">Shopify Orders</div>
+                <div class="saas-stat-label">Mapped Products</div>
             </div>
             <div class="saas-stat-value">
-                {{ number_format($totalShopifyOrders ?? $totalOrders ?? 0) }}
+                {{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}
             </div>
         </div>
-        {{-- Row 2: Card 6 - Amazon Connection Status --}}
+        {{-- Row 2: Card 6 - Amazon Status --}}
         <div class="saas-stat-card">
             <div>
-                <div class="saas-stat-label">Amazon Connection Status</div>
+                <div class="saas-stat-label">Amazon Status</div>
             </div>
             @if(!empty($isAmazonConnected))
             <div class="saas-stat-value text-success" style="font-size:14px; font-weight: 600;">
