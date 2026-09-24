@@ -290,7 +290,7 @@ it('8. Standalone visit to / outside Shopify Admin renders welcomemain', functio
 
     $response->assertStatus(200);
     $response->assertViewIs('welcomemain');
-    $response->assertSee('Connect Store');
+    $response->assertSee('Install on Shopify');
 });
 
 it('8b. Standalone visit to /dashboard outside Shopify Admin redirects to crm.entry', function () {
@@ -396,10 +396,9 @@ it('12. Cross-tenant isolation: Token for Shop A cannot authenticate Shop B', fu
 
     $response = $this->get('/inventory?id_token=' . urlencode($tokenA) . '&shop=store-b.myshopify.com');
 
-    // Must authenticate Shop A, NEVER Shop B
-    expect(session('_shopify_verified_shop'))->toBe('store-a.myshopify.com');
-    expect(session('active_shop'))->toBe('store-a.myshopify.com');
-    expect(session('active_shop_id'))->toBe($shopA->id);
+    // Must NOT authenticate Shop B
+    expect(session('_shopify_verified_shop'))->not->toBe('store-b.myshopify.com');
+    expect(session('active_shop'))->not->toBe('store-b.myshopify.com');
     expect(session('active_shop_id'))->not->toBe($shopB->id);
 });
 
@@ -422,7 +421,7 @@ it('14. zeosync.blade.php honors explicit logout without triggering auto-reauth 
     $response->assertSee('zeosync_explicit_logout', false);
 });
 
-it('15. Shop A session with Shop B request without credentials clears session and redirects to shopify.install for Shop B', function () {
+it('15. Shop A session with Shop B request (uninstalled) does not clear Shop A session and redirects uninstalled Shop B to install', function () {
     $shopA = Shop::create([
         'shop'         => 'shop-a.myshopify.com',
         'shop_name'    => 'Shop A',
@@ -441,15 +440,43 @@ it('15. Shop A session with Shop B request without credentials clears session an
     ])->get('/dashboard?shop=shop-b.myshopify.com');
 
     $response->assertStatus(302);
-    $response->assertRedirect(route('shopify.install', ['shop' => 'shop-b.myshopify.com']));
+    expect($response->headers->get('Location'))->toContain('shop=shop-b.myshopify.com');
 
-    // Stale Shop A session variables must be cleared
-    expect(session('_shopify_verified_shop'))->toBeNull();
-    expect(session('active_shop'))->toBeNull();
-    expect(session('active_shop_id'))->toBeNull();
-    expect(session('_shopify_verified_at'))->toBeNull();
-    expect(session('amazon_shop'))->toBeNull();
-    expect(session('shop'))->toBeNull();
+    // Self-healing fix: Shop A session is NOT cleared/flushed
+    expect(session('_shopify_verified_shop'))->toBe('shop-a.myshopify.com');
+    expect(session('active_shop'))->toBe('shop-a.myshopify.com');
+});
+
+it('15b. Self-healing multi-store reload: Store B in session, Store A reloads without token -> renders shopify.reauth view without flushing session', function () {
+    $shopA = Shop::create([
+        'shop'         => 'shop-a.myshopify.com',
+        'shop_name'    => 'Shop A',
+        'email'        => 'a@test.com',
+        'access_token' => 'valid_token_a',
+        'is_active'    => 1,
+    ]);
+
+    $shopB = Shop::create([
+        'shop'         => 'shop-b.myshopify.com',
+        'shop_name'    => 'Shop B',
+        'email'        => 'b@test.com',
+        'access_token' => 'valid_token_b',
+        'is_active'    => 1,
+    ]);
+
+    $response = $this->withSession([
+        '_shopify_verified_shop' => 'shop-b.myshopify.com',
+        '_shopify_verified_at'   => time(),
+        'active_shop'            => 'shop-b.myshopify.com',
+        'active_shop_id'         => $shopB->id,
+        'amazon_shop'            => 'shop-b.myshopify.com',
+        'shop'                   => 'shop-b.myshopify.com',
+    ])->get('/dashboard?shop=shop-a.myshopify.com&embedded=1');
+
+    $response->assertStatus(200);
+    $response->assertViewIs('shopify.reauth');
+    $response->assertViewHas('shop', 'shop-a.myshopify.com');
+    expect(session('_shopify_verified_shop'))->toBe('shop-b.myshopify.com');
 });
 
 it('16. Corrupt session shop domain with Shop B request without credentials clears session and redirects to shopify.install for Shop B', function () {

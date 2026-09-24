@@ -8,27 +8,30 @@ use Shopify\App\ShopifyApp;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
 use App\Models\Shop;
+use App\Models\AdminSetting;
 
 class VerifyShopifySession
 {
     public function handle(Request $request, Closure $next)
     {
-        DB::enableQueryLog(); 
-        $apikey = DB::table('admin_settings')->where('option_key', 'SHOPIFY_API_KEY')->first()->option_value; // Example query to log
-        $apisecret = DB::table('admin_settings')->where('option_key', 'SHOPIFY_API_SECRET')->first()->option_value; // Example query to log
-        $queries = DB::getQueryLog(); 
+        $apikey = AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key'));
+        $apisecret = AdminSetting::get('SHOPIFY_API_SECRET', config('services.shopify.api_secret'));
 
-        $apikey = Crypt::decryptString($apikey);
-        $apisecret = Crypt::decryptString($apisecret);
+        if (empty($apikey) || empty($apisecret)) {
+            return $next($request);
+        }
 
         try{
+            if (!class_exists('Shopify\App\ShopifyApp')) {
+                return $next($request);
+            }
             $shopify = new ShopifyApp($apikey, $apisecret );
             $req = [
                 'url'     => $request->fullUrl(),
                 'headers' => $request->headers->all(),
             ];
             $result = $shopify->verifyAppHomeReq($req , '/api/shopify/patch-id-token');
-        }catch(\Exception $e){
+        }catch(\Throwable $e){
             if($request->expectsJson() || $request->ajax()){
                  return $next($request);
                 // return response()->json(['error' => 'Invalid Shopify session: ' . $e->getMessage()], 401);

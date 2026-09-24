@@ -56,7 +56,7 @@ beforeEach(function () {
         'services.shopify.api_secret' => 'test-api-secret',
     ]);
 
-    // Clear cached settings
+    \Illuminate\Support\Facades\Cache::flush();
     AdminSetting::forget('SHOPIFY_API_KEY');
     AdminSetting::forget('SHOPIFY_API_SECRET');
 
@@ -67,6 +67,8 @@ beforeEach(function () {
             $table->text('option_value')->nullable();
             $table->timestamps();
         });
+    } else {
+        \Illuminate\Support\Facades\DB::table('admin_settings')->truncate();
     }
 
     if (!\Illuminate\Support\Facades\Schema::hasTable('shops')) {
@@ -134,7 +136,7 @@ it('Test 1: Valid Store A token resolves Store A correctly', function () {
     expect($data['auth_source'])->toBe('bearer_token');
 });
 
-it('Test 2: Valid Store A token + ?shop=Store B query parameter maintains Store A', function () {
+it('Test 2: Token destination mismatch with ?shop parameter is rejected with 401', function () {
     $shopA = new Shop();
     $shopA->id = 101;
     $shopA->shop = 'store-a.myshopify.com';
@@ -159,11 +161,9 @@ it('Test 2: Valid Store A token + ?shop=Store B query parameter maintains Store 
         'Accept'        => 'application/json',
     ])->get('/shopify-auth-test-endpoint?shop=store-b.myshopify.com');
 
-    $response->assertStatus(200);
-    $data = $response->json();
-    expect($data['active_shop'])->toBe('store-a.myshopify.com');
-    expect($data['verified_shop'])->toBe('store-a.myshopify.com');
-    expect($data['active_shop'])->not->toBe('store-b.myshopify.com');
+    $response->assertStatus(401);
+    expect(session('_shopify_verified_shop'))->not->toBe('store-b.myshopify.com');
+    expect(session('active_shop'))->not->toBe('store-b.myshopify.com');
 });
 
 it('Test 3: Forged JWT is rejected with 401', function () {
@@ -293,7 +293,7 @@ it('Test 9b: Shopify launch HMAC accepts canonical RFC3986 encoding with spaces 
     expect(session('active_shop'))->toBe('store-a.myshopify.com');
 });
 
-it('Test 10: Valid Store A launch + /dashboard?shop=Store-B maintains Store A', function () {
+it('Test 10: Session mismatch (?shop=Store B with Store A in session) bypasses stale session and requires reauth', function () {
     Shop::create([
         'shop'                    => 'store-a.myshopify.com',
         'shop_name'               => 'Store A',
@@ -323,17 +323,23 @@ it('Test 10: Valid Store A launch + /dashboard?shop=Store-B maintains Store A', 
     $launchResponse->assertRedirect();
     expect(session('_shopify_verified_shop'))->toBe('store-a.myshopify.com');
 
-    // 2. Follow to protected endpoint with ?shop=store-b.myshopify.com
+    // 2. Follow to protected endpoint with ?shop=store-b.myshopify.com (Browser request)
     $response = $this->withSession([
         '_shopify_verified_shop' => 'store-a.myshopify.com',
     ])->get('/shopify-auth-test-endpoint?shop=store-b.myshopify.com');
 
+    // Mismatched session must NOT authenticate Store B with Store A's credentials.
+    // Instead, it renders shopify.reauth view to obtain a fresh token for Store B, while preserving Store A in session.
     $response->assertStatus(200);
-    $data = $response->json();
+    $response->assertViewIs('shopify.reauth');
+    expect(session('_shopify_verified_shop'))->toBe('store-a.myshopify.com');
+    expect($response->viewData('shop'))->toBe('store-b.myshopify.com');
 
-    expect($data['active_shop'])->toBe('store-a.myshopify.com');
-    expect($data['verified_shop'])->toBe('store-a.myshopify.com');
-    expect($data['active_shop'])->not->toBe('store-b.myshopify.com');
+    // 3. JSON request with session mismatch receives 401
+    $jsonResponse = $this->withSession([
+        '_shopify_verified_shop' => 'store-a.myshopify.com',
+    ])->getJson('/shopify-auth-test-endpoint?shop=store-b.myshopify.com');
+    $jsonResponse->assertStatus(401);
 });
 
 it('Test 11: Forged launch HMAC is rejected without authenticating', function () {
