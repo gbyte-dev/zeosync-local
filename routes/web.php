@@ -124,8 +124,7 @@ Route::prefix('amazon/sandbox')->group(function () {
     Route::get('/orders', [AmazonSandboxController::class, 'debugOrders'])->name('amazon.orders');
     Route::get('/product', [AmazonSandboxController::class, 'debugProduct'])->name('amazon.products');
 });
-Route::get('/amazon/order/{id}', [AmazonSandboxController::class, 'orderDetail'])
-    ->name('amazon.order.detail');
+Route::get('/amazon/order/{id}', [AmazonSandboxController::class, 'orderDetail'])->name('amazon.order.detail');
 Route::get('/amazon/orders/filter', [AmazonSandboxController::class, 'testOrderFilters']);
 Route::get('/amazon/reports', [AmazonSandboxController::class, 'listReports']);
 Route::get('/amazon/report/create', [AmazonSandboxController::class, 'createReturnReport']);

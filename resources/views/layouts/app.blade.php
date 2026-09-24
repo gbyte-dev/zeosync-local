@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Amazon Sync</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-
+    <meta name="shopify-shop" content="{{ session('active_shop') ?? request('shop') ?? '' }}">
     <link nonce="{{ $cspNonce??'' }}" href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
     <link nonce="{{ $cspNonce??'' }}" href="{{ asset('css/sidebar.css') }}?v={{ time() }}" rel="stylesheet">
     <link nonce="{{ $cspNonce??'' }}" href="{{ asset('css/style.css') }}?v={{ time() }}" rel="stylesheet">
@@ -15,11 +15,8 @@
     $fallback = asset('logo/favamzsync.png');
     $faviconUrl = $fallback;
 
-    if (
-    !empty($favicon) &&
-    \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon)
-    ) {
-    $faviconUrl = asset('storage/' . $favicon);
+    if ( !empty($favicon) &&  \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon) ) {
+        $faviconUrl = asset('storage/' . $favicon);
     }
     $shopifyclient_id = \App\Models\AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key'));
     @endphp

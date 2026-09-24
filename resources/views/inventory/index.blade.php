@@ -1732,12 +1732,19 @@
         };
 
         function sendInventoryUpdate(retryCount = 0) {
+            // console.log('[Shopify Inventory] Update started', {
+            //     shop: shop,
+            //     inventory_item_id: inventoryItemId,
+            //     quantity: quantity
+            // });
 
             $.ajax({
                 url: `{{ route('inventory.shopify.update') }}?shop=${encodeURIComponent(shop)}`,
                 type: 'POST',
                 data: requestData,
+
                 success: function(response) {
+                    // Show success toast immediately
                     showToast(response.message, 'success');
 
                     // Step 2: Wait 2 seconds, then fetch fresh Shopify data

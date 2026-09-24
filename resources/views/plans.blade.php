@@ -1170,7 +1170,7 @@ $subscriptionStatus = 'Trialing';
 
 <!-- Enterprise Enquiry Modal -->
 <div class="modal fade saas-modal" id="enterpriseModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-md modal-dialog-centered">
         <div class="modal-content">
 
             <form method="POST" action="{{ route('contact.store') }}">
@@ -1179,15 +1179,8 @@ $subscriptionStatus = 'Trialing';
                 <input type="hidden" name="enquiry_type" value="enterprise_plan_enquiry">
 
                 <div class="modal-header">
-                    <h5 class="modal-title">
-                        Contact Admin for Enterprise Plan
-                    </h5>
-
-                    <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal">
-                    </button>
+                    <h5 class="modal-title"> Contact Admin for Enterprise Plan  </h5>
+                    <button type="button" class="btn-close"  data-bs-dismiss="modal">    </button>
                 </div>
 
                 <div class="modal-body">

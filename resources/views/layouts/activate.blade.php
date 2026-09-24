@@ -16,11 +16,8 @@
     $fallback = asset('logo/favamzsync.png');
     $faviconUrl = $fallback;
 
-    if (
-    !empty($favicon) &&
-    \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon)
-    ) {
-    $faviconUrl = asset('storage/' . $favicon);
+    if ( !empty($favicon) && \Illuminate\Support\Facades\Storage::disk('public')->exists($favicon)  ) {
+        $faviconUrl = asset('storage/' . $favicon);
     }
     
     $shopifyclient_id = \App\Models\AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key'));
@@ -62,19 +59,16 @@
     @stack('css')
 
     <style nonce="{{ $cspNonce??'' }}">
-        /* 
+    /* 
      * 1. Design Tokens (Shopify/Apple HIG Inspired)
      */
         :root {
-            /* Colors */
             --sp-bg: #F4F6F8;
             --sp-card: #FFFFFF;
             --sp-border: #E5E7EB;
             --sp-primary: #2563EB;
             --sp-text: #202223;
             --sp-text-muted: #6B7280;
-
-            /* Sidebar Specific Tokens */
             --sidebar-bg: #111827;
             --sidebar-text: #9CA3AF;
             --sidebar-text-hover: #F3F4F6;
@@ -82,13 +76,10 @@
             --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
             --sidebar-active-bg: rgba(255, 255, 255, 0.12);
             --sidebar-border: rgba(255, 255, 255, 0.08);
-
-            /* Layout Metrics */
             --topbar-height: 48px;
             --sidebar-width: 240px;
         }
 
-        /* Desktop pe Topbar nahi hota, isliye height 0px karein */
         @media (min-width: 768px) {
             :root {
                 --topbar-height: 0px !important;
@@ -110,12 +101,8 @@
 
         body.sidebar-open {
             overflow: hidden;
-            /* Lock scroll on mobile */
         }
 
-        /* 
-     * 3. Macro Layout Architecture 
-     */
         .app-layout {
             display: flex;
             height: calc(100vh - var(--topbar-height));
@@ -126,9 +113,7 @@
         .content {
             flex: 1;
             min-width: 0 !important;
-            /* Critical: Stops wide tables from breaking horizontal flex layout */
             min-height: 0 !important;
-            /* Critical: Stops tall tables from squishing vertical flex height */
             overflow-y: auto;
             overflow-x: hidden;
             padding: 24px;
@@ -221,9 +206,7 @@
 
         <div class="dropdown">
             <button class="sp-icon-btn position-relative"
-                type="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false">
+                type="button"  data-bs-toggle="dropdown" aria-expanded="false">
 
                 <i class="bi bi-bell"></i>
 
@@ -236,7 +219,6 @@
             </button>
 
             <ul class="dropdown-menu dropdown-menu-end shadow" style="width: 320px;">
-
                 <li class="border-bottom">
                     <strong>Notifications</strong>
                     <div class="small text-muted mt-1">
@@ -281,12 +263,10 @@
     </div>
 
     <div class="app-layout">
-
         <!-- Content -->
         <div class="content">
             @yield('content')
         </div>
-
     </div>
 
     @include('layouts.partials.vendor-assets', ['type' => 'js'])
@@ -340,15 +320,11 @@
             // Click Outside Sidebar
             document.addEventListener("click", function(e) {
 
-                if (
-                    window.innerWidth < 768 &&
-                    sidebar.classList.contains("active") &&
-                    !sidebar.contains(e.target) &&
-                    !menuBtn.contains(e.target)
+                if( window.innerWidth < 768 &&  sidebar.classList.contains("active") &&
+                    !sidebar.contains(e.target) &&  !menuBtn.contains(e.target)
                 ) {
                     closeSidebar();
                 }
-
             });
 
             // ESC Key
@@ -426,90 +402,23 @@
 
         /* LOADER */
         @keyframes square-animation {
-            0% {
-                left: 0;
-                top: 0;
-            }
-
-            10.5% {
-                left: 0;
-                top: 0;
-            }
-
-            12.5% {
-                left: 32px;
-                top: 0;
-            }
-
-            23% {
-                left: 32px;
-                top: 0;
-            }
-
-            25% {
-                left: 64px;
-                top: 0;
-            }
-
-            35.5% {
-                left: 64px;
-                top: 0;
-            }
-
-            37.5% {
-                left: 64px;
-                top: 32px;
-            }
-
-            48% {
-                left: 64px;
-                top: 32px;
-            }
-
-            50% {
-                left: 32px;
-                top: 32px;
-            }
-
-            60.5% {
-                left: 32px;
-                top: 32px;
-            }
-
-            62.5% {
-                left: 32px;
-                top: 64px;
-            }
-
-            73% {
-                left: 32px;
-                top: 64px;
-            }
-
-            75% {
-                left: 0;
-                top: 64px;
-            }
-
-            85.5% {
-                left: 0;
-                top: 64px;
-            }
-
-            87.5% {
-                left: 0;
-                top: 32px;
-            }
-
-            98% {
-                left: 0;
-                top: 32px;
-            }
-
-            100% {
-                left: 0;
-                top: 0;
-            }
+            0% {  left: 0;   top: 0;   }
+            10.5% {  left: 0;   top: 0;  }
+            12.5% {  left: 32px;  top: 0;   }
+            23% { left: 32px; top: 0;  }
+            25% { left: 64px;  top: 0; }
+            35.5% { left: 64px; top: 0;  }
+            37.5% { left: 64px; top: 32px; }
+            48% { left: 64px;  top: 32px;  }
+            50% { left: 32px;  top: 32px; }
+            60.5% { left: 32px;  top: 32px;  }
+            62.5% {  left: 32px; top: 64px; }
+            73% { left: 32px;  top: 64px; }
+            75% { left: 0; top: 64px; }
+            85.5% { left: 0;  top: 64px;  }
+            87.5% { left: 0; top: 32px; }
+            98% { left: 0; top: 32px;  }
+            100% { left: 0; top: 0; }
         }
 
         .loader {
@@ -640,15 +549,11 @@
                         .then(res => res.json())
                         .then(data => {
                             if (data.success) {
-
                                 element.classList.remove('fw-bold');
                                 element.classList.add('bg-light');
-
                                 let badge = document.getElementById('userUnreadBadge');
-
                                 if (badge) {
                                     let count = badge.innerText.trim();
-
                                     if (count === '9+') {
                                         location.reload();
                                         return;

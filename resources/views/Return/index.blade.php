@@ -4,19 +4,6 @@
 
 <style nonce="{{ $cspNonce??'' }}">
 
-    .returns-page {
-        padding: 24px;
-    }
-
-    .returns-hero {
-        background: linear-gradient(135deg, #111827, #2563eb);
-        color: #fff;
-        border-radius: 22px;
-        padding: 30px;
-        margin-bottom: 24px;
-        box-shadow: 0 18px 40px rgba(37, 99, 235, .18);
-    }
-
     .summary-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -25,23 +12,24 @@
     }
 
     .summary-card {
-        background: #fff;
-        border-radius: 20px;
-        padding: 22px;
-        border: 1px solid #eef2f7;
-        box-shadow: 0 12px 35px rgba(15, 23, 42, .08);
+        background: #FFFFFF;
+        border-radius: 10px;
+        padding: 10px 14px;
+        border: 1px solid #E5E7EB;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
     }
 
     .summary-label {
-        color: #6b7280;
-        font-size: 13px;
-        font-weight: 700;
-        margin-bottom: 6px;
+        color: #6D7175;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
     }
 
     .summary-value {
-        font-size: 30px;
-        font-weight: 800;
+        font-size: 20px;
+        font-weight: 700;
         color: #111827;
     }
 
@@ -53,31 +41,22 @@
         margin-bottom: 20px;
     }
 
-    .form-control,
-    .form-select {
-        border-radius: 12px;
-        border: 1px solid #dbe3ef;
-        padding: 12px 14px;
-    }
 
     .returns-tabs {
         background: #fff;
         border: 1px solid #eef2f7;
         border-radius: 16px;
-        padding: 8px;
         display: inline-flex;
         gap: 8px;
-        margin-bottom: 24px;
         box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+        padding: 6px;
     }
 
     .returns-tab {
         border: 0;
         background: transparent;
         color: #64748b;
-        padding: 10px 22px;
-        border-radius: 12px;
-        font-weight: 800;
+        padding: 10px 12px;
     }
 
     .returns-tab.active {
@@ -86,13 +65,16 @@
     }
 
     .return-card {
-        background: #fff;
-        border: 1px solid #eef2f7;
-        border-radius: 22px;
-        padding: 20px;
-        box-shadow: 0 10px 28px rgba(15, 23, 42, .06);
-        transition: .2s;
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 10px;
+        padding: 14px;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+        transition: transform .18s ease, box-shadow .18s ease;
         height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
 
     .return-card:hover {
@@ -104,26 +86,29 @@
         display: flex;
         gap: 14px;
         align-items: center;
-        margin-bottom: 18px;
+        margin-bottom: 14px;
     }
 
     .return-img {
-        width: 68px;
-        height: 68px;
-        border-radius: 16px;
+        width: 72px;
+        height: 72px;
+        border-radius: 12px;
         object-fit: cover;
         background: #f1f5f9;
+        border: 1px solid #eef2f7;
     }
 
     .return-title {
-        font-weight: 800;
+        font-weight: 700;
         color: #111827;
-        line-height: 1.35;
+        line-height: 1.25;
+        font-size: 14px;
+        margin-bottom: 4px;
     }
 
     .return-meta {
-        font-size: 13px;
-        color: #6b7280;
+        font-size: 12px;
+        color: #6D7175;
         margin-top: 2px;
     }
 
@@ -137,9 +122,13 @@
     .return-info-box {
         background: #f8fafc;
         border: 1px solid #eef2f7;
-        border-radius: 14px;
-        padding: 12px;
+        border-radius: 12px;
+        padding: 10px 12px;
         text-align: center;
+        min-height: 60px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
 
     .return-info-box small {
@@ -147,13 +136,13 @@
         color: #6b7280;
         font-size: 11px;
         font-weight: 700;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
         text-transform: uppercase;
     }
 
     .return-info-box div {
-        font-size: 13px;
-        font-weight: 800;
+        font-size: 14px;
+        font-weight: 700;
         color: #111827;
     }
 
@@ -181,21 +170,35 @@
     }
 
     .pagination-box {
-        background: #fff;
-        border: 1px solid #eef2f7;
-        border-radius: 18px;
-        padding: 16px 20px;
-        margin-top: 24px;
         display: flex;
-        justify-content: space-between;
+        justify-content: center;
         align-items: center;
-        box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+        gap: 12px;
+        margin-top: 18px;
     }
 
     .page-btn {
-        border-radius: 12px;
-        padding: 9px 18px;
-        font-weight: 800;
+        border-radius: 10px;
+        padding: 8px 16px;
+        font-weight: 700;
+    }
+
+    /* Card hover subtle lift */
+    .return-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 20px 40px rgba(15,23,42,0.10);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 992px) {
+        .return-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 576px) {
+        .return-grid { grid-template-columns: 1fr; }
+        .return-img { width: 64px; height: 64px; }
+        .return-title { font-size: 14px; }
+        .summary-grid { grid-template-columns: 1fr; }
     }
 
     @media(max-width: 992px) {
@@ -205,13 +208,6 @@
     }
 
     @media(max-width: 576px) {
-        .returns-page {
-            padding: 14px;
-        }
-
-        .returns-hero {
-            padding: 22px;
-        }
 
         .summary-grid {
             grid-template-columns: 1fr;
@@ -226,25 +222,41 @@
             gap: 12px;
         }
 
-        .returns-tabs {
-            width: 100%;
-        }
-
         .returns-tab {
             flex: 1;
         }
     }
+    .table-responsive { position: relative; }
+
+    .table-loader {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255,255,255,0.85);
+        z-index: 3;
+        border-radius: 6px;
+    }
+
+    .table-loader .spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(0,0,0,0.08);
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 12px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 
-<div class="returns-page">
+<div class="container-fluid py-3 px-3 saas-wrapper">
 
-    <div class="returns-hero">
-        <!-- <span class="badge bg-light text-primary mb-3 px-3 py-2">
-            Returns Center
-        </span> -->
-
-        <h3 class="fw-bold mb-1">Returns & Refunds</h3>
-
+    <div class="saas-page-header">
+        <h5 class="fw-bold mb-1">Returns & Refunds</h5>
         <p class="mb-0 opacity-75">
             Track Shopify and Amazon returns, approvals and refund status
         </p>
@@ -272,8 +284,17 @@
         </div>
     </div>
 
+    <div class="returns-tabs">
+        <button class="returns-tab active" id="shopifyTabBtn" onclick="switchTab('shopify')">
+            Shopify
+        </button>
+
+        <button class="returns-tab" id="amazonTabBtn" onclick="switchTab('amazon')">
+            Amazon
+        </button>
+    </div>
     <div class="card filter-card">
-        <div class="card-body p-4">
+        <div class="card-body">
             <div class="row g-3 align-items-end">
                 <div class="col-md-4">
                     <label class="form-label small fw-bold text-muted">Search</label>
@@ -291,19 +312,19 @@
                 </div>
 
                 <div class="col-md-2">
-                    <button class="btn btn-primary w-100 fw-bold" style="border-radius:12px;padding:12px;" onclick="applyFilter()">
+                    <button class="btn btn-primary w-100 fw-bold" onclick="applyFilter()">
                         Filter
                     </button>
                 </div>
 
                 <div class="col-md-2">
-                    <button class="btn btn-light border w-100 fw-bold" style="border-radius:12px;padding:12px;" onclick="resetFilter()">
+                    <button class="btn btn-light border w-100 fw-bold"  onclick="resetFilter()">
                         Reset
                     </button>
                 </div>
 
                 <div class="col-md-1">
-                    <button class="btn btn-danger w-100 fw-bold" style="border-radius:12px;padding:12px;" onclick="refreshReturns()">
+                    <button class="btn btn-danger w-100 fw-bold" onclick="refreshReturns()">
                         ⟳
                     </button>
                 </div>
@@ -311,30 +332,29 @@
         </div>
     </div>
 
-    <div class="returns-tabs">
-        <button class="returns-tab active" id="shopifyTabBtn" onclick="switchTab('shopify')">
-            Shopify
-        </button>
-
-        <button class="returns-tab" id="amazonTabBtn" onclick="switchTab('amazon')">
-            Amazon
-        </button>
-    </div>
-
-    <div class="row g-4" id="returnGrid"></div>
-
-    <div class="pagination-box">
-        <button class="btn btn-light border page-btn" onclick="prevPage()">
-            ← Prev
-        </button>
-
-        <span class="fw-bold text-muted">
-            Page <span id="currentPage">1</span>
-        </span>
-
-        <button class="btn btn-primary page-btn" onclick="nextPage()">
-            Next →
-        </button>
+    <div class="card mt-3">
+        <div class="card-body">
+            <div class="table-responsive">
+                <div id="returnsLoader" class="table-loader">
+                    <div class="spinner" aria-hidden="true"></div>
+                    <div class="fw-semibold">Loading returns…</div>
+                </div>
+                <table id="returnsTable" class="table table-hover table-striped" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th style="width:56px"></th>
+                            <th>Detail</th>
+                            <th>Type</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-end">Date</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="returnsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
 </div>
@@ -346,8 +366,8 @@
     let returnsData = [];
     let filteredData = [];
     let activeTab = 'shopify';
-    let currentPage = 1;
     let perPage = 9;
+    let returnsTable = null;
 
     function escapeHtml(str) {
         if (str === null || str === undefined) return '';
@@ -381,121 +401,105 @@
 
     function loadReturns(type = 'shopify') {
         activeTab = type;
-        currentPage = 1;
 
         let url = type === 'amazon'
             ? '{{ route("shopify.returns.amazon") }}'
             : '{{ route("shopify.returns.shopify") }}';
+
+        // show loader
+        try { document.getElementById('returnsLoader').style.display = 'flex'; } catch (e) {}
 
         fetch(url)
             .then(res => res.json())
             .then(data => {
                 returnsData = Array.isArray(data) ? data : [];
                 filteredData = [...returnsData];
-                renderCards();
+                try { document.getElementById('returnsLoader').style.display = 'none'; } catch (e) {}
+                renderTable();
             })
             .catch(() => {
                 returnsData = [];
                 filteredData = [];
-                renderCards();
+                try { document.getElementById('returnsLoader').style.display = 'none'; } catch (e) {}
+                renderTable();
             });
     }
 
-    function renderCards() {
-        let start = (currentPage - 1) * perPage;
-        let paginated = filteredData.slice(start, start + perPage);
+    function renderTable() {
         let isAmazonConnected = {{ !empty($shop->amazon_refresh_token) ? 'true' : 'false' }};
 
-        let html = '';
         let requested = 0, approved = 0, refunded = 0;
-
         filteredData.forEach(i => {
             if (i.status === 'requested') requested++;
             if (i.status === 'approved') approved++;
             if (i.status === 'refunded') refunded++;
         });
 
-        if (!isAmazonConnected && activeTab === 'amazon') {
-            html = `
-                <div class="col-12">
-                    <div class="alert alert-warning rounded-4 p-4">
-                        Please connect your Amazon account to view returns.
-                    </div>
-                </div>
-            `;
-        } else if (paginated.length === 0) {
-            html = `
-                <div class="col-12">
-                    <div class="text-center text-muted py-5 bg-white rounded-4 border">
-                        No returns found
-                    </div>
-                </div>
-            `;
-        }
-
-        paginated.forEach(item => {
-            const safeImage = sanitizeImageUrl(item.image, 'https://via.placeholder.com/80');
-            const safeName = escapeHtml(item.product_name || 'Product');
-            const safeOrderId = escapeHtml(item.order_id || '-');
-            const safeSku = escapeHtml(item.sku || '-');
-            const safeRefund = escapeHtml(item.refund_amount || 0);
-            const safeDate = escapeHtml(formatDate(item.created_at));
-            const safeStatus = escapeHtml(item.status || 'requested');
-            const viewUrl = escapeHtml(getViewUrl(item));
-
-            html += `
-                <div class="col-md-6 col-lg-4">
-                    <div class="return-card">
-
-                        <div class="return-header">
-                            <img src="${safeImage}" class="return-img" alt="${safeName}">
-                            <div>
-                                <div class="return-title">${safeName}</div>
-                                <div class="return-meta">Order: ${safeOrderId}</div>
-                                <div class="return-meta">SKU: ${safeSku}</div>
-                            </div>
-                        </div>
-
-                        <div class="return-grid">
-                            <div class="return-info-box">
-                                <small>Refund</small>
-                                <div>$${safeRefund}</div>
-                            </div>
-
-                            <div class="return-info-box">
-                                <small>Date</small>
-                                <div>${safeDate}</div>
-                            </div>
-
-                            <div class="return-info-box">
-                                <small>Status</small>
-                                <div>
-                                    <span class="badge-status ${safeStatus}">
-                                        ${safeStatus}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mt-3 text-end">
-                            <button class="btn btn-dark btn-sm fw-bold"
-                                    style="border-radius:10px;"
-                                    onclick="window.location.href='${viewUrl}'">
-                                View
-                            </button>
-                        </div>
-
-                    </div>
-                </div>
-            `;
-        });
-
-        document.getElementById('returnGrid').innerHTML = html;
+        // Update summaries
         document.getElementById('totalCount').innerText = filteredData.length;
         document.getElementById('requestedCount').innerText = requested;
         document.getElementById('approvedCount').innerText = approved;
         document.getElementById('refundedCount').innerText = refunded;
-        document.getElementById('currentPage').innerText = currentPage;
+
+        // Handle no data / not connected message
+        if (!isAmazonConnected && activeTab === 'amazon') {
+            const body = document.getElementById('returnsTableBody');
+            body.innerHTML = `<tr><td colspan="7"><div class="alert alert-warning mb-0">Please connect your Amazon account to view returns.</div></td></tr>`;
+            if (returnsTable) { returnsTable.clear().draw(); }
+            return;
+        }
+
+        if (!Array.isArray(filteredData) || filteredData.length === 0) {
+            const body = document.getElementById('returnsTableBody');
+            body.innerHTML = `<tr><td colspan="7" class="text-center text-muted">No returns found</td></tr>`;
+            if (returnsTable) { returnsTable.clear().draw(); }
+            return;
+        }
+
+        // Build rows
+        let rows = '';
+        filteredData.forEach(item => {
+            const safeImage = sanitizeImageUrl(item.image, 'https://via.placeholder.com/80');
+            const detailHtml = item.product_name ?
+                `<div class="fw-semibold">${escapeHtml(item.product_name)}</div><div class="text-muted small">SKU: ${escapeHtml(item.sku || '-')}</div>` :
+                `<div class="fw-semibold">Order-level refund</div><div class="text-muted small">Order: ${escapeHtml(item.order_id || '-')}</div>`;
+            const type = (item.type === 'manual') ? 'Manual' : (item.type === 'product' ? 'Product' : 'Order');
+            const amount = Number(item.refund_amount || 0).toFixed(2);
+            const date = escapeHtml(formatDate(item.created_at));
+            const status = escapeHtml(item.status || 'requested');
+            const viewUrl = escapeHtml(getViewUrl(item));
+
+            rows += `
+                <tr>
+                    <td><img src="${safeImage}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #eef2f7"></td>
+                    <td>${detailHtml}</td>
+                    <td>${type}</td>
+                    <td class="text-end">${amount} ${escapeHtml(item.currency || '')}</td>
+                    <td class="text-end">${date}</td>
+                    <td><span class="badge-status ${status}">${status}</td>
+                    <td class="text-end"><a href="${viewUrl}" class="btn btn-sm btn-primary">View</a></td>
+                </tr>`;
+        });
+
+        document.getElementById('returnsTableBody').innerHTML = rows;
+
+        // Initialize or refresh DataTable
+        if (returnsTable) {
+            try { returnsTable.destroy(); } catch (e) {}
+            document.getElementById('returnsTable').querySelector('tbody').style.display = '';
+        }
+
+        returnsTable = $('#returnsTable').DataTable({
+            responsive: true,
+            autoWidth: false,
+            pageLength: perPage,
+            lengthMenu: [[9, 25, 50], [9, 25, 50]],
+            order: [[4, 'desc']],
+            columnDefs: [
+                { orderable: false, targets: [0,6] },
+                { className: 'text-end', targets: [3,4,6] }
+            ],
+        });
     }
 
     function applyFilter() {
@@ -512,40 +516,24 @@
             );
         });
 
-        currentPage = 1;
-        renderCards();
+        renderTable();
     }
 
     function resetFilter() {
         filteredData = [...returnsData];
         document.getElementById('searchInput').value = '';
         document.getElementById('statusFilter').value = '';
-        currentPage = 1;
-        renderCards();
+        renderTable();
     }
 
-    function nextPage() {
-        if (currentPage * perPage < filteredData.length) {
-            currentPage++;
-            renderCards();
-        }
-    }
-
-    function prevPage() {
-        if (currentPage > 1) {
-            currentPage--;
-            renderCards();
-        }
-    }
+    // DataTable provides pagination controls; next/prev not used.
 
     function formatDate(date) {
         if (!date) return '-';
         return new Date(date).toLocaleDateString();
     }
 
-    function refreshReturns() {
-        loadReturns(activeTab);
-    }
+    function refreshReturns() { loadReturns(activeTab); }
 
     function switchTab(tab) {
         document.getElementById('shopifyTabBtn').classList.remove('active');
@@ -558,8 +546,6 @@
         loadReturns(tab);
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        loadReturns('shopify');
-    });
+    document.addEventListener('DOMContentLoaded', () => { loadReturns('shopify'); });
 </script>
 @endpush

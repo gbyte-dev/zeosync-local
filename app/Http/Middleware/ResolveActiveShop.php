@@ -183,16 +183,12 @@ class ResolveActiveShop
              * | New / inactive / tokenless shop
              * |--------------------------------------------------------------------------
              */
-            if (
-                !$existingShop ||
-                !$existingShop->is_active ||
-                empty($existingShop->access_token)
-            ) {
+            if ( !$existingShop ||  !$existingShop->is_active ||  empty($existingShop->access_token) ) {
                 return redirect()->route('shopify.install', array_filter([
-                    'shop' => $resolvedShop,
-                    'host' => $host,
-                    'embedded' => $request->query('embedded', '1'),
-                ]));
+                                            'shop' => $resolvedShop,
+                                            'host' => $host,
+                                            'embedded' => $request->query('embedded', '1'),
+                                        ]));
             }
 
             /*
@@ -217,26 +213,15 @@ class ResolveActiveShop
             return true;
         }
 
-        if ($request->filled('host')) {
-            return true;
-        }
-
-        if ($request->filled('shop')) {
-            return true;
-        }
-
-        if ($request->header('Sec-Fetch-Dest') === 'iframe') {
-            return true;
-        }
-
+        if($request->filled('host')) {   return true;      }
+        if($request->filled('shop')) {  return true;     }
+        if($request->header('Sec-Fetch-Dest') === 'iframe') {   return true;     }
         $referer = (string) $request->header('referer');
         if ($referer !== '' && (str_contains($referer, 'admin.shopify.com') || str_contains($referer, '.myshopify.com'))) {
             return true;
         }
 
-        if ($request->has('id_token') || $request->has('session_token')) {
-            return true;
-        }
+        if ($request->has('id_token') || $request->has('session_token')) {    return true;     }
 
         return false;
     }

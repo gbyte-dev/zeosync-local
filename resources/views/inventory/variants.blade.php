@@ -3,9 +3,6 @@
 @section('content')
 
 <style nonce="{{ $cspNonce??'' }}">
-    body {
-        background: #f5f7fb;
-    }
 
     .inventory-page {
         padding: 24px;
@@ -215,12 +212,9 @@
                         <td>{{ $variant['color'] ?? '-' }}</td>
                         <td>{{ $variant['size'] ?? '-' }}</td>
                         <td>{{ $variant['asin'] ?? '-' }}</td>
-
                         <td>
-                            <input type="number"
-                                class="form-control form-control-sm qty-input"
-                                value="{{ $variant['quantity'] ?? 0 }}"
-                                data-sku="{{ $variant['sku'] }}">
+                            <input type="number"  class="form-control form-control-sm qty-input"
+                                value="{{ $variant['quantity'] ?? 0 }}"  data-sku="{{ $variant['sku'] }}">
                         </td>
 
                         <!-- <td>
