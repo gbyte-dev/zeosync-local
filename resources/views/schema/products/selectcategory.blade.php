@@ -240,6 +240,7 @@
     </div>
 
 </div>
+@endsection
 
 @push('scripts')
 <script nonce="{{ $cspNonce??'' }}">
