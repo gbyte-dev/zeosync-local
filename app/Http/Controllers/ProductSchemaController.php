@@ -102,7 +102,8 @@ class ProductSchemaController extends Controller
                 'shop' => $shop,
             ]);
         }
-        return view('schema.products.selectcategory', compact('categories'));
+        $activeShop = $this->getActiveShopModel($request)?->shop ?? $request->query('shop') ?? session('active_shop');
+        return view('schema.products.selectcategory', compact('categories', 'activeShop'));
     }
     public function store(Request $request)
     {
