@@ -2,15 +2,27 @@
 
 use App\Models\AllProduct;
 use App\Models\Product;
+use App\Models\ProductMapping;
 use App\Models\ProductMarketplaceMapping;
 use App\Models\Shop;
 use App\Models\ShopifyOrder;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 
 beforeEach(function () {
+    config([
+        'services.shopify.api_key'    => 'test-api-key',
+        'services.shopify.api_secret' => 'test-api-secret',
+        'app.disable_subscription'    => true,
+    ]);
+
+    Http::fake([
+        '*' => Http::response(['access_token' => 'dummy_token', 'expires_in' => 3600], 200),
+    ]);
+
     View::share('cspNonce', 'test-csp-nonce-12345');
 
     if (!Schema::hasTable('shops')) {
@@ -23,9 +35,12 @@ beforeEach(function () {
             $table->timestamp('access_token_expires_at')->nullable();
             $table->text('refresh_token')->nullable();
             $table->timestamp('refresh_token_expires_at')->nullable();
+            $table->json('shopify_locations')->nullable();
+            $table->integer('selected_location_index')->nullable();
             $table->string('amazon_seller_id')->nullable();
             $table->text('amazon_refresh_token')->nullable();
             $table->string('amazon_marketplace_id')->nullable();
+            $table->string('amazon_mws_region')->nullable();
             $table->boolean('is_active')->default(1);
             $table->softDeletes();
             $table->timestamps();
@@ -65,7 +80,26 @@ beforeEach(function () {
             $table->unsignedBigInteger('shop_id');
             $table->unsignedBigInteger('product_id')->nullable();
             $table->string('shopify_product_id')->nullable();
+            $table->string('shopify_variant_id')->nullable();
             $table->string('amazon_asin')->nullable();
+            $table->string('amazon_sku')->nullable();
+            $table->string('sync_status')->nullable();
+            $table->timestamp('last_synced_at')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('product_mappings')) {
+        Schema::create('product_mappings', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id');
+            $table->unsignedBigInteger('product_id')->nullable();
+            $table->string('shopify_product_id')->nullable();
+            $table->string('shopify_product_title')->nullable();
+            $table->string('shopify_variant_id')->nullable();
+            $table->string('amazon_sku')->nullable();
+            $table->string('sync_status')->nullable();
+            $table->timestamp('last_synced_at')->nullable();
             $table->timestamps();
         });
     }
@@ -84,6 +118,7 @@ beforeEach(function () {
     AllProduct::query()->delete();
     Shop::query()->forceDelete();
     ProductMarketplaceMapping::query()->delete();
+    ProductMapping::query()->delete();
     ShopifyOrder::query()->delete();
 });
 
@@ -155,7 +190,7 @@ test('dashboard accurately displays all six cards for a shop with amazon connect
     $response->assertSee('Amazon Orders');
     $response->assertSee('Amazon Products');
     $response->assertSee('Shopify Orders');
-    $response->assertSee('Amazon Connection Status');
+    $response->assertSee('Amazon Status');
 
     // Verify view received exact counts and status
     $response->assertViewHas('totalShopifyProducts', 3);
@@ -271,36 +306,36 @@ test('all six dashboard cards are clickable and navigate to correct shop-scoped 
 
     // 1. Shopify Products link
     $expectedShopifyProductsUrl = route('shopify.products', ['shop' => $shop->shop]);
-    expect($content)->toContain('href="' . $expectedShopifyProductsUrl . '"');
+    expect($content)->toContain('href="' . e($expectedShopifyProductsUrl) . '"');
 
     // 2. Shopify Orders link
-    $expectedShopifyOrdersUrl = url('/orders?') . http_build_query([
+    $expectedShopifyOrdersUrl = url('/orders') . '?' . http_build_query([
         'shop' => $shop->shop,
         'source' => 'shopify',
     ]);
-    expect($content)->toContain('href="' . $expectedShopifyOrdersUrl . '"');
+    expect($content)->toContain('href="' . e($expectedShopifyOrdersUrl) . '"');
 
     // 3. Amazon Orders link
-    $expectedAmazonOrdersUrl = url('/orders?') . http_build_query([
+    $expectedAmazonOrdersUrl = url('/orders') . '?' . http_build_query([
         'shop' => $shop->shop,
         'source' => 'amazon',
     ]);
-    expect($content)->toContain('href="' . $expectedAmazonOrdersUrl . '"');
+    expect($content)->toContain('href="' . e($expectedAmazonOrdersUrl) . '"');
 
     // 4. Amazon Products link
     $expectedAmazonProductsUrl = route('user.product.showProducts', ['shop' => $shop->shop]);
-    expect($content)->toContain('href="' . $expectedAmazonProductsUrl . '"');
+    expect($content)->toContain('href="' . e($expectedAmazonProductsUrl) . '"');
 
     // 5. Mapped Products link (Inventory page with Mapped tab)
     $expectedMappedProductsUrl = route('shopify.inventory.index', [
         'shop' => $shop->shop,
         'tab' => 'mapped',
     ]);
-    expect($content)->toContain('href="' . $expectedMappedProductsUrl . '"');
+    expect($content)->toContain('href="' . e($expectedMappedProductsUrl) . '"');
 
     // 6. Amazon Status link
     $expectedAmazonConnectUrl = route('amazon.connect', ['shop' => $shop->shop]);
-    expect($content)->toContain('href="' . $expectedAmazonConnectUrl . '"');
+    expect($content)->toContain('href="' . e($expectedAmazonConnectUrl) . '"');
 });
 
 test('inventory page opens with mapped tab active when navigating with tab=mapped', function () {
@@ -319,9 +354,8 @@ test('inventory page opens with mapped tab active when navigating with tab=mappe
     $content = $response->getContent();
 
     // Mappings tab button must be active
-    expect($content)->toMatch('/<button[^>]*id="mapped-tab"[^>]*class="[^"]*active[^"]*"[^>]*>/');
+    expect($content)->toMatch('/<button[^>]*class="[^"]*active[^"]*"[^>]*id="mapped-tab"/');
 
     // Mappings tab content pane must have show active
-    expect($content)->toMatch('/<div[^>]*id="mappedAmazonTab"[^>]*class="[^"]*show\s+active[^"]*"[^>]*>/');
+    expect($content)->toMatch('/<div[^>]*class="[^"]*show\s+active[^"]*"[^>]*id="mappedAmazonTab"/');
 });
-

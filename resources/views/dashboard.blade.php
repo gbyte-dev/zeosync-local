@@ -1,11 +1,11 @@
 @extends('layouts.app')
 @php
 $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
-$shopifyOrdersUrl = url('/orders?') . http_build_query(array_filter([
+$shopifyOrdersUrl = url('/orders') . '?' . http_build_query(array_filter([
     'shop' => $currentShop,
     'source' => 'shopify',
 ]));
-$amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
+$amazonOrdersUrl = url('/orders') . '?' . http_build_query(array_filter([
     'shop' => $currentShop,
     'source' => 'amazon',
 ]));
