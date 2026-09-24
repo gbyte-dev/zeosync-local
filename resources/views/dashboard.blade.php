@@ -599,7 +599,7 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
             <div>
                 <div class="saas-stat-label">Amazon Products</div>
             </div>
-            <div class="saas-stat-value">
+            <div class="saas-stat-value" id="amazonProductsStatValue">
                 @if(!empty($isAmazonInventoryLoading))
                     <span class="spinner-border spinner-border-sm text-secondary amazon-products-spinner" role="status" aria-hidden="true" style="width: 16px; height: 16px; border-width: 2px; vertical-align: middle;"></span>
                 @else
@@ -1152,6 +1152,8 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         };
 
+        const amazonStatValueEl = document.getElementById('amazonProductsStatValue');
+
         const loadAmazonInventory = () => {
             fetch("{{ route('shopify.inventory.amazon') }}", {
                 method: 'GET',
@@ -1183,6 +1185,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
                 const isNotConnected = data.connected === false || data.status?.error === 'amazon_not_connected';
                 if (isNotConnected) {
+                    if (amazonStatValueEl) {
+                        amazonStatValueEl.textContent = '0';
+                    }
                     renderAmazonDisconnectedState();
                     return;
                 }
@@ -1192,13 +1197,23 @@ document.addEventListener("DOMContentLoaded", function() {
                 const syncCompleted = data.status?.sync_completed === true;
 
                 if (refreshing) {
+                    if (amazonStatValueEl && !amazonStatValueEl.querySelector('.amazon-products-spinner')) {
+                        amazonStatValueEl.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary amazon-products-spinner" role="status" aria-hidden="true" style="width: 16px; height: 16px; border-width: 2px; vertical-align: middle;"></span>';
+                    }
                     setTimeout(loadAmazonInventory, 2000);
                     return;
                 }
 
                 if (!syncCompleted && products.length === 0) {
+                    if (amazonStatValueEl) {
+                        amazonStatValueEl.textContent = '0';
+                    }
                     renderAmazonErrorState();
                     return;
+                }
+
+                if (amazonStatValueEl) {
+                    amazonStatValueEl.textContent = new Intl.NumberFormat().format(products.length);
                 }
 
                 const lowInventoryProducts = products
