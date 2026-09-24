@@ -253,3 +253,75 @@ test('strict multi-store tenant isolation: Store A counts never leak into Store 
     $responseA->assertViewHas('isAmazonConnected', true);
     $responseA->assertSee('● Connected');
 });
+
+test('all six dashboard cards are clickable and navigate to correct shop-scoped routes', function () {
+    $shop = createDashboardTestShop([
+        'shop' => 'clickable-test.myshopify.com',
+        'shop_name' => 'Clickable Store',
+        'amazon_seller_id' => 'SELLER_CLICK_123',
+        'amazon_refresh_token' => 'dummy_refresh_token',
+    ]);
+
+    $response = $this->withSession(authDashboardSession($shop))
+        ->get('/dashboard?shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+
+    $content = $response->getContent();
+
+    // 1. Shopify Products link
+    $expectedShopifyProductsUrl = route('shopify.products', ['shop' => $shop->shop]);
+    expect($content)->toContain('href="' . $expectedShopifyProductsUrl . '"');
+
+    // 2. Shopify Orders link
+    $expectedShopifyOrdersUrl = url('/orders?') . http_build_query([
+        'shop' => $shop->shop,
+        'source' => 'shopify',
+    ]);
+    expect($content)->toContain('href="' . $expectedShopifyOrdersUrl . '"');
+
+    // 3. Amazon Orders link
+    $expectedAmazonOrdersUrl = url('/orders?') . http_build_query([
+        'shop' => $shop->shop,
+        'source' => 'amazon',
+    ]);
+    expect($content)->toContain('href="' . $expectedAmazonOrdersUrl . '"');
+
+    // 4. Amazon Products link
+    $expectedAmazonProductsUrl = route('user.product.showProducts', ['shop' => $shop->shop]);
+    expect($content)->toContain('href="' . $expectedAmazonProductsUrl . '"');
+
+    // 5. Mapped Products link (Inventory page with Mapped tab)
+    $expectedMappedProductsUrl = route('shopify.inventory.index', [
+        'shop' => $shop->shop,
+        'tab' => 'mapped',
+    ]);
+    expect($content)->toContain('href="' . $expectedMappedProductsUrl . '"');
+
+    // 6. Amazon Status link
+    $expectedAmazonConnectUrl = route('amazon.connect', ['shop' => $shop->shop]);
+    expect($content)->toContain('href="' . $expectedAmazonConnectUrl . '"');
+});
+
+test('inventory page opens with mapped tab active when navigating with tab=mapped', function () {
+    $shop = createDashboardTestShop([
+        'shop' => 'tab-test.myshopify.com',
+        'shop_name' => 'Tab Store',
+        'amazon_seller_id' => 'SELLER_TAB_123',
+        'amazon_refresh_token' => 'dummy_token',
+    ]);
+
+    $response = $this->withSession(authDashboardSession($shop))
+        ->get(route('shopify.inventory.index', ['shop' => $shop->shop, 'tab' => 'mapped']));
+
+    $response->assertStatus(200);
+
+    $content = $response->getContent();
+
+    // Mappings tab button must be active
+    expect($content)->toMatch('/<button[^>]*id="mapped-tab"[^>]*class="[^"]*active[^"]*"[^>]*>/');
+
+    // Mappings tab content pane must have show active
+    expect($content)->toMatch('/<div[^>]*id="mappedAmazonTab"[^>]*class="[^"]*show\s+active[^"]*"[^>]*>/');
+});
+

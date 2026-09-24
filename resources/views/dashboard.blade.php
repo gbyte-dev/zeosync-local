@@ -13,6 +13,7 @@ $shopifyProductsUrl = route('shopify.products', array_filter(['shop' => $current
 $amazonProductsUrl = route('user.product.showProducts', array_filter(['shop' => $currentShop]));
 $amazonLowInventoryUrl = route('view-all-amazon-low-inventory', array_filter(['shop' => $currentShop]));
 $amazonConnectUrl = route('amazon.connect', array_filter(['shop' => $currentShop]));
+$mappedProductsUrl = route('shopify.inventory.index', array_filter(['shop' => $currentShop, 'tab' => 'mapped']));
 
 $isAmazonConnected = $isAmazonConnected ?? (!empty($shop->amazon_seller_id) && !empty($shop->amazon_refresh_token));
 $hasShopifyTopSelling = !empty($topSellingProducts) && (is_countable($topSellingProducts) ? count($topSellingProducts) > 0 : true) && (!empty($topSellingChartData) && (is_countable($topSellingChartData) ? count($topSellingChartData) > 0 : true) && (is_object($topSellingChartData) ? $topSellingChartData->sum() > 0 : array_sum((array)$topSellingChartData) > 0));
@@ -96,11 +97,17 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
         align-items: center;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
         transition: all 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
     }
 
-    .saas-stat-card:hover {
+    .saas-stat-card:hover,
+    .saas-stat-card:focus {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        text-decoration: none;
+        color: inherit;
     }
 
     .saas-stat-label {
@@ -561,52 +568,52 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
     {{-- Stats Grid --}}
     <div class="saas-stats-grid">
         {{-- Row 1: Card 1 - Shopify Products --}}
-        <div class="saas-stat-card">
+        <a href="{{ $shopifyProductsUrl }}" class="saas-stat-card" title="View Shopify Products">
             <div>
                 <div class="saas-stat-label">Shopify Products</div>
             </div>
             <div class="saas-stat-value">
                 {{ number_format($totalShopifyProducts ?? $totalProducts ?? 0) }}
             </div>
-        </div>
+        </a>
         {{-- Row 1: Card 2 - Shopify Orders --}}
-        <div class="saas-stat-card">
+        <a href="{{ $shopifyOrdersUrl }}" class="saas-stat-card" title="View Shopify Orders">
             <div>
                 <div class="saas-stat-label">Shopify Orders</div>
             </div>
             <div class="saas-stat-value">
                 {{ number_format($totalShopifyOrders ?? $totalOrders ?? 0) }}
             </div>
-        </div>
+        </a>
         {{-- Row 1: Card 3 - Amazon Orders --}}
-        <div class="saas-stat-card">
+        <a href="{{ $amazonOrdersUrl }}" class="saas-stat-card" title="View Amazon Orders">
             <div>
                 <div class="saas-stat-label">Amazon Orders</div>
             </div>
             <div class="saas-stat-value">
                 {{ number_format($totalAmazonOrders ?? 0) }}
             </div>
-        </div>
+        </a>
         {{-- Row 2: Card 4 - Amazon Products --}}
-        <div class="saas-stat-card">
+        <a href="{{ $amazonProductsUrl }}" class="saas-stat-card" title="View Amazon Products">
             <div>
                 <div class="saas-stat-label">Amazon Products</div>
             </div>
             <div class="saas-stat-value">
                 {{ number_format($totalAmazonProducts ?? 0) }}
             </div>
-        </div>
+        </a>
         {{-- Row 2: Card 5 - Mapped Products --}}
-        <div class="saas-stat-card">
+        <a href="{{ $mappedProductsUrl }}" class="saas-stat-card" title="View Mapped Products in Inventory">
             <div>
                 <div class="saas-stat-label">Mapped Products</div>
             </div>
             <div class="saas-stat-value">
                 {{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}
             </div>
-        </div>
+        </a>
         {{-- Row 2: Card 6 - Amazon Status --}}
-        <div class="saas-stat-card">
+        <a href="{{ $amazonConnectUrl }}" class="saas-stat-card" title="View Amazon Account / Connection">
             <div>
                 <div class="saas-stat-label">Amazon Status</div>
             </div>
@@ -619,7 +626,7 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                 ● Not Connected
             </div>
             @endif
-        </div>
+        </a>
     </div>
 
     <!-- 2x2 Cards Grid -->
