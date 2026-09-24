@@ -1,20 +1,21 @@
 @extends('layouts.app')
 @php
 $currentShop = $activeShop ?? request('shop') ?? session('active_shop');
-$shopifyOrdersUrl = url('/orders?') . http_build_query(array_filter([
+$shopifyOrdersUrl = url('/orders') . '?' . http_build_query(array_filter([
     'shop' => $currentShop,
     'source' => 'shopify',
 ]));
-$amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
+$amazonOrdersUrl = url('/orders') . '?' . http_build_query(array_filter([
     'shop' => $currentShop,
     'source' => 'amazon',
 ]));
 $shopifyProductsUrl = route('shopify.products', array_filter(['shop' => $currentShop]));
-$amazonProductsUrl = route('user.product.showProducts', array_filter(['shop' => $currentShop]));
+$amazonProductsUrl = route('shopify.inventory.index', array_filter(['shop' => $currentShop, 'tab' => 'amazon']));
 $amazonLowInventoryUrl = route('view-all-amazon-low-inventory', array_filter(['shop' => $currentShop]));
 $amazonConnectUrl = route('amazon.connect', array_filter(['shop' => $currentShop]));
+$mappedProductsUrl = route('shopify.inventory.index', array_filter(['shop' => $currentShop, 'tab' => 'mapped']));
 
-$isAmazonConnected = !empty($shop->amazon_seller_id);
+$isAmazonConnected = $isAmazonConnected ?? (!empty($shop->amazon_seller_id) && !empty($shop->amazon_refresh_token));
 $hasShopifyTopSelling = !empty($topSellingProducts) && (is_countable($topSellingProducts) ? count($topSellingProducts) > 0 : true) && (!empty($topSellingChartData) && (is_countable($topSellingChartData) ? count($topSellingChartData) > 0 : true) && (is_object($topSellingChartData) ? $topSellingChartData->sum() > 0 : array_sum((array)$topSellingChartData) > 0));
 $hasShopifyLowInventory = !empty($lowInventoryProducts) && (is_countable($lowInventoryProducts) ? count($lowInventoryProducts) > 0 : !empty($lowInventoryProducts));
 $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($amazonLowInventoryProducts) ? count($amazonLowInventoryProducts) > 0 : !empty($amazonLowInventoryProducts));
@@ -78,11 +79,10 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
 
     /* Stats Grid */
     .saas-stats-grid {
-        display: flex;
-        flex-wrap: nowrap;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
         gap: 14px;
         margin-bottom: 20px;
-        overflow-x: auto;
     }
 
     .saas-stat-card {
@@ -97,11 +97,17 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
         align-items: center;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
         transition: all 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
     }
 
-    .saas-stat-card:hover {
+    .saas-stat-card:hover,
+    .saas-stat-card:focus {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        text-decoration: none;
+        color: inherit;
     }
 
     .saas-stat-label {
@@ -514,7 +520,7 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
         }
 
         .saas-stats-grid {
-            flex-wrap: wrap;
+            grid-template-columns: repeat(2, 1fr);
         }
 
         .saas-stat-card {
@@ -525,7 +531,7 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
 
     @media (max-width: 576.98px) {
         .saas-stats-grid {
-            flex-direction: column;
+            grid-template-columns: 1fr;
         }
 
         .saas-stat-card {
@@ -561,44 +567,70 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
 
     {{-- Stats Grid --}}
     <div class="saas-stats-grid">
-        <div class="saas-stat-card">
+        {{-- Row 1: Card 1 - Shopify Products --}}
+        <a href="{{ $shopifyProductsUrl }}" class="saas-stat-card" title="View Shopify Products">
             <div>
                 <div class="saas-stat-label">Shopify Products</div>
             </div>
             <div class="saas-stat-value">
-                {{ number_format($totalProducts ?? 0) }}
+                {{ number_format($totalShopifyProducts ?? $totalProducts ?? 0) }}
             </div>
-        </div>
-        <div class="saas-stat-card">
+        </a>
+        {{-- Row 1: Card 2 - Shopify Orders --}}
+        <a href="{{ $shopifyOrdersUrl }}" class="saas-stat-card" title="View Shopify Orders">
+            <div>
+                <div class="saas-stat-label">Shopify Orders</div>
+            </div>
+            <div class="saas-stat-value">
+                {{ number_format($totalShopifyOrders ?? $totalOrders ?? 0) }}
+            </div>
+        </a>
+        {{-- Row 1: Card 3 - Amazon Orders --}}
+        <a href="{{ $amazonOrdersUrl }}" class="saas-stat-card" title="View Amazon Orders">
+            <div>
+                <div class="saas-stat-label">Amazon Orders</div>
+            </div>
+            <div class="saas-stat-value">
+                {{ number_format($totalAmazonOrders ?? 0) }}
+            </div>
+        </a>
+        {{-- Row 2: Card 4 - Amazon Products --}}
+        <a href="{{ $amazonProductsUrl }}" class="saas-stat-card" title="View Amazon Products">
+            <div>
+                <div class="saas-stat-label">Amazon Products</div>
+            </div>
+            <div class="saas-stat-value">
+                @if(!empty($isAmazonInventoryLoading))
+                    <span class="spinner-border spinner-border-sm text-secondary amazon-products-spinner" role="status" aria-hidden="true" style="width: 16px; height: 16px; border-width: 2px; vertical-align: middle;"></span>
+                @else
+                    {{ number_format($totalAmazonProducts ?? 0) }}
+                @endif
+            </div>
+        </a>
+        {{-- Row 2: Card 5 - Mapped Products --}}
+        <a href="{{ $mappedProductsUrl }}" class="saas-stat-card" title="View Mapped Products in Inventory">
             <div>
                 <div class="saas-stat-label">Mapped Products</div>
             </div>
             <div class="saas-stat-value">
-                {{ number_format($totalMapped ?? 0) }}
+                {{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}
             </div>
-        </div>
-        <div class="saas-stat-card">
+        </a>
+        {{-- Row 2: Card 6 - Amazon Status --}}
+        <a href="{{ $amazonConnectUrl }}" class="saas-stat-card" title="View Amazon Account / Connection">
             <div>
-                <div class="saas-stat-label">Orders</div>
+                <div class="saas-stat-label">Amazon Status</div>
             </div>
-            <div class="saas-stat-value">
-                {{ number_format($totalOrders ?? 0) }}
-            </div>
-        </div>
-        <div class="saas-stat-card">
-            <div>
-                <div class="saas-stat-label">Sync Status</div>
-            </div>
-            @if(isset($isShopConnected) && $isShopConnected)
+            @if(!empty($isAmazonConnected))
             <div class="saas-stat-value text-success" style="font-size:14px; font-weight: 600;">
                 ● Connected
             </div>
             @else
             <div class="saas-stat-value text-danger" style="font-size:14px; font-weight: 600;">
-                ● Disconnected
+                ● Not Connected
             </div>
             @endif
-        </div>
+        </a>
     </div>
 
     <!-- 2x2 Cards Grid -->

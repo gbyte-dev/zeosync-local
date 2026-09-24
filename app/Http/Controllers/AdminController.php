@@ -2,30 +2,30 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\ShopifyOrder;
-use App\Models\Product;
-use App\Models\Shop;
-use App\Models\Category;
-use App\Models\AdminSetting;
 use App\Models\AdminNotification;
-use App\Models\NotificationSetting;
-use App\Models\MailTemplate;
-use App\Services\EmailService;
-use Illuminate\Support\Facades\Log;
-use App\Models\ShopSubscription;
-use App\Models\ProductMarketplaceMapping;
-use App\Services\UserNotificationService;
+use App\Models\AdminSetting;
 use App\Models\AmazonSchema;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\DB;
+use App\Models\Category;
+use App\Models\MailTemplate;
+use App\Models\NotificationSetting;
+use App\Models\Product;
+use App\Models\ProductMarketplaceMapping;
+use App\Models\Shop;
+use App\Models\ShopifyOrder;
+use App\Models\ShopSubscription;
+use App\Services\EmailService;
 use App\Services\ShopifyBillingService;
+use App\Services\UserNotificationService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class AdminController extends Controller
 {
     public function dashboard(Request $req)
     {
-        $totalshops =   Shop::where('is_active', 1)->get()->count();
+        $totalshops = Shop::where('is_active', 1)->get()->count();
         $totalcategories = AmazonSchema::count();
         $totalsyncs = ProductMarketplaceMapping::count();
 
@@ -36,7 +36,8 @@ class AdminController extends Controller
         ];
 
         $recentActivities = AdminNotification::latest()
-            ->take(5)->get()
+            ->take(5)
+            ->get()
             ->map(function ($activity) {
                 return [
                     'title' => $activity->title,
@@ -81,6 +82,7 @@ class AdminController extends Controller
 
         return view('admin.index', compact('stats', 'recentActivities', 'summaryCards', 'weeklyBars', 'healthItems'));
     }
+
     public function order()
     {
         $orders = ShopifyOrder::latest()->paginate(10);
@@ -104,17 +106,16 @@ class AdminController extends Controller
 
     public function categoryserchedChildren(Request $req)
     {
-        $req->validate([ 'category' => 'required' ]);
+        $req->validate(['category' => 'required']);
 
         $category = Category::with('parent')->where('name', 'like', '%' . $req->category . '%')->first();
         if (!$category) {
             return redirect()->back()->with('error', 'No category found');
         }
-        $children =  Category::with('parent')->where('name', 'like', '%' . $req->category . '%')->get();
+        $children = Category::with('parent')->where('name', 'like', '%' . $req->category . '%')->get();
         $parentCategories = Category::whereNull('parent_id')->get();
         return view('admin.category.subcategory', compact('category', 'children', 'parentCategories'));
     }
-
 
     public function categoryCreate(Request $request)
     {
@@ -129,6 +130,30 @@ class AdminController extends Controller
         $data['self_added'] = 1;
         $categories = Category::create($data);
         return redirect()->back()->with('success', 'Category created successfully.');
+    }
+
+    public function moveSubcategories(Request $request)
+    {
+        // Normalize empty selection for top-level
+        $request->merge(['target_parent_id' => $request->input('target_parent_id') ?: null]);
+
+        $data = $request->validate([
+            'subcategory_ids' => 'required|array',
+            'subcategory_ids.*' => 'integer|exists:categories,id',
+            'target_parent_id' => 'nullable|exists:categories,id',
+        ]);
+
+        $ids = $data['subcategory_ids'];
+        $target = $data['target_parent_id'] ?? null;
+
+        if ($target && in_array($target, $ids)) {
+            return redirect()->back()->with('error', 'Cannot move a category under itself. Please choose a different parent.');
+        }
+
+        // Update parent_id for selected subcategories
+        Category::whereIn('id', $ids)->update(['parent_id' => $target]);
+
+        return redirect()->back()->with('success', 'Selected subcategories moved successfully.');
     }
 
     public function deleteCategory(Request $request, Category $category)
@@ -212,22 +237,18 @@ class AdminController extends Controller
             'stripe_secret_key',
             'stripe_publishable_key',
             'stripe_webhook_secret',
-
             'test_client_id',
             'test_client_secret',
             'test_refresh_token',
             'is_testmode',
-
             'production_client_id',
             'production_client_secret',
             'amazon_refresh_token',
             'amazon_seller_id',
             'amazon_app_id',
-
             'SHOPIFY_API_KEY',
             'SHOPIFY_API_SECRET',
             'SHOPIFY_REDIRECT_URI',
-
             // AI Settings
             'openai_api_key',
             'ai_provider',
@@ -250,7 +271,7 @@ class AdminController extends Controller
                     }
 
                     // Store file in storage/app/public/logo
-                    $path = $file->storeAs( 'logo', $filename, 'public'  );
+                    $path = $file->storeAs('logo', $filename, 'public');
 
                     // Save relative path in database
                     AdminSetting::updateOrCreate(
@@ -303,13 +324,14 @@ class AdminController extends Controller
 
             foreach ($shops as $shop) {
                 UserNotificationService::send(
-                    $shop->id,  'amazon_reconnect', 'Amazon Reconnection Required',
+                    $shop->id, 'amazon_reconnect', 'Amazon Reconnection Required',
                     'We have updated our Amazon integration . Please disconnect your Amazon account and reconnect it to continue using Amazon features without interruption.'
                 );
 
-                if ($notificationSetting &&  $notificationSetting->mail_enabled &&
-                    $template && !empty($shop->email)) {
-
+                if ($notificationSetting &&
+                        $notificationSetting->mail_enabled &&
+                        $template &&
+                        !empty($shop->email)) {
                     app(EmailService::class)->sendDynamicEmail(
                         $template,
                         (object) [
@@ -326,13 +348,12 @@ class AdminController extends Controller
         }
 
         foreach (NotificationSetting::all() as $notification) {
-
             $data = $request->input(
-                'notifications.' . $notification->notification_key,  []
+                'notifications.' . $notification->notification_key, []
             );
 
             $notification->update([
-                'email_enabled'  => isset($data['email']) ? 1 : 0,
+                'email_enabled' => isset($data['email']) ? 1 : 0,
                 'in_app_enabled' => isset($data['in_app']) ? 1 : 0,
             ]);
         }
@@ -439,7 +460,7 @@ class AdminController extends Controller
             $billingService = app(ShopifyBillingService::class);
 
             $result = $billingService->cancelSubscription(
-                $shop,  $subscription->shopify_subscription_gid
+                $shop, $subscription->shopify_subscription_gid
             );
 
             if (!$result) {
@@ -454,14 +475,18 @@ class AdminController extends Controller
 
             DB::transaction(function () use ($subscription) {
                 $subscription->update([
-                    'status' => 'cancelled', 'price' => 0,
-                    'trial_ends_at' => null, 'current_period_end' => null,
-                    'cancelled_at' => now(), 'ended_at' => now(),
+                    'status' => 'cancelled',
+                    'price' => 0,
+                    'trial_ends_at' => null,
+                    'current_period_end' => null,
+                    'cancelled_at' => now(),
+                    'ended_at' => now(),
                 ]);
             });
 
             try {
-                $template = MailTemplate::active()->where('slug', 'payment-cancelled')
+                $template = MailTemplate::active()
+                    ->where('slug', 'payment-cancelled')
                     ->first();
 
                 if ($template) {

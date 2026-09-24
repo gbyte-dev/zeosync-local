@@ -79,18 +79,46 @@ class VerifyShopifyAuthentication
             // ]);
 
             if ($tokenResult) {
-                $request->attributes->set('shopify_verified_shop', $tokenResult['shop']);
-                $request->attributes->set('shopify_verified_model', $tokenResult['shop_model']);
-                $request->attributes->set('shopify_auth_source', 'bearer_token');
+                $requestedShop = $this->extractRequestedShop($request);
 
-                session([
-                    '_shopify_verified_shop' => $tokenResult['shop'],
-                    '_shopify_verified_at' => time(),
-                    'active_shop' => $tokenResult['shop'],
-                    'active_shop_id' => $tokenResult['shop_model']->id,
-                ]);
+                if ($requestedShop && strcasecmp($requestedShop, $tokenResult['shop']) !== 0) {
+                    Log::warning('VerifyShopifyAuthentication: Token destination does not match requested shop.', [
+                        'token_shop'     => $tokenResult['shop'],
+                        'requested_shop' => $requestedShop,
+                        'path'           => $request->path(),
+                    ]);
 
-                return $next($request);
+                    if ($request->ajax() || $request->expectsJson()) {
+                        return response()->json([
+                            'success'         => false,
+                            'requires_reauth' => true,
+                            'redirect_url'    => route('shopify.install', array_filter(['shop' => $requestedShop])),
+                            'error'           => 'Unauthorized',
+                            'message'         => 'Shopify session token destination does not match requested shop.',
+                        ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');
+                    }
+                } else {
+                    $request->attributes->set('shopify_verified_shop', $tokenResult['shop']);
+                    $request->attributes->set('shopify_verified_model', $tokenResult['shop_model']);
+                    $request->attributes->set('shopify_auth_source', 'bearer_token');
+
+                    session([
+                        '_shopify_verified_shop' => $tokenResult['shop'],
+                        '_shopify_verified_at'   => time(),
+                        'active_shop'            => $tokenResult['shop'],
+                        'active_shop_id'         => $tokenResult['shop_model']->id,
+                        'shop'                   => $tokenResult['shop'],
+                    ]);
+
+                    if ($request->isMethod('GET') && !$request->ajax() && !$request->expectsJson() && ($request->has('id_token') || $request->has('session_token'))) {
+                        $cleanQuery = $request->query();
+                        unset($cleanQuery['id_token'], $cleanQuery['session_token']);
+                        $redirectUrl = $request->url() . (!empty($cleanQuery) ? '?' . http_build_query($cleanQuery) : '');
+                        return redirect($redirectUrl);
+                    }
+
+                    return $next($request);
+                }
             }
 
             // 2b. Validate Laravel Crypt Token (from path /apps/{token} or query)
@@ -109,9 +137,10 @@ class VerifyShopifyAuthentication
 
                 session([
                     '_shopify_verified_shop' => $cryptResult['shop'],
-                    '_shopify_verified_at' => time(),
-                    'active_shop' => $cryptResult['shop'],
-                    'active_shop_id' => $cryptResult['shop_model']->id,
+                    '_shopify_verified_at'   => time(),
+                    'active_shop'            => $cryptResult['shop'],
+                    'active_shop_id'         => $cryptResult['shop_model']->id,
+                    'shop'                   => $cryptResult['shop'],
                 ]);
 
                 return $next($request);
@@ -175,31 +204,14 @@ class VerifyShopifyAuthentication
                     ]);
                 }
             } elseif ($requestedShop && strcasecmp($requestedShop, $sessionShopDomain) !== 0) {
-                // Log::warning('SHOPIFY_DEBUG: verify_auth_session_fallback_shop_mismatch', [
-                //     'requested_shop'        => $requestedShop,
-                //     'session_verified_shop' => $sessionShopDomain,
-                //     'session_active_shop'   => session('active_shop'),
-                //     'auth_strategy'         => 'session_fallback_rejected',
-                //     'result'                => 'redirect_to_install',
-                // ]);
-
-                // Clear stale session context.
-                session()->forget([
-                    '_shopify_verified_shop',
-                    '_shopify_verified_at',
-                    'active_shop',
-                    'active_shop_id',
-                    'amazon_shop',
-                    'shop',
-                    'shopify_verified_model',
-                    'shopify_auth_source',
-                ]);
-
-                // Never set verified attributes for the old shop.
-                // Never call $next($request).
-
-                return redirect()->route('shopify.install', [
-                    'shop' => $requestedShop,
+                // Session mismatch detected: URL is Store A, but session belongs to Store B.
+                // Do NOT flush the session (preserves Store B in background).
+                // Do NOT redirect to shopify.install (avoids unnecessary OAuth).
+                // Do NOT trust the stale Store B session for this Store A request.
+                // Request remains unverified so downstream ResolveActiveShop can render shopify.reauth.
+                Log::info('VerifyShopifyAuthentication: Session mismatch detected; bypassing stale session fallback.', [
+                    'requested_shop' => $requestedShop,
+                    'session_shop'   => $sessionShopDomain,
                 ]);
             } else {
                 try {

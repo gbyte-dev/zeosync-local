@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\ShopifyController;
+use App\Models\AllProduct;
 use App\Models\Log as SyncLog;
 use App\Models\Plan;
 use App\Models\Product;
@@ -54,23 +55,53 @@ class DashboardController extends ShopifyController
 
         $amazonInventory = [];
         $amazonInventoryCacheExists = false;
+        $isAmazonInventoryLoading = false;
 
         if (!empty($shop->amazon_seller_id)) {
             $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}";
 
             $amazonInventoryCacheExists = Cache::has($cacheKey);
-            $amazonInventory = Cache::get($cacheKey, []);
+            if ($amazonInventoryCacheExists) {
+                $amazonInventory = Cache::get($cacheKey, []);
+            } else {
+                $statusKey = "amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}";
+                $status = Cache::get($statusKey, []);
+                $isRefreshing = ($status['refreshing'] ?? false) || Cache::has("amazon_progress_{$shop->shop}");
+                if ($isRefreshing) {
+                    $isAmazonInventoryLoading = true;
+                }
+            }
         }
         $thirtyDaysAgo = \Carbon\Carbon::today()->subDays(30);
         $cacheTtl = 300;  // Cache heavy charts for 5 minutes
 
         // 1. Top KPI Aggregates (Eager & efficient counts)
-        $totalProducts = Product::where('shop_id', $shopId)->count();
-        $totalOrders = ShopifyOrder::where('shop_id', $shopId)->count();
-        $totalMapped = ProductMarketplaceMapping::where('shop_id', $shopId)->count();
+        $totalShopifyProducts = Product::where('shop_id', $shopId)->count();
+        $totalMappedProducts = ProductMarketplaceMapping::where('shop_id', $shopId)->count();
+        $totalAmazonProducts = is_countable($amazonInventory) ? count($amazonInventory) : 0;
+        $totalShopifyOrders = ShopifyOrder::where('shop_id', $shopId)->count();
 
-        // System Health Status
-        $isShopConnected = true;  // Replace with actual OAuth token check
+        // Amazon Orders: Check existing local/cache-backed Amazon order data source
+        $sellerId = $shop->amazon_seller_id ?? $shop->seller_id ?? null;
+        $cachedAmazonOrders = [];
+        if ($sellerId) {
+            $cachedAmazonOrders = Cache::get('amazon_orders_' . $shop->shop . '_' . $sellerId)
+                ?? Cache::get('amazon_orders_ai_' . $shop->shop . '_' . $sellerId)
+                ?? Cache::get('amazon_orders_' . $shop->shop)
+                ?? [];
+        } else {
+            $cachedAmazonOrders = Cache::get('amazon_orders_' . $shop->shop, []);
+        }
+        $totalAmazonOrders = is_countable($cachedAmazonOrders) ? count($cachedAmazonOrders) : 0;
+
+        // Amazon Connection Status (Real state from current Shop model)
+        $isAmazonConnected = !empty($shop->amazon_seller_id) && !empty($shop->amazon_refresh_token);
+
+        // Aliases for backwards compatibility
+        $totalProducts = $totalShopifyProducts;
+        $totalMapped = $totalMappedProducts;
+        $totalOrders = $totalShopifyOrders;
+        $isShopConnected = $isAmazonConnected;
 
         // 2. Chart.js Data Generation (Cached)
         $ordersTimeline = Cache::remember("shop_{$shopId}_orders_timeline", $cacheTtl, function () use ($shopId, $thirtyDaysAgo) {
@@ -138,13 +169,15 @@ class DashboardController extends ShopifyController
             ->values();
 
         // Return only the exact variables required by the frontend
-        return view('dashboard', compact( 'totalProducts','totalMapped',
-            'totalOrders','isShopConnected','ordersTimeline','productTrend',
-            'recentLogs', 'topSellingProducts', 'topSellingChartLabels',
-            'topSellingChartData', 'topSelling24hLabels', 'topSelling24hData',
-            'topSelling7dLabels', 'topSelling7dData', 'initialTimeframe',
-            'lowInventoryProducts',  'amazonLowInventoryProducts',
-            'amazonInventoryCacheExists' ,'shop'
+        return view('dashboard', compact(
+            'totalShopifyProducts', 'totalMappedProducts', 'totalAmazonOrders',
+            'totalAmazonProducts', 'totalShopifyOrders', 'isAmazonConnected',
+            'totalProducts', 'totalMapped', 'totalOrders', 'isShopConnected',
+            'ordersTimeline', 'productTrend', 'recentLogs', 'topSellingProducts',
+            'topSellingChartLabels', 'topSellingChartData', 'topSelling24hLabels',
+            'topSelling24hData', 'topSelling7dLabels', 'topSelling7dData',
+            'initialTimeframe', 'lowInventoryProducts', 'amazonLowInventoryProducts',
+            'amazonInventoryCacheExists', 'isAmazonInventoryLoading', 'shop'
         ));
     }
 

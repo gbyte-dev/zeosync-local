@@ -13,7 +13,7 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
 ]));
 @endphp
 
-<style nonce="{{ $cspNonce }}">
+<style nonce="{{ $cspNonce ?? '' }}">
     .sidebar__logo {
         display: flex;
         justify-content: center;

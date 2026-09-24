@@ -569,9 +569,15 @@
 <div class="saas-inventory-card">
 
     <div class="saas-tabs-container">
+        @php
+            $requestedTab = strtolower((string) request('tab', 'shopify'));
+            $isMappedActive = in_array($requestedTab, ['mapped', 'mappings'], true);
+            $isAmazonActive = ($requestedTab === 'amazon');
+            $isShopifyActive = !$isMappedActive && !$isAmazonActive;
+        @endphp
         <ul class="nav nav-tabs saas-tabs">
             <li class="nav-item">
-                <button class="nav-link active"
+                <button class="nav-link {{ $isShopifyActive ? 'active' : '' }}"
                     data-bs-toggle="tab"
                     data-bs-target="#shopifyTab"
                     onclick="switchToShopifyTab();">
@@ -580,16 +586,17 @@
             </li>
             <li class="nav-item">
                 <button
-                    class="nav-link"
+                    class="nav-link {{ $isAmazonActive ? 'active' : '' }}"
                     id="amazon-tab"
                     data-bs-toggle="tab"
-                    data-bs-target="#amazonTab">
+                    data-bs-target="#amazonTab"
+                    onclick="switchToAmazonTab();">
                     Amazon
                 </button>
             </li>
             <li class="nav-item">
                 <button
-                    class="nav-link"
+                    class="nav-link {{ $isMappedActive ? 'active' : '' }}"
                     id="mapped-tab"
                     data-bs-toggle="tab"
                     data-bs-target="#mappedAmazonTab">
@@ -602,7 +609,7 @@
     <div class="tab-content">
 
         {{-- Shopify Tab --}}
-        <div class="tab-pane fade show active" id="shopifyTab">
+        <div class="tab-pane fade {{ $isShopifyActive ? 'show active' : '' }}" id="shopifyTab">
             <div class="saas-toolbar">
                 <div class="row g-2 align-items-end">
                     <div class="col-md-3 col-12">
@@ -683,7 +690,7 @@
         </div>
 
         {{-- Amazon Tab --}}
-        <div class="tab-pane fade" id="amazonTab">
+        <div class="tab-pane fade {{ $isAmazonActive ? 'show active' : '' }}" id="amazonTab">
             @if($shop->amazon_refresh_token)
             <div class="saas-toolbar">
                 <div class="row g-2 align-items-end">
@@ -772,7 +779,7 @@
             @endif
         </div>
 
-        <div class="tab-pane fade" id="mappedAmazonTab">
+        <div class="tab-pane fade {{ $isMappedActive ? 'show active' : '' }}" id="mappedAmazonTab">
             <div class="saas-toolbar">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
@@ -930,7 +937,8 @@
         $('#dtLengthShopify').val(savedShopifyLength);
         $('#dtLengthAmazon').val(savedAmazonLength);
 
-        loadShopify();
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = (urlParams.get('tab') || '').toLowerCase();
 
         const amazonTab = document.querySelector(
             '[data-bs-target="#amazonTab"]'
@@ -940,6 +948,22 @@
             amazonTab.addEventListener('shown.bs.tab', function() {
                 switchToAmazonTab();
             });
+        }
+
+        if (tabParam === 'mapped' || tabParam === 'mappings' || window.location.hash === '#mappedAmazonTab' || window.location.hash === '#mapped') {
+            const mappedTab = document.querySelector('[data-bs-target="#mappedAmazonTab"]');
+            if (mappedTab) {
+                const bsTab = bootstrap.Tab.getOrCreateInstance(mappedTab);
+                bsTab.show();
+            }
+        } else if (tabParam === 'amazon' || window.location.hash === '#amazonTab' || window.location.hash === '#amazon') {
+            if (amazonTab) {
+                const bsTab = bootstrap.Tab.getOrCreateInstance(amazonTab);
+                bsTab.show();
+            }
+            switchToAmazonTab();
+        } else {
+            loadShopify();
         }
     });
 
