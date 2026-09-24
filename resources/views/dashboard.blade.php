@@ -14,7 +14,7 @@ $amazonProductsUrl = route('user.product.showProducts', array_filter(['shop' => 
 $amazonLowInventoryUrl = route('view-all-amazon-low-inventory', array_filter(['shop' => $currentShop]));
 $amazonConnectUrl = route('amazon.connect', array_filter(['shop' => $currentShop]));
 
-$isAmazonConnected = !empty($shop->amazon_seller_id);
+$isAmazonConnected = $isAmazonConnected ?? (!empty($shop->amazon_seller_id) && !empty($shop->amazon_refresh_token));
 $hasShopifyTopSelling = !empty($topSellingProducts) && (is_countable($topSellingProducts) ? count($topSellingProducts) > 0 : true) && (!empty($topSellingChartData) && (is_countable($topSellingChartData) ? count($topSellingChartData) > 0 : true) && (is_object($topSellingChartData) ? $topSellingChartData->sum() > 0 : array_sum((array)$topSellingChartData) > 0));
 $hasShopifyLowInventory = !empty($lowInventoryProducts) && (is_countable($lowInventoryProducts) ? count($lowInventoryProducts) > 0 : !empty($lowInventoryProducts));
 $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($amazonLowInventoryProducts) ? count($amazonLowInventoryProducts) > 0 : !empty($amazonLowInventoryProducts));
@@ -78,11 +78,10 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
 
     /* Stats Grid */
     .saas-stats-grid {
-        display: flex;
-        flex-wrap: nowrap;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
         gap: 14px;
         margin-bottom: 20px;
-        overflow-x: auto;
     }
 
     .saas-stat-card {
@@ -514,7 +513,7 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
         }
 
         .saas-stats-grid {
-            flex-wrap: wrap;
+            grid-template-columns: repeat(2, 1fr);
         }
 
         .saas-stat-card {
@@ -525,7 +524,7 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
 
     @media (max-width: 576.98px) {
         .saas-stats-grid {
-            flex-direction: column;
+            grid-template-columns: 1fr;
         }
 
         .saas-stat-card {
@@ -561,41 +560,63 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
 
     {{-- Stats Grid --}}
     <div class="saas-stats-grid">
+        {{-- Row 1: Card 1 - Shopify Products --}}
         <div class="saas-stat-card">
             <div>
                 <div class="saas-stat-label">Shopify Products</div>
             </div>
             <div class="saas-stat-value">
-                {{ number_format($totalProducts ?? 0) }}
+                {{ number_format($totalShopifyProducts ?? $totalProducts ?? 0) }}
             </div>
         </div>
+        {{-- Row 1: Card 2 - Mapped Products --}}
         <div class="saas-stat-card">
             <div>
                 <div class="saas-stat-label">Mapped Products</div>
             </div>
             <div class="saas-stat-value">
-                {{ number_format($totalMapped ?? 0) }}
+                {{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}
             </div>
         </div>
+        {{-- Row 1: Card 3 - Amazon Orders --}}
         <div class="saas-stat-card">
             <div>
-                <div class="saas-stat-label">Orders</div>
+                <div class="saas-stat-label">Amazon Orders</div>
             </div>
             <div class="saas-stat-value">
-                {{ number_format($totalOrders ?? 0) }}
+                {{ number_format($totalAmazonOrders ?? 0) }}
             </div>
         </div>
+        {{-- Row 2: Card 4 - Amazon Products --}}
         <div class="saas-stat-card">
             <div>
-                <div class="saas-stat-label">Sync Status</div>
+                <div class="saas-stat-label">Amazon Products</div>
             </div>
-            @if(isset($isShopConnected) && $isShopConnected)
+            <div class="saas-stat-value">
+                {{ number_format($totalAmazonProducts ?? 0) }}
+            </div>
+        </div>
+        {{-- Row 2: Card 5 - Shopify Orders --}}
+        <div class="saas-stat-card">
+            <div>
+                <div class="saas-stat-label">Shopify Orders</div>
+            </div>
+            <div class="saas-stat-value">
+                {{ number_format($totalShopifyOrders ?? $totalOrders ?? 0) }}
+            </div>
+        </div>
+        {{-- Row 2: Card 6 - Amazon Connection Status --}}
+        <div class="saas-stat-card">
+            <div>
+                <div class="saas-stat-label">Amazon Connection Status</div>
+            </div>
+            @if(!empty($isAmazonConnected))
             <div class="saas-stat-value text-success" style="font-size:14px; font-weight: 600;">
                 ● Connected
             </div>
             @else
             <div class="saas-stat-value text-danger" style="font-size:14px; font-weight: 600;">
-                ● Disconnected
+                ● Not Connected
             </div>
             @endif
         </div>
