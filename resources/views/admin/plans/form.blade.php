@@ -129,7 +129,7 @@
                     <h5 class="mb-1 fw-bold">{{ $type ?? 'Create Plan' }}</h5>
                     <p class="mb-0 text-muted small">Create and manage subscription plan details</p>
                 </div>
-                <a class="btn btn-light btn-sm" href="{{ route('admin.plans') }}">← Back</a>
+                <a class="btn btn-light btn-sm" href="{{ route('admin.plans') }}"><i class="fa fa-arrow-left"></i> Back</a>
             </div>
         </div>
 

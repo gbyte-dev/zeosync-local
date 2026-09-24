@@ -311,7 +311,7 @@
                     <!-- Actions -->
                     <div class="row mt-4">
                         <div class="col-md-8">
-                            <a href="{{ url()->previous() }}" class="btn btn-outline-dark">Back</a>
+                            <a href="{{ url()->previous() }}" class="btn btn-outline-dark"><i class="fa fa-arrow-left"></i> Back</a>
                         </div>
                         <div class="col-md-4 text-end">
                             <button type="submit" class="btn btn-success">Save Amazon Attributes</button>

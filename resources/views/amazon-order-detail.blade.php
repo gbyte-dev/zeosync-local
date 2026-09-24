@@ -225,7 +225,7 @@
                 </span>
                 <a href="{{ url()->previous() ?? url('/orders?source=amazon') }}"
                 class="btn btn-light border back-btn btn-sm ms-1">
-                    ← Back
+                  <i class="fa fa-arrow-left"></i> Back
                 </a>
             </div>
         </div>

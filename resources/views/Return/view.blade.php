@@ -10,7 +10,7 @@
             <p class="saas-page-subtitle">Order refunds summary and details</p>
         </div>
         <div>
-            <a href="{{ url()->previous() }}" class="btn btn-outline-secondary">← Back</a>
+            <a href="{{ url()->previous() }}" class="btn btn-outline-secondary"><i class="fa fa-arrow-left"></i> Back</a>
         </div>
     </div>
 

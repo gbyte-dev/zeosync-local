@@ -11,34 +11,30 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('stores:check-status')
-    ->everyMinute()
+Schedule::command('stores:check-status')->everyMinute()
     ->withoutOverlapping()
     ->runInBackground();
 
-Schedule::command('shops:refresh-access-token')
-    ->everyMinute()
+Schedule::command('shops:refresh-access-token')->everyMinute()
     ->withoutOverlapping()
     ->runInBackground();
 
-Schedule::command('amazon:refresh-inventory-cache')
-    ->everyFifteenMinutes()
+Schedule::command('amazon:refresh-inventory-cache')->everyFifteenMinutes()
     ->withoutOverlapping()
     ->runInBackground();
 
-Schedule::command('shopify:refresh-inventory-cache')
-    ->everyFifteenMinutes()
+Schedule::command('shopify:refresh-inventory-cache')->everyFifteenMinutes()
     ->withoutOverlapping()
     ->runInBackground();
 
 
-Schedule::command('compliance:purge-expired-results')
-    ->dailyAt('03:30')
+Schedule::command('compliance:purge-expired-results')->dailyAt('03:30')
     ->withoutOverlapping()
     ->runInBackground();
-// Schedule::command('operations:recover')->everyMinute()->withoutOverlapping()->onFailure(fn()=>\Illuminate\Support\Facades\Log::error('Durable operations require review; run operations:recover and inspect the inbox.'));
+// Schedule::command('operations:recover')->everyMinute()
+//      ->withoutOverlapping()
+//      ->onFailure(fn()=>\Illuminate\Support\Facades\Log::error('Durable operations require review; run operations:recover and inspect the inbox.'));
 
-Schedule::command('inventory:recover-operations')
-    ->everyMinute()
+Schedule::command('inventory:recover-operations')->everyMinute()
     ->withoutOverlapping()
     ->runInBackground();

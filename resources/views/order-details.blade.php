@@ -288,7 +288,7 @@ $customer = $order->customer ?? [];
     <div class="mb-3">
         <a href="{{ route('orders.index', ['shop' => $activeShop, 'source' => 'shopify']) }}"
             class="saas-btn saas-btn-outline">
-            <i class="bi bi-arrow-left me-2"></i> Back to Orders
+            <i class="bi bi-arrow-left me-2"></i> <i class="fa fa-arrow-left"></i> Back to Orders
         </a>
     </div>
 

@@ -47,7 +47,7 @@
                     <h5 class="fw-bold mb-1">Sub-categories</h5>
                     <p class="mb-0 text-muted small">Manage subcategories ({{$children[0]->parent->name??''}})</p>
                 </div>
-                <a href="{{ route('admin.category') }}" class="btn btn-light btn-sm">← Back</a>
+                <a href="{{ route('admin.category') }}" class="btn btn-light btn-sm"><i class="fa fa-arrow-left"></i> Back</a>
             </div>
         </div>
 
