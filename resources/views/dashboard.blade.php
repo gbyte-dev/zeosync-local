@@ -463,6 +463,16 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
         color: #111827;
     }
 
+    .low-inventory-table .product-name a {
+        color: #111827;
+        text-decoration: none;
+    }
+
+    .low-inventory-table .product-name a:hover {
+        color: #2563EB;
+        text-decoration: underline;
+    }
+
     /* Badges */
     .saas-badge {
         display: inline-flex;
@@ -753,10 +763,16 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                                 $productTitle = is_object($product) ? ($product->product ?? $product->title ?? 'Product') : ($product['product'] ?? $product['title'] ?? 'Product');
                                 $productSku = is_object($product) ? ($product->sku ?? '-') : ($product['sku'] ?? '-');
                                 $qty = is_object($product) ? ($product->available ?? $product->qty ?? $product->quantity ?? null) : ($product['available'] ?? $product['qty'] ?? $product['quantity'] ?? null);
+                                $shopifyPid = is_object($product) ? ($product->pid ?? null) : ($product['pid'] ?? null);
+                                $shopifyProductUrl = !empty($shopifyPid) ? route('shopify.product.view', ['id' => $shopifyPid, 'shop' => $currentShop]) : null;
                             @endphp
                             <tr>
                                 <td class="product-name" title="{{ $productTitle }}">
-                                    {{ $productTitle }}
+                                    @if(!empty($shopifyProductUrl))
+                                        <a href="{{ $shopifyProductUrl }}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">{{ $productTitle }}</a>
+                                    @else
+                                        {{ $productTitle }}
+                                    @endif
                                 </td>
                                 <td>{{ $productSku }}</td>
                                 <td class="text-end">
@@ -936,13 +952,22 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                         </thead>
                         <tbody>
                             @foreach($amazonLowInventoryProducts as $product)
+                            @php
+                                $amazonProductTitle = is_object($product) ? ($product->title ?? '-') : ($product['title'] ?? '-');
+                                $amazonSku = is_object($product) ? ($product->sku ?? null) : ($product['sku'] ?? null);
+                                $amazonProductUrl = !empty($amazonSku) && $amazonSku !== '-' ? route('user.product.amazonView', ['sku' => $amazonSku, 'shop' => $currentShop]) : null;
+                                $qty = is_object($product) ? ($product->quantity ?? 0) : ($product['quantity'] ?? 0);
+                            @endphp
                             <tr>
-                                <td class="product-name" title="{{ $product['title'] ?? '' }}">
-                                    {{ $product['title'] ?? '-' }}
+                                <td class="product-name" title="{{ $amazonProductTitle }}">
+                                    @if(!empty($amazonProductUrl))
+                                        <a href="{{ $amazonProductUrl }}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">{{ $amazonProductTitle }}</a>
+                                    @else
+                                        {{ $amazonProductTitle }}
+                                    @endif
                                 </td>
-                                <td>{{ $product['sku'] ?? '-' }}</td>
+                                <td>{{ $amazonSku ?? '-' }}</td>
                                 <td class="text-end">
-                                    @php $qty = $product['quantity'] ?? 0; @endphp
                                     <span class="saas-badge {{ $qty <= 3 ? 'saas-badge-danger' : ($qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral') }}">
                                         {{ $qty }}
                                     </span>
@@ -1231,11 +1256,18 @@ document.addEventListener("DOMContentLoaded", function() {
                     const sku = product.sku ?? '-';
                     const qty = Number(product.quantity ?? 0);
                     const badgeClass = qty <= 3 ? 'saas-badge-danger' : (qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral');
+                    const detailUrl = sku && sku !== '-'
+                        ? "{{ route('user.product.amazonView', ['sku' => '__SKU__', 'shop' => $currentShop]) }}".replace('__SKU__', encodeURIComponent(sku))
+                        : null;
+
+                    const titleHtml = detailUrl
+                        ? `<a href="${detailUrl}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">${title}</a>`
+                        : title;
 
                     return `
                         <tr>
                             <td class="product-name" title="${title}">
-                                ${title}
+                                ${titleHtml}
                             </td>
                             <td>${sku}</td>
                             <td class="text-end">
