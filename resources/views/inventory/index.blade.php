@@ -589,7 +589,8 @@
                     class="nav-link {{ $isAmazonActive ? 'active' : '' }}"
                     id="amazon-tab"
                     data-bs-toggle="tab"
-                    data-bs-target="#amazonTab">
+                    data-bs-target="#amazonTab"
+                    onclick="switchToAmazonTab();">
                     Amazon
                 </button>
             </li>
@@ -689,7 +690,7 @@
         </div>
 
         {{-- Amazon Tab --}}
-        <div class="tab-pane fade" id="amazonTab">
+        <div class="tab-pane fade {{ $isAmazonActive ? 'show active' : '' }}" id="amazonTab">
             @if($shop->amazon_refresh_token)
             <div class="saas-toolbar">
                 <div class="row g-2 align-items-end">
@@ -939,22 +940,6 @@
         const urlParams = new URLSearchParams(window.location.search);
         const tabParam = (urlParams.get('tab') || '').toLowerCase();
 
-        if (tabParam === 'mapped' || tabParam === 'mappings' || window.location.hash === '#mappedAmazonTab' || window.location.hash === '#mapped') {
-            const mappedTab = document.querySelector('[data-bs-target="#mappedAmazonTab"]');
-            if (mappedTab) {
-                const bsTab = bootstrap.Tab.getOrCreateInstance(mappedTab);
-                bsTab.show();
-            }
-        } else if (tabParam === 'amazon' || window.location.hash === '#amazonTab' || window.location.hash === '#amazon') {
-            const amazonTab = document.querySelector('[data-bs-target="#amazonTab"]');
-            if (amazonTab) {
-                const bsTab = bootstrap.Tab.getOrCreateInstance(amazonTab);
-                bsTab.show();
-            }
-        } else {
-            loadShopify();
-        }
-
         const amazonTab = document.querySelector(
             '[data-bs-target="#amazonTab"]'
         );
@@ -963,6 +948,22 @@
             amazonTab.addEventListener('shown.bs.tab', function() {
                 switchToAmazonTab();
             });
+        }
+
+        if (tabParam === 'mapped' || tabParam === 'mappings' || window.location.hash === '#mappedAmazonTab' || window.location.hash === '#mapped') {
+            const mappedTab = document.querySelector('[data-bs-target="#mappedAmazonTab"]');
+            if (mappedTab) {
+                const bsTab = bootstrap.Tab.getOrCreateInstance(mappedTab);
+                bsTab.show();
+            }
+        } else if (tabParam === 'amazon' || window.location.hash === '#amazonTab' || window.location.hash === '#amazon') {
+            if (amazonTab) {
+                const bsTab = bootstrap.Tab.getOrCreateInstance(amazonTab);
+                bsTab.show();
+            }
+            switchToAmazonTab();
+        } else {
+            loadShopify();
         }
     });
 

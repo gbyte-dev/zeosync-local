@@ -374,6 +374,12 @@ test('inventory page opens with amazon tab active when navigating with tab=amazo
 
     // Amazon tab button must be active
     expect($content)->toMatch('/<button[^>]*class="[^"]*active[^"]*"[^>]*id="amazon-tab"/');
+
+    // Amazon tab content pane must have show active
+    expect($content)->toMatch('/<div[^>]*class="[^"]*show\s+active[^"]*"[^>]*id="amazonTab"/');
+
+    // DOMContentLoaded should invoke switchToAmazonTab()
+    expect($content)->toContain('switchToAmazonTab();');
 });
 
 test('amazon products card shows inline spinner when cache is not ready and sync is refreshing', function () {
