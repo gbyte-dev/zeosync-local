@@ -142,9 +142,6 @@ $shopLabel = $currentShop ?: 'your connected store';
         outline: none;
     }
 
-    .saas-input {
-        flex: 1;
-    }
 
     .saas-input:focus,
     .saas-select:focus {
@@ -348,20 +345,20 @@ $shopLabel = $currentShop ?: 'your connected store';
     </div>
 
     {{-- Stats Grid --}}
-    <div class="saas-stats-grid">
-        <div class="saas-stat-card">
+    <div class="saas-stats-grid row" style="margin: auto;">
+        <div class="saas-stat-card col-6 col-sm-4 ">
             <div class="saas-stat-label">Total Items</div>
             <div class="saas-stat-value">{{ $totalOrders ?? $shopifyOrders->total() }}</div>
         </div>
-        <div class="saas-stat-card">
+        <div class="saas-stat-card col-6 col-sm-4">
             <div class="saas-stat-label">Synced</div>
             <div class="saas-stat-value text-success">{{ $paidOrders ?? 0 }}</div>
         </div>
-        <div class="saas-stat-card">
+        <div class="saas-stat-card col-6 col-sm-4">
             <div class="saas-stat-label">Pending</div>
             <div class="saas-stat-value text-warning">{{ $pendingOrders ?? 0 }}</div>
         </div>
-        <div class="saas-stat-card">
+        <div class="saas-stat-card col-6 col-sm-4">
             <div class="saas-stat-label">Errors</div>
             <div class="saas-stat-value text-danger">{{ $cancelledOrders ?? 0 }}</div>
         </div>
