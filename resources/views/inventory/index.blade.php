@@ -493,6 +493,34 @@
     a {
         text-decoration: none !important;
     }
+
+    /* Viewport-Aware Custom Tooltip */
+    .zeosync-custom-tooltip {
+        position: fixed;
+        z-index: 9999999;
+        width: auto;
+        max-width: min(320px, calc(100vw - 24px));
+        padding: 6px 10px;
+        background: #1A1A1A;
+        color: #FFFFFF;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 1.4;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        text-align: left;
+        pointer-events: none;
+        box-sizing: border-box;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        opacity: 0;
+        transition: opacity 0.12s ease;
+    }
+
+    .zeosync-custom-tooltip.visible {
+        opacity: 1;
+    }
 </style>
 
 <div class="container-fluid py-3 px-3 saas-wrapper">
@@ -1857,19 +1885,130 @@
         if (dtMapped) dtMapped.page.len(val).draw();
     });
     // ==========================================
-    // Core Functions & Actions
+    // Viewport-Aware Tooltip System
     // ==========================================
 
+    let activeZeoTooltip = null;
+    let activeZeoTarget = null;
+
+    function removeZeoTooltip() {
+        if (activeZeoTooltip) {
+            activeZeoTooltip.remove();
+            activeZeoTooltip = null;
+            activeZeoTarget = null;
+        }
+    }
+
+    function showZeoTooltip(targetEl, text) {
+        if (!text || !targetEl) return;
+        removeZeoTooltip();
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'zeosync-custom-tooltip';
+        tooltip.textContent = text;
+        document.body.appendChild(tooltip);
+
+        activeZeoTooltip = tooltip;
+        activeZeoTarget = targetEl;
+
+        positionZeoTooltip(targetEl, tooltip);
+        requestAnimationFrame(() => {
+            if (activeZeoTooltip === tooltip) {
+                tooltip.classList.add('visible');
+            }
+        });
+    }
+
+    function positionZeoTooltip(targetEl, tooltip) {
+        if (!targetEl || !tooltip) return;
+
+        const targetRect = targetEl.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+        const padding = 8;
+        const spacing = 6;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // 1. Horizontal Positioning:
+        // Default: center relative to target element
+        let left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+
+        // If target is near the left edge or centered overflows left: open toward the right
+        if (left < padding) {
+            left = Math.max(padding, targetRect.left);
+        }
+
+        // If target is near the right edge or centered overflows right: open toward the left
+        if (left + tooltipRect.width > viewportWidth - padding) {
+            left = Math.min(viewportWidth - padding - tooltipRect.width, targetRect.right - tooltipRect.width);
+        }
+
+        // Final boundary clamp to guarantee tooltip stays strictly within [padding, viewportWidth - padding]
+        left = Math.max(padding, Math.min(left, viewportWidth - tooltipRect.width - padding));
+
+        // 2. Vertical Positioning:
+        const spaceBelow = viewportHeight - targetRect.bottom;
+        const spaceAbove = targetRect.top;
+
+        let top;
+        // Prefer below the element if there is enough space
+        if (spaceBelow >= tooltipRect.height + spacing + padding) {
+            top = targetRect.bottom + spacing;
+        } else if (spaceAbove >= tooltipRect.height + spacing + padding) {
+            // Open above
+            top = targetRect.top - tooltipRect.height - spacing;
+        } else {
+            // Pick whichever side has more room
+            if (spaceBelow >= spaceAbove) {
+                top = targetRect.bottom + spacing;
+            } else {
+                top = targetRect.top - tooltipRect.height - spacing;
+            }
+        }
+
+        // Final vertical boundary clamp
+        top = Math.max(padding, Math.min(top, viewportHeight - tooltipRect.height - padding));
+
+        tooltip.style.left = `${Math.round(left)}px`;
+        tooltip.style.top = `${Math.round(top)}px`;
+    }
+
+    // Delegated event handlers for all tooltips
+    $(document).on('mouseenter', '[data-bs-toggle="tooltip"], [data-tooltip], .zeosync-tooltip', function() {
+        let $el = $(this);
+        let title = $el.attr('data-tooltip') || $el.attr('data-original-title') || $el.attr('title') || $el.attr('data-bs-title');
+        if (title && String(title).trim() !== '') {
+            $el.attr('data-original-title', title);
+            $el.removeAttr('title');
+            showZeoTooltip(this, title);
+        }
+    });
+
+    $(document).on('mouseleave', '[data-bs-toggle="tooltip"], [data-tooltip], .zeosync-tooltip', function() {
+        removeZeoTooltip();
+    });
+
+    $(document).on('click', '[data-bs-toggle="tooltip"], [data-tooltip], .zeosync-tooltip', function() {
+        removeZeoTooltip();
+    });
+
+    window.addEventListener('scroll', function() {
+        removeZeoTooltip();
+    }, { passive: true });
+
+    window.addEventListener('resize', function() {
+        if (activeZeoTooltip && activeZeoTarget) {
+            positionZeoTooltip(activeZeoTarget, activeZeoTooltip);
+        }
+    }, { passive: true });
+
     function initTooltips() {
+        removeZeoTooltip();
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
             const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
             tooltipTriggerList.forEach(tooltipTriggerEl => {
                 const instance = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
                 if (instance) instance.dispose();
-                new bootstrap.Tooltip(tooltipTriggerEl, {
-                    container: 'body',
-                    boundary: document.body
-                });
             });
         }
     }

@@ -586,3 +586,19 @@ test('Inventory Mapping tab: safely escapes HTML and special characters in trunc
     $response->assertSee(e(mb_substr($specialTitle, 0, 17) . '...'), false);
     $response->assertSee(e(mb_substr($specialSku, 0, 17) . '...'), false);
 });
+
+test('Inventory Mapping tab: includes viewport-aware custom tooltip CSS and dynamic positioning script', function () {
+    $shop = createInventoryTableTestShop();
+
+    $response = $this->withSession(authTableSession($shop))
+        ->get('/inventory?tab=mapped&shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+
+    // Viewport-aware tooltip CSS and JS
+    $response->assertSee('.zeosync-custom-tooltip', false);
+    $response->assertSee('position: fixed', false);
+    $response->assertSee('showZeoTooltip', false);
+    $response->assertSee('positionZeoTooltip', false);
+    $response->assertSee('removeZeoTooltip', false);
+});
