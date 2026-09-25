@@ -368,17 +368,100 @@ class InventoryMappingController extends Controller
         }
 
         $mappings = ProductMarketplaceMapping::mappedForShop($shop->id)
-            ->get([
-                'id',
-                'shopify_variant_id',
-                'amazon_sku',
-            ]);
+            ->with('product')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $shopifyProductIds = $mappings->pluck('shopify_product_id')->filter()->unique();
+
+        $productsByShopifyId = collect();
+        if ($shopifyProductIds->isNotEmpty()) {
+            $productsByShopifyId = Product::where('shop_id', $shop->id)
+                ->whereIn('shopify_id', $shopifyProductIds)
+                ->get()
+                ->keyBy(fn($p) => (string) $p->shopify_id);
+        }
+
+        $locations = is_array($shop->shopify_locations)
+            ? $shop->shopify_locations
+            : (json_decode($shop->shopify_locations, true) ?? []);
+
+        $enrichedMappings = $mappings->map(function ($mapping) use ($shop, $productsByShopifyId, $locations) {
+            $product = $mapping->product ?? ($mapping->shopify_product_id ? $productsByShopifyId->get((string) $mapping->shopify_product_id) : null);
+
+            $shopifyProductId = $mapping->shopify_product_id ?? ($product ? ($product->shopify_id ?: $product->id) : $mapping->product_id);
+            $shopifyProductTitle = $product ? $product->title : null;
+            if (empty($shopifyProductTitle) && !empty($shopifyProductId)) {
+                $shopifyProductTitle = 'Shopify Product #' . $shopifyProductId;
+            }
+
+            // Variant Title
+            $shopifyVariantTitle = null;
+            $shopifyVariantSku = null;
+            if ($product && !empty($product->variants)) {
+                $variants = is_array($product->variants) ? $product->variants : (json_decode($product->variants, true) ?? []);
+                $matchedVariant = collect($variants)->first(fn($v) => (string) ($v['id'] ?? '') === (string) $mapping->shopify_variant_id);
+                if ($matchedVariant) {
+                    $shopifyVariantTitle = $matchedVariant['title'] ?? null;
+                    $shopifyVariantSku = $matchedVariant['sku'] ?? null;
+                }
+            }
+            if (empty($shopifyVariantTitle)) {
+                if ((string) $mapping->shopify_variant_id === (string) $shopifyProductId) {
+                    $shopifyVariantTitle = 'Default';
+                } else {
+                    $shopifyVariantTitle = $mapping->shopify_variant_id;
+                }
+            }
+
+            // Location Name
+            $locationName = 'Default';
+            if (!empty($mapping->shopify_location_id)) {
+                foreach ($locations as $loc) {
+                    $locId = (string) ($loc['id'] ?? '');
+                    if ($locId === (string) $mapping->shopify_location_id || (!empty($locId) && str_ends_with($locId, (string) $mapping->shopify_location_id))) {
+                        $locationName = $loc['name'] ?? 'Default';
+                        break;
+                    }
+                }
+            } elseif (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index])) {
+                $locationName = $locations[$shop->selected_location_index]['name'] ?? 'Default';
+            }
+
+            $shopifyProductUrl = !empty($shopifyProductId)
+                ? route('shopify.product.view', ['id' => $shopifyProductId, 'shop' => $shop->shop])
+                : null;
+
+            $amazonProductUrl = !empty($mapping->amazon_sku)
+                ? route('user.product.amazonView', ['sku' => $mapping->amazon_sku, 'shop' => $shop->shop])
+                : null;
+
+            return [
+                'id' => $mapping->id,
+                'product_id' => $mapping->product_id,
+                'shopify_product_id' => $shopifyProductId,
+                'shopify_product_title' => $shopifyProductTitle,
+                'shopify_product_url' => $shopifyProductUrl,
+                'shopify_variant_id' => $mapping->shopify_variant_id,
+                'shopify_variant_title' => $shopifyVariantTitle,
+                'shopify_variant_sku' => $shopifyVariantSku,
+                'shopify_inventory_item_id' => $mapping->shopify_inventory_item_id,
+                'shopify_location_id' => $mapping->shopify_location_id,
+                'shopify_location_name' => $locationName,
+                'amazon_sku' => $mapping->amazon_sku,
+                'amazon_product_url' => $amazonProductUrl,
+                'quantity' => $mapping->quantity,
+                'sync_status' => $mapping->sync_status ?? 'active',
+                'last_synced_at' => $mapping->last_synced_at ? $mapping->last_synced_at->format('M d, Y h:i A') : null,
+                'last_synced_at_raw' => $mapping->last_synced_at ? $mapping->last_synced_at->toISOString() : null,
+            ];
+        });
 
         $syncUsage = app(SyncLimitService::class)->canMap($shop);
 
         return response()->json([
             'success' => true,
-            'mappings' => $mappings,
+            'mappings' => $enrichedMappings,
             'sync_usage' => $syncUsage,
         ]);
     }

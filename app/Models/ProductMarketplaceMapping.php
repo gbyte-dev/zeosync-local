@@ -37,6 +37,14 @@ class ProductMarketplaceMapping extends Model
     ];
 
     /**
+     * Relationship with the Product model.
+     */
+    public function product(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    /**
      * Scope a query to only include valid visible mapped products for a given shop.
      * Criteria: shop_id matches, and both amazon_sku and shopify_variant_id are non-null and non-empty.
      */

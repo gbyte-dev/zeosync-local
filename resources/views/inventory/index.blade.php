@@ -599,7 +599,8 @@
                     class="nav-link {{ $isMappedActive ? 'active' : '' }}"
                     id="mapped-tab"
                     data-bs-toggle="tab"
-                    data-bs-target="#mappedAmazonTab">
+                    data-bs-target="#mappedAmazonTab"
+                    onclick="switchToMappedTab();">
                     Mappings
                 </button>
             </li>
@@ -789,85 +790,141 @@
                 </div>
             </div>
 
-            @if($mappedproducts->isEmpty())
-                <div class="no-data-msg">
-                    <i class="bi bi-link-45deg"></i>
-                    <h4>No Product Mappings Found</h4>
-                    <p>Map a Shopify product to an Amazon SKU to start syncing inventory.</p>
+            {{-- Loading State --}}
+            <div id="mappedLoadingMsg" class="no-data-msg" style="display: none;">
+                <div class="spinner-border text-primary mb-2" role="status" style="width: 2rem; height: 2rem;">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
-            @else
-                <div class="table-responsive">
-                    <table class="saas-table" style="width: 100%;">
-                        <thead>
+                <h4>Loading Product Mappings...</h4>
+                <p>Fetching active product mappings.</p>
+            </div>
+
+            {{-- Empty State --}}
+            <div id="mappedNoDataMsg" class="no-data-msg" style="{{ $mappedproducts->isEmpty() ? '' : 'display: none;' }}">
+                <i class="bi bi-link-45deg"></i>
+                <h4>No Product Mappings Found</h4>
+                <p>Map a Shopify product to an Amazon SKU to start syncing inventory.</p>
+            </div>
+
+            {{-- Table Wrapper --}}
+            <div id="mappedTableWrapper" class="table-responsive" style="{{ $mappedproducts->isEmpty() ? 'display: none;' : '' }}">
+                <table class="saas-table" id="mappedTable" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Shopify Product</th>
+                            <th class="text-nowrap">Variant</th>
+                            <th class="text-nowrap">Amazon SKU</th>
+                            <th class="text-nowrap">Location</th>
+                            <th class="text-nowrap">Status</th>
+                            <th class="text-nowrap">Last Synced</th>
+                            <th class="text-nowrap text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 12px;">
+                        @foreach($mappedproducts as $mapping)
+                            @if(!empty($mapping->amazon_sku) && !empty($mapping->shopify_variant_id))
+                            @php
+                                $product = $mapping->product ?? null;
+                                if (!$product && $mapping->shopify_product_id) {
+                                    $product = \App\Models\Product::where('shop_id', $shop->id)->where('shopify_id', $mapping->shopify_product_id)->first();
+                                }
+                                $shopifyProductId = $mapping->shopify_product_id ?? ($product ? ($product->shopify_id ?: $product->id) : $mapping->product_id);
+                                $shopifyProductTitle = $product ? $product->title : null;
+                                if (empty($shopifyProductTitle) && !empty($shopifyProductId)) {
+                                    $shopifyProductTitle = 'Shopify Product #' . $shopifyProductId;
+                                }
+
+                                $shopifyProductLink = !empty($shopifyProductId)
+                                    ? route('shopify.product.view', ['id' => $shopifyProductId, 'shop' => request('shop') ?? session('active_shop')])
+                                    : null;
+
+                                $shopifyVariantTitle = null;
+                                if ($product && !empty($product->variants)) {
+                                    $rawVariants = is_array($product->variants) ? $product->variants : (json_decode($product->variants, true) ?? []);
+                                    $foundVariant = collect($rawVariants)->first(fn($v) => (string) ($v['id'] ?? '') === (string) $mapping->shopify_variant_id);
+                                    if ($foundVariant) {
+                                        $shopifyVariantTitle = $foundVariant['title'] ?? null;
+                                    }
+                                }
+                                if (empty($shopifyVariantTitle)) {
+                                    if ((string) $mapping->shopify_variant_id === (string) $shopifyProductId) {
+                                        $shopifyVariantTitle = 'Default';
+                                    } else {
+                                        $shopifyVariantTitle = $mapping->shopify_variant_id;
+                                    }
+                                }
+
+                                $locations = is_array($shop->shopify_locations) ? $shop->shopify_locations : (json_decode($shop->shopify_locations, true) ?? []);
+                                $locName = 'Default';
+                                if (!empty($mapping->shopify_location_id)) {
+                                    foreach ($locations as $loc) {
+                                        $locId = (string) ($loc['id'] ?? '');
+                                        if ($locId === (string) $mapping->shopify_location_id || (!empty($locId) && str_ends_with($locId, (string) $mapping->shopify_location_id))) {
+                                            $locName = $loc['name'] ?? 'Default';
+                                            break;
+                                        }
+                                    }
+                                } elseif (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index])) {
+                                    $locName = $locations[$shop->selected_location_index]['name'] ?? 'Default';
+                                }
+
+                                $amazonProductLink = !empty($mapping->amazon_sku)
+                                    ? route('user.product.amazonView', ['sku' => $mapping->amazon_sku, 'shop' => request('shop') ?? session('active_shop')])
+                                    : null;
+
+                                $status = strtolower((string) ($mapping->sync_status ?? 'active'));
+                                $statusClass = match ($status) {
+                                    'synced' => 'bg-success-subtle text-success',
+                                    'pending' => 'bg-warning-subtle text-warning',
+                                    'error' => 'bg-danger-subtle text-danger',
+                                    default => 'bg-secondary-subtle text-secondary',
+                                };
+                                $statusLabel = ucfirst($status ?: 'Active');
+                            @endphp
                             <tr>
-                                <th>Shopify Product</th>
-                                <th class="text-nowrap">Variant ID</th>
-                                <th class="text-nowrap">Amazon SKU</th>
-                                <th class="text-nowrap">Status</th>
-                                <th class="text-nowrap">Last Synced</th>
-                                <th class="text-nowrap text-end">Action</th>
+                                <td>
+                                    @if($shopifyProductLink)
+                                        <a href="{{ $shopifyProductLink }}" class="fw-semibold text-dark text-decoration-none" title="View Shopify product">
+                                            {{ $shopifyProductTitle }}
+                                        </a>
+                                    @else
+                                        <div class="fw-semibold text-dark">{{ $shopifyProductTitle ?? 'N/A' }}</div>
+                                    @endif
+                                    <small class="text-muted d-block">ID: {{ $shopifyProductId ?? '—' }}</small>
+                                </td>
+                                <td>
+                                    <span class="fw-medium text-dark">{{ $shopifyVariantTitle }}</span>
+                                    <small class="text-muted d-block">{{ $mapping->shopify_variant_id ?? '—' }}</small>
+                                </td>
+                                <td>
+                                    @if($amazonProductLink)
+                                        <a href="{{ $amazonProductLink }}" class="text-dark fw-semibold text-decoration-none">
+                                            {{ $mapping->amazon_sku }}
+                                        </a>
+                                    @else
+                                        <span class="text-muted">{{ $mapping->amazon_sku ?? '—' }}</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <span class="text-dark">{{ $locName }}</span>
+                                </td>
+                                <td>
+                                    <span class="soft-badge {{ $statusClass }}">{{ $statusLabel }}</span>
+                                </td>
+                                <td class="text-muted">
+                                    {{ $mapping->last_synced_at ? $mapping->last_synced_at->format('M d, Y h:i A') : '—' }}
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-danger btn-sm unmap-product" data-mapping-id="{{ $mapping->id }}" title="Unmap Product" data-bs-toggle="tooltip" data-bs-placement="top">
+                                        <i class="bi bi-link"></i>
+                                    </button>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody style="font-size: 12px;">
-                            @foreach($mappedproducts as $mapping)
-                                @if(!empty($mapping->amazon_sku))
-                                <tr>
-                                    @php
-                                        $shopifyProductId = $mapping->shopify_product_id ?? $mapping->product_id ?? null;
-                                        $shopifyProductLink = $shopifyProductId
-                                            ? route('shopify.product.view', ['id' => $shopifyProductId, 'shop' => request('shop') ?? session('active_shop')])
-                                            : null;
-                                    @endphp
-                                    <td>
-                                        @if($shopifyProductLink)
-                                            <a href="{{ $shopifyProductLink }}" class="fw-semibold text-dark text-decoration-none" title="View Shopify product">
-                                                {{ $mapping->shopify_product_title ?? 'Shopify Product #' . $shopifyProductId }}
-                                            </a>
-                                        @else
-                                            <div class="fw-semibold text-dark">N/A</div>
-                                        @endif
-                                        <small class="text-muted d-block">Product ID: {{ $shopifyProductId ?? '—' }}</small>
-                                    </td>
-                                    <td class="text-muted">
-                                        {{ $mapping->shopify_variant_id ?? '—' }}
-                                    </td>
-                                    <td>
-                                        @if(!empty($mapping->amazon_sku))
-                                            <a href="{{ route('user.product.amazonView', ['sku' => $mapping->amazon_sku]) }}" class="text-dark fw-semibold text-decoration-none">
-                                                {{ $mapping->amazon_sku }}
-                                            </a>
-                                        @else
-                                            <span class="text-muted">—</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @php
-                                            $status = strtolower((string) ($mapping->sync_status ?? 'active'));
-                                            $statusClass = match ($status) {
-                                                'synced' => 'bg-success-subtle text-success',
-                                                'pending' => 'bg-warning-subtle text-warning',
-                                                'error' => 'bg-danger-subtle text-danger',
-                                                default => 'bg-secondary-subtle text-secondary',
-                                            };
-                                            $statusLabel = ucfirst($status ?: 'Active');
-                                        @endphp
-                                        <span class="soft-badge {{ $statusClass }}">{{ $statusLabel }}</span>
-                                    </td>
-                                    <td class="text-muted">
-                                        {{ $mapping->last_synced_at ? $mapping->last_synced_at->format('M d, Y h:i A') : '—' }}
-                                    </td>
-                                    <td class="text-end">
-                                        <button class="btn btn-danger btn-sm unmap-product" data-mapping-id="{{ $mapping->id }}" title="Unmap Product" data-bs-toggle="tooltip" data-bs-placement="top">
-                                            <i class="bi bi-link"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                @endif
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
+                            @endif
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         {{-- Mapped Tab --}}
@@ -1032,6 +1089,94 @@
         }
     }
 
+    function switchToMappedTab() {
+        activeTab = 'mapped';
+        hideAmazonLoader();
+        renderMappedTable([], true);
+        refreshMappingUI();
+    }
+
+    function renderMappedTable(data, isLoading = false) {
+        if (isLoading) {
+            $('#mappedLoadingMsg').show();
+            $('#mappedNoDataMsg').hide();
+            $('#mappedTableWrapper').hide();
+            return;
+        }
+
+        $('#mappedLoadingMsg').hide();
+
+        if (!data || data.length === 0) {
+            $('#mappedTableWrapper').hide();
+            $('#mappedNoDataMsg').show();
+            $('#mappedTable tbody').empty();
+            return;
+        }
+
+        const validMappings = data.filter(m => !!(m.amazon_sku && m.shopify_variant_id));
+
+        if (validMappings.length === 0) {
+            $('#mappedTableWrapper').hide();
+            $('#mappedNoDataMsg').show();
+            $('#mappedTable tbody').empty();
+            return;
+        }
+
+        $('#mappedNoDataMsg').hide();
+        $('#mappedTableWrapper').show();
+
+        const currentShop = new URLSearchParams(window.location.search).get('shop') || '{{ $shop->shop }}';
+
+        let tbodyHtml = '';
+        validMappings.forEach(function(mapping) {
+            const shopifyProductUrl = mapping.shopify_product_url;
+            const shopifyTitle = mapping.shopify_product_title || ('Shopify Product #' + (mapping.shopify_product_id || ''));
+            const productCell = shopifyProductUrl
+                ? `<a href="${shopifyProductUrl}" class="fw-semibold text-dark text-decoration-none" title="View Shopify product">${shopifyTitle}</a>`
+                : `<div class="fw-semibold text-dark">${shopifyTitle || 'N/A'}</div>`;
+            const productIdSub = `<small class="text-muted d-block">ID: ${mapping.shopify_product_id || '—'}</small>`;
+
+            const variantTitle = mapping.shopify_variant_title || mapping.shopify_variant_id || '—';
+            const variantIdSub = `<small class="text-muted d-block">${mapping.shopify_variant_id || '—'}</small>`;
+
+            const amazonUrl = mapping.amazon_product_url || ("{{ route('user.product.amazonView', ['sku' => '__SKU__', 'shop' => '__SHOP__']) }}".replace('__SKU__', encodeURIComponent(mapping.amazon_sku)).replace('__SHOP__', encodeURIComponent(currentShop)));
+            const amazonCell = `<a href="${amazonUrl}" class="text-dark fw-semibold text-decoration-none">${mapping.amazon_sku}</a>`;
+
+            const locationCell = `<span class="text-dark">${mapping.shopify_location_name || 'Default'}</span>`;
+
+            const status = (mapping.sync_status || 'active').toLowerCase();
+            let statusClass = 'bg-secondary-subtle text-secondary';
+            if (status === 'synced') statusClass = 'bg-success-subtle text-success';
+            else if (status === 'pending') statusClass = 'bg-warning-subtle text-warning';
+            else if (status === 'error') statusClass = 'bg-danger-subtle text-danger';
+            const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+            const statusCell = `<span class="soft-badge ${statusClass}">${statusLabel}</span>`;
+
+            const lastSyncedCell = `<span class="text-muted">${mapping.last_synced_at || '—'}</span>`;
+
+            const actionCell = `
+                <button class="btn btn-danger btn-sm unmap-product" data-mapping-id="${mapping.id}" title="Unmap Product" data-bs-toggle="tooltip" data-bs-placement="top">
+                    <i class="bi bi-link"></i>
+                </button>
+            `;
+
+            tbodyHtml += `
+                <tr>
+                    <td>${productCell}${productIdSub}</td>
+                    <td><span class="fw-medium text-dark">${variantTitle}</span>${variantIdSub}</td>
+                    <td>${amazonCell}</td>
+                    <td>${locationCell}</td>
+                    <td>${statusCell}</td>
+                    <td>${lastSyncedCell}</td>
+                    <td class="text-end">${actionCell}</td>
+                </tr>
+            `;
+        });
+
+        $('#mappedTable tbody').html(tbodyHtml);
+        initTooltips();
+    }
+
     function refreshMappingUI() {
         return refreshMappingState().then(function(response) {
 
@@ -1044,6 +1189,9 @@
             }
 
             const mappings = response.mappings || [];
+
+            // Update Mappings Tab Table dynamically
+            renderMappedTable(mappings, false);
 
             const shopifyMappings = {};
             const amazonMappings = {};

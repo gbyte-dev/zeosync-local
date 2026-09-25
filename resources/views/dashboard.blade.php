@@ -768,7 +768,9 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                             @foreach($lowInventoryProducts as $product)
                             @php
                                 $productTitle = is_object($product) ? ($product->product ?? $product->title ?? 'Product') : ($product['product'] ?? $product['title'] ?? 'Product');
-                                $productSku = is_object($product) ? ($product->sku ?? '-') : ($product['sku'] ?? '-');
+                                $productRawSku = is_object($product) ? ($product->sku ?? null) : ($product['sku'] ?? null);
+                                $hasValidProductSku = !empty($productRawSku) && trim((string)$productRawSku) !== '' && $productRawSku !== '-';
+                                $productDisplaySku = $hasValidProductSku ? $productRawSku : '-';
                                 $qty = is_object($product) ? ($product->available ?? $product->qty ?? $product->quantity ?? null) : ($product['available'] ?? $product['qty'] ?? $product['quantity'] ?? null);
                                 $shopifyPid = is_object($product) ? ($product->pid ?? null) : ($product['pid'] ?? null);
                                 $shopifyProductUrl = !empty($shopifyPid) ? route('shopify.product.view', ['id' => $shopifyPid, 'shop' => $currentShop]) : null;
@@ -782,10 +784,10 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                                     @endif
                                 </td>
                                 <td>
-                                    @if(!empty($shopifyProductUrl) && $productSku !== '-')
-                                        <a href="{{ $shopifyProductUrl }}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">{{ $productSku }}</a>
+                                    @if(!empty($shopifyProductUrl) && $hasValidProductSku)
+                                        <a href="{{ $shopifyProductUrl }}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">{{ $productDisplaySku }}</a>
                                     @else
-                                        {{ $productSku }}
+                                        {{ $productDisplaySku }}
                                     @endif
                                 </td>
                                 <td class="text-end">
@@ -967,8 +969,10 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                             @foreach($amazonLowInventoryProducts as $product)
                             @php
                                 $amazonProductTitle = is_object($product) ? ($product->title ?? '-') : ($product['title'] ?? '-');
-                                $amazonSku = is_object($product) ? ($product->sku ?? null) : ($product['sku'] ?? null);
-                                $amazonProductUrl = !empty($amazonSku) && $amazonSku !== '-' ? route('user.product.amazonView', ['sku' => $amazonSku, 'shop' => $currentShop]) : null;
+                                $amazonRawSku = is_object($product) ? ($product->sku ?? null) : ($product['sku'] ?? null);
+                                $hasValidAmazonSku = !empty($amazonRawSku) && trim((string)$amazonRawSku) !== '' && $amazonRawSku !== '-';
+                                $amazonDisplaySku = $hasValidAmazonSku ? $amazonRawSku : '-';
+                                $amazonProductUrl = $hasValidAmazonSku ? route('user.product.amazonView', ['sku' => $amazonRawSku, 'shop' => $currentShop]) : null;
                                 $qty = is_object($product) ? ($product->quantity ?? 0) : ($product['quantity'] ?? 0);
                             @endphp
                             <tr>
@@ -980,10 +984,10 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                                     @endif
                                 </td>
                                 <td>
-                                    @if(!empty($amazonProductUrl) && $amazonSku !== '-')
-                                        <a href="{{ $amazonProductUrl }}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">{{ $amazonSku }}</a>
+                                    @if(!empty($amazonProductUrl) && $hasValidAmazonSku)
+                                        <a href="{{ $amazonProductUrl }}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">{{ $amazonDisplaySku }}</a>
                                     @else
-                                        {{ $amazonSku ?? '-' }}
+                                        {{ $amazonDisplaySku }}
                                     @endif
                                 </td>
                                 <td class="text-end">
@@ -1315,10 +1319,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
                 const rowsHtml = lowInventoryProducts.map(product => {
                     const title = product.title ?? '-';
-                    const sku = product.sku ?? '-';
+                    const rawSku = product.sku ?? null;
+                    const hasValidSku = rawSku !== null && rawSku !== undefined && String(rawSku).trim() !== '' && String(rawSku).trim() !== '-';
+                    const sku = hasValidSku ? String(rawSku).trim() : '-';
                     const qty = Number(product.quantity ?? 0);
                     const badgeClass = qty <= 3 ? 'saas-badge-danger' : (qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral');
-                    const detailUrl = sku && sku !== '-'
+                    const detailUrl = hasValidSku
                         ? "{{ route('user.product.amazonView', ['sku' => '__SKU__', 'shop' => $currentShop]) }}".replace('__SKU__', encodeURIComponent(sku))
                         : null;
 
@@ -1326,7 +1332,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         ? `<a href="${detailUrl}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">${title}</a>`
                         : title;
 
-                    const skuHtml = (detailUrl && sku !== '-')
+                    const skuHtml = (detailUrl && hasValidSku)
                         ? `<a href="${detailUrl}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">${sku}</a>`
                         : sku;
 
