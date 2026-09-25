@@ -622,8 +622,13 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
             <div>
                 <div class="saas-stat-label">Mapped Products</div>
             </div>
-            <div class="saas-stat-value">
-                {{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}
+            <div class="saas-stat-value" id="mappedProductsStatValue">
+                @if(!empty($isAmazonInventoryLoading))
+                    <span class="spinner-border spinner-border-sm text-secondary mapped-products-spinner" role="status" aria-hidden="true" style="width: 16px; height: 16px; border-width: 2px; vertical-align: middle;"></span>
+                    <span class="mapped-syncing-text" style="font-size: 13px; font-weight: 600; color: #6B7280; vertical-align: middle; margin-left: 4px;">Syncing...</span>
+                @else
+                    {{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}
+                @endif
             </div>
         </a>
         {{-- Row 2: Card 6 - Amazon Status --}}
@@ -1178,6 +1183,42 @@ document.addEventListener("DOMContentLoaded", function() {
         };
 
         const amazonStatValueEl = document.getElementById('amazonProductsStatValue');
+        const mappedStatValueEl = document.getElementById('mappedProductsStatValue');
+
+        const updateMappedProductsCount = () => {
+            fetch("{{ route('inventory.mappings', ['shop' => $currentShop]) }}", {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(async response => {
+                if (!response.ok) throw new Error('Mappings request failed');
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && mappedStatValueEl) {
+                    const count = Array.isArray(data.mappings) ? data.mappings.length : (data.sync_usage?.used ?? 0);
+                    mappedStatValueEl.textContent = new Intl.NumberFormat().format(count);
+                }
+            })
+            .catch(() => {
+                if (mappedStatValueEl && mappedStatValueEl.querySelector('.mapped-products-spinner')) {
+                    mappedStatValueEl.textContent = "{{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}";
+                }
+            });
+        };
+
+        const stopMappedProductsLoading = (fallbackCount = null) => {
+            if (mappedStatValueEl && mappedStatValueEl.querySelector('.mapped-products-spinner')) {
+                if (fallbackCount !== null) {
+                    mappedStatValueEl.textContent = new Intl.NumberFormat().format(fallbackCount);
+                } else {
+                    mappedStatValueEl.textContent = "{{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}";
+                }
+            }
+        };
 
         const loadAmazonInventory = () => {
             fetch("{{ route('shopify.inventory.amazon') }}", {
@@ -1213,6 +1254,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (amazonStatValueEl) {
                         amazonStatValueEl.textContent = '0';
                     }
+                    stopMappedProductsLoading();
                     renderAmazonDisconnectedState();
                     return;
                 }
@@ -1225,6 +1267,9 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (amazonStatValueEl && !amazonStatValueEl.querySelector('.amazon-products-spinner')) {
                         amazonStatValueEl.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary amazon-products-spinner" role="status" aria-hidden="true" style="width: 16px; height: 16px; border-width: 2px; vertical-align: middle;"></span>';
                     }
+                    if (mappedStatValueEl && !mappedStatValueEl.querySelector('.mapped-products-spinner')) {
+                        mappedStatValueEl.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary mapped-products-spinner" role="status" aria-hidden="true" style="width: 16px; height: 16px; border-width: 2px; vertical-align: middle;"></span> <span class="mapped-syncing-text" style="font-size: 13px; font-weight: 600; color: #6B7280; vertical-align: middle; margin-left: 4px;">Syncing...</span>';
+                    }
                     setTimeout(loadAmazonInventory, 2000);
                     return;
                 }
@@ -1233,6 +1278,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (amazonStatValueEl) {
                         amazonStatValueEl.textContent = '0';
                     }
+                    stopMappedProductsLoading();
                     renderAmazonErrorState();
                     return;
                 }
@@ -1240,6 +1286,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (amazonStatValueEl) {
                     amazonStatValueEl.textContent = new Intl.NumberFormat().format(products.length);
                 }
+
+                updateMappedProductsCount();
 
                 const lowInventoryProducts = products
                     .filter(product => Number(product.quantity) < 10)
@@ -1298,6 +1346,10 @@ document.addEventListener("DOMContentLoaded", function() {
             })
             .catch(error => {
                 console.error('Amazon inventory fetch failed:', error);
+                if (amazonStatValueEl) {
+                    amazonStatValueEl.textContent = '0';
+                }
+                stopMappedProductsLoading();
                 renderAmazonErrorState();
             });
         };

@@ -267,7 +267,7 @@ class InventoryMappingController extends Controller
             ], 401);
         }
 
-        $mappings = ProductMarketplaceMapping::where('shop_id', $shop->id)
+        $mappings = ProductMarketplaceMapping::mappedForShop($shop->id)
             ->get([
                 'id',
                 'shopify_variant_id',

@@ -114,6 +114,47 @@ beforeEach(function () {
         });
     }
 
+    if (!Schema::hasTable('admin_settings')) {
+        Schema::create('admin_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('option_key')->nullable()->index();
+            $table->longText('option_value')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('plans')) {
+        Schema::create('plans', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->nullable();
+            $table->decimal('price', 8, 2)->default(0);
+            $table->integer('sync_limit')->default(0);
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('shop_subscriptions')) {
+        Schema::create('shop_subscriptions', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id');
+            $table->unsignedBigInteger('plan_id')->nullable();
+            $table->string('status')->default('active');
+            $table->timestamp('started_at')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('product_sync_logs')) {
+        Schema::create('product_sync_logs', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id');
+            $table->string('title')->nullable();
+            $table->text('message')->nullable();
+            $table->string('status')->nullable();
+            $table->timestamps();
+        });
+    }
+
     Product::query()->forceDelete();
     AllProduct::query()->delete();
     Shop::query()->forceDelete();
@@ -157,9 +198,9 @@ test('dashboard accurately displays all six cards for a shop with amazon connect
     Product::create(['title' => 'Shopify Prod A2', 'shop_id' => $shopA->id]);
     Product::create(['title' => 'Shopify Prod A3', 'shop_id' => $shopA->id]);
 
-    // Mapped Products for Shop A
-    ProductMarketplaceMapping::create(['shop_id' => $shopA->id, 'shopify_product_id' => '111']);
-    ProductMarketplaceMapping::create(['shop_id' => $shopA->id, 'shopify_product_id' => '222']);
+    // Mapped Products for Shop A (Valid mappings require non-null amazon_sku and shopify_variant_id)
+    ProductMarketplaceMapping::create(['shop_id' => $shopA->id, 'shopify_product_id' => '111', 'shopify_variant_id' => 'var-111', 'amazon_sku' => 'AMZ-SKU-1']);
+    ProductMarketplaceMapping::create(['shop_id' => $shopA->id, 'shopify_product_id' => '222', 'shopify_variant_id' => 'var-222', 'amazon_sku' => 'AMZ-SKU-2']);
 
     // Amazon Products in Inventory Cache for Shop A
     Cache::put("amazon_inventory_{$shopA->id}_{$sellerId}", [
@@ -218,7 +259,7 @@ test('dashboard accurately displays all six cards for a shop with amazon disconn
     Product::create(['title' => 'Shopify Prod B1', 'shop_id' => $shopB->id]);
 
     // Mapped Products for Shop B
-    ProductMarketplaceMapping::create(['shop_id' => $shopB->id, 'shopify_product_id' => '999']);
+    ProductMarketplaceMapping::create(['shop_id' => $shopB->id, 'shopify_product_id' => '999', 'shopify_variant_id' => 'var-999', 'amazon_sku' => 'AMZ-SKU-999']);
 
     // Shopify Orders for Shop B
     ShopifyOrder::create(['shop_id' => $shopB->id, 'order_id' => 'ORD-B-1']);
@@ -255,7 +296,7 @@ test('strict multi-store tenant isolation: Store A counts never leak into Store 
     // Store A data
     Product::create(['title' => 'Shopify Prod A1', 'shop_id' => $shopA->id]);
     Product::create(['title' => 'Shopify Prod A2', 'shop_id' => $shopA->id]);
-    ProductMarketplaceMapping::create(['shop_id' => $shopA->id, 'shopify_product_id' => '101']);
+    ProductMarketplaceMapping::create(['shop_id' => $shopA->id, 'shopify_product_id' => '101', 'shopify_variant_id' => 'var-101', 'amazon_sku' => 'AMZ-SKU-A1']);
     Cache::put("amazon_inventory_{$shopA->id}_{$sellerA}", [
         ['sku' => 'AMZ-SKU-A1', 'title' => 'Amz Product A1', 'quantity' => 15],
     ], 3600);
@@ -469,6 +510,7 @@ test('multi-store: Store A loading state does not affect Store B with cached Ama
     $responseA->assertStatus(200);
     $responseA->assertViewHas('isAmazonInventoryLoading', true);
     expect($responseA->getContent())->toMatch('/<div class="saas-stat-value" id="amazonProductsStatValue">\s*<span class="[^"]*amazon-products-spinner/');
+    expect($responseA->getContent())->toMatch('/<div class="saas-stat-value" id="mappedProductsStatValue">\s*<span class="[^"]*mapped-products-spinner/');
 
     // Check Store B
     $responseB = $this->withSession(authDashboardSession($shopB))
@@ -477,5 +519,323 @@ test('multi-store: Store A loading state does not affect Store B with cached Ama
     $responseB->assertViewHas('isAmazonInventoryLoading', false);
     $responseB->assertViewHas('totalAmazonProducts', 25);
     expect($responseB->getContent())->not->toMatch('/<div class="saas-stat-value" id="amazonProductsStatValue">\s*<span class="[^"]*amazon-products-spinner/');
+    expect($responseB->getContent())->not->toMatch('/<div class="saas-stat-value" id="mappedProductsStatValue">\s*<span class="[^"]*mapped-products-spinner/');
     expect($responseB->getContent())->toContain('25');
+});
+
+test('mapped products card shows inline spinner and syncing text when amazon cache is not ready (State B)', function () {
+    $sellerId = 'SELLER_MAP_LOAD_' . uniqid();
+    $shop = createDashboardTestShop([
+        'amazon_seller_id' => $sellerId,
+        'amazon_refresh_token' => 'dummy_refresh_token',
+    ]);
+
+    // Ensure Amazon cache does NOT exist
+    Cache::forget("amazon_inventory_{$shop->id}_{$sellerId}");
+
+    // Set status indicating sync is in progress
+    Cache::forever("amazon_inventory_status_{$shop->id}_{$sellerId}", [
+        'refreshing' => true,
+        'sync_completed' => false,
+    ]);
+
+    $response = $this->withSession(authDashboardSession($shop))
+        ->get('/dashboard?shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+    $response->assertViewHas('isAmazonInventoryLoading', true);
+
+    $content = $response->getContent();
+    expect($content)->toMatch('/<div class="saas-stat-value" id="mappedProductsStatValue">\s*<span class="[^"]*mapped-products-spinner/');
+    expect($content)->toContain('Syncing...');
+});
+
+test('mapped products card displays actual mapped count without spinner when amazon cache exists (State A)', function () {
+    $sellerId = 'SELLER_MAP_READY_' . uniqid();
+    $shop = createDashboardTestShop([
+        'amazon_seller_id' => $sellerId,
+        'amazon_refresh_token' => 'dummy_refresh_token',
+    ]);
+
+    // Create mappings in database with valid shopify_variant_id and amazon_sku
+    ProductMarketplaceMapping::create(['shop_id' => $shop->id, 'shopify_product_id' => '101', 'shopify_variant_id' => 'var-101', 'amazon_sku' => 'SKU-A']);
+    ProductMarketplaceMapping::create(['shop_id' => $shop->id, 'shopify_product_id' => '102', 'shopify_variant_id' => 'var-102', 'amazon_sku' => 'SKU-B']);
+    ProductMarketplaceMapping::create(['shop_id' => $shop->id, 'shopify_product_id' => '103', 'shopify_variant_id' => 'var-103', 'amazon_sku' => 'SKU-C']);
+
+    // Amazon inventory cache exists
+    Cache::put("amazon_inventory_{$shop->id}_{$sellerId}", [
+        ['sku' => 'SKU-A', 'quantity' => 10],
+        ['sku' => 'SKU-B', 'quantity' => 20],
+        ['sku' => 'SKU-C', 'quantity' => 30],
+    ], 3600);
+
+    Cache::forever("amazon_inventory_status_{$shop->id}_{$sellerId}", [
+        'refreshing' => false,
+        'sync_completed' => true,
+    ]);
+
+    $response = $this->withSession(authDashboardSession($shop))
+        ->get('/dashboard?shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+    $response->assertViewHas('isAmazonInventoryLoading', false);
+    $response->assertViewHas('totalMappedProducts', 3);
+
+    $content = $response->getContent();
+    expect($content)->not->toMatch('/<div class="saas-stat-value" id="mappedProductsStatValue">\s*<span class="[^"]*mapped-products-spinner/');
+    expect($content)->toContain('3');
+});
+
+test('mapped products card displays 0 without spinner when amazon cache exists but 0 mappings exist (State D)', function () {
+    $sellerId = 'SELLER_MAP_ZERO_' . uniqid();
+    $shop = createDashboardTestShop([
+        'amazon_seller_id' => $sellerId,
+        'amazon_refresh_token' => 'dummy_refresh_token',
+    ]);
+
+    // Amazon inventory cache exists with products, but no mappings exist
+    Cache::put("amazon_inventory_{$shop->id}_{$sellerId}", [
+        ['sku' => 'SKU-X', 'quantity' => 10],
+    ], 3600);
+
+    Cache::forever("amazon_inventory_status_{$shop->id}_{$sellerId}", [
+        'refreshing' => false,
+        'sync_completed' => true,
+    ]);
+
+    $response = $this->withSession(authDashboardSession($shop))
+        ->get('/dashboard?shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+    $response->assertViewHas('isAmazonInventoryLoading', false);
+    $response->assertViewHas('totalMappedProducts', 0);
+
+    $content = $response->getContent();
+    expect($content)->not->toMatch('/<div class="saas-stat-value" id="mappedProductsStatValue">\s*<span class="[^"]*mapped-products-spinner/');
+    expect($content)->toContain('0');
+});
+
+test('exact parity: 3 DB mapping rows with only 2 satisfying display criteria results in count = 2 on Dashboard and Inventory Mapping', function () {
+    $sellerId = 'SELLER_PARITY_' . uniqid();
+    $shop = createDashboardTestShop([
+        'amazon_seller_id' => $sellerId,
+        'amazon_refresh_token' => 'dummy_refresh_token',
+    ]);
+
+    // Create 3 mapping rows in DB:
+    // Row 1: Valid mapping (both shopify_variant_id and amazon_sku present)
+    ProductMarketplaceMapping::create([
+        'shop_id' => $shop->id,
+        'shopify_product_id' => '101',
+        'shopify_variant_id' => 'var-101',
+        'amazon_sku' => 'SKU-VALID-1',
+    ]);
+
+    // Row 2: Valid mapping (both shopify_variant_id and amazon_sku present)
+    ProductMarketplaceMapping::create([
+        'shop_id' => $shop->id,
+        'shopify_product_id' => '102',
+        'shopify_variant_id' => 'var-102',
+        'amazon_sku' => 'SKU-VALID-2',
+    ]);
+
+    // Row 3: Incomplete/Unmapped row (empty/null amazon_sku or shopify_variant_id)
+    ProductMarketplaceMapping::create([
+        'shop_id' => $shop->id,
+        'shopify_product_id' => '103',
+        'shopify_variant_id' => 'var-103',
+        'amazon_sku' => null,
+    ]);
+
+    // Verify DB count is 3
+    expect(ProductMarketplaceMapping::where('shop_id', $shop->id)->count())->toBe(3);
+
+    // 1. Inventory Mapping API endpoint returns exactly 2
+    $mappingApiResponse = $this->withSession(authDashboardSession($shop))
+        ->getJson(route('inventory.mappings', ['shop' => $shop->shop]));
+    $mappingApiResponse->assertStatus(200);
+    $mappingApiResponse->assertJsonPath('success', true);
+    $mappingApiResponse->assertJsonCount(2, 'mappings');
+
+    // 2. Inventory Index page receives exactly 2 mappedproducts
+    $inventoryResponse = $this->withSession(authDashboardSession($shop))
+        ->get(route('shopify.inventory.index', ['shop' => $shop->shop, 'tab' => 'mapped']));
+    $inventoryResponse->assertStatus(200);
+    $inventoryResponse->assertViewHas('mappedproducts', function ($mapped) {
+        return $mapped->count() === 2;
+    });
+
+    // 3. Dashboard receives and displays exactly 2
+    Cache::put("amazon_inventory_{$shop->id}_{$sellerId}", [
+        ['sku' => 'SKU-VALID-1', 'quantity' => 10],
+        ['sku' => 'SKU-VALID-2', 'quantity' => 20],
+    ], 3600);
+
+    $dashboardResponse = $this->withSession(authDashboardSession($shop))
+        ->get('/dashboard?shop=' . $shop->shop);
+    $dashboardResponse->assertStatus(200);
+    $dashboardResponse->assertViewHas('totalMappedProducts', 2);
+    $dashboardContent = $dashboardResponse->getContent();
+    expect($dashboardContent)->toContain('2');
+});
+
+test('mapped products displays 0 on Dashboard and Inventory Mapping when all DB rows are incomplete', function () {
+    $sellerId = 'SELLER_INCOMPLETE_' . uniqid();
+    $shop = createDashboardTestShop([
+        'amazon_seller_id' => $sellerId,
+        'amazon_refresh_token' => 'dummy_refresh_token',
+    ]);
+
+    // 2 DB rows, both incomplete
+    ProductMarketplaceMapping::create([
+        'shop_id' => $shop->id,
+        'shopify_product_id' => '101',
+        'shopify_variant_id' => 'var-101',
+        'amazon_sku' => '',
+    ]);
+    ProductMarketplaceMapping::create([
+        'shop_id' => $shop->id,
+        'shopify_product_id' => '102',
+        'shopify_variant_id' => null,
+        'amazon_sku' => 'SKU-102',
+    ]);
+
+    Cache::put("amazon_inventory_{$shop->id}_{$sellerId}", [], 3600);
+
+    // Dashboard
+    $dashboardResponse = $this->withSession(authDashboardSession($shop))
+        ->get('/dashboard?shop=' . $shop->shop);
+    $dashboardResponse->assertStatus(200);
+    $dashboardResponse->assertViewHas('totalMappedProducts', 0);
+
+    // Inventory Mappings API
+    $apiResponse = $this->withSession(authDashboardSession($shop))
+        ->getJson(route('inventory.mappings', ['shop' => $shop->shop]));
+    $apiResponse->assertStatus(200);
+    $apiResponse->assertJsonCount(0, 'mappings');
+
+    // Inventory Index View
+    $invResponse = $this->withSession(authDashboardSession($shop))
+        ->get(route('shopify.inventory.index', ['shop' => $shop->shop, 'tab' => 'mapped']));
+    $invResponse->assertStatus(200);
+    $invResponse->assertViewHas('mappedproducts', function ($m) {
+        return $m->count() === 0;
+    });
+});
+
+test('mapped products displays exact count for 1 visible mapping', function () {
+    $sellerId = 'SELLER_ONE_' . uniqid();
+    $shop = createDashboardTestShop([
+        'amazon_seller_id' => $sellerId,
+        'amazon_refresh_token' => 'dummy_refresh_token',
+    ]);
+
+    ProductMarketplaceMapping::create([
+        'shop_id' => $shop->id,
+        'shopify_product_id' => '101',
+        'shopify_variant_id' => 'var-101',
+        'amazon_sku' => 'SKU-1',
+    ]);
+
+    Cache::put("amazon_inventory_{$shop->id}_{$sellerId}", [
+        ['sku' => 'SKU-1', 'quantity' => 5],
+    ], 3600);
+
+    $dashboardResponse = $this->withSession(authDashboardSession($shop))
+        ->get('/dashboard?shop=' . $shop->shop);
+    $dashboardResponse->assertStatus(200);
+    $dashboardResponse->assertViewHas('totalMappedProducts', 1);
+
+    $apiResponse = $this->withSession(authDashboardSession($shop))
+        ->getJson(route('inventory.mappings', ['shop' => $shop->shop]));
+    $apiResponse->assertStatus(200);
+    $apiResponse->assertJsonCount(1, 'mappings');
+});
+
+test('mapped products displays exact count for multiple visible mappings (e.g. 10)', function () {
+    $sellerId = 'SELLER_TEN_' . uniqid();
+    $shop = createDashboardTestShop([
+        'amazon_seller_id' => $sellerId,
+        'amazon_refresh_token' => 'dummy_refresh_token',
+    ]);
+
+    for ($i = 1; $i <= 10; $i++) {
+        ProductMarketplaceMapping::create([
+            'shop_id' => $shop->id,
+            'shopify_product_id' => (string) (100 + $i),
+            'shopify_variant_id' => 'var-' . (100 + $i),
+            'amazon_sku' => 'SKU-' . $i,
+        ]);
+    }
+
+    Cache::put("amazon_inventory_{$shop->id}_{$sellerId}", array_map(fn($i) => ['sku' => "SKU-{$i}", 'quantity' => 10], range(1, 10)), 3600);
+
+    $dashboardResponse = $this->withSession(authDashboardSession($shop))
+        ->get('/dashboard?shop=' . $shop->shop);
+    $dashboardResponse->assertStatus(200);
+    $dashboardResponse->assertViewHas('totalMappedProducts', 10);
+
+    $apiResponse = $this->withSession(authDashboardSession($shop))
+        ->getJson(route('inventory.mappings', ['shop' => $shop->shop]));
+    $apiResponse->assertStatus(200);
+    $apiResponse->assertJsonCount(10, 'mappings');
+});
+
+test('multi-store mapping count isolation across different shops', function () {
+    $shopA = createDashboardTestShop(['amazon_seller_id' => 'SELLER_SHOP_A', 'amazon_refresh_token' => 'tok_a']);
+    $shopB = createDashboardTestShop(['amazon_seller_id' => 'SELLER_SHOP_B', 'amazon_refresh_token' => 'tok_b']);
+
+    // Shop A: 2 valid mappings + 1 invalid
+    ProductMarketplaceMapping::create(['shop_id' => $shopA->id, 'shopify_product_id' => '101', 'shopify_variant_id' => 'var-101', 'amazon_sku' => 'SKU-A1']);
+    ProductMarketplaceMapping::create(['shop_id' => $shopA->id, 'shopify_product_id' => '102', 'shopify_variant_id' => 'var-102', 'amazon_sku' => 'SKU-A2']);
+    ProductMarketplaceMapping::create(['shop_id' => $shopA->id, 'shopify_product_id' => '103', 'shopify_variant_id' => 'var-103', 'amazon_sku' => null]);
+
+    // Shop B: 5 valid mappings + 2 invalid
+    for ($i = 1; $i <= 5; $i++) {
+        ProductMarketplaceMapping::create(['shop_id' => $shopB->id, 'shopify_product_id' => (string)(200+$i), 'shopify_variant_id' => 'var-'.(200+$i), 'amazon_sku' => 'SKU-B'.$i]);
+    }
+    ProductMarketplaceMapping::create(['shop_id' => $shopB->id, 'shopify_product_id' => '298', 'shopify_variant_id' => 'var-298', 'amazon_sku' => '']);
+    ProductMarketplaceMapping::create(['shop_id' => $shopB->id, 'shopify_product_id' => '299', 'shopify_variant_id' => null, 'amazon_sku' => 'SKU-B99']);
+
+    Cache::put("amazon_inventory_{$shopA->id}_SELLER_SHOP_A", [['sku' => 'SKU-A1', 'quantity' => 1]], 3600);
+    Cache::put("amazon_inventory_{$shopB->id}_SELLER_SHOP_B", [['sku' => 'SKU-B1', 'quantity' => 1]], 3600);
+
+    // Shop A assertions
+    $respA = $this->withSession(authDashboardSession($shopA))->get('/dashboard?shop=' . $shopA->shop);
+    $respA->assertStatus(200)->assertViewHas('totalMappedProducts', 2);
+
+    $apiA = $this->withSession(authDashboardSession($shopA))->getJson(route('inventory.mappings', ['shop' => $shopA->shop]));
+    $apiA->assertStatus(200)->assertJsonCount(2, 'mappings');
+
+    // Shop B assertions
+    $respB = $this->withSession(authDashboardSession($shopB))->get('/dashboard?shop=' . $shopB->shop);
+    $respB->assertStatus(200)->assertViewHas('totalMappedProducts', 5);
+
+    $apiB = $this->withSession(authDashboardSession($shopB))->getJson(route('inventory.mappings', ['shop' => $shopB->shop]));
+    $apiB->assertStatus(200)->assertJsonCount(5, 'mappings');
+});
+
+test('cache completion updates Dashboard to exact Mapping count via AJAX endpoint', function () {
+    $sellerId = 'SELLER_AJAX_REFRESH_' . uniqid();
+    $shop = createDashboardTestShop([
+        'amazon_seller_id' => $sellerId,
+        'amazon_refresh_token' => 'dummy_refresh_token',
+    ]);
+
+    // Create 3 rows in DB, only 2 valid
+    ProductMarketplaceMapping::create(['shop_id' => $shop->id, 'shopify_product_id' => '1', 'shopify_variant_id' => 'v1', 'amazon_sku' => 'SKU-1']);
+    ProductMarketplaceMapping::create(['shop_id' => $shop->id, 'shopify_product_id' => '2', 'shopify_variant_id' => 'v2', 'amazon_sku' => 'SKU-2']);
+    ProductMarketplaceMapping::create(['shop_id' => $shop->id, 'shopify_product_id' => '3', 'shopify_variant_id' => 'v3', 'amazon_sku' => null]);
+
+    // Simulate AJAX call used after cache completion (route: inventory.mappings)
+    $response = $this->withSession(authDashboardSession($shop))
+        ->getJson(route('inventory.mappings', ['shop' => $shop->shop]));
+
+    $response->assertStatus(200);
+    $response->assertJsonPath('success', true);
+    $response->assertJsonCount(2, 'mappings');
+
+    $mappings = $response->json('mappings');
+    $skus = array_column($mappings, 'amazon_sku');
+    expect($skus)->toEqualCanonicalizing(['SKU-1', 'SKU-2']);
 });

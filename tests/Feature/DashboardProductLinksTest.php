@@ -100,6 +100,47 @@ beforeEach(function () {
         });
     }
 
+    if (!Schema::hasTable('admin_settings')) {
+        Schema::create('admin_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('option_key')->nullable()->index();
+            $table->longText('option_value')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('plans')) {
+        Schema::create('plans', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->nullable();
+            $table->decimal('price', 8, 2)->default(0);
+            $table->integer('sync_limit')->default(0);
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('shop_subscriptions')) {
+        Schema::create('shop_subscriptions', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id');
+            $table->unsignedBigInteger('plan_id')->nullable();
+            $table->string('status')->default('active');
+            $table->timestamp('started_at')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('product_sync_logs')) {
+        Schema::create('product_sync_logs', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id');
+            $table->string('title')->nullable();
+            $table->text('message')->nullable();
+            $table->string('status')->nullable();
+            $table->timestamps();
+        });
+    }
+
     Product::query()->forceDelete();
     Shop::query()->forceDelete();
     ProductMarketplaceMapping::query()->delete();
