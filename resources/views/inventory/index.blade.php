@@ -781,11 +781,36 @@
         </div>
 
         <div class="tab-pane fade {{ $isMappedActive ? 'show active' : '' }}" id="mappedAmazonTab">
-            <div class="saas-toolbar">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div>
-                        <div class="fw-semibold text-dark" style="font-size: 13px;">Mapped Products</div>
-                        <div class="text-muted" style="font-size: 11px;">All active Shopify to Amazon product mappings for this store.</div>
+            <div class="saas-toolbar" id="mappedToolbar" style="{{ $mappedproducts->isEmpty() ? 'display: none;' : '' }}">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-4 col-12">
+                        <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Search Mappings</label>
+                        <input type="text" id="dtSearchMapped" class="saas-input" placeholder="Search Product / Variant / SKU / Location...">
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Status Filter</label>
+                        <select id="dtStatusMapped" class="saas-select">
+                            <option value="">All Status</option>
+                            <option value="synced">Synced</option>
+                            <option value="pending">Pending</option>
+                            <option value="error">Error</option>
+                            <option value="active">Active</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Rows Per Page</label>
+                        <select id="dtLengthMapped" class="saas-select">
+                            <option value="10" selected>10 Rows</option>
+                            <option value="25">25 Rows</option>
+                            <option value="50">50 Rows</option>
+                            <option value="100">100 Rows</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-12">
+                        <label class="form-label d-none d-md-block mb-1">&nbsp;</label>
+                        <button onclick="refreshMappingUI()" class="btn btn-light w-100">
+                            <i class="bi bi-arrow-repeat me-1"></i> Refresh
+                        </button>
                     </div>
                 </div>
             </div>
@@ -964,6 +989,7 @@
 
     let dtShopify = null;
     let dtAmazon = null;
+    let dtMapped = null;
     let progressTimer = null;
     let amazonProductsCache = null;
     let amazonLoading = false;
@@ -971,6 +997,7 @@
     // Saved page length from Laravel session (default to 10)
     let savedShopifyLength = {{ $shopifyPageLength ?? 10 }};
     let savedAmazonLength = {{ $amazonPageLength ?? 10 }};
+    let savedMappedLength = 10;
 
     function persistPageLength(type, length) {
         $.ajax({
@@ -993,6 +1020,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         $('#dtLengthShopify').val(savedShopifyLength);
         $('#dtLengthAmazon').val(savedAmazonLength);
+        $('#dtLengthMapped').val(savedMappedLength);
 
         const urlParams = new URLSearchParams(window.location.search);
         const tabParam = (urlParams.get('tab') || '').toLowerCase();
@@ -1007,12 +1035,21 @@
             });
         }
 
+        const mappedTabEl = document.querySelector(
+            '[data-bs-target="#mappedAmazonTab"]'
+        );
+        if (mappedTabEl) {
+            mappedTabEl.addEventListener('shown.bs.tab', function() {
+                switchToMappedTab();
+            });
+        }
+
         if (tabParam === 'mapped' || tabParam === 'mappings' || window.location.hash === '#mappedAmazonTab' || window.location.hash === '#mapped') {
-            const mappedTab = document.querySelector('[data-bs-target="#mappedAmazonTab"]');
-            if (mappedTab) {
-                const bsTab = bootstrap.Tab.getOrCreateInstance(mappedTab);
+            if (mappedTabEl) {
+                const bsTab = bootstrap.Tab.getOrCreateInstance(mappedTabEl);
                 bsTab.show();
             }
+            switchToMappedTab();
         } else if (tabParam === 'amazon' || window.location.hash === '#amazonTab' || window.location.hash === '#amazon') {
             if (amazonTab) {
                 const bsTab = bootstrap.Tab.getOrCreateInstance(amazonTab);
@@ -1098,83 +1135,139 @@
 
     function renderMappedTable(data, isLoading = false) {
         if (isLoading) {
-            $('#mappedLoadingMsg').show();
-            $('#mappedNoDataMsg').hide();
+            $('#mappedToolbar').hide();
             $('#mappedTableWrapper').hide();
+            $('#mappedNoDataMsg').hide();
+            $('#mappedLoadingMsg').show();
             return;
         }
 
         $('#mappedLoadingMsg').hide();
 
-        if (!data || data.length === 0) {
-            $('#mappedTableWrapper').hide();
-            $('#mappedNoDataMsg').show();
-            $('#mappedTable tbody').empty();
-            return;
-        }
-
-        const validMappings = data.filter(m => !!(m.amazon_sku && m.shopify_variant_id));
+        const validMappings = (Array.isArray(data) ? data : []).filter(m => !!(m.amazon_sku && m.shopify_variant_id));
 
         if (validMappings.length === 0) {
+            $('#mappedToolbar').hide();
             $('#mappedTableWrapper').hide();
             $('#mappedNoDataMsg').show();
+
+            if ($.fn.DataTable.isDataTable('#mappedTable')) {
+                dtMapped.destroy();
+                dtMapped = null;
+            }
             $('#mappedTable tbody').empty();
             return;
         }
 
         $('#mappedNoDataMsg').hide();
+        $('#mappedToolbar').show();
         $('#mappedTableWrapper').show();
 
         const currentShop = new URLSearchParams(window.location.search).get('shop') || '{{ $shop->shop }}';
 
-        let tbodyHtml = '';
-        validMappings.forEach(function(mapping) {
-            const shopifyProductUrl = mapping.shopify_product_url;
-            const shopifyTitle = mapping.shopify_product_title || ('Shopify Product #' + (mapping.shopify_product_id || ''));
-            const productCell = shopifyProductUrl
-                ? `<a href="${shopifyProductUrl}" class="fw-semibold text-dark text-decoration-none" title="View Shopify product">${shopifyTitle}</a>`
-                : `<div class="fw-semibold text-dark">${shopifyTitle || 'N/A'}</div>`;
-            const productIdSub = `<small class="text-muted d-block">ID: ${mapping.shopify_product_id || '—'}</small>`;
+        if (!$.fn.DataTable.isDataTable('#mappedTable')) {
+            dtMapped = $('#mappedTable').DataTable({
+                pageLength: parseInt(savedMappedLength, 10) || 10,
+                ordering: true,
+                dom: 'rt<"saas-pagination-wrapper"ip>',
+                language: {
+                    emptyTable: "No matching records found"
+                },
+                columns: [
+                    {
+                        data: 'shopify_product_title',
+                        render: function(data, type, row) {
+                            let title = row.shopify_product_title || ('Shopify Product #' + (row.shopify_product_id || ''));
+                            let sub = 'ID: ' + (row.shopify_product_id || '—');
+                            if (type === 'sort' || type === 'filter') {
+                                return title + ' ' + (row.shopify_product_id || '');
+                            }
+                            let link = row.shopify_product_url;
+                            let titleHtml = link
+                                ? `<a href="${link}" class="fw-semibold text-dark text-decoration-none" title="View Shopify product">${title}</a>`
+                                : `<div class="fw-semibold text-dark">${title}</div>`;
+                            return `${titleHtml}<small class="text-muted d-block">${sub}</small>`;
+                        }
+                    },
+                    {
+                        data: 'shopify_variant_title',
+                        render: function(data, type, row) {
+                            let variantTitle = row.shopify_variant_title || row.shopify_variant_id || '—';
+                            let sub = row.shopify_variant_id || '—';
+                            if (type === 'sort' || type === 'filter') {
+                                return variantTitle + ' ' + sub + ' ' + (row.shopify_variant_sku || '');
+                            }
+                            return `<span class="fw-medium text-dark">${variantTitle}</span><small class="text-muted d-block">${sub}</small>`;
+                        }
+                    },
+                    {
+                        data: 'amazon_sku',
+                        render: function(data, type, row) {
+                            let sku = row.amazon_sku || '—';
+                            if (type === 'sort' || type === 'filter') {
+                                return sku;
+                            }
+                            let url = row.amazon_product_url || ("{{ route('user.product.amazonView', ['sku' => '__SKU__', 'shop' => '__SHOP__']) }}".replace('__SKU__', encodeURIComponent(sku)).replace('__SHOP__', encodeURIComponent(currentShop)));
+                            return `<a href="${url}" class="text-dark fw-semibold text-decoration-none">${sku}</a>`;
+                        }
+                    },
+                    {
+                        data: 'shopify_location_name',
+                        render: function(data, type, row) {
+                            let loc = row.shopify_location_name || 'Default';
+                            if (type === 'sort' || type === 'filter') {
+                                return loc;
+                            }
+                            return `<span class="text-dark">${loc}</span>`;
+                        }
+                    },
+                    {
+                        data: 'sync_status',
+                        render: function(data, type, row) {
+                            let status = (row.sync_status || 'active').toLowerCase();
+                            if (type === 'filter' || type === 'sort') {
+                                return status;
+                            }
+                            let statusClass = 'bg-secondary-subtle text-secondary';
+                            if (status === 'synced') statusClass = 'bg-success-subtle text-success';
+                            else if (status === 'pending') statusClass = 'bg-warning-subtle text-warning';
+                            else if (status === 'error') statusClass = 'bg-danger-subtle text-danger';
+                            let statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+                            return `<span class="soft-badge ${statusClass}">${statusLabel}</span>`;
+                        }
+                    },
+                    {
+                        data: 'last_synced_at',
+                        render: function(data, type, row) {
+                            if (type === 'sort') {
+                                return row.last_synced_at_raw || row.last_synced_at || '';
+                            }
+                            if (type === 'filter') {
+                                return row.last_synced_at || '';
+                            }
+                            return `<span class="text-muted">${row.last_synced_at || '—'}</span>`;
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        className: 'text-end',
+                        render: function(data, type, row) {
+                            return `
+                                <button class="btn btn-danger btn-sm unmap-product" data-mapping-id="${row.id}" title="Unmap Product" data-bs-toggle="tooltip" data-bs-placement="top">
+                                    <i class="bi bi-link"></i>
+                                </button>
+                            `;
+                        }
+                    }
+                ],
+                drawCallback: function() {
+                    initTooltips();
+                }
+            });
+        }
 
-            const variantTitle = mapping.shopify_variant_title || mapping.shopify_variant_id || '—';
-            const variantIdSub = `<small class="text-muted d-block">${mapping.shopify_variant_id || '—'}</small>`;
-
-            const amazonUrl = mapping.amazon_product_url || ("{{ route('user.product.amazonView', ['sku' => '__SKU__', 'shop' => '__SHOP__']) }}".replace('__SKU__', encodeURIComponent(mapping.amazon_sku)).replace('__SHOP__', encodeURIComponent(currentShop)));
-            const amazonCell = `<a href="${amazonUrl}" class="text-dark fw-semibold text-decoration-none">${mapping.amazon_sku}</a>`;
-
-            const locationCell = `<span class="text-dark">${mapping.shopify_location_name || 'Default'}</span>`;
-
-            const status = (mapping.sync_status || 'active').toLowerCase();
-            let statusClass = 'bg-secondary-subtle text-secondary';
-            if (status === 'synced') statusClass = 'bg-success-subtle text-success';
-            else if (status === 'pending') statusClass = 'bg-warning-subtle text-warning';
-            else if (status === 'error') statusClass = 'bg-danger-subtle text-danger';
-            const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-            const statusCell = `<span class="soft-badge ${statusClass}">${statusLabel}</span>`;
-
-            const lastSyncedCell = `<span class="text-muted">${mapping.last_synced_at || '—'}</span>`;
-
-            const actionCell = `
-                <button class="btn btn-danger btn-sm unmap-product" data-mapping-id="${mapping.id}" title="Unmap Product" data-bs-toggle="tooltip" data-bs-placement="top">
-                    <i class="bi bi-link"></i>
-                </button>
-            `;
-
-            tbodyHtml += `
-                <tr>
-                    <td>${productCell}${productIdSub}</td>
-                    <td><span class="fw-medium text-dark">${variantTitle}</span>${variantIdSub}</td>
-                    <td>${amazonCell}</td>
-                    <td>${locationCell}</td>
-                    <td>${statusCell}</td>
-                    <td>${lastSyncedCell}</td>
-                    <td class="text-end">${actionCell}</td>
-                </tr>
-            `;
-        });
-
-        $('#mappedTable tbody').html(tbodyHtml);
-        initTooltips();
+        dtMapped.clear().rows.add(validMappings).draw();
     }
 
     function refreshMappingUI() {
@@ -1715,6 +1808,19 @@
         savedAmazonLength = val; // Sync active variable
         if (dtAmazon) dtAmazon.page.len(val).draw();
         persistPageLength('amazon', val);
+    });
+
+    // Mappings Inputs
+    $('#dtSearchMapped').on('keyup', function() {
+        if (dtMapped) dtMapped.search(this.value).draw();
+    });
+    $('#dtStatusMapped').on('change', function() {
+        if (dtMapped) dtMapped.column(4).search(this.value).draw();
+    });
+    $('#dtLengthMapped').on('change', function() {
+        let val = parseInt(this.value, 10);
+        savedMappedLength = val; // Sync active variable
+        if (dtMapped) dtMapped.page.len(val).draw();
     });
     // ==========================================
     // Core Functions & Actions

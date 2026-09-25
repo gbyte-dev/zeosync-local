@@ -391,3 +391,103 @@ test('Dashboard mapped count remains equal to visible Mapping-tab mappings count
     $mappingRes->assertStatus(200);
     expect($mappingRes->json('mappings'))->toHaveCount(2);
 });
+
+test('Inventory Mapping tab: renders interactive DataTable controls (search, filter, page size)', function () {
+    $shop = createInventoryTableTestShop();
+
+    $product = Product::create([
+        'shop_id' => $shop->id,
+        'shopify_id' => 99887711,
+        'title' => 'Vintage Leather Jacket',
+    ]);
+
+    ProductMarketplaceMapping::create([
+        'shop_id' => $shop->id,
+        'product_id' => $product->id,
+        'shopify_product_id' => '99887711',
+        'shopify_variant_id' => '55443322',
+        'amazon_sku' => 'AMZ-JKT-001',
+        'sync_status' => 'synced',
+    ]);
+
+    $response = $this->withSession(authTableSession($shop))
+        ->get('/inventory?tab=mapped&shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+
+    // Interactive DataTable controls
+    $response->assertSee('id="dtSearchMapped"', false);
+    $response->assertSee('id="dtStatusMapped"', false);
+    $response->assertSee('id="dtLengthMapped"', false);
+    $response->assertSee('value="10"', false);
+    $response->assertSee('value="25"', false);
+    $response->assertSee('value="50"', false);
+    $response->assertSee('value="100"', false);
+    $response->assertSee('id="mappedToolbar"', false);
+    $response->assertSee('id="mappedLoadingMsg"', false);
+    $response->assertSee('id="mappedTableWrapper"', false);
+});
+
+test('Inventory Mapping unmap action deletes mapping and returns sync usage', function () {
+    $shop = createInventoryTableTestShop();
+
+    $mapping = ProductMarketplaceMapping::create([
+        'shop_id' => $shop->id,
+        'shopify_product_id' => '1122',
+        'shopify_variant_id' => '3344',
+        'amazon_sku' => 'AMZ-UNMAP-1',
+        'sync_status' => 'synced',
+    ]);
+
+    $response = $this->withSession(authTableSession($shop))
+        ->deleteJson('/inventory/unmap/' . $mapping->id . '?shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+    $response->assertJson([
+        'success' => true,
+        'message' => 'Product unmapped successfully.',
+    ]);
+
+    expect(ProductMarketplaceMapping::find($mapping->id))->toBeNull();
+});
+
+test('Inventory Mapping API enforces strict tenant isolation between Shop A and Shop B', function () {
+    $shopA = createInventoryTableTestShop();
+    $shopB = createInventoryTableTestShop();
+
+    // Shop A mapping
+    ProductMarketplaceMapping::create([
+        'shop_id' => $shopA->id,
+        'shopify_product_id' => '101',
+        'shopify_variant_id' => '201',
+        'amazon_sku' => 'AMZ-SHOP-A-1',
+        'sync_status' => 'synced',
+    ]);
+
+    // Shop B mapping
+    ProductMarketplaceMapping::create([
+        'shop_id' => $shopB->id,
+        'shopify_product_id' => '901',
+        'shopify_variant_id' => '902',
+        'amazon_sku' => 'AMZ-SHOP-B-1',
+        'sync_status' => 'synced',
+    ]);
+
+    // Request as Shop A
+    $responseA = $this->withSession(authTableSession($shopA))
+        ->getJson('/inventory/mappings?shop=' . $shopA->shop);
+
+    $responseA->assertStatus(200);
+    $mappingsA = $responseA->json('mappings');
+    expect($mappingsA)->toHaveCount(1);
+    expect($mappingsA[0]['amazon_sku'])->toBe('AMZ-SHOP-A-1');
+
+    // Request as Shop B
+    $responseB = $this->withSession(authTableSession($shopB))
+        ->getJson('/inventory/mappings?shop=' . $shopB->shop);
+
+    $responseB->assertStatus(200);
+    $mappingsB = $responseB->json('mappings');
+    expect($mappingsB)->toHaveCount(1);
+    expect($mappingsB[0]['amazon_sku'])->toBe('AMZ-SHOP-B-1');
+});
