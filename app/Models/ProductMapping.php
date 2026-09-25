@@ -25,6 +25,7 @@ class ProductMapping extends Model
         'shopify_product_id',
         'shopify_variant_id',
         'shopify_inventory_item_id',
+        'shopify_location_id',
 
         // Amazon
         'amazon_sku',
@@ -62,5 +63,26 @@ class ProductMapping extends Model
                 }
             }
         });
+    }
+
+    /**
+     * Scope a query to only include valid visible mapped products for a given shop.
+     * Criteria: shop_id matches, and both amazon_sku and shopify_variant_id are non-null and non-empty.
+     */
+    public function scopeMappedForShop($query, int $shopId)
+    {
+        return $query->where('shop_id', $shopId)
+            ->whereNotNull('amazon_sku')
+            ->where('amazon_sku', '!=', '')
+            ->whereNotNull('shopify_variant_id')
+            ->where('shopify_variant_id', '!=', '');
+    }
+
+    /**
+     * Get the exact visible mapped products count for a given shop.
+     */
+    public static function getMappedCountForShop(int $shopId): int
+    {
+        return static::mappedForShop($shopId)->count();
     }
 }

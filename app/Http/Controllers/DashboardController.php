@@ -75,7 +75,7 @@ class DashboardController extends ShopifyController
 
         // 1. Top KPI Aggregates (Eager & efficient counts)
         $totalShopifyProducts = Product::where('shop_id', $shopId)->count();
-        $totalMappedProducts = ProductMarketplaceMapping::where('shop_id', $shopId)->count();
+        $totalMappedProducts = ProductMarketplaceMapping::getMappedCountForShop($shopId);
         $totalAmazonProducts = is_countable($amazonInventory) ? count($amazonInventory) : 0;
         $totalShopifyOrders = ShopifyOrder::where('shop_id', $shopId)->count();
 
@@ -162,6 +162,21 @@ class DashboardController extends ShopifyController
             ->sortBy('quantity')
             ->take(7)
             ->values();
+
+        Log::info('Dashboard index loaded', [
+            'shop_id'                     => $shopId,
+            'shop_domain'                 => $shop->shop,
+            'is_amazon_connected'         => $isAmazonConnected,
+            'amazon_cache_exists'         => $amazonInventoryCacheExists,
+            'is_amazon_inventory_loading' => $isAmazonInventoryLoading,
+            'status_cache'                => !empty($shop->amazon_seller_id) ? Cache::get("amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}", []) : null,
+            'progress_cache'              => Cache::get("amazon_progress_{$shop->shop}", null),
+            'mapped_count'                => $totalMappedProducts,
+            'total_amazon_products'       => $totalAmazonProducts,
+            'total_shopify_products'      => $totalShopifyProducts,
+            'total_shopify_orders'        => $totalShopifyOrders,
+            'total_amazon_orders'         => $totalAmazonOrders,
+        ]);
 
         // Return only the exact variables required by the frontend
         return view('dashboard', compact(

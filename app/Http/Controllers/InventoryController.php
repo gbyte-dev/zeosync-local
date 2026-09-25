@@ -63,7 +63,7 @@ class InventoryController extends ShopifyController
             'region' => $shop->amazon_mws_region   ]);
 
         $inventories = [];
-        $mappedproducts = ProductMapping::where('shop_id',$shop->id)->get();
+        $mappedproducts = ProductMarketplaceMapping::mappedForShop($shop->id)->with('product')->orderBy('id', 'desc')->get();
 
         // Sync Usage
         $syncUsage = app(SyncLimitService::class)->canMap($shop);

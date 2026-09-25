@@ -463,6 +463,18 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
         color: #111827;
     }
 
+    .low-inventory-table .product-name a,
+    .low-inventory-table td a {
+        color: #111827;
+        text-decoration: none;
+    }
+
+    .low-inventory-table .product-name a:hover,
+    .low-inventory-table td a:hover {
+        color: #2563EB;
+        text-decoration: underline;
+    }
+
     /* Badges */
     .saas-badge {
         display: inline-flex;
@@ -612,8 +624,13 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
             <div>
                 <div class="saas-stat-label">Mapped Products</div>
             </div>
-            <div class="saas-stat-value">
-                {{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}
+            <div class="saas-stat-value" id="mappedProductsStatValue">
+                @if(!empty($isAmazonInventoryLoading))
+                    <span class="spinner-border spinner-border-sm text-secondary mapped-products-spinner" role="status" aria-hidden="true" style="width: 16px; height: 16px; border-width: 2px; vertical-align: middle;"></span>
+                    <span class="mapped-syncing-text" style="font-size: 13px; font-weight: 600; color: #6B7280; vertical-align: middle; margin-left: 4px;">Syncing...</span>
+                @else
+                    {{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}
+                @endif
             </div>
         </a>
         {{-- Row 2: Card 6 - Amazon Status --}}
@@ -751,14 +768,28 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                             @foreach($lowInventoryProducts as $product)
                             @php
                                 $productTitle = is_object($product) ? ($product->product ?? $product->title ?? 'Product') : ($product['product'] ?? $product['title'] ?? 'Product');
-                                $productSku = is_object($product) ? ($product->sku ?? '-') : ($product['sku'] ?? '-');
+                                $productRawSku = is_object($product) ? ($product->sku ?? null) : ($product['sku'] ?? null);
+                                $hasValidProductSku = !empty($productRawSku) && trim((string)$productRawSku) !== '' && $productRawSku !== '-';
+                                $productDisplaySku = $hasValidProductSku ? $productRawSku : '-';
                                 $qty = is_object($product) ? ($product->available ?? $product->qty ?? $product->quantity ?? null) : ($product['available'] ?? $product['qty'] ?? $product['quantity'] ?? null);
+                                $shopifyPid = is_object($product) ? ($product->pid ?? null) : ($product['pid'] ?? null);
+                                $shopifyProductUrl = !empty($shopifyPid) ? route('shopify.product.view', ['id' => $shopifyPid, 'shop' => $currentShop]) : null;
                             @endphp
                             <tr>
                                 <td class="product-name" title="{{ $productTitle }}">
-                                    {{ $productTitle }}
+                                    @if(!empty($shopifyProductUrl))
+                                        <a href="{{ $shopifyProductUrl }}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">{{ $productTitle }}</a>
+                                    @else
+                                        {{ $productTitle }}
+                                    @endif
                                 </td>
-                                <td>{{ $productSku }}</td>
+                                <td>
+                                    @if(!empty($shopifyProductUrl) && $hasValidProductSku)
+                                        <a href="{{ $shopifyProductUrl }}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">{{ $productDisplaySku }}</a>
+                                    @else
+                                        {{ $productDisplaySku }}
+                                    @endif
+                                </td>
                                 <td class="text-end">
                                     @if($qty !== null)
                                     <span class="saas-badge {{ (int)$qty <= 3 ? 'saas-badge-danger' : ((int)$qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral') }}">
@@ -936,13 +967,30 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                         </thead>
                         <tbody>
                             @foreach($amazonLowInventoryProducts as $product)
+                            @php
+                                $amazonProductTitle = is_object($product) ? ($product->title ?? '-') : ($product['title'] ?? '-');
+                                $amazonRawSku = is_object($product) ? ($product->sku ?? null) : ($product['sku'] ?? null);
+                                $hasValidAmazonSku = !empty($amazonRawSku) && trim((string)$amazonRawSku) !== '' && $amazonRawSku !== '-';
+                                $amazonDisplaySku = $hasValidAmazonSku ? $amazonRawSku : '-';
+                                $amazonProductUrl = $hasValidAmazonSku ? route('user.product.amazonView', ['sku' => $amazonRawSku, 'shop' => $currentShop]) : null;
+                                $qty = is_object($product) ? ($product->quantity ?? 0) : ($product['quantity'] ?? 0);
+                            @endphp
                             <tr>
-                                <td class="product-name" title="{{ $product['title'] ?? '' }}">
-                                    {{ $product['title'] ?? '-' }}
+                                <td class="product-name" title="{{ $amazonProductTitle }}">
+                                    @if(!empty($amazonProductUrl))
+                                        <a href="{{ $amazonProductUrl }}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">{{ $amazonProductTitle }}</a>
+                                    @else
+                                        {{ $amazonProductTitle }}
+                                    @endif
                                 </td>
-                                <td>{{ $product['sku'] ?? '-' }}</td>
+                                <td>
+                                    @if(!empty($amazonProductUrl) && $hasValidAmazonSku)
+                                        <a href="{{ $amazonProductUrl }}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">{{ $amazonDisplaySku }}</a>
+                                    @else
+                                        {{ $amazonDisplaySku }}
+                                    @endif
+                                </td>
                                 <td class="text-end">
-                                    @php $qty = $product['quantity'] ?? 0; @endphp
                                     <span class="saas-badge {{ $qty <= 3 ? 'saas-badge-danger' : ($qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral') }}">
                                         {{ $qty }}
                                     </span>
@@ -1153,6 +1201,42 @@ document.addEventListener("DOMContentLoaded", function() {
         };
 
         const amazonStatValueEl = document.getElementById('amazonProductsStatValue');
+        const mappedStatValueEl = document.getElementById('mappedProductsStatValue');
+
+        const updateMappedProductsCount = () => {
+            fetch("{{ route('inventory.mappings', ['shop' => $currentShop]) }}", {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(async response => {
+                if (!response.ok) throw new Error('Mappings request failed');
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && mappedStatValueEl) {
+                    const count = Array.isArray(data.mappings) ? data.mappings.length : (data.sync_usage?.used ?? 0);
+                    mappedStatValueEl.textContent = new Intl.NumberFormat().format(count);
+                }
+            })
+            .catch(() => {
+                if (mappedStatValueEl && mappedStatValueEl.querySelector('.mapped-products-spinner')) {
+                    mappedStatValueEl.textContent = "{{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}";
+                }
+            });
+        };
+
+        const stopMappedProductsLoading = (fallbackCount = null) => {
+            if (mappedStatValueEl && mappedStatValueEl.querySelector('.mapped-products-spinner')) {
+                if (fallbackCount !== null) {
+                    mappedStatValueEl.textContent = new Intl.NumberFormat().format(fallbackCount);
+                } else {
+                    mappedStatValueEl.textContent = "{{ number_format($totalMappedProducts ?? $totalMapped ?? 0) }}";
+                }
+            }
+        };
 
         const loadAmazonInventory = () => {
             fetch("{{ route('shopify.inventory.amazon') }}", {
@@ -1188,6 +1272,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (amazonStatValueEl) {
                         amazonStatValueEl.textContent = '0';
                     }
+                    stopMappedProductsLoading();
                     renderAmazonDisconnectedState();
                     return;
                 }
@@ -1200,6 +1285,9 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (amazonStatValueEl && !amazonStatValueEl.querySelector('.amazon-products-spinner')) {
                         amazonStatValueEl.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary amazon-products-spinner" role="status" aria-hidden="true" style="width: 16px; height: 16px; border-width: 2px; vertical-align: middle;"></span>';
                     }
+                    if (mappedStatValueEl && !mappedStatValueEl.querySelector('.mapped-products-spinner')) {
+                        mappedStatValueEl.innerHTML = '<span class="spinner-border spinner-border-sm text-secondary mapped-products-spinner" role="status" aria-hidden="true" style="width: 16px; height: 16px; border-width: 2px; vertical-align: middle;"></span> <span class="mapped-syncing-text" style="font-size: 13px; font-weight: 600; color: #6B7280; vertical-align: middle; margin-left: 4px;">Syncing...</span>';
+                    }
                     setTimeout(loadAmazonInventory, 2000);
                     return;
                 }
@@ -1208,6 +1296,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (amazonStatValueEl) {
                         amazonStatValueEl.textContent = '0';
                     }
+                    stopMappedProductsLoading();
                     renderAmazonErrorState();
                     return;
                 }
@@ -1215,6 +1304,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (amazonStatValueEl) {
                     amazonStatValueEl.textContent = new Intl.NumberFormat().format(products.length);
                 }
+
+                updateMappedProductsCount();
 
                 const lowInventoryProducts = products
                     .filter(product => Number(product.quantity) < 10)
@@ -1228,16 +1319,29 @@ document.addEventListener("DOMContentLoaded", function() {
 
                 const rowsHtml = lowInventoryProducts.map(product => {
                     const title = product.title ?? '-';
-                    const sku = product.sku ?? '-';
+                    const rawSku = product.sku ?? null;
+                    const hasValidSku = rawSku !== null && rawSku !== undefined && String(rawSku).trim() !== '' && String(rawSku).trim() !== '-';
+                    const sku = hasValidSku ? String(rawSku).trim() : '-';
                     const qty = Number(product.quantity ?? 0);
                     const badgeClass = qty <= 3 ? 'saas-badge-danger' : (qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral');
+                    const detailUrl = hasValidSku
+                        ? "{{ route('user.product.amazonView', ['sku' => '__SKU__', 'shop' => $currentShop]) }}".replace('__SKU__', encodeURIComponent(sku))
+                        : null;
+
+                    const titleHtml = detailUrl
+                        ? `<a href="${detailUrl}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">${title}</a>`
+                        : title;
+
+                    const skuHtml = (detailUrl && hasValidSku)
+                        ? `<a href="${detailUrl}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">${sku}</a>`
+                        : sku;
 
                     return `
                         <tr>
                             <td class="product-name" title="${title}">
-                                ${title}
+                                ${titleHtml}
                             </td>
-                            <td>${sku}</td>
+                            <td>${skuHtml}</td>
                             <td class="text-end">
                                 <span class="saas-badge ${badgeClass}">
                                     ${qty}
@@ -1266,6 +1370,10 @@ document.addEventListener("DOMContentLoaded", function() {
             })
             .catch(error => {
                 console.error('Amazon inventory fetch failed:', error);
+                if (amazonStatValueEl) {
+                    amazonStatValueEl.textContent = '0';
+                }
+                stopMappedProductsLoading();
                 renderAmazonErrorState();
             });
         };

@@ -178,7 +178,7 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                     }
                 }
 
-                $locationId = $operation->shopify_location_id;
+                $locationId = $operation->shopify_location_id ?? $mapping?->shopify_location_id;
 
                 if (!$locationId) {
                     $locations = $shop->shopify_locations ?? [];
@@ -195,8 +195,13 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                         'last_error' => $errorMsg,
                     ]);
                     Log::error('ProcessInventoryUpdateJob: Location missing.', [
-                        'operation_id' => $operation->id,
-                        'shop_id'      => $shop->id,
+                        'operation_id'        => $operation->id,
+                        'shop_id'             => $shop->id,
+                        'amazon_sku'          => $amazonSku,
+                        'mapping_id'          => $mapping?->id,
+                        'shopify_product_id'  => $mapping?->shopify_product_id,
+                        'shopify_variant_id'  => $mapping?->shopify_variant_id,
+                        'shopify_location_id' => null,
                     ]);
                     return;
                 }
@@ -322,12 +327,18 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                     $idempotencyKey = $operation->operation_uuid ?? (string) \Illuminate\Support\Str::uuid();
 
                     Log::info('INV_TRACE_JOB_08_GRAPHQL_MUTATION', [
-                        'shop_id' => $shop->id,
-                        'inventory_item_id' => $operation->shopify_inventory_item_id,
-                        'location_id' => $locationId,
-                        'desired_quantity' => $operation->desired_quantity,
-                        'change_from_quantity' => $changeFromQuantity,
-                        'idempotency_key' => $idempotencyKey,
+                        'shop_id'             => $shop->id,
+                        'amazon_sku'          => $amazonSku,
+                        'mapping_id'          => $mapping?->id,
+                        'shopify_product_id'  => $mapping?->shopify_product_id,
+                        'shopify_variant_id'  => $mapping?->shopify_variant_id,
+                        'shopify_location_id' => $locationId,
+                        'inventory_item_id'   => $operation->shopify_inventory_item_id,
+                        'old_quantity'        => $operation->baseline_quantity ?? $mapping?->quantity,
+                        'new_quantity'        => $operation->desired_quantity,
+                        'desired_quantity'    => $operation->desired_quantity,
+                        'change_from_quantity'=> $changeFromQuantity,
+                        'idempotency_key'     => $idempotencyKey,
                     ]);
 
                     $response = $shopify->setInventoryQuantity(

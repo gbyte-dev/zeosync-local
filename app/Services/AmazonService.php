@@ -431,31 +431,38 @@ class AmazonService
                         ]);
 
                         if ($syncToShopify) {
-                            // Update Shopify Inventory
+                            // Update Shopify Inventory using mapping's stored authoritative location
                             $shopify = new ShopifyService(
                                 $shop->shop,
                                 $shop->access_token
                             );
 
-                            $locations = $shop->shopify_locations ?? [];
-                            $selectedIndex = $shop->selected_location_index ?? 0;
-
-                            $locationId = null;
-
-                            if (isset($locations[$selectedIndex])) {
-                                $locationId = $locations[$selectedIndex]['id'] ?? null;
-                            }
+                            $locationId = $mapping->shopify_location_id;
 
                             if (!$locationId) {
-                                Log::warning('SHOPIFY SELECTED LOCATION NOT FOUND', [
-                                    'shop_id' => $shop->id,
-                                    'selected_location_index' => $selectedIndex,
+                                Log::warning('MAPPING SHOPIFY LOCATION NOT FOUND', [
+                                    'shop_id'            => $shop->id,
+                                    'mapping_id'         => $mapping->id,
+                                    'amazon_sku'         => $sku,
+                                    'shopify_product_id' => $mapping->shopify_product_id,
+                                    'shopify_variant_id' => $mapping->shopify_variant_id,
                                 ]);
 
                                 throw new \Exception(
-                                    'Please select a valid Shopify inventory location in Settings.'
+                                    'Mapping has no associated Shopify location.'
                                 );
                             }
+
+                            Log::info('Updating Shopify inventory from AmazonService', [
+                                'shop_id'            => $shop->id,
+                                'amazon_sku'         => $sku,
+                                'mapping_id'         => $mapping->id,
+                                'shopify_product_id' => $mapping->shopify_product_id,
+                                'shopify_variant_id' => $mapping->shopify_variant_id,
+                                'shopify_location_id'=> $locationId,
+                                'old_quantity'       => $mapping->quantity,
+                                'new_quantity'       => $quantity,
+                            ]);
 
                             $shopifyResponse = $shopify->setInventoryQuantity(
                                 $shop,
@@ -466,8 +473,13 @@ class AmazonService
 
                             if (!empty($shopifyResponse['error'])) {
                                 Log::error('Shopify inventory update failed in AmazonService', [
-                                    'shop_id' => $shop->id,
-                                    'error' => $shopifyResponse['message'] ?? 'Unknown error',
+                                    'shop_id'             => $shop->id,
+                                    'amazon_sku'          => $sku,
+                                    'mapping_id'          => $mapping->id,
+                                    'shopify_product_id'  => $mapping->shopify_product_id,
+                                    'shopify_variant_id'  => $mapping->shopify_variant_id,
+                                    'shopify_location_id' => $locationId,
+                                    'error'               => $shopifyResponse['message'] ?? 'Unknown error',
                                 ]);
                             }
                         }

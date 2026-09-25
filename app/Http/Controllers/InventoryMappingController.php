@@ -114,31 +114,77 @@ class InventoryMappingController extends Controller
             ->map(fn($id) => (string) $id)
             ->toArray();
 
-        $variants = $product->variants;
+        $rawVariants = $product->variants;
 
-        if (!is_array($variants)) {
-            $variants = json_decode($variants, true) ?? [];
+        if (!is_array($rawVariants)) {
+            $rawVariants = json_decode($rawVariants, true) ?? [];
         }
 
+        $hasVariants = !empty($rawVariants);
         $response = [];
 
-        foreach ($variants as $variant) {
-            if (in_array((string) $variant['id'], $mapped)) {
+        foreach ($rawVariants as $variant) {
+            if (in_array((string) $variant['id'], $mapped, true)) {
                 continue;
             }
 
             $response[] = [
                 'id' => $variant['id'],
-                'title' => $variant['title'],
-                'inventory_item_id' => $variant['inventory_item_id'],
+                'title' => $variant['title'] ?? ('Variant #' . ($variant['id'] ?? '')),
+                'inventory_item_id' => $variant['inventory_item_id'] ?? null,
             ];
         }
 
         return response()->json([
             'success' => true,
+            'has_variants' => $hasVariants,
+            'total_variants_count' => count($rawVariants),
+            'available_variants_count' => count($response),
             'variants' => $response,
-            'shopify_product_id' => $product->shopify_id,
+            'shopify_product_id' => $product->shopify_id ?: (string) $product->id,
         ]);
+    }
+
+    /**
+     * Resolve the authoritative current Shopify location ID for a shop.
+     */
+    public function resolveCurrentShopifyLocationId(Shop $shop): ?string
+    {
+        $locations = $shop->shopify_locations ?? [];
+        $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+        $selectedLocation = $locations[$selectedIndex] ?? null;
+        $locationId = $selectedLocation['id'] ?? null;
+
+        if (!$locationId) {
+            try {
+                $shopifyService = new ShopifyService($shop->shop, $shop->access_token);
+                $locResponse = $shopifyService->getLocations($shop);
+                if (empty($locResponse['error']) && !empty($locResponse['locations'])) {
+                    $fetchedLocations = $locResponse['locations'];
+                    $effectiveIndex = (isset($shop->selected_location_index) && isset($fetchedLocations[$shop->selected_location_index]))
+                        ? (int) $shop->selected_location_index
+                        : 0;
+                    $shop->update([
+                        'shopify_locations' => $fetchedLocations,
+                        'selected_location_index' => $effectiveIndex,
+                    ]);
+                    $shop->refresh();
+                    $locations = $shop->shopify_locations ?? [];
+                    $selectedIndex = $effectiveIndex;
+                    $selectedLocation = $locations[$selectedIndex] ?? null;
+                    $locationId = $selectedLocation['id'] ?? null;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Shopify locations resolution failed during mapping', [
+                    'shop_id' => $shop->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $locationId ? (string) $locationId : null;
     }
 
     public function saveProductMapping(Request $request)
@@ -147,10 +193,10 @@ class InventoryMappingController extends Controller
             'shop' => 'nullable',
             'amazon_sku' => 'required',
             'product_id' => 'required',
-            'variant_id' => 'required',
-            'shopify_product_id' => 'required',
-            'shopify_variant_id' => 'required',
-            'shopify_inventory_item_id' => 'required',
+            'variant_id' => 'nullable',
+            'shopify_product_id' => 'nullable',
+            'shopify_variant_id' => 'nullable',
+            'shopify_inventory_item_id' => 'nullable',
         ]);
 
         $shop = $this->getActiveShopModel($request);
@@ -161,8 +207,60 @@ class InventoryMappingController extends Controller
             ], 401);
         }
 
+        $product = Product::where('shop_id', $shop->id)->find($request->product_id);
+        if (!$product) {
+            $product = Product::where('shop_id', $shop->id)->where('shopify_id', $request->product_id)->first();
+        }
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found or does not belong to this shop.'
+            ], 404);
+        }
+
+        $rawVariants = $product->variants;
+        if (!is_array($rawVariants)) {
+            $rawVariants = json_decode($rawVariants, true) ?? [];
+        }
+
+        $shopifyProductId = (string) ($product->shopify_id ?: $product->id);
+        $effectiveVariantId = null;
+        $effectiveInventoryItemId = null;
+        $quantity = 0;
+
+        if (!empty($rawVariants)) {
+            // Case A: Selected Shopify product HAS variants -> variant selection is required
+            $requestedVariantId = (string) ($request->variant_id ?: $request->shopify_variant_id);
+            if (empty($requestedVariantId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please select a variant for this product.'
+                ], 422);
+            }
+
+            $selectedVariant = collect($rawVariants)->first(function ($v) use ($requestedVariantId) {
+                return (string) ($v['id'] ?? '') === $requestedVariantId;
+            });
+
+            if (!$selectedVariant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected variant not found for this product.'
+                ], 422);
+            }
+
+            $effectiveVariantId = (string) $selectedVariant['id'];
+            $effectiveInventoryItemId = (string) ($selectedVariant['inventory_item_id'] ?? $request->shopify_inventory_item_id ?? '');
+            $quantity = (int) ($selectedVariant['inventory_quantity'] ?? 0);
+        } else {
+            // Case B: Selected Shopify product has NO variants -> use product ID as shopify_variant_id
+            $effectiveVariantId = $shopifyProductId;
+            $effectiveInventoryItemId = (string) ($request->shopify_inventory_item_id ?? '');
+            $quantity = 0;
+        }
+
         $exists = ProductMarketplaceMapping::where('shop_id', $shop->id)
-            ->where('shopify_variant_id', (string) $request->shopify_variant_id)
+            ->where('shopify_variant_id', $effectiveVariantId)
             ->exists();
 
         if ($exists) {
@@ -172,8 +270,26 @@ class InventoryMappingController extends Controller
             ], 422);
         }
 
-        $syncLimit = app(SyncLimitService::class)->canMap($shop);
+        $amazonSkuExists = ProductMarketplaceMapping::where('shop_id', $shop->id)
+            ->where('amazon_sku', $request->amazon_sku)
+            ->exists();
 
+        if ($amazonSkuExists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This Amazon SKU is already mapped with another Shopify variant.'
+            ], 422);
+        }
+
+        $locationId = $this->resolveCurrentShopifyLocationId($shop);
+        if (!$locationId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No Shopify location found for this store.'
+            ], 422);
+        }
+
+        $syncLimit = app(SyncLimitService::class)->canMap($shop);
         if (!$syncLimit['allowed']) {
             return response()->json([
                 'success' => false,
@@ -184,40 +300,17 @@ class InventoryMappingController extends Controller
             ], 403);
         }
 
-        $product = Product::where('shop_id', $shop->id)->find($request->product_id);
-        if (!$product) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Product not found or does not belong to this shop.'
-            ], 404);
-        }
-
-        $variants = is_array($product->variants)
-            ? $product->variants
-            : json_decode($product->variants, true);
-
-        $selectedVariant = collect($variants)
-            ->firstWhere('id', (string) $request->variant_id);
-
-        if (!$selectedVariant) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Selected variant not found for this product.'
-            ], 404);
-        }
-
-        Log::info('Selected Variant', $selectedVariant ?? []);
-
         $insertData = [
             'shop_id' => $shop->id,
             'product_id' => $product->id,
-            'variant_id' => (string) $request->variant_id,
-            'shopify_product_id' => (string) $request->shopify_product_id,
-            'shopify_variant_id' => (string) $request->shopify_variant_id,
-            'shopify_inventory_item_id' => (string) $request->shopify_inventory_item_id,
+            'variant_id' => $effectiveVariantId,
+            'shopify_product_id' => $shopifyProductId,
+            'shopify_variant_id' => $effectiveVariantId,
+            'shopify_inventory_item_id' => $effectiveInventoryItemId ?: null,
+            'shopify_location_id' => (string) $locationId,
             'amazon_sku' => $request->amazon_sku,
             'amazon_parent_sku' => $request->amazon_parent_sku ?: $request->amazon_sku,
-            'quantity' => $selectedVariant['inventory_quantity'] ?? 0,
+            'quantity' => $quantity,
             'sync_status' => 'pending',
             'submission_status' => 'not_submitted',
         ];
@@ -243,7 +336,14 @@ class InventoryMappingController extends Controller
             throw $e;
         }
 
-        // Log::info('Saved Record', $mapping->fresh()->toArray());
+        Log::info('Shopify product mapping saved', [
+            'shop_id'             => $shop->id,
+            'mapping_id'          => $mapping->id,
+            'amazon_sku'          => $mapping->amazon_sku,
+            'shopify_product_id'  => $mapping->shopify_product_id,
+            'shopify_variant_id'  => $mapping->shopify_variant_id,
+            'shopify_location_id' => $mapping->shopify_location_id,
+        ]);
 
         $latestSyncLimit = app(SyncLimitService::class)->canMap($shop);
 
@@ -267,18 +367,101 @@ class InventoryMappingController extends Controller
             ], 401);
         }
 
-        $mappings = ProductMarketplaceMapping::where('shop_id', $shop->id)
-            ->get([
-                'id',
-                'shopify_variant_id',
-                'amazon_sku',
-            ]);
+        $mappings = ProductMarketplaceMapping::mappedForShop($shop->id)
+            ->with('product')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $shopifyProductIds = $mappings->pluck('shopify_product_id')->filter()->unique();
+
+        $productsByShopifyId = collect();
+        if ($shopifyProductIds->isNotEmpty()) {
+            $productsByShopifyId = Product::where('shop_id', $shop->id)
+                ->whereIn('shopify_id', $shopifyProductIds)
+                ->get()
+                ->keyBy(fn($p) => (string) $p->shopify_id);
+        }
+
+        $locations = is_array($shop->shopify_locations)
+            ? $shop->shopify_locations
+            : (json_decode($shop->shopify_locations, true) ?? []);
+
+        $enrichedMappings = $mappings->map(function ($mapping) use ($shop, $productsByShopifyId, $locations) {
+            $product = $mapping->product ?? ($mapping->shopify_product_id ? $productsByShopifyId->get((string) $mapping->shopify_product_id) : null);
+
+            $shopifyProductId = $mapping->shopify_product_id ?? ($product ? ($product->shopify_id ?: $product->id) : $mapping->product_id);
+            $shopifyProductTitle = $product ? $product->title : null;
+            if (empty($shopifyProductTitle) && !empty($shopifyProductId)) {
+                $shopifyProductTitle = 'Shopify Product #' . $shopifyProductId;
+            }
+
+            // Variant Title
+            $shopifyVariantTitle = null;
+            $shopifyVariantSku = null;
+            if ($product && !empty($product->variants)) {
+                $variants = is_array($product->variants) ? $product->variants : (json_decode($product->variants, true) ?? []);
+                $matchedVariant = collect($variants)->first(fn($v) => (string) ($v['id'] ?? '') === (string) $mapping->shopify_variant_id);
+                if ($matchedVariant) {
+                    $shopifyVariantTitle = $matchedVariant['title'] ?? null;
+                    $shopifyVariantSku = $matchedVariant['sku'] ?? null;
+                }
+            }
+            if (empty($shopifyVariantTitle)) {
+                if ((string) $mapping->shopify_variant_id === (string) $shopifyProductId) {
+                    $shopifyVariantTitle = 'Default';
+                } else {
+                    $shopifyVariantTitle = $mapping->shopify_variant_id;
+                }
+            }
+
+            // Location Name
+            $locationName = 'Default';
+            if (!empty($mapping->shopify_location_id)) {
+                foreach ($locations as $loc) {
+                    $locId = (string) ($loc['id'] ?? '');
+                    if ($locId === (string) $mapping->shopify_location_id || (!empty($locId) && str_ends_with($locId, (string) $mapping->shopify_location_id))) {
+                        $locationName = $loc['name'] ?? 'Default';
+                        break;
+                    }
+                }
+            } elseif (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index])) {
+                $locationName = $locations[$shop->selected_location_index]['name'] ?? 'Default';
+            }
+
+            $shopifyProductUrl = !empty($shopifyProductId)
+                ? route('shopify.product.view', ['id' => $shopifyProductId, 'shop' => $shop->shop])
+                : null;
+
+            $amazonProductUrl = !empty($mapping->amazon_sku)
+                ? route('user.product.amazonView', ['sku' => $mapping->amazon_sku, 'shop' => $shop->shop])
+                : null;
+
+            return [
+                'id' => $mapping->id,
+                'product_id' => $mapping->product_id,
+                'shopify_product_id' => $shopifyProductId,
+                'shopify_product_title' => $shopifyProductTitle,
+                'shopify_product_url' => $shopifyProductUrl,
+                'shopify_variant_id' => $mapping->shopify_variant_id,
+                'shopify_variant_title' => $shopifyVariantTitle,
+                'shopify_variant_sku' => $shopifyVariantSku,
+                'shopify_inventory_item_id' => $mapping->shopify_inventory_item_id,
+                'shopify_location_id' => $mapping->shopify_location_id,
+                'shopify_location_name' => $locationName,
+                'amazon_sku' => $mapping->amazon_sku,
+                'amazon_product_url' => $amazonProductUrl,
+                'quantity' => $mapping->quantity,
+                'sync_status' => $mapping->sync_status ?? 'active',
+                'last_synced_at' => $mapping->last_synced_at ? $mapping->last_synced_at->format('M d, Y h:i A') : null,
+                'last_synced_at_raw' => $mapping->last_synced_at ? $mapping->last_synced_at->toISOString() : null,
+            ];
+        });
 
         $syncUsage = app(SyncLimitService::class)->canMap($shop);
 
         return response()->json([
             'success' => true,
-            'mappings' => $mappings,
+            'mappings' => $enrichedMappings,
             'sync_usage' => $syncUsage,
         ]);
     }
@@ -288,7 +471,7 @@ class InventoryMappingController extends Controller
         $request->validate([
             'shop' => 'nullable',
             'product_id' => 'required',
-            'shopify_variant_id' => 'required',
+            'shopify_variant_id' => 'nullable',
             'amazon_sku' => 'required',
         ]);
 
@@ -305,33 +488,58 @@ class InventoryMappingController extends Controller
             ->first();
 
         if (!$product) {
+            $product = Product::where('shop_id', $shop->id)->find($request->product_id);
+        }
+
+        if (!$product) {
             return response()->json([
                 'success' => false,
                 'message' => 'Product not found or does not belong to this shop.'
             ], 404);
         }
 
-        $variants = is_array($product->variants)
-            ? $product->variants
-            : json_decode($product->variants, true);
+        $rawVariants = $product->variants;
+        if (!is_array($rawVariants)) {
+            $rawVariants = json_decode($rawVariants, true) ?? [];
+        }
 
-        $variant = collect($variants)->firstWhere(
-            'id',
-            (int) $request->shopify_variant_id
-        );
+        $shopifyProductId = (string) ($product->shopify_id ?: $product->id);
+        $effectiveVariantId = null;
+        $effectiveInventoryItemId = null;
+        $quantity = '0';
 
-        Log::info('Selected Variant', $variant ?? []);
+        if (!empty($rawVariants)) {
+            $requestedVariantId = (string) $request->shopify_variant_id;
+            if (empty($requestedVariantId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected Shopify variant not found.'
+                ], 422);
+            }
 
-        if (!$variant) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Selected Shopify variant not found.'
-            ], 404);
+            $variant = collect($rawVariants)->first(function ($v) use ($requestedVariantId) {
+                return (string) ($v['id'] ?? '') === $requestedVariantId;
+            });
+
+            if (!$variant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected Shopify variant not found.'
+                ], 404);
+            }
+
+            $effectiveVariantId = (string) $variant['id'];
+            $effectiveInventoryItemId = (string) ($variant['inventory_item_id'] ?? '');
+            $quantity = (string) ($variant['inventory_quantity'] ?? 0);
+        } else {
+            $effectiveVariantId = $shopifyProductId;
+            $effectiveInventoryItemId = (string) ($request->shopify_inventory_item_id ?? '');
+            $quantity = '0';
         }
 
         $amazonExists = ProductMarketplaceMapping::where('shop_id', $shop->id)
             ->where('amazon_sku', $request->amazon_sku)
-            ->where('shopify_variant_id', '!=', (string) $request->shopify_variant_id)
+            ->where('shopify_variant_id', '!=', $effectiveVariantId)
             ->exists();
 
         if ($amazonExists) {
@@ -341,19 +549,20 @@ class InventoryMappingController extends Controller
             ], 422);
         }
 
-        $existingMapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
-            ->where('shopify_variant_id', (string) $variant['id'])
-            ->first();
+        $locationId = $this->resolveCurrentShopifyLocationId($shop);
+        if (!$locationId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No Shopify location found for this store.'
+            ], 422);
+        }
 
-        Log::info('Existing Mapping', [
-            'exists' => !is_null($existingMapping),
-            'mapping' => $existingMapping ? $existingMapping->toArray() : null,
-        ]);
+        $existingMapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
+            ->where('shopify_variant_id', $effectiveVariantId)
+            ->first();
 
         if (!$existingMapping) {
             $syncLimit = app(SyncLimitService::class)->canMap($shop);
-            Log::info('Sync Limit', $syncLimit);
-
             if (!$syncLimit['allowed']) {
                 return response()->json([
                     'success' => false,
@@ -367,22 +576,21 @@ class InventoryMappingController extends Controller
 
         $updateData = [
             'product_id' => $product->id,
-            'variant_id' => (string) $variant['id'],
-            'shopify_product_id' => (string) $product->shopify_id,
-            'shopify_variant_id' => (string) $variant['id'],
-            'shopify_inventory_item_id' => (string) $variant['inventory_item_id'],
+            'variant_id' => $effectiveVariantId,
+            'shopify_product_id' => $shopifyProductId,
+            'shopify_variant_id' => $effectiveVariantId,
+            'shopify_inventory_item_id' => $effectiveInventoryItemId ?: null,
+            'shopify_location_id' => (string) $locationId,
             'amazon_sku' => $request->amazon_sku,
             'amazon_parent_sku' => $request->amazon_parent_sku ?: $request->amazon_sku,
-            'quantity' => (string) ($variant['inventory_quantity'] ?? 0),
+            'quantity' => $quantity,
         ];
-
-        // Log::info('UpdateOrCreate Payload', $updateData);
 
         try {
             $mapping = ProductMarketplaceMapping::updateOrCreate(
                 [
                     'shop_id' => $shop->id,
-                    'shopify_variant_id' => (string) $variant['id'],
+                    'shopify_variant_id' => $effectiveVariantId,
                 ],
                 $updateData
             );
@@ -397,7 +605,14 @@ class InventoryMappingController extends Controller
             throw $e;
         }
 
-        Log::info('Saved Record', $mapping->fresh()->toArray());
+        Log::info('Amazon mapping saved', [
+            'shop_id'             => $shop->id,
+            'mapping_id'          => $mapping->id,
+            'amazon_sku'          => $mapping->amazon_sku,
+            'shopify_product_id'  => $mapping->shopify_product_id,
+            'shopify_variant_id'  => $mapping->shopify_variant_id,
+            'shopify_location_id' => $mapping->shopify_location_id,
+        ]);
 
         $latestSyncLimit = app(SyncLimitService::class)->canMap($shop);
 
