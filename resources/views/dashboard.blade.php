@@ -463,12 +463,14 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
         color: #111827;
     }
 
-    .low-inventory-table .product-name a {
+    .low-inventory-table .product-name a,
+    .low-inventory-table td a {
         color: #111827;
         text-decoration: none;
     }
 
-    .low-inventory-table .product-name a:hover {
+    .low-inventory-table .product-name a:hover,
+    .low-inventory-table td a:hover {
         color: #2563EB;
         text-decoration: underline;
     }
@@ -779,7 +781,13 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                                         {{ $productTitle }}
                                     @endif
                                 </td>
-                                <td>{{ $productSku }}</td>
+                                <td>
+                                    @if(!empty($shopifyProductUrl) && $productSku !== '-')
+                                        <a href="{{ $shopifyProductUrl }}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">{{ $productSku }}</a>
+                                    @else
+                                        {{ $productSku }}
+                                    @endif
+                                </td>
                                 <td class="text-end">
                                     @if($qty !== null)
                                     <span class="saas-badge {{ (int)$qty <= 3 ? 'saas-badge-danger' : ((int)$qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral') }}">
@@ -971,7 +979,13 @@ $hasAmazonLowInventory = !empty($amazonLowInventoryProducts) && (is_countable($a
                                         {{ $amazonProductTitle }}
                                     @endif
                                 </td>
-                                <td>{{ $amazonSku ?? '-' }}</td>
+                                <td>
+                                    @if(!empty($amazonProductUrl) && $amazonSku !== '-')
+                                        <a href="{{ $amazonProductUrl }}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">{{ $amazonSku }}</a>
+                                    @else
+                                        {{ $amazonSku ?? '-' }}
+                                    @endif
+                                </td>
                                 <td class="text-end">
                                     <span class="saas-badge {{ $qty <= 3 ? 'saas-badge-danger' : ($qty <= 7 ? 'saas-badge-warning' : 'saas-badge-neutral') }}">
                                         {{ $qty }}
@@ -1312,12 +1326,16 @@ document.addEventListener("DOMContentLoaded", function() {
                         ? `<a href="${detailUrl}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">${title}</a>`
                         : title;
 
+                    const skuHtml = (detailUrl && sku !== '-')
+                        ? `<a href="${detailUrl}" class="text-decoration-none text-dark hover-underline" style="color: inherit;">${sku}</a>`
+                        : sku;
+
                     return `
                         <tr>
                             <td class="product-name" title="${title}">
                                 ${titleHtml}
                             </td>
-                            <td>${sku}</td>
+                            <td>${skuHtml}</td>
                             <td class="text-end">
                                 <span class="saas-badge ${badgeClass}">
                                     ${qty}

@@ -110,6 +110,7 @@ beforeEach(function () {
             $table->string('shopify_product_id')->nullable();
             $table->string('shopify_variant_id')->nullable();
             $table->string('shopify_inventory_item_id')->nullable();
+            $table->string('shopify_location_id')->nullable();
             $table->string('amazon_sku')->nullable();
             $table->string('amazon_parent_sku')->nullable();
             $table->string('amazon_asin')->nullable();
@@ -128,7 +129,7 @@ beforeEach(function () {
     }
 });
 
-function createMappingTestShop(string $domain = 'test-mapping.myshopify.com'): Shop
+function createStaleStateTestShop(string $domain = 'test-mapping.myshopify.com'): Shop
 {
     $shop = Shop::create([
         'shop'                     => $domain,
@@ -164,7 +165,7 @@ function createMappingTestShop(string $domain = 'test-mapping.myshopify.com'): S
 }
 
 test('Test 1: Cached Amazon product with is_mapped=false overlays DB mapping dynamically on GET /inventory/amazon', function () {
-    $shop = createMappingTestShop('amazon-overlay.myshopify.com');
+    $shop = createStaleStateTestShop('amazon-overlay.myshopify.com');
 
     // 1. Put cached Amazon products with is_mapped=false
     $marketplaceId = 'ATVPDKIKX0DER';
@@ -247,7 +248,7 @@ test('Test 1: Cached Amazon product with is_mapped=false overlays DB mapping dyn
 });
 
 test('Test 2: Cached Shopify product with is_mapped=false overlays DB mapping dynamically on GET /inventory/shopify', function () {
-    $shop = createMappingTestShop('shopify-overlay.myshopify.com');
+    $shop = createStaleStateTestShop('shopify-overlay.myshopify.com');
 
     // 1. Put cached Shopify products with is_mapped=false
     $cacheKey = "shopify_inventory_{$shop->shop}_location_{$shop->selected_location_index}";
@@ -331,7 +332,7 @@ test('Test 2: Cached Shopify product with is_mapped=false overlays DB mapping dy
 });
 
 test('Test 3: Unmapped products return clean unmapped structure', function () {
-    $shop = createMappingTestShop('unmapped-clean.myshopify.com');
+    $shop = createStaleStateTestShop('unmapped-clean.myshopify.com');
 
     Cache::forever("amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}", [
         [
@@ -363,7 +364,7 @@ test('Test 3: Unmapped products return clean unmapped structure', function () {
 });
 
 test('Test 4: Mapping creation preserves Shopify cache and syncs DB', function () {
-    $shop = createMappingTestShop('map-creation-cache.myshopify.com');
+    $shop = createStaleStateTestShop('map-creation-cache.myshopify.com');
 
     $product = Product::create([
         'shop_id'    => $shop->id,
@@ -406,7 +407,7 @@ test('Test 4: Mapping creation preserves Shopify cache and syncs DB', function (
 });
 
 test('Test 5: Unmapping removes DB record, subsequent requests reflect unmapped state, and cache is preserved', function () {
-    $shop = createMappingTestShop('unmap-preserve-cache.myshopify.com');
+    $shop = createStaleStateTestShop('unmap-preserve-cache.myshopify.com');
 
     $mapping = ProductMarketplaceMapping::create([
         'shop_id'                   => $shop->id,
@@ -448,7 +449,7 @@ test('Test 5: Unmapping removes DB record, subsequent requests reflect unmapped 
 });
 
 test('Test 6: Existing Amazon and Shopify product/inventory retrieval contracts and structures remain intact', function () {
-    $shop = createMappingTestShop('contracts-intact.myshopify.com');
+    $shop = createStaleStateTestShop('contracts-intact.myshopify.com');
 
     // 1. Amazon Contract Validation
     Cache::forever("amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}", [

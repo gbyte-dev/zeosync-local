@@ -171,7 +171,7 @@ function authLinkSession(Shop $shop): array
     ];
 }
 
-test('renders clickable product names in Shopify Low Inventory pointing to shopify.product.view', function () {
+test('renders clickable product names and SKUs in Shopify Low Inventory pointing to shopify.product.view', function () {
     $shop = createLinkTestShop([
         'amazon_seller_id' => 'AMZ_SELLER_TEST',
         'amazon_refresh_token' => 'amz_refresh_test',
@@ -206,16 +206,17 @@ test('renders clickable product names in Shopify Low Inventory pointing to shopi
 
     $response->assertStatus(200);
 
-    // Clickable link with pid
+    // Clickable link with pid for both Product Name and SKU
     $expectedUrl = route('shopify.product.view', ['id' => '9988776655', 'shop' => $shop->shop]);
     $response->assertSee('href="' . $expectedUrl . '"', false);
     $response->assertSee('Low Stock Shopify T-Shirt', false);
+    $response->assertSee('>' . 'SHOPIFY-TSHIRT-S' . '</a>', false);
 
     // Item without pid is rendered as plain text without broken link
     $response->assertSee('No PID Shopify Mug', false);
 });
 
-test('renders clickable product names in Amazon Low Inventory (server-rendered) pointing to user.product.amazonView', function () {
+test('renders clickable product names and SKUs in Amazon Low Inventory (server-rendered) pointing to user.product.amazonView', function () {
     $shop = createLinkTestShop([
         'amazon_seller_id' => 'AMZ_SELLER_LINKS',
         'amazon_refresh_token' => 'amz_refresh_links',
@@ -241,16 +242,17 @@ test('renders clickable product names in Amazon Low Inventory (server-rendered) 
 
     $response->assertStatus(200);
 
-    // Clickable link with sku
+    // Clickable link with sku for both Product Name and SKU
     $expectedUrl = route('user.product.amazonView', ['sku' => 'AMZ-LOW-SKU-001', 'shop' => $shop->shop]);
     $response->assertSee('href="' . $expectedUrl . '"', false);
     $response->assertSee('Amazon Low Stock Wireless Headphones', false);
+    $response->assertSee('>' . 'AMZ-LOW-SKU-001' . '</a>', false);
 
     // Item without SKU is rendered as plain text
     $response->assertSee('Amazon No SKU Cable', false);
 });
 
-test('includes the user.product.amazonView route template in dynamic JS loadAmazonInventory()', function () {
+test('includes the user.product.amazonView route template for both title and sku in dynamic JS loadAmazonInventory()', function () {
     $shop = createLinkTestShop([
         'amazon_seller_id' => 'AMZ_SELLER_JS',
         'amazon_refresh_token' => 'amz_refresh_js',
@@ -261,9 +263,10 @@ test('includes the user.product.amazonView route template in dynamic JS loadAmaz
 
     $response->assertStatus(200);
 
-    // Verify JS contains route template replacement for detailUrl
+    // Verify JS contains route template replacement for detailUrl and uses skuHtml
     $jsTemplatePattern = route('user.product.amazonView', ['sku' => '__SKU__', 'shop' => $shop->shop]);
     $response->assertSee($jsTemplatePattern, false);
+    $response->assertSee('${skuHtml}', false);
 });
 
 test('enforces multi-store isolation for product links across different shops', function () {
