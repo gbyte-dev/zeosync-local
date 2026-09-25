@@ -127,7 +127,7 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
 
             $lock = Cache::lock($lockKey, 30);
             try {
-                $lock->block(15, function () use ($lockKey, $operation, $shop, $mapping) {
+                $lock->block(15, function () use ($lockKey, $operation, $shop, $mapping, $amazonSku) {
                     Log::info('INV_TRACE_JOB_05_LOCK', [
                         'stage'        => 'stage_1_shopify',
                         'lock_key'     => $lockKey,
