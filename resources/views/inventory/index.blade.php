@@ -897,6 +897,16 @@
                                     ? route('user.product.amazonView', ['sku' => $mapping->amazon_sku, 'shop' => request('shop') ?? session('active_shop')])
                                     : null;
 
+                                $rawProductTitle = $shopifyProductTitle ?? 'N/A';
+                                $isProductTruncated = mb_strlen($rawProductTitle) > 20;
+                                $displayProductTitle = $isProductTruncated ? mb_substr($rawProductTitle, 0, 17) . '...' : $rawProductTitle;
+                                $productTooltip = $isProductTruncated ? ' title="' . e($rawProductTitle) . '" data-bs-toggle="tooltip" data-bs-container="body" data-bs-placement="top"' : '';
+
+                                $rawSku = $mapping->amazon_sku ?? '—';
+                                $isSkuTruncated = (!empty($mapping->amazon_sku) && mb_strlen($rawSku) > 20);
+                                $displaySku = $isSkuTruncated ? mb_substr($rawSku, 0, 17) . '...' : $rawSku;
+                                $skuTooltip = $isSkuTruncated ? ' title="' . e($rawSku) . '" data-bs-toggle="tooltip" data-bs-container="body" data-bs-placement="top"' : '';
+
                                 $status = strtolower((string) ($mapping->sync_status ?? 'active'));
                                 $statusClass = match ($status) {
                                     'synced' => 'bg-success-subtle text-success',
@@ -909,11 +919,11 @@
                             <tr>
                                 <td>
                                     @if($shopifyProductLink)
-                                        <a href="{{ $shopifyProductLink }}" class="fw-semibold text-dark text-decoration-none" title="View Shopify product">
-                                            {{ $shopifyProductTitle }}
+                                        <a href="{{ $shopifyProductLink }}" class="fw-semibold text-dark text-decoration-none"{!! $productTooltip !!}>
+                                            {{ $displayProductTitle }}
                                         </a>
                                     @else
-                                        <div class="fw-semibold text-dark">{{ $shopifyProductTitle ?? 'N/A' }}</div>
+                                        <div class="fw-semibold text-dark"{!! $productTooltip !!}>{{ $displayProductTitle }}</div>
                                     @endif
                                     <small class="text-muted d-block">ID: {{ $shopifyProductId ?? '—' }}</small>
                                 </td>
@@ -923,11 +933,11 @@
                                 </td>
                                 <td>
                                     @if($amazonProductLink)
-                                        <a href="{{ $amazonProductLink }}" class="text-dark fw-semibold text-decoration-none">
-                                            {{ $mapping->amazon_sku }}
+                                        <a href="{{ $amazonProductLink }}" class="text-dark fw-semibold text-decoration-none"{!! $skuTooltip !!}>
+                                            {{ $displaySku }}
                                         </a>
                                     @else
-                                        <span class="text-muted">{{ $mapping->amazon_sku ?? '—' }}</span>
+                                        <span class="text-muted"{!! $skuTooltip !!}>{{ $displaySku }}</span>
                                     @endif
                                 </td>
                                 <td>
@@ -1133,6 +1143,16 @@
         refreshMappingUI();
     }
 
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     function renderMappedTable(data, isLoading = false) {
         if (isLoading) {
             $('#mappedToolbar').hide();
@@ -1177,16 +1197,21 @@
                     {
                         data: 'shopify_product_title',
                         render: function(data, type, row) {
-                            let title = row.shopify_product_title || ('Shopify Product #' + (row.shopify_product_id || ''));
+                            let fullTitle = String(row.shopify_product_title || ('Shopify Product #' + (row.shopify_product_id || '')));
                             let sub = 'ID: ' + (row.shopify_product_id || '—');
                             if (type === 'sort' || type === 'filter') {
-                                return title + ' ' + (row.shopify_product_id || '');
+                                return fullTitle + ' ' + (row.shopify_product_id || '');
                             }
+                            let isTruncated = fullTitle.length > 20;
+                            let displayTitle = isTruncated ? fullTitle.substring(0, 17) + '...' : fullTitle;
+                            let escapedFull = escapeHtml(fullTitle);
+                            let escapedDisplay = escapeHtml(displayTitle);
+                            let tooltipAttr = isTruncated ? ` title="${escapedFull}" data-bs-toggle="tooltip" data-bs-container="body" data-bs-placement="top"` : '';
                             let link = row.shopify_product_url;
                             let titleHtml = link
-                                ? `<a href="${link}" class="fw-semibold text-dark text-decoration-none" title="View Shopify product">${title}</a>`
-                                : `<div class="fw-semibold text-dark">${title}</div>`;
-                            return `${titleHtml}<small class="text-muted d-block">${sub}</small>`;
+                                ? `<a href="${link}" class="fw-semibold text-dark text-decoration-none"${tooltipAttr}>${escapedDisplay}</a>`
+                                : `<div class="fw-semibold text-dark"${tooltipAttr}>${escapedDisplay}</div>`;
+                            return `${titleHtml}<small class="text-muted d-block">${escapeHtml(sub)}</small>`;
                         }
                     },
                     {
@@ -1197,18 +1222,27 @@
                             if (type === 'sort' || type === 'filter') {
                                 return variantTitle + ' ' + sub + ' ' + (row.shopify_variant_sku || '');
                             }
-                            return `<span class="fw-medium text-dark">${variantTitle}</span><small class="text-muted d-block">${sub}</small>`;
+                            return `<span class="fw-medium text-dark">${escapeHtml(variantTitle)}</span><small class="text-muted d-block">${escapeHtml(sub)}</small>`;
                         }
                     },
                     {
                         data: 'amazon_sku',
                         render: function(data, type, row) {
-                            let sku = row.amazon_sku || '—';
+                            let rawSku = row.amazon_sku;
                             if (type === 'sort' || type === 'filter') {
-                                return sku;
+                                return rawSku || '';
                             }
-                            let url = row.amazon_product_url || ("{{ route('user.product.amazonView', ['sku' => '__SKU__', 'shop' => '__SHOP__']) }}".replace('__SKU__', encodeURIComponent(sku)).replace('__SHOP__', encodeURIComponent(currentShop)));
-                            return `<a href="${url}" class="text-dark fw-semibold text-decoration-none">${sku}</a>`;
+                            if (!rawSku) {
+                                return `<span class="text-muted">—</span>`;
+                            }
+                            let fullSku = String(rawSku);
+                            let isTruncated = fullSku.length > 20;
+                            let displaySku = isTruncated ? fullSku.substring(0, 17) + '...' : fullSku;
+                            let escapedFull = escapeHtml(fullSku);
+                            let escapedDisplay = escapeHtml(displaySku);
+                            let tooltipAttr = isTruncated ? ` title="${escapedFull}" data-bs-toggle="tooltip" data-bs-container="body" data-bs-placement="top"` : '';
+                            let url = row.amazon_product_url || ("{{ route('user.product.amazonView', ['sku' => '__SKU__', 'shop' => '__SHOP__']) }}".replace('__SKU__', encodeURIComponent(fullSku)).replace('__SHOP__', encodeURIComponent(currentShop)));
+                            return `<a href="${url}" class="text-dark fw-semibold text-decoration-none"${tooltipAttr}>${escapedDisplay}</a>`;
                         }
                     },
                     {
@@ -1218,7 +1252,7 @@
                             if (type === 'sort' || type === 'filter') {
                                 return loc;
                             }
-                            return `<span class="text-dark">${loc}</span>`;
+                            return `<span class="text-dark">${escapeHtml(loc)}</span>`;
                         }
                     },
                     {

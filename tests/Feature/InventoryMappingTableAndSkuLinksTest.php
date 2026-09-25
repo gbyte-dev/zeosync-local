@@ -491,3 +491,98 @@ test('Inventory Mapping API enforces strict tenant isolation between Shop A and 
     expect($mappingsB)->toHaveCount(1);
     expect($mappingsB[0]['amazon_sku'])->toBe('AMZ-SHOP-B-1');
 });
+
+test('Inventory Mapping tab: truncates product name and SKU > 20 characters with tooltip and displays <= 20 characters fully', function () {
+    $shop = createInventoryTableTestShop();
+
+    // Product 1: Name > 20 chars ("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), SKU > 20 chars ("AMZ-VERY-LONG-SKU-123456789")
+    $prodLong = Product::create([
+        'shop_id' => $shop->id,
+        'shopify_id' => 10001,
+        'title' => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', // 26 chars
+    ]);
+    ProductMarketplaceMapping::create([
+        'shop_id' => $shop->id,
+        'product_id' => $prodLong->id,
+        'shopify_product_id' => '10001',
+        'shopify_variant_id' => '10001',
+        'amazon_sku' => 'AMZ-VERY-LONG-SKU-123456789', // 27 chars
+        'sync_status' => 'synced',
+    ]);
+
+    // Product 2: Name <= 20 chars ("Short Product"), SKU <= 20 chars ("SHORT-SKU-123")
+    $prodShort = Product::create([
+        'shop_id' => $shop->id,
+        'shopify_id' => 10002,
+        'title' => 'Short Product', // 13 chars
+    ]);
+    ProductMarketplaceMapping::create([
+        'shop_id' => $shop->id,
+        'product_id' => $prodShort->id,
+        'shopify_product_id' => '10002',
+        'shopify_variant_id' => '10002',
+        'amazon_sku' => 'SHORT-SKU-123', // 13 chars
+        'sync_status' => 'synced',
+    ]);
+
+    $response = $this->withSession(authTableSession($shop))
+        ->get('/inventory?tab=mapped&shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+
+    // 1. Long Product Name > 20 chars truncated to exactly 20 characters ("ABCDEFGHIJKLMNOPQ...") with full title in tooltip
+    $response->assertSee('ABCDEFGHIJKLMNOPQ...', false);
+    $response->assertSee('title="ABCDEFGHIJKLMNOPQRSTUVWXYZ"', false);
+    $response->assertSee('data-bs-toggle="tooltip"', false);
+
+    // 2. Long SKU > 20 chars truncated to exactly 20 characters ("AMZ-VERY-LONG-SKU...") with full SKU in tooltip
+    $response->assertSee('AMZ-VERY-LONG-SKU...', false);
+    $response->assertSee('title="AMZ-VERY-LONG-SKU-123456789"', false);
+
+    // 3. Short Product Name <= 20 chars displayed fully without truncation or unnecessary tooltip
+    $response->assertSee('Short Product', false);
+    $response->assertDontSee('title="Short Product"', false);
+
+    // 4. Short SKU <= 20 chars displayed fully without truncation or unnecessary tooltip
+    $response->assertSee('SHORT-SKU-123', false);
+    $response->assertDontSee('title="SHORT-SKU-123"', false);
+
+    // 5. Links are intact and clickable
+    $expectedLongProdUrl = route('shopify.product.view', ['id' => '10001', 'shop' => $shop->shop]);
+    $expectedLongSkuUrl = route('user.product.amazonView', ['sku' => 'AMZ-VERY-LONG-SKU-123456789', 'shop' => $shop->shop]);
+    $response->assertSee('href="' . $expectedLongProdUrl . '"', false);
+    $response->assertSee('href="' . $expectedLongSkuUrl . '"', false);
+});
+
+test('Inventory Mapping tab: safely escapes HTML and special characters in truncated titles and tooltips', function () {
+    $shop = createInventoryTableTestShop();
+
+    $specialTitle = 'Special "Quotes" & <Tags> Long Title Example 12345'; // > 20 chars with HTML special chars
+    $specialSku = 'SKU-"TEST"&<TAGS>-LONG-99999'; // > 20 chars with HTML special chars
+
+    $product = Product::create([
+        'shop_id' => $shop->id,
+        'shopify_id' => 10003,
+        'title' => $specialTitle,
+    ]);
+    ProductMarketplaceMapping::create([
+        'shop_id' => $shop->id,
+        'product_id' => $product->id,
+        'shopify_product_id' => '10003',
+        'shopify_variant_id' => '10003',
+        'amazon_sku' => $specialSku,
+        'sync_status' => 'synced',
+    ]);
+
+    $response = $this->withSession(authTableSession($shop))
+        ->get('/inventory?tab=mapped&shop=' . $shop->shop);
+
+    $response->assertStatus(200);
+
+    // Escaped title in tooltip attribute
+    $response->assertSee('title="' . e($specialTitle) . '"', false);
+    $response->assertSee('title="' . e($specialSku) . '"', false);
+    // Truncated display text
+    $response->assertSee(e(mb_substr($specialTitle, 0, 17) . '...'), false);
+    $response->assertSee(e(mb_substr($specialSku, 0, 17) . '...'), false);
+});
