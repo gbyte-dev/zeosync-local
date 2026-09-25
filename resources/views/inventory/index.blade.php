@@ -1847,8 +1847,13 @@
         $('#productActionModal').modal('show');
     });
 
+    let currentProductHasVariants = false;
+    let currentShopifyProductId = null;
+
     $(document).on('change', '#shopifyVariant', function() {
-        $('#saveProductMapping').prop('disabled', !$(this).val());
+        if (currentProductHasVariants) {
+            $('#saveProductMapping').prop('disabled', !$(this).val());
+        }
     });
     $(document).on('change', '#amazonProduct', function() {
         $('#saveAmazonProductMapping').prop('disabled', !$(this).val());
@@ -1856,7 +1861,26 @@
 
     $(document).on('click', '#saveProductMapping', function() {
         const shop = new URLSearchParams(window.location.search).get('shop');
-        const variant = $('#shopifyVariant option:selected');
+        const selectedProductOpt = $('#shopifyProduct option:selected');
+        const selectedVariantOpt = $('#shopifyVariant option:selected');
+        const productId = $('#shopifyProduct').val();
+
+        let shopifyProductId = currentShopifyProductId || selectedProductOpt.data('shopify-product') || selectedVariantOpt.data('shopify-product-id');
+        let shopifyVariantId = null;
+        let variantId = null;
+        let inventoryItemId = null;
+
+        if (currentProductHasVariants) {
+            shopifyVariantId = selectedVariantOpt.val();
+            variantId = selectedVariantOpt.val();
+            inventoryItemId = selectedVariantOpt.data('inventory-item') || null;
+        } else {
+            // Standalone product without variants: shopify_variant_id is shopify_product_id
+            shopifyVariantId = shopifyProductId;
+            variantId = null;
+            inventoryItemId = null;
+        }
+
         $.ajax({
             url: "{{ route('inventory.save.mapping') }}",
             type: "POST",
@@ -1864,11 +1888,11 @@
                 _token: "{{ csrf_token() }}",
                 shop: shop,
                 amazon_sku: $('#amazonSku').val(),
-                product_id: $('#shopifyProduct').val(),
-                variant_id: variant.val(),
-                shopify_product_id: variant.data('shopify-product-id'),
-                shopify_variant_id: variant.val(),
-                shopify_inventory_item_id: variant.data('inventory-item')
+                product_id: productId,
+                variant_id: variantId,
+                shopify_product_id: shopifyProductId,
+                shopify_variant_id: shopifyVariantId,
+                shopify_inventory_item_id: inventoryItemId
             },
             success: function(response) {
                 // alert(response.message);
@@ -1910,6 +1934,9 @@
 
     function loadShopifyProducts() {
         const shop = new URLSearchParams(window.location.search).get('shop');
+        currentProductHasVariants = false;
+        currentShopifyProductId = null;
+        $('#saveProductMapping').prop('disabled', true);
         $.get("{{ route('inventory.shopify.products') }}", {
             shop: shop
         }, function(response) {
@@ -1922,24 +1949,47 @@
 
     $(document).on('change', '#shopifyProduct', function() {
         const productId = $(this).val();
+        $('#saveProductMapping').prop('disabled', true);
+        currentProductHasVariants = false;
+        currentShopifyProductId = null;
+
         if (!productId) {
             $('#shopifyVariant').html('<option value="">Select Product First</option>').prop('disabled', true);
             return;
         }
+
+        const selectedOpt = $(this).find('option:selected');
+        currentShopifyProductId = selectedOpt.data('shopify-product') || null;
+
         const shop = new URLSearchParams(window.location.search).get('shop');
         $.get("{{ url('inventory/shopify-product-variants') }}/" + productId, {
             shop: shop
         }, function(response) {
-            let html = '<option value="">Select Variant</option>';
-            if (!response.success || response.variants.length === 0) {
+            if (response.shopify_product_id) {
+                currentShopifyProductId = response.shopify_product_id;
+            }
+
+            // Case B: No variants exist
+            if (!response.success || !response.has_variants || !response.variants || response.variants.length === 0) {
+                currentProductHasVariants = false;
                 $('#shopifyVariant').html('<option value="">No variants available</option>').prop('disabled', true);
+                $('#saveProductMapping').prop('disabled', false);
                 return;
             }
+
+            // Case A: Product has variants
+            currentProductHasVariants = true;
+            let html = '<option value="">Select Variant</option>';
             response.variants.forEach(v => {
-                html += `<option value="${v.id}" data-inventory-item="${v.inventory_item_id}" data-shopify-product-id="${response.shopify_product_id}">${v.title}</option>`;
+                html += `<option value="${v.id}" data-inventory-item="${v.inventory_item_id || ''}" data-shopify-product-id="${response.shopify_product_id}">${v.title}</option>`;
             });
             $('#shopifyVariant').html(html).prop('disabled', false);
-        }).fail(() => $('#shopifyVariant').html('<option value="">Failed to load variants</option>').prop('disabled', true));
+            $('#saveProductMapping').prop('disabled', true);
+        }).fail(function() {
+            currentProductHasVariants = false;
+            $('#shopifyVariant').html('<option value="">Failed to load variants</option>').prop('disabled', true);
+            $('#saveProductMapping').prop('disabled', true);
+        });
     });
 
     $(document).on('click', '#continueAmazonMapping', function() {

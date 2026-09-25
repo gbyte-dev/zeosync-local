@@ -15,6 +15,7 @@ class ProductMarketplaceMapping extends Model
         'shopify_product_id',
         'shopify_variant_id',
         'shopify_inventory_item_id',
+        'shopify_location_id',
         'amazon_sku',
         'amazon_parent_sku',
         'amazon_asin',

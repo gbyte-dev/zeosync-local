@@ -25,6 +25,7 @@ class ProductMapping extends Model
         'shopify_product_id',
         'shopify_variant_id',
         'shopify_inventory_item_id',
+        'shopify_location_id',
 
         // Amazon
         'amazon_sku',

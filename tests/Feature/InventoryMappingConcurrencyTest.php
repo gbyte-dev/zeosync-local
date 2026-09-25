@@ -87,6 +87,7 @@ beforeEach(function () {
             $table->string('shopify_product_id')->nullable();
             $table->string('shopify_variant_id')->nullable();
             $table->string('shopify_inventory_item_id')->nullable();
+            $table->string('shopify_location_id')->nullable();
             $table->string('amazon_sku')->nullable();
             $table->string('amazon_parent_sku')->nullable();
             $table->string('amazon_asin')->nullable();
@@ -119,6 +120,20 @@ beforeEach(function () {
         Product::query()->delete();
         Shop::query()->delete();
     }
+
+    \Illuminate\Support\Facades\Http::fake([
+        '*graphql.json*' => \Illuminate\Support\Facades\Http::response([
+            'data' => [
+                'locations' => [
+                    'nodes' => [
+                        ['id' => 'gid://shopify/Location/9001', 'legacyResourceId' => '9001', 'name' => 'Default Location', 'isActive' => true]
+                    ],
+                    'pageInfo' => ['hasNextPage' => false, 'endCursor' => null]
+                ]
+            ]
+        ], 200),
+        '*' => \Illuminate\Support\Facades\Http::response(['access_token' => 'token'], 200),
+    ]);
 });
 
 /* =========================================================================

@@ -138,6 +138,12 @@ class AutoSkuMappingService
             }
         }
 
+        $locations = $shop->shopify_locations ?? [];
+        $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+        $locationId = $locations[$selectedIndex]['id'] ?? null;
+
         try {
             ProductMarketplaceMapping::create([
                 'shop_id'                   => $shop->id,
@@ -146,6 +152,7 @@ class AutoSkuMappingService
                 'shopify_product_id'        => (string) $shopifyItem['pid'],
                 'shopify_variant_id'        => (string) $shopifyItem['vid'],
                 'shopify_inventory_item_id' => (string) $shopifyItem['inventory_item_id'],
+                'shopify_location_id'       => $locationId ? (string) $locationId : null,
                 'amazon_sku'                => (string) $amazonItem['sku'],
                 'quantity'                  => isset($shopifyItem['qty']) && $shopifyItem['qty'] !== null ? (int) $shopifyItem['qty'] : null,
                 'sync_status'               => 'pending',
@@ -153,9 +160,10 @@ class AutoSkuMappingService
             ]);
 
             Log::info('CREATED NEW MAPPING', [
-                'shop'               => $shop->shop,
-                'shopify_variant_id' => $shopifyItem['vid'],
-                'amazon_sku'         => $amazonItem['sku']
+                'shop'                => $shop->shop,
+                'shopify_variant_id'  => $shopifyItem['vid'],
+                'shopify_location_id' => $locationId,
+                'amazon_sku'          => $amazonItem['sku']
             ]);
         } catch (\Illuminate\Database\QueryException $e) {
             $errorCode = $e->errorInfo[1] ?? null;
