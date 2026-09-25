@@ -257,6 +257,23 @@
         color: #FFFFFF;
     }
 
+    .saas-btn-secondary {
+        background-color: #FFFFFF;
+        border-color: #C9CCCF;
+        color: #202223;
+    }
+
+    .saas-btn-secondary:hover:not(:disabled) {
+        background-color: #F6F6F7;
+        border-color: #BABEC3;
+        color: #202223;
+    }
+
+    .saas-btn:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+
     .saas-btn-success {
         background-color: #008060;
         color: #FFFFFF;
@@ -415,33 +432,41 @@
                 </div>
 
                 <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="saas-label">Select Your Shopify Location</label>
+                    <div class="col-md-8 col-lg-7">
+                        <label class="saas-label" for="selectedLocationIndex">Select Your Shopify Location</label>
 
                         @php
                             $locations = $shop->shopify_locations ?? [];
+                            if (!is_array($locations)) {
+                                $locations = json_decode($locations, true) ?? [];
+                            }
                             $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
                                 ? (int) $shop->selected_location_index
                                 : 0;
                         @endphp
 
-                        <select name="selected_location_index" class="saas-select">
-                            @if(!empty($locations))
-                                @foreach($locations as $index => $location)
-                                <option value="{{ $index }}" {{ (string) old('selected_location_index', $selectedIndex) === (string) $index ? 'selected' : '' }}>
-                                    {{ $location['name'] ?? 'Unnamed Location' }}
-                                </option>
-                                @endforeach
-                            @else
-                                <option value="" selected>No Location Available</option>
-                            @endif
-                        </select>
+                        <div class="d-flex align-items-center gap-2 flex-wrap flex-sm-nowrap">
+                            <select name="selected_location_index" id="selectedLocationIndex" class="saas-select" style="max-width: 320px;">
+                                @if(!empty($locations))
+                                    @foreach($locations as $index => $location)
+                                    <option value="{{ $index }}" {{ (string) old('selected_location_index', $selectedIndex) === (string) $index ? 'selected' : '' }}>
+                                        {{ $location['name'] ?? 'Unnamed Location' }}
+                                    </option>
+                                    @endforeach
+                                @else
+                                    <option value="" selected>No Location Available</option>
+                                @endif
+                            </select>
 
-                        @if(empty($shop->shopify_locations))
-                        <div class="text-muted mt-2" style="font-size: 12px;">
+                            <button type="button" id="btnRefreshLocations" class="saas-btn saas-btn-secondary text-nowrap">
+                                <i class="bi bi-arrow-repeat me-1" id="refreshLocationsIcon"></i>
+                                <span id="refreshLocationsText">Get Latest Shopify Locations</span>
+                            </button>
+                        </div>
+
+                        <div id="noLocationsMsg" class="text-muted mt-2 {{ empty($locations) ? '' : 'd-none' }}" style="font-size: 12px;">
                             No Shopify locations found.
                         </div>
-                        @endif
                     </div>
                 </div>
             </div>
@@ -557,6 +582,101 @@
             window.location.href = "{{ route('amazon.disconnect') }}";
         }
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnRefresh = document.getElementById('btnRefreshLocations');
+        if (btnRefresh) {
+            btnRefresh.addEventListener('click', function() {
+                if (btnRefresh.disabled) return;
+
+                const icon = document.getElementById('refreshLocationsIcon');
+                const text = document.getElementById('refreshLocationsText');
+                const select = document.getElementById('selectedLocationIndex');
+                const noLocMsg = document.getElementById('noLocationsMsg');
+
+                btnRefresh.disabled = true;
+                if (icon) icon.className = 'spinner-border spinner-border-sm me-1';
+                if (text) text.textContent = 'Fetching Locations...';
+
+                const shopParam = new URLSearchParams(window.location.search).get('shop');
+
+                fetch("{{ route('settings.refresh-locations') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        shop: shopParam
+                    })
+                })
+                .then(response => response.json().then(data => ({ status: response.status, data })))
+                .then(({ status, data }) => {
+                    if (data.success && data.locations) {
+                        select.innerHTML = '';
+                        if (data.locations.length > 0) {
+                            data.locations.forEach((loc, idx) => {
+                                const option = document.createElement('option');
+                                option.value = idx;
+                                option.textContent = loc.name || ('Location ' + (idx + 1));
+                                if (idx === data.selected_location_index) {
+                                    option.selected = true;
+                                }
+                                select.appendChild(option);
+                            });
+                            if (noLocMsg) noLocMsg.classList.add('d-none');
+                        } else {
+                            const option = document.createElement('option');
+                            option.value = '';
+                            option.textContent = 'No Location Available';
+                            option.selected = true;
+                            select.appendChild(option);
+                            if (noLocMsg) noLocMsg.classList.remove('d-none');
+                        }
+
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'success',
+                                text: data.message || 'Shopify locations updated successfully.',
+                                confirmButtonText: 'OK',
+                                timer: 3000
+                            });
+                        } else {
+                            alert(data.message || 'Shopify locations updated successfully.');
+                        }
+                    } else {
+                        const errMsg = data.message || 'Failed to update Shopify locations.';
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'warning',
+                                text: errMsg,
+                                confirmButtonText: 'OK'
+                            });
+                        } else {
+                            alert(errMsg);
+                        }
+                    }
+                })
+                .catch(err => {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            text: 'An error occurred while fetching Shopify locations.',
+                            confirmButtonText: 'OK'
+                        });
+                    } else {
+                        alert('An error occurred while fetching Shopify locations.');
+                    }
+                })
+                .finally(() => {
+                    btnRefresh.disabled = false;
+                    if (icon) icon.className = 'bi bi-arrow-repeat me-1';
+                    if (text) text.textContent = 'Get Latest Shopify Locations';
+                });
+            });
+        }
+    });
 </script>
 
 @endsection

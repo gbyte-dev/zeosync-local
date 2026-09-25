@@ -48,6 +48,7 @@ Route::get('amazon/connect/success', [AmazonConnect::class, 'success'])->name('a
 
 // store settings
 Route::post('settings', [SettingsController::class, 'update'])->name('settings.update');
+Route::post('settings/refresh-locations', [SettingsController::class, 'refreshLocations'])->name('settings.refresh-locations');
 // Route::get('logs', [SettingsController::class, 'logs'])->name('shopify.logs');
 Route::get('activate', [SettingsController::class, 'showForm'])->name('setup.form');
 Route::post('activate', [SettingsController::class, 'store'])->name('setup.store');

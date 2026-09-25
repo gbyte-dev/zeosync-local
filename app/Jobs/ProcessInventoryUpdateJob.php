@@ -326,9 +326,10 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                     $changeFromQuantity = $liveAvailable ?? ($operation->baseline_quantity !== null ? (int) $operation->baseline_quantity : null);
                     $idempotencyKey = $operation->operation_uuid ?? (string) \Illuminate\Support\Str::uuid();
 
+                    $skuForLog = $operation->amazon_sku ?? $mapping?->amazon_sku ?? null;
                     Log::info('INV_TRACE_JOB_08_GRAPHQL_MUTATION', [
                         'shop_id'             => $shop->id,
-                        'amazon_sku'          => $amazonSku,
+                        'amazon_sku'          => $skuForLog,
                         'mapping_id'          => $mapping?->id,
                         'shopify_product_id'  => $mapping?->shopify_product_id,
                         'shopify_variant_id'  => $mapping?->shopify_variant_id,

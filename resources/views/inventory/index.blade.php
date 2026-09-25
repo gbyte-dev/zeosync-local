@@ -809,6 +809,7 @@
         </div>
 
         <div class="tab-pane fade {{ $isMappedActive ? 'show active' : '' }}" id="mappedAmazonTab">
+            @php $mappedproducts = $mappedproducts ?? collect(); @endphp
             <div class="saas-toolbar" id="mappedToolbar" style="{{ $mappedproducts->isEmpty() ? 'display: none;' : '' }}">
                 <div class="row g-2 align-items-end">
                     <div class="col-md-4 col-12">
