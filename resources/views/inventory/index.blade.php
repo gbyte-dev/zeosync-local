@@ -2286,11 +2286,23 @@
         $('#saveAmazonProductMapping').prop('disabled', !$(this).val());
     });
 
+    function resetShopifyLocationToDefault() {
+        const defaultLocId = $('#shopifyLocation').data('default-location-id');
+        if (defaultLocId !== undefined && defaultLocId !== null && defaultLocId !== '') {
+            $('#shopifyLocation').val(defaultLocId);
+        }
+    }
+
+    $('#mapShopifyProductModal').on('show.bs.modal', function() {
+        resetShopifyLocationToDefault();
+    });
+
     $(document).on('click', '#saveProductMapping', function() {
         const shop = new URLSearchParams(window.location.search).get('shop');
         const selectedProductOpt = $('#shopifyProduct option:selected');
         const selectedVariantOpt = $('#shopifyVariant option:selected');
         const productId = $('#shopifyProduct').val();
+        const locationId = $('#shopifyLocation').val();
 
         let shopifyProductId = currentShopifyProductId || selectedProductOpt.data('shopify-product') || selectedVariantOpt.data('shopify-product-id');
         let shopifyVariantId = null;
@@ -2319,7 +2331,8 @@
                 variant_id: variantId,
                 shopify_product_id: shopifyProductId,
                 shopify_variant_id: shopifyVariantId,
-                shopify_inventory_item_id: inventoryItemId
+                shopify_inventory_item_id: inventoryItemId,
+                shopify_location_id: locationId
             },
             success: function(response) {
                 // alert(response.message);
@@ -2350,6 +2363,7 @@
     $(document).on('click', '#existingProductBtn', function() {
         $('#productActionModal').modal('hide');
         $('#amazonSku').val(selectedAmazonSku);
+        resetShopifyLocationToDefault();
         $('#mapShopifyProductModal').modal('show');
         loadShopifyProducts();
     });

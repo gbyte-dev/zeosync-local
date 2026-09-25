@@ -46,6 +46,7 @@
                 <input type="hidden" id="amazonSku">
 
                 <!-- Flex Grid for Dropdowns -->
+                <!-- Row 1: Product and Variant side-by-side -->
                 <div class="row g-2 mb-2">
                     
                     <!-- Shopify Product Dropdown -->
@@ -68,7 +69,34 @@
                         </select>
                     </div>
                     
-                </div> <!-- End Row -->
+                </div> <!-- End Row 1 -->
+
+                <!-- Row 2: Shop Location -->
+                <div class="row g-2 mb-2">
+                    <div class="col-12">
+                        <label class="form-label fw-semibold mb-1 text-dark" style="font-size: 0.85rem;">
+                            <i class="fas fa-map-marker-alt me-1 text-danger"></i> Shop Location
+                        </label>
+                        @php
+                            $modalLocations = is_array($shop->shopify_locations ?? null) ? $shop->shopify_locations : (json_decode($shop->shopify_locations ?? '[]', true) ?? []);
+                            $modalSelectedIdx = (isset($shop->selected_location_index) && isset($modalLocations[$shop->selected_location_index]))
+                                ? (int) $shop->selected_location_index
+                                : 0;
+                            $modalDefaultLocationId = $modalLocations[$modalSelectedIdx]['id'] ?? ($modalLocations[0]['id'] ?? '');
+                        @endphp
+                        <select id="shopifyLocation" class="form-select form-select-sm" data-default-location-id="{{ $modalDefaultLocationId }}">
+                            @if(!empty($modalLocations))
+                                @foreach($modalLocations as $idx => $loc)
+                                    <option value="{{ $loc['id'] }}" {{ (int)$modalSelectedIdx === (int)$idx ? 'selected' : '' }}>
+                                        {{ $loc['name'] ?? 'Location ' . ($idx + 1) }}
+                                    </option>
+                                @endforeach
+                            @else
+                                <option value="">Default Location</option>
+                            @endif
+                        </select>
+                    </div>
+                </div> <!-- End Row 2 -->
 
                 <!-- Compact Info Alert -->
                 <div class="alert alert-info py-2 px-3 mb-0 mt-3 d-flex align-items-center" style="font-size: 0.8rem;">

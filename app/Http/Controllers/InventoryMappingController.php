@@ -197,6 +197,7 @@ class InventoryMappingController extends Controller
             'shopify_product_id' => 'nullable',
             'shopify_variant_id' => 'nullable',
             'shopify_inventory_item_id' => 'nullable',
+            'shopify_location_id' => 'nullable',
         ]);
 
         $shop = $this->getActiveShopModel($request);
@@ -281,7 +282,36 @@ class InventoryMappingController extends Controller
             ], 422);
         }
 
-        $locationId = $this->resolveCurrentShopifyLocationId($shop);
+        // Resolve location: per-mapping override if provided, otherwise settings default
+        $locationId = null;
+        $requestedLocationId = $request->input('shopify_location_id');
+
+        $locations = $shop->shopify_locations ?? [];
+        if (!is_array($locations)) {
+            $locations = json_decode($locations, true) ?? [];
+        }
+
+        if (!empty($requestedLocationId) && !empty($locations)) {
+            foreach ($locations as $loc) {
+                $locId = (string) ($loc['id'] ?? '');
+                if ($locId === (string) $requestedLocationId || (basename($locId) !== '' && basename($locId) === basename((string) $requestedLocationId))) {
+                    $locationId = $locId;
+                    break;
+                }
+            }
+
+            if (!$locationId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected Shopify location is invalid or does not belong to this shop.'
+                ], 422);
+            }
+        }
+
+        if (!$locationId) {
+            $locationId = $this->resolveCurrentShopifyLocationId($shop);
+        }
+
         if (!$locationId) {
             return response()->json([
                 'success' => false,

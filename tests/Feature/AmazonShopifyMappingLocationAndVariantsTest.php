@@ -528,3 +528,106 @@ test('Dashboard mapped count remains exactly equal to Inventory Mapping visible 
 
     expect($dashboardMappedCount)->toBe(2);
 });
+
+test('Modal layout has Product and Variant side-by-side in Row 1 and Shop Location in Row 2 with settings default preselected', function () {
+    $shop = createMappingTestShop(1, 'store-a.myshopify.com', 'Store A', [
+        ['id' => '10001', 'name' => 'Main Warehouse'],
+        ['id' => '10002', 'name' => 'Secondary Warehouse'],
+    ], 1); // Selected index is 1 -> Secondary Warehouse
+
+    $renderedHtml = view('inventory.partials.map-shopify-product-modal', compact('shop'))->render();
+
+    // 1. Both Product and Variant exist in first row
+    expect($renderedHtml)->toContain('id="shopifyProduct"')
+        ->and($renderedHtml)->toContain('id="shopifyVariant"')
+        ->and($renderedHtml)->toContain('id="shopifyLocation"');
+
+    // 2. Row order: Product & Variant appear before Shop Location
+    $productPos = strpos($renderedHtml, 'id="shopifyProduct"');
+    $variantPos = strpos($renderedHtml, 'id="shopifyVariant"');
+    $locationPos = strpos($renderedHtml, 'id="shopifyLocation"');
+
+    expect($productPos)->toBeLessThan($locationPos)
+        ->and($variantPos)->toBeLessThan($locationPos);
+
+    // 3. Preselected location is index 1 (10002)
+    expect($renderedHtml)->toMatch('/<option value="10002"\s+selected>/');
+});
+
+test('User can override Shop Location for a single mapping without changing global shop settings', function () {
+    $shop = createMappingTestShop(1, 'store-a.myshopify.com', 'Store A', [
+        ['id' => 'loc_warehouse_a', 'name' => 'Warehouse A'],
+        ['id' => 'loc_warehouse_b', 'name' => 'Warehouse B'],
+    ], 0); // Settings global location is Warehouse A (index 0)
+
+    mockMappingShopAuth($shop);
+
+    $product = Product::create([
+        'shop_id' => $shop->id,
+        'shopify_id' => '999123',
+        'title' => 'Override Test Product',
+        'variants' => [],
+    ]);
+
+    // Save mapping with overridden location: loc_warehouse_b
+    $response = $this->withHeaders([
+        'Authorization' => 'Bearer token-test',
+        'Accept'        => 'application/json',
+    ])->postJson(route('inventory.save.mapping'), [
+        'shop' => $shop->shop,
+        'amazon_sku' => 'AMZ-OVERRIDE-SKU',
+        'product_id' => $product->id,
+        'shopify_product_id' => '999123',
+        'shopify_variant_id' => '999123',
+        'shopify_location_id' => 'loc_warehouse_b', // User overrides location to Warehouse B
+    ]);
+
+    $response->assertStatus(200);
+
+    // Verify mapping was saved with overridden location ID
+    $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
+        ->where('amazon_sku', 'AMZ-OVERRIDE-SKU')
+        ->first();
+
+    expect($mapping)->not->toBeNull()
+        ->and($mapping->shopify_location_id)->toBe('loc_warehouse_b');
+
+    // Verify global shop settings were NOT changed
+    $shop->refresh();
+    expect($shop->selected_location_index)->toBe(0);
+});
+
+test('Save mapping rejects an invalid or foreign location ID', function () {
+    $shop = createMappingTestShop(1, 'store-a.myshopify.com', 'Store A', [
+        ['id' => 'loc_warehouse_a', 'name' => 'Warehouse A'],
+    ], 0);
+
+    mockMappingShopAuth($shop);
+
+    $product = Product::create([
+        'shop_id' => $shop->id,
+        'shopify_id' => '999456',
+        'title' => 'Invalid Location Test',
+        'variants' => [],
+    ]);
+
+    // Submit a location ID that does not belong to the shop
+    $response = $this->withHeaders([
+        'Authorization' => 'Bearer token-test',
+        'Accept'        => 'application/json',
+    ])->postJson(route('inventory.save.mapping'), [
+        'shop' => $shop->shop,
+        'amazon_sku' => 'AMZ-INVALID-LOC-SKU',
+        'product_id' => $product->id,
+        'shopify_product_id' => '999456',
+        'shopify_variant_id' => '999456',
+        'shopify_location_id' => 'foreign_location_999',
+    ]);
+
+    $response->assertStatus(422);
+    $response->assertJson([
+        'success' => false,
+        'message' => 'Selected Shopify location is invalid or does not belong to this shop.',
+    ]);
+});
+
