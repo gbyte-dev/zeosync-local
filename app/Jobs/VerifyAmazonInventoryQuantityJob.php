@@ -125,7 +125,8 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
                 'error'   => $errMsg,
             ]);
 
-            $this->retryOrAbort($mapping, $errMsg);
+            $isFatal = $this->isPermanentFailure($errMsg);
+            $this->retryOrAbort($mapping, $errMsg, forceAbort: $isFatal);
             return;
         }
 
@@ -191,6 +192,7 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
                     'shop_id'  => $this->shopId,
                     'sku'      => $this->sku,
                     'quantity' => $liveQuantity,
+                    'attempt'  => $this->attempt,
                 ]);
             }
             return;
@@ -207,22 +209,40 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
         $this->retryOrAbort($mapping, $failureReason);
     }
 
-    private function retryOrAbort(ProductMarketplaceMapping $mapping, string $failureReason): void
+    private function isPermanentFailure(string $errorMessage): bool
     {
-        $maxAttempts = 4;
+        $lower = strtolower($errorMessage);
+        return str_contains($lower, 'invalid sku')
+            || str_contains($lower, 'unauthorized')
+            || str_contains($lower, 'invalid product type')
+            || str_contains($lower, 'invalid marketplace')
+            || str_contains($lower, 'permanently rejected');
+    }
 
-        if ($this->attempt < $maxAttempts) {
+    private function retryOrAbort(ProductMarketplaceMapping $mapping, string $failureReason, bool $forceAbort = false): void
+    {
+        $maxAttempts = 8;
+
+        if (!$forceAbort && $this->attempt < $maxAttempts) {
             $nextAttempt = $this->attempt + 1;
-            // Attempt 1 -> Attempt 2 (+35s) => T+60s
-            // Attempt 2 -> Attempt 3 (+60s) => T+120s
-            // Attempt 3 -> Attempt 4 (+60s) => T+180s
+            // Progressive reconciliation schedule:
+            // Attempt 1 -> 2: +35s (T+60s)
+            // Attempt 2 -> 3: +60s (T+120s)
+            // Attempt 3 -> 4: +60s (T+180s)
+            // Attempt 4 -> 5: +120s (T+300s / 5m)
+            // Attempt 5 -> 6: +180s (T+480s / 8m)
+            // Attempt 6 -> 7: +240s (T+720s / 12m)
+            // Attempt 7 -> 8: +300s (T+1020s / 17m)
             $delaySeconds = match ($this->attempt) {
                 1       => 35,
-                2       => 60,
-                default => 60,
+                2, 3    => 60,
+                4       => 120,
+                5       => 180,
+                6       => 240,
+                default => 300,
             };
 
-            Log::info("VerifyAmazonInventoryQuantityJob: Scheduling retry attempt {$nextAttempt} in {$delaySeconds}s.", [
+            Log::info("VerifyAmazonInventoryQuantityJob: Scheduling reconciliation attempt {$nextAttempt} in {$delaySeconds}s.", [
                 'shop_id' => $this->shopId,
                 'sku'     => $this->sku,
                 'attempt' => $this->attempt,
@@ -242,7 +262,7 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
             return;
         }
 
-        // Retries exhausted (Attempt 4 @ ~180s) -> mark mismatch / failed
+        // Retries exhausted -> mark mismatch / failed
         $fresh = $mapping->fresh();
         if ($this->isStillCurrent($fresh)) {
             $fresh->update([

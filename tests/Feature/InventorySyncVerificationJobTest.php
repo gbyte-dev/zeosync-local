@@ -421,7 +421,7 @@ it('7. FIX 2: Final attempt (Attempt 4 @ T+180s) marks mismatch if quantity stil
         100,
         'SUB-FINAL',
         $syncedAt,
-        4 // Attempt 4 (Final attempt)
+        8 // Attempt 8 (Final terminal attempt)
     );
 
     $job4->handle($amazonService);
@@ -429,7 +429,7 @@ it('7. FIX 2: Final attempt (Attempt 4 @ T+180s) marks mismatch if quantity stil
     $freshMapping = $mapping->fresh();
     expect($freshMapping->submission_status)->toBe('mismatch');
     expect($freshMapping->sync_status)->toBe('failed');
-    expect($freshMapping->error_message)->toContain('Amazon inventory quantity mismatch: expected 100, but Amazon reported 40 after 4 attempt(s).');
+    expect($freshMapping->error_message)->toContain('Amazon inventory quantity mismatch: expected 100, but Amazon reported 40 after 8 attempt(s).');
     // Audit protection: local requested quantity 100 is NOT overwritten by Amazon's 40
     expect((int) $freshMapping->quantity)->toBe(100);
 });

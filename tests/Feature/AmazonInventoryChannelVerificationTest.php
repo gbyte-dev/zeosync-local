@@ -341,8 +341,8 @@ it('Test 6: True mismatch (DEFAULT = 18 when 13 expected) exhausts retries to mi
             ],
         ]);
 
-    // Final attempt #4
-    $job = new VerifyAmazonInventoryQuantityJob($shop->id, 'SKU-CHANNEL-6', 13, 'SUB-MISMATCH-FINAL', $mapping->last_synced_at->toDateTimeString(), 4);
+    // Final attempt #8 (terminal exhaustion)
+    $job = new VerifyAmazonInventoryQuantityJob($shop->id, 'SKU-CHANNEL-6', 13, 'SUB-MISMATCH-FINAL', $mapping->last_synced_at->toDateTimeString(), 8);
     $job->handle($amazonMock);
 
     $mapping->refresh();
@@ -351,7 +351,7 @@ it('Test 6: True mismatch (DEFAULT = 18 when 13 expected) exhausts retries to mi
     expect($mapping->submission_status)->toBe('mismatch');
     expect($mapping->sync_status)->toBe('failed');
     expect($operation->status)->toBe('failed');
-    expect($operation->last_error)->toContain('Amazon inventory quantity mismatch: expected 13, but Amazon reported 18 after 4 attempt(s).');
+    expect($operation->last_error)->toContain('Amazon inventory quantity mismatch: expected 13, but Amazon reported 18 after 8 attempt(s).');
 });
 
 it('Test 7: Production reproduction (SKU: VM6DSDRYAWP8, AMAZON_NA = 18, DEFAULT = 13) confirms successfully', function () {
@@ -471,15 +471,15 @@ it('Test 9: Attempt counters remain independent between mutation job and verific
         'fulfillmentAvailability' => [['fulfillmentChannelCode' => 'DEFAULT', 'quantity' => 18]],
     ]);
 
-    // Run verification attempt 4
-    $job = new VerifyAmazonInventoryQuantityJob($shop->id, 'SKU-ATTEMPT', 13, 'SUB-ATTEMPT', $mapping->last_synced_at->toDateTimeString(), 4);
+    // Run verification attempt 8 (terminal exhaustion)
+    $job = new VerifyAmazonInventoryQuantityJob($shop->id, 'SKU-ATTEMPT', 13, 'SUB-ATTEMPT', $mapping->last_synced_at->toDateTimeString(), 8);
     $job->handle($amazonMock);
 
     $operation->refresh();
     // Mutation attempts in DB must remain 1
     expect($operation->attempts)->toBe(1);
     expect($operation->status)->toBe('failed');
-    expect($operation->last_error)->toContain('after 4 attempt(s)');
+    expect($operation->last_error)->toContain('after 8 attempt(s)');
 });
 
 it('Test 10: Superseded verification (submission_id mismatch or quantity mismatch) does not overwrite newer operation', function () {

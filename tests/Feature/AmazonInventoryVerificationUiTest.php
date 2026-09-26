@@ -538,7 +538,7 @@ test('8. True mismatch exhausts retries without modifying Shopify inventory stat
         'shopify_variant_id'        => 'V-708',
         'shopify_inventory_item_id' => 'INV-708',
         'amazon_sku'                => 'VM6DSDRYAWP8',
-        'quantity'                  => 19,
+        'quantity'                  => 21,
         'sync_status'               => 'pending',
         'submission_status'         => 'accepted',
         'submission_id'             => 'SUB-708',
@@ -551,8 +551,8 @@ test('8. True mismatch exhausts retries without modifying Shopify inventory stat
         'mapping_id'                => $mapping->id,
         'shopify_inventory_item_id' => 'INV-708',
         'amazon_sku'                => 'VM6DSDRYAWP8',
-        'desired_quantity'          => 19,
-        'baseline_quantity'         => 13,
+        'desired_quantity'          => 21,
+        'baseline_quantity'         => 19,
         'status'                    => 'awaiting_verification',
         'stage'                     => 'amazon_accepted',
     ]);
@@ -564,22 +564,22 @@ test('8. True mismatch exhausts retries without modifying Shopify inventory stat
         ->andReturn([
             'attributes' => [
                 'fulfillment_availability' => [
-                    ['fulfillment_channel_code' => 'DEFAULT', 'quantity' => 13],
+                    ['fulfillment_channel_code' => 'DEFAULT', 'quantity' => 19],
                 ],
             ],
             'fulfillmentAvailability' => [
-                ['fulfillmentChannelCode' => 'DEFAULT', 'quantity' => 13],
+                ['fulfillmentChannelCode' => 'DEFAULT', 'quantity' => 19],
             ],
         ]);
 
-    // Attempt 4 (terminal)
+    // Attempt 8 (terminal exhaustion)
     $job = new \App\Jobs\VerifyAmazonInventoryQuantityJob(
         shopId: $shop->id,
         sku: 'VM6DSDRYAWP8',
-        expectedQuantity: 19,
+        expectedQuantity: 21,
         submissionId: 'SUB-708',
         syncedAt: $syncedTime,
-        attempt: 4
+        attempt: 8
     );
 
     $job->handle($amazonServiceMock);
@@ -589,7 +589,171 @@ test('8. True mismatch exhausts retries without modifying Shopify inventory stat
 
     expect($mapping->submission_status)->toBe('mismatch')
         ->and($mapping->sync_status)->toBe('failed')
-        ->and($mapping->error_message)->toContain('expected 19, but Amazon reported 13 after 4 attempt(s)')
+        ->and($mapping->error_message)->toContain('expected 21, but Amazon reported 19 after 8 attempt(s)')
         ->and($op->status)->toBe('failed')
-        ->and($op->last_error)->toContain('expected 19, but Amazon reported 13 after 4 attempt(s)');
+        ->and($op->last_error)->toContain('expected 21, but Amazon reported 19 after 8 attempt(s)');
+});
+
+test('9. Extended asynchronous reconciliation: Amazon reports 19 on attempts 1-4, then confirms 21 on attempt 6', function () {
+    $shop = createUiTestShop(709);
+
+    $syncedTime = now()->toDateTimeString();
+
+    $mapping = ProductMarketplaceMapping::create([
+        'shop_id'                   => $shop->id,
+        'shopify_variant_id'        => 'V-709',
+        'shopify_inventory_item_id' => 'INV-709',
+        'amazon_sku'                => 'VM6DSDRYAWP8',
+        'quantity'                  => 21,
+        'sync_status'               => 'pending',
+        'submission_status'         => 'accepted',
+        'submission_id'             => 'SUB-709',
+        'last_synced_at'            => $syncedTime,
+    ]);
+
+    $op = InventorySyncOperation::create([
+        'operation_uuid'            => 'op-709-uuid',
+        'shop_id'                   => $shop->id,
+        'mapping_id'                => $mapping->id,
+        'shopify_inventory_item_id' => 'INV-709',
+        'amazon_sku'                => 'VM6DSDRYAWP8',
+        'desired_quantity'          => 21,
+        'baseline_quantity'         => 19,
+        'status'                    => 'awaiting_verification',
+        'stage'                     => 'amazon_accepted',
+    ]);
+
+    $amazonServiceMock = Mockery::mock(\App\Services\AmazonService::class);
+    $amazonServiceMock->shouldReceive('checkAmazonListing')
+        ->withArgs(fn($s, $sku) => $s->id === $shop->id && $sku === 'VM6DSDRYAWP8')
+        ->once()
+        ->andReturn([
+            'attributes' => [
+                'fulfillment_availability' => [
+                    ['fulfillment_channel_code' => 'DEFAULT', 'quantity' => 21],
+                ],
+            ],
+            'fulfillmentAvailability' => [
+                ['fulfillmentChannelCode' => 'DEFAULT', 'quantity' => 21],
+            ],
+        ]);
+
+    // Attempt 6 confirms 21
+    $job = new \App\Jobs\VerifyAmazonInventoryQuantityJob(
+        shopId: $shop->id,
+        sku: 'VM6DSDRYAWP8',
+        expectedQuantity: 21,
+        submissionId: 'SUB-709',
+        syncedAt: $syncedTime,
+        attempt: 6
+    );
+
+    $job->handle($amazonServiceMock);
+
+    $mapping->refresh();
+    $op->refresh();
+
+    expect($mapping->submission_status)->toBe('confirmed')
+        ->and($mapping->sync_status)->toBe('success')
+        ->and($op->status)->toBe('completed')
+        ->and($op->stage)->toBe('completed');
+});
+
+test('10. Superseded race: Operation A (21) abandoned when Operation B updates to 25', function () {
+    $shop = createUiTestShop(710);
+
+    $timeA = now()->subMinutes(5)->toDateTimeString();
+    $timeB = now()->toDateTimeString();
+
+    // Mapping has moved to 25 under Operation B
+    $mapping = ProductMarketplaceMapping::create([
+        'shop_id'                   => $shop->id,
+        'shopify_variant_id'        => 'V-710',
+        'shopify_inventory_item_id' => 'INV-710',
+        'amazon_sku'                => 'VM6DSDRYAWP8',
+        'quantity'                  => 25,
+        'sync_status'               => 'pending',
+        'submission_status'         => 'accepted',
+        'submission_id'             => 'SUB-OP-B',
+        'last_synced_at'            => $timeB,
+    ]);
+
+    $amazonServiceMock = Mockery::mock(\App\Services\AmazonService::class);
+    // Should NOT call Amazon because guard detects quantity & submission_id mismatch
+    $amazonServiceMock->shouldNotReceive('checkAmazonListing');
+
+    // Old Job for Operation A (expected 21, submissionId SUB-OP-A)
+    $job = new \App\Jobs\VerifyAmazonInventoryQuantityJob(
+        shopId: $shop->id,
+        sku: 'VM6DSDRYAWP8',
+        expectedQuantity: 21,
+        submissionId: 'SUB-OP-A',
+        syncedAt: $timeA,
+        attempt: 2
+    );
+
+    $job->handle($amazonServiceMock);
+
+    $mapping->refresh();
+    // Mapping quantity must remain 25, never overwritten to 21
+    expect($mapping->quantity)->toBe('25')
+        ->and($mapping->submission_id)->toBe('SUB-OP-B');
+});
+
+test('11. Permanent Amazon failure stops retries immediately', function () {
+    $shop = createUiTestShop(711);
+
+    $syncedTime = now()->toDateTimeString();
+
+    $mapping = ProductMarketplaceMapping::create([
+        'shop_id'                   => $shop->id,
+        'shopify_variant_id'        => 'V-711',
+        'shopify_inventory_item_id' => 'INV-711',
+        'amazon_sku'                => 'INVALID-SKU',
+        'quantity'                  => 21,
+        'sync_status'               => 'pending',
+        'submission_status'         => 'accepted',
+        'submission_id'             => 'SUB-711',
+        'last_synced_at'            => $syncedTime,
+    ]);
+
+    $op = InventorySyncOperation::create([
+        'operation_uuid'            => 'op-711-uuid',
+        'shop_id'                   => $shop->id,
+        'mapping_id'                => $mapping->id,
+        'shopify_inventory_item_id' => 'INV-711',
+        'amazon_sku'                => 'INVALID-SKU',
+        'desired_quantity'          => 21,
+        'baseline_quantity'         => 19,
+        'status'                    => 'awaiting_verification',
+        'stage'                     => 'amazon_accepted',
+    ]);
+
+    $amazonServiceMock = Mockery::mock(\App\Services\AmazonService::class);
+    $amazonServiceMock->shouldReceive('checkAmazonListing')
+        ->withArgs(fn($s, $sku) => $s->id === $shop->id && $sku === 'INVALID-SKU')
+        ->once()
+        ->andReturn([
+            'success' => false,
+            'error'   => 'Invalid SKU: SKU does not exist on Amazon marketplace',
+        ]);
+
+    // Attempt 1 with permanent error should force abort immediately
+    $job = new \App\Jobs\VerifyAmazonInventoryQuantityJob(
+        shopId: $shop->id,
+        sku: 'INVALID-SKU',
+        expectedQuantity: 21,
+        submissionId: 'SUB-711',
+        syncedAt: $syncedTime,
+        attempt: 1
+    );
+
+    $job->handle($amazonServiceMock);
+
+    $mapping->refresh();
+    $op->refresh();
+
+    expect($mapping->submission_status)->toBe('mismatch')
+        ->and($mapping->sync_status)->toBe('failed')
+        ->and($op->status)->toBe('failed');
 });
