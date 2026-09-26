@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\ShopifyController;
 use App\Models\AdminSetting;
+use App\Models\InventorySyncOperation;
 use App\Models\ProductMarketplaceMapping;
 use App\Models\Shop;
 use App\Services\AmazonInventoryReportService;
@@ -193,8 +194,14 @@ class InventoryController extends ShopifyController
 
         // Overlay authoritative database mapping state onto cached Amazon products
         $mappings = ProductMarketplaceMapping::where('shop_id', $shop->id)
-            ->get(['id', 'amazon_sku', 'shopify_variant_id', 'shopify_product_id', 'quantity'])
+            ->get(['id', 'amazon_sku', 'shopify_variant_id', 'shopify_product_id', 'quantity', 'submission_status', 'sync_status'])
             ->keyBy(fn($m) => (string) $m->amazon_sku);
+
+        $activeVerifications = InventorySyncOperation::where('shop_id', $shop->id)
+            ->whereIn('status', ['awaiting_verification', 'processing'])
+            ->pluck('mapping_id')
+            ->filter()
+            ->flip();
 
         if (is_array($products)) {
             foreach ($products as &$item) {
@@ -205,12 +212,24 @@ class InventoryController extends ShopifyController
                     !empty($mapping->shopify_variant_id) &&
                     !empty($mapping->amazon_sku);
 
+                $isVerifying = false;
+                if ($isMapped) {
+                    $isVerifying = ($mapping->submission_status === 'accepted')
+                        || isset($activeVerifications[$mapping->id]);
+                }
+
                 $item['is_mapped'] = $isMapped;
                 $item['mapping_id'] = $isMapped ? $mapping->id : null;
                 $item['mapped_shopify_variant_id'] = $isMapped ? $mapping->shopify_variant_id : null;
                 $item['mapped_shopify_product_id'] = $isMapped ? $mapping->shopify_product_id : null;
-                if ($isMapped && $mapping->quantity !== null && $mapping->quantity !== '') {
-                    $item['quantity'] = (int) $mapping->quantity;
+                $item['is_verifying'] = $isVerifying;
+                $item['submission_status'] = $isMapped ? $mapping->submission_status : null;
+
+                // Only overlay mapping quantity if verification is NOT active and mapping has not failed/mismatched
+                if ($isMapped && !$isVerifying && !in_array($mapping->submission_status, ['mismatch', 'failed', 'rejected'], true)) {
+                    if ($mapping->quantity !== null && $mapping->quantity !== '') {
+                        $item['quantity'] = (int) $mapping->quantity;
+                    }
                 }
             }
             unset($item);

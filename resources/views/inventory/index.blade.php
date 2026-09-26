@@ -1167,6 +1167,10 @@
 
     function switchToMappedTab() {
         activeTab = 'mapped';
+        if (window._amazonVerifyPollTimer) {
+            clearTimeout(window._amazonVerifyPollTimer);
+            window._amazonVerifyPollTimer = null;
+        }
         hideAmazonLoader();
         renderMappedTable([], true);
         refreshMappingUI();
@@ -1586,6 +1590,10 @@
 
     function switchToShopifyTab() {
         activeTab = 'shopify';
+        if (window._amazonVerifyPollTimer) {
+            clearTimeout(window._amazonVerifyPollTimer);
+            window._amazonVerifyPollTimer = null;
+        }
 
         // Hide Amazon loader when user leaves Amazon tab
         hideAmazonLoader();
@@ -1766,9 +1774,22 @@
                     {
                         data: 'qty',
                         render: function(data, type, row) {
-                            let qty = row.quantity ?? row.qty ?? 0;
+                            let qty = (row.quantity !== null && row.quantity !== undefined) ? row.quantity : (row.qty ?? 0);
                             if (type === 'sort' || type === 'filter') return qty;
-                            return `<input type="number" class="form-control form-control-sm qty-input amazon-qty" value="${qty}" data-sku="${row.sku}">`;
+                            let spinner = row.is_verifying ? `
+                                <span class="spinner-border spinner-border-sm text-primary flex-shrink-0 ms-1"
+                                      role="status"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="top"
+                                      title="Amazon verification in progress"
+                                      style="width: 14px; height: 14px; border-width: 2px; cursor: help;">
+                                    <span class="visually-hidden">Amazon verification in progress</span>
+                                </span>` : '';
+                            return `
+                                <div class="d-flex align-items-center">
+                                    <input type="number" class="form-control form-control-sm qty-input amazon-qty" value="${qty}" data-sku="${row.sku}">
+                                    ${spinner}
+                                </div>`;
                         }
                     },
                     {
@@ -1804,6 +1825,21 @@
 
         // 2. Universally clear existing DOM rows and inject the new data array for every load
         dtAmazon.clear().rows.add(data).draw();
+
+        const hasVerifying = Array.isArray(data) && data.some(item => item.is_verifying === true);
+        if (hasVerifying && activeTab === 'amazon') {
+            if (window._amazonVerifyPollTimer) {
+                clearTimeout(window._amazonVerifyPollTimer);
+            }
+            window._amazonVerifyPollTimer = setTimeout(function() {
+                if (activeTab === 'amazon') {
+                    loadAmazon(true);
+                }
+            }, 10000);
+        } else if (!hasVerifying && window._amazonVerifyPollTimer) {
+            clearTimeout(window._amazonVerifyPollTimer);
+            window._amazonVerifyPollTimer = null;
+        }
 
         if (!isLoading) {
             refreshMappingUI();
@@ -2218,9 +2254,10 @@
                         });
                     }, 2000);
 
-                    // Refresh Amazon data if Amazon tab is active
+                    // Refresh Amazon data if Amazon tab is active, or invalidate browser cache
+                    amazonProductsCache = null;
                     if (activeTab === 'amazon') {
-                        loadAmazon();
+                        loadAmazon(true);
                     }
                 },
 
