@@ -309,11 +309,52 @@ class AmazonService
             try {
                 // Fetch latest listing
                 $listing = $this->checkAmazonListing($shop, $sku);
+                $isLookupFailure = isset($listing['success']) && $listing['success'] === false;
+                $actualError = $isLookupFailure ? ($listing['error'] ?? 'Unknown listing lookup error') : null;
 
-                // Product Type
-                $productType =
-                    $listing['summaries'][0]['productType']
-                    ?? throw new \Exception("Product type not found for SKU: {$sku}");
+                if ($isLookupFailure) {
+                    Log::warning('Amazon Listing Lookup Failed', [
+                        'shop_id'        => $shop->id,
+                        'sku'            => $sku,
+                        'marketplace_id' => $shop->amazon_marketplace_id,
+                        'error'          => $actualError,
+                    ]);
+                }
+
+                // Controlled Product Type resolution hierarchy:
+                // 1. Live Amazon listing summaries productType
+                // 2. Existing mapped Amazon Product Type
+                // 3. Existing related product/schema product type
+                $liveProductType = (!$isLookupFailure && !empty($listing['summaries'][0]['productType']))
+                    ? trim((string) $listing['summaries'][0]['productType'])
+                    : null;
+
+                $mappingProductType = (!empty($mapping?->amazon_product_type))
+                    ? trim((string) $mapping->amazon_product_type)
+                    : null;
+
+                $relatedProductType = (!empty($mapping?->product?->product_type))
+                    ? trim((string) $mapping->product->product_type)
+                    : null;
+
+                $productType = $liveProductType ?: ($mappingProductType ?: $relatedProductType);
+
+                Log::info('Amazon Product Type Resolution', [
+                    'shop_id'               => $shop->id,
+                    'sku'                   => $sku,
+                    'marketplace_id'        => $shop->amazon_marketplace_id,
+                    'sp_api_product_type'   => $liveProductType,
+                    'mapping_product_type'  => $mappingProductType,
+                    'related_product_type'  => $relatedProductType,
+                    'resolved_product_type' => $productType,
+                ]);
+
+                if (empty($productType)) {
+                    if ($isLookupFailure) {
+                        throw new \Exception("Amazon listing lookup failed for SKU {$sku}: {$actualError}");
+                    }
+                    throw new \Exception("Amazon product type could not be resolved for SKU: {$sku}");
+                }
 
                 // Fulfillment Channel
                 $fulfillmentChannel =
@@ -438,6 +479,14 @@ class AmazonService
                             );
 
                             $locationId = $mapping->shopify_location_id;
+
+                            if (!$locationId) {
+                                $locations = $shop->shopify_locations ?? [];
+                                $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+                                    ? (int) $shop->selected_location_index
+                                    : 0;
+                                $locationId = $locations[$selectedIndex]['id'] ?? null;
+                            }
 
                             if (!$locationId) {
                                 Log::warning('MAPPING SHOPIFY LOCATION NOT FOUND', [
