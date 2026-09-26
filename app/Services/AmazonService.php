@@ -1064,10 +1064,11 @@ class AmazonService
     {
         try {
             $client = $this->getDbConnectorFromCredentials($shop);
+            $marketplaceId = !empty($shop->amazon_marketplace_id) ? $shop->amazon_marketplace_id : 'ATVPDKIKX0DER';
             $response = $client->getListingsItem(
                 sellerId: $shop->amazon_seller_id,
                 sku: $sku,
-                marketplaceIds: ['ATVPDKIKX0DER'],
+                marketplaceIds: [$marketplaceId],
                 includedData: [
                     'attributes',
                     'issues',
