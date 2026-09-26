@@ -1496,7 +1496,10 @@
         }
 
         amazonLoading = true;
-        showAmazonLoader();
+        // Only display full-table loader on initial load when no data exists yet
+        if (!amazonProductsCache && (!dtAmazon || dtAmazon.rows().count() === 0)) {
+            showAmazonLoader();
+        }
 
         const shop = new URLSearchParams(window.location.search).get('shop');
 
@@ -1583,8 +1586,10 @@
             return;
         }
 
-        // No browser cache → fetch in background + show loader
-        showAmazonLoader();
+        // No browser cache → fetch in background (only show full loader if table empty)
+        if (!dtAmazon || dtAmazon.rows().count() === 0) {
+            showAmazonLoader();
+        }
         loadAmazon();
     }
 
@@ -1776,8 +1781,9 @@
                         render: function(data, type, row) {
                             let qty = (row.quantity !== null && row.quantity !== undefined) ? row.quantity : (row.qty ?? 0);
                             if (type === 'sort' || type === 'filter') return qty;
-                            let spinner = row.is_verifying ? `
-                                <span class="spinner-border spinner-border-sm text-primary flex-shrink-0 ms-1"
+                            let isUpdatingOrVerifying = row.is_verifying || (typeof activeAmazonUpdatingSkus !== 'undefined' && !!activeAmazonUpdatingSkus[String(row.sku)]);
+                            let spinner = isUpdatingOrVerifying ? `
+                                <span class="spinner-border spinner-border-sm text-primary flex-shrink-0 ms-1 zeosync-row-spinner"
                                       role="status"
                                       data-bs-toggle="tooltip"
                                       data-bs-placement="top"
@@ -1823,10 +1829,18 @@
             });
         }
 
-        // 2. Universally clear existing DOM rows and inject the new data array for every load
-        dtAmazon.clear().rows.add(data).draw();
+        if (Array.isArray(data) && typeof activeAmazonUpdatingSkus !== 'undefined') {
+            data.forEach(item => {
+                if (!item.is_verifying && activeAmazonUpdatingSkus[String(item.sku)]) {
+                    delete activeAmazonUpdatingSkus[String(item.sku)];
+                }
+            });
+        }
 
-        const hasVerifying = Array.isArray(data) && data.some(item => item.is_verifying === true);
+        // 2. Universally clear existing DOM rows and inject the new data array for every load (preserve pagination)
+        dtAmazon.clear().rows.add(data).draw(false);
+
+        const hasVerifying = Array.isArray(data) && (data.some(item => item.is_verifying === true) || (typeof activeAmazonUpdatingSkus !== 'undefined' && Object.keys(activeAmazonUpdatingSkus).length > 0));
         if (hasVerifying && activeTab === 'amazon') {
             if (window._amazonVerifyPollTimer) {
                 clearTimeout(window._amazonVerifyPollTimer);
@@ -2146,6 +2160,8 @@
         });
     });
 
+    const activeAmazonUpdatingSkus = {};
+
     $(document).on('click', '.update-amazon-qty', function() {
 
         const button = $(this);
@@ -2154,13 +2170,36 @@
         const sku = button.data('sku');
         const quantity = qtyInput.val();
 
+        if (quantity === '' || quantity === null || quantity === undefined) {
+            showToast('Please enter a valid numeric quantity before updating.', 'warning');
+            qtyInput.focus();
+            return;
+        }
+
         button.prop('disabled', true).text('Updating...');
         qtyInput.prop('disabled', true);
+
+        // Immediate row-level spinner
+        activeAmazonUpdatingSkus[String(sku)] = true;
+        let inputContainer = qtyInput.parent();
+        if (inputContainer.find('.zeosync-row-spinner').length === 0) {
+            inputContainer.append(`
+                <span class="spinner-border spinner-border-sm text-primary flex-shrink-0 ms-1 zeosync-row-spinner"
+                      role="status"
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="top"
+                      title="Amazon verification in progress"
+                      style="width: 14px; height: 14px; border-width: 2px; cursor: help;">
+                    <span class="visually-hidden">Amazon verification in progress</span>
+                </span>
+            `);
+            initTooltips();
+        }
 
         const shop = new URLSearchParams(window.location.search).get('shop');
 
         $.ajax({
-            url: `${window.location.origin}/inventory/amazon/${sku}/update-quantity?shop=${encodeURIComponent(shop)}`,
+            url: `${window.location.origin}/inventory/amazon/${encodeURIComponent(sku)}/update-quantity?shop=${encodeURIComponent(shop)}`,
             type: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -2169,19 +2208,17 @@
                 quantity: quantity
             },
             success: function(response) {
-                Swal.fire({
-                    text: 'Inventory updated successfully. Latest inventory will reflect in the app in approximately 15 minutes.',
-                    confirmButtonText: 'OK'
-                });
+                showToast('Amazon inventory update submitted. Verification in progress.', 'success');
+                // Silent refresh of Amazon data
+                loadAmazon(true);
             },
             error: function(xhr) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Update Failed',
-                    text: xhr.responseJSON?.message ??
-                        'Inventory update failed.',
-                    confirmButtonText: 'OK'
-                });
+                delete activeAmazonUpdatingSkus[String(sku)];
+                inputContainer.find('.zeosync-row-spinner').remove();
+                showToast(
+                    xhr.responseJSON?.message ?? 'Inventory update failed.',
+                    'danger'
+                );
             },
             complete: function() {
                 button.prop('disabled', false).text('Update');

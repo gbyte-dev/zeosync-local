@@ -340,3 +340,256 @@ test('4. Amazon endpoint handles unmapped products safely without setting is_ver
         ->and($product['is_verifying'])->toBeFalse()
         ->and($product['quantity'])->toBe(50);
 });
+
+test('5. Multi-SKU simultaneous updates: SKU A & SKU B verify independently while SKU C is normal', function () {
+    $shop = createUiTestShop(705);
+
+    $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}";
+    Cache::put($cacheKey, [
+        ['sku' => 'SKU-A', 'title' => 'Product A', 'quantity' => 19, 'status' => 'active'],
+        ['sku' => 'SKU-B', 'title' => 'Product B', 'quantity' => 30, 'status' => 'active'],
+        ['sku' => 'SKU-C', 'title' => 'Product C', 'quantity' => 14, 'status' => 'active'],
+    ], now()->addMinutes(20));
+
+    Cache::put("amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}", [
+        'refreshing'     => false,
+        'sync_completed' => true,
+        'last_synced_at' => now()->toIso8601String(),
+    ], now()->addMinutes(20));
+
+    // Mapping A: accepted / verifying
+    $mappingA = ProductMarketplaceMapping::create([
+        'shop_id'                   => $shop->id,
+        'shopify_variant_id'        => 'V-A',
+        'shopify_inventory_item_id' => 'INV-A',
+        'amazon_sku'                => 'SKU-A',
+        'quantity'                  => 25,
+        'sync_status'               => 'success',
+        'submission_status'         => 'accepted',
+        'submission_id'             => 'SUB-A',
+    ]);
+
+    // Mapping B: active verification operation in DB
+    $mappingB = ProductMarketplaceMapping::create([
+        'shop_id'                   => $shop->id,
+        'shopify_variant_id'        => 'V-B',
+        'shopify_inventory_item_id' => 'INV-B',
+        'amazon_sku'                => 'SKU-B',
+        'quantity'                  => 35,
+        'sync_status'               => 'pending',
+        'submission_status'         => 'accepted',
+    ]);
+
+    InventorySyncOperation::create([
+        'operation_uuid'            => 'uuid-op-b',
+        'shop_id'                   => $shop->id,
+        'mapping_id'                => $mappingB->id,
+        'shopify_inventory_item_id' => 'INV-B',
+        'amazon_sku'                => 'SKU-B',
+        'desired_quantity'          => 35,
+        'baseline_quantity'         => 30,
+        'status'                    => 'awaiting_verification',
+        'stage'                     => 'amazon_accepted',
+    ]);
+
+    // Mapping C: confirmed, normal
+    $mappingC = ProductMarketplaceMapping::create([
+        'shop_id'                   => $shop->id,
+        'shopify_variant_id'        => 'V-C',
+        'shopify_inventory_item_id' => 'INV-C',
+        'amazon_sku'                => 'SKU-C',
+        'quantity'                  => 14,
+        'sync_status'               => 'success',
+        'submission_status'         => 'confirmed',
+    ]);
+
+    $response = $this->withSession(authUiSession($shop))
+        ->getJson("/inventory/amazon?shop={$shop->shop}");
+
+    $response->assertOk();
+    $products = collect($response->json('products'))->keyBy('sku');
+
+    expect($products['SKU-A']['is_verifying'])->toBeTrue()
+        ->and($products['SKU-B']['is_verifying'])->toBeTrue()
+        ->and($products['SKU-C']['is_verifying'])->toBeFalse();
+});
+
+test('6. Page refresh restores row-level verification from backend active operations', function () {
+    $shop = createUiTestShop(706);
+
+    $cacheKey = "amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}";
+    Cache::put($cacheKey, [
+        ['sku' => 'VM6DSDRYAWP8', 'title' => 'Target Product', 'quantity' => 13, 'status' => 'active'],
+    ], now()->addMinutes(20));
+
+    Cache::put("amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}", [
+        'refreshing'     => false,
+        'sync_completed' => true,
+        'last_synced_at' => now()->toIso8601String(),
+    ], now()->addMinutes(20));
+
+    $mapping = ProductMarketplaceMapping::create([
+        'shop_id'                   => $shop->id,
+        'shopify_variant_id'        => 'V-VM6',
+        'shopify_inventory_item_id' => 'INV-VM6',
+        'amazon_sku'                => 'VM6DSDRYAWP8',
+        'quantity'                  => 19,
+        'sync_status'               => 'success',
+        'submission_status'         => 'accepted',
+        'submission_id'             => 'SUB-VM6',
+    ]);
+
+    InventorySyncOperation::create([
+        'operation_uuid'            => 'op-vm6-uuid',
+        'shop_id'                   => $shop->id,
+        'mapping_id'                => $mapping->id,
+        'shopify_inventory_item_id' => 'INV-VM6',
+        'amazon_sku'                => 'VM6DSDRYAWP8',
+        'desired_quantity'          => 19,
+        'baseline_quantity'         => 13,
+        'status'                    => 'awaiting_verification',
+        'stage'                     => 'amazon_accepted',
+    ]);
+
+    $response = $this->withSession(authUiSession($shop))
+        ->getJson("/inventory/amazon?shop={$shop->shop}");
+
+    $response->assertOk();
+    $data = $response->json();
+    $product = $data['products'][0];
+
+    expect($product['sku'])->toBe('VM6DSDRYAWP8')
+        ->and($product['is_verifying'])->toBeTrue()
+        ->and($product['quantity'])->toBe(13); // Displays live quantity while verifying
+});
+
+test('7. Eventual consistency: verification confirms 19 when Amazon propagates on later attempt', function () {
+    $shop = createUiTestShop(707);
+
+    $syncedTime = now()->toDateTimeString();
+
+    $mapping = ProductMarketplaceMapping::create([
+        'shop_id'                   => $shop->id,
+        'shopify_variant_id'        => 'V-707',
+        'shopify_inventory_item_id' => 'INV-707',
+        'amazon_sku'                => 'VM6DSDRYAWP8',
+        'quantity'                  => 19,
+        'sync_status'               => 'pending',
+        'submission_status'         => 'accepted',
+        'submission_id'             => 'SUB-707',
+        'last_synced_at'            => $syncedTime,
+    ]);
+
+    $op = InventorySyncOperation::create([
+        'operation_uuid'            => 'op-707-uuid',
+        'shop_id'                   => $shop->id,
+        'mapping_id'                => $mapping->id,
+        'shopify_inventory_item_id' => 'INV-707',
+        'amazon_sku'                => 'VM6DSDRYAWP8',
+        'desired_quantity'          => 19,
+        'baseline_quantity'         => 13,
+        'status'                    => 'awaiting_verification',
+        'stage'                     => 'amazon_accepted',
+    ]);
+
+    $amazonServiceMock = Mockery::mock(\App\Services\AmazonService::class);
+    $amazonServiceMock->shouldReceive('checkAmazonListing')
+        ->withArgs(fn($s, $sku) => $s->id === $shop->id && $sku === 'VM6DSDRYAWP8')
+        ->once()
+        ->andReturn([
+            'attributes' => [
+                'fulfillment_availability' => [
+                    ['fulfillment_channel_code' => 'DEFAULT', 'quantity' => 19],
+                ],
+            ],
+            'fulfillmentAvailability' => [
+                ['fulfillmentChannelCode' => 'AMAZON_NA', 'quantity' => 18],
+                ['fulfillmentChannelCode' => 'DEFAULT', 'quantity' => 19],
+            ],
+        ]);
+
+    $job = new \App\Jobs\VerifyAmazonInventoryQuantityJob(
+        shopId: $shop->id,
+        sku: 'VM6DSDRYAWP8',
+        expectedQuantity: 19,
+        submissionId: 'SUB-707',
+        syncedAt: $syncedTime,
+        attempt: 3
+    );
+
+    $job->handle($amazonServiceMock);
+
+    $mapping->refresh();
+    $op->refresh();
+
+    expect($mapping->submission_status)->toBe('confirmed')
+        ->and($mapping->sync_status)->toBe('success')
+        ->and($op->status)->toBe('completed')
+        ->and($op->stage)->toBe('completed');
+});
+
+test('8. True mismatch exhausts retries without modifying Shopify inventory state', function () {
+    $shop = createUiTestShop(708);
+
+    $syncedTime = now()->toDateTimeString();
+
+    $mapping = ProductMarketplaceMapping::create([
+        'shop_id'                   => $shop->id,
+        'shopify_variant_id'        => 'V-708',
+        'shopify_inventory_item_id' => 'INV-708',
+        'amazon_sku'                => 'VM6DSDRYAWP8',
+        'quantity'                  => 19,
+        'sync_status'               => 'pending',
+        'submission_status'         => 'accepted',
+        'submission_id'             => 'SUB-708',
+        'last_synced_at'            => $syncedTime,
+    ]);
+
+    $op = InventorySyncOperation::create([
+        'operation_uuid'            => 'op-708-uuid',
+        'shop_id'                   => $shop->id,
+        'mapping_id'                => $mapping->id,
+        'shopify_inventory_item_id' => 'INV-708',
+        'amazon_sku'                => 'VM6DSDRYAWP8',
+        'desired_quantity'          => 19,
+        'baseline_quantity'         => 13,
+        'status'                    => 'awaiting_verification',
+        'stage'                     => 'amazon_accepted',
+    ]);
+
+    $amazonServiceMock = Mockery::mock(\App\Services\AmazonService::class);
+    $amazonServiceMock->shouldReceive('checkAmazonListing')
+        ->withArgs(fn($s, $sku) => $s->id === $shop->id && $sku === 'VM6DSDRYAWP8')
+        ->once()
+        ->andReturn([
+            'attributes' => [
+                'fulfillment_availability' => [
+                    ['fulfillment_channel_code' => 'DEFAULT', 'quantity' => 13],
+                ],
+            ],
+            'fulfillmentAvailability' => [
+                ['fulfillmentChannelCode' => 'DEFAULT', 'quantity' => 13],
+            ],
+        ]);
+
+    // Attempt 4 (terminal)
+    $job = new \App\Jobs\VerifyAmazonInventoryQuantityJob(
+        shopId: $shop->id,
+        sku: 'VM6DSDRYAWP8',
+        expectedQuantity: 19,
+        submissionId: 'SUB-708',
+        syncedAt: $syncedTime,
+        attempt: 4
+    );
+
+    $job->handle($amazonServiceMock);
+
+    $mapping->refresh();
+    $op->refresh();
+
+    expect($mapping->submission_status)->toBe('mismatch')
+        ->and($mapping->sync_status)->toBe('failed')
+        ->and($mapping->error_message)->toContain('expected 19, but Amazon reported 13 after 4 attempt(s)')
+        ->and($op->status)->toBe('failed')
+        ->and($op->last_error)->toContain('expected 19, but Amazon reported 13 after 4 attempt(s)');
+});

@@ -213,7 +213,7 @@ class InventoryController extends ShopifyController
                     !empty($mapping->amazon_sku);
 
                 $isVerifying = false;
-                if ($isMapped) {
+                if ($mapping) {
                     $isVerifying = ($mapping->submission_status === 'accepted')
                         || isset($activeVerifications[$mapping->id]);
                 }
@@ -223,7 +223,7 @@ class InventoryController extends ShopifyController
                 $item['mapped_shopify_variant_id'] = $isMapped ? $mapping->shopify_variant_id : null;
                 $item['mapped_shopify_product_id'] = $isMapped ? $mapping->shopify_product_id : null;
                 $item['is_verifying'] = $isVerifying;
-                $item['submission_status'] = $isMapped ? $mapping->submission_status : null;
+                $item['submission_status'] = $mapping ? $mapping->submission_status : null;
 
                 // Only overlay mapping quantity if verification is NOT active and mapping has not failed/mismatched
                 if ($isMapped && !$isVerifying && !in_array($mapping->submission_status, ['mismatch', 'failed', 'rejected'], true)) {
