@@ -356,10 +356,25 @@ class AmazonService
                     throw new \Exception("Amazon product type could not be resolved for SKU: {$sku}");
                 }
 
-                // Fulfillment Channel
-                $fulfillmentChannel =
-                    $listing['attributes']['fulfillment_availability'][0]['fulfillment_channel_code']
-                    ?? 'DEFAULT';
+                // Resolve Authoritative Fulfillment Channel
+                $resolver = app(AmazonFulfillmentChannelResolver::class);
+                $resolution = $resolver->resolve($mapping, $quantity, $listing);
+                $fulfillmentChannel = $resolution['channel'];
+
+                if (empty($fulfillmentChannel)) {
+                    if ($resolution['source'] === 'ambiguous') {
+                        throw new \Exception("Ambiguous Amazon fulfillment channel for SKU {$sku}: multiple channels match quantity {$quantity}.");
+                    }
+                    $normalized = $resolver->extractNormalizedChannels($listing);
+                    $distinct = array_values(array_unique(array_filter(array_column($normalized, 'fulfillment_channel_code'))));
+                    if (count($distinct) === 1) {
+                        $fulfillmentChannel = $distinct[0];
+                    } elseif (empty($distinct)) {
+                        $fulfillmentChannel = 'DEFAULT';
+                    } else {
+                        $fulfillmentChannel = in_array('DEFAULT', $distinct, true) ? 'DEFAULT' : $distinct[0];
+                    }
+                }
 
                 // Connector
                 $connector = $this->getDbConnectorFromCredentials($shop);

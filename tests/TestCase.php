@@ -87,6 +87,12 @@ abstract class TestCase extends BaseTestCase
             });
         }
 
+        if (Schema::hasTable('product_marketplace_mappings') && !Schema::hasColumn('product_marketplace_mappings', 'fulfillment_channel_code')) {
+            Schema::table('product_marketplace_mappings', function (Blueprint $table) {
+                $table->string('fulfillment_channel_code')->nullable();
+            });
+        }
+
         if (Schema::hasTable('inventory_sync_operations')) {
             if (!Schema::hasColumn('inventory_sync_operations', 'baseline_quantity')) {
                 Schema::table('inventory_sync_operations', function (Blueprint $table) {

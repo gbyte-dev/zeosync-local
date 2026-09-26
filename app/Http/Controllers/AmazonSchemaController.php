@@ -651,11 +651,24 @@ class AmazonSchemaController extends Controller
                 ], 422);
             }
 
+            $channelCode = $payload['fulfillment_availability'][0]['fulfillment_channel_code']
+                ?? $request->payload['fulfillment_availability'][0]['fulfillment_channel_code']
+                ?? 'DEFAULT';
+
             // Save Smart Payload for future mapping
             AmazonProduct::updateOrCreate(
                 ['product_id' => $product->id],
-                ['smart_payload' => json_encode($request->payload, JSON_UNESCAPED_SLASHES)]
+                [
+                    'smart_payload' => json_encode($request->payload, JSON_UNESCAPED_SLASHES),
+                    'sku'           => $sku,
+                ]
             );
+
+            ProductMarketplaceMapping::where('shop_id', $shop->id)
+                ->where('amazon_sku', $sku)
+                ->update([
+                    'fulfillment_channel_code' => $channelCode,
+                ]);
 
             // Mark Synced
             $updated = Product::where('id', $product->id)

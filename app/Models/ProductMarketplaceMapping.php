@@ -22,6 +22,7 @@ class ProductMarketplaceMapping extends Model
         'amazon_parent_asin',
         'amazon_marketplace_id',
         'amazon_product_type',
+        'fulfillment_channel_code',
         'quantity',
         'inventory_version',
         'sync_status',

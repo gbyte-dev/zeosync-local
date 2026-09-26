@@ -133,12 +133,22 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
         // -----------------------------------------------------------------
         // EXTRACT LIVE AMAZON QUANTITY (CHANNEL-AWARE)
         // -----------------------------------------------------------------
-        $targetChannel = $listing['attributes']['fulfillment_availability'][0]['fulfillment_channel_code']
-            ?? $listing['attributes']['fulfillment_availability'][0]['fulfillmentChannelCode']
-            ?? 'DEFAULT';
+        $resolver = app(\App\Services\AmazonFulfillmentChannelResolver::class);
+        $resolution = $resolver->resolve($mapping, $this->expectedQuantity, $listing);
+        $targetChannel = $resolution['channel'];
 
-        $resolved = $this->resolveLiveQuantity($listing, (string) $targetChannel);
-        $liveQuantity = $resolved['quantity'];
+        if ($targetChannel !== null) {
+            $resolved = $this->resolveLiveQuantityForChannel($listing, (string) $targetChannel);
+            $liveQuantity = $resolved['quantity'];
+        } else {
+            $liveQuantity = null;
+            $resolved = [
+                'quantity'           => null,
+                'source'             => $resolution['source'],
+                'channel'            => null,
+                'available_channels' => $resolution['available_channels'],
+            ];
+        }
 
         $matchingOp = !empty($mapping->shopify_inventory_item_id)
             ? InventorySyncOperation::where('shop_id', $this->shopId)
@@ -320,7 +330,7 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
         return true;
     }
 
-    private function resolveLiveQuantity(array $listing, string $targetChannel = 'DEFAULT'): array
+    private function resolveLiveQuantityForChannel(array $listing, string $targetChannel): array
     {
         $selectedQuantity = null;
         $selectedSource = null;
@@ -333,12 +343,10 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
                 if (!is_array($entry)) {
                     continue;
                 }
-                $channel = $entry['fulfillmentChannelCode'] ?? $entry['fulfillment_channel_code'] ?? null;
+                $channel = $entry['fulfillmentChannelCode'] ?? $entry['fulfillment_channel_code'] ?? 'DEFAULT';
                 $qty = $entry['quantity'] ?? null;
-                if ($channel !== null) {
-                    $availableChannels[] = "fulfillmentAvailability[{$index}]:{$channel}=" . ($qty ?? 'null');
-                }
-                if ($selectedQuantity === null && $channel !== null && strcasecmp((string) $channel, $targetChannel) === 0 && $qty !== null) {
+                $availableChannels[] = "fulfillmentAvailability[{$index}]:{$channel}=" . ($qty ?? 'null');
+                if ($selectedQuantity === null && strcasecmp((string) $channel, $targetChannel) === 0 && $qty !== null) {
                     $selectedQuantity = (int) $qty;
                     $selectedSource = "fulfillmentAvailability[{$index}]";
                     $selectedChannel = (string) $channel;
@@ -352,37 +360,13 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
                 if (!is_array($entry)) {
                     continue;
                 }
-                $channel = $entry['fulfillment_channel_code'] ?? $entry['fulfillmentChannelCode'] ?? null;
+                $channel = $entry['fulfillment_channel_code'] ?? $entry['fulfillmentChannelCode'] ?? 'DEFAULT';
                 $qty = $entry['quantity'] ?? null;
-                if ($channel !== null) {
-                    $availableChannels[] = "attributes.fulfillment_availability[{$index}]:{$channel}=" . ($qty ?? 'null');
-                }
-                if ($selectedQuantity === null && $channel !== null && strcasecmp((string) $channel, $targetChannel) === 0 && $qty !== null) {
+                $availableChannels[] = "attributes.fulfillment_availability[{$index}]:{$channel}=" . ($qty ?? 'null');
+                if ($selectedQuantity === null && strcasecmp((string) $channel, $targetChannel) === 0 && $qty !== null) {
                     $selectedQuantity = (int) $qty;
                     $selectedSource = "attributes.fulfillment_availability[{$index}]";
                     $selectedChannel = (string) $channel;
-                }
-            }
-        }
-
-        // 3. Compatibility fallback only if a single entry exists without conflicting channel code
-        if ($selectedQuantity === null) {
-            $topLevel = $listing['fulfillmentAvailability'] ?? [];
-            $attrLevel = $listing['attributes']['fulfillment_availability'] ?? [];
-
-            if (is_array($topLevel) && count($topLevel) === 1 && isset($topLevel[0]['quantity']) && $topLevel[0]['quantity'] !== null) {
-                $entryChannel = $topLevel[0]['fulfillmentChannelCode'] ?? $topLevel[0]['fulfillment_channel_code'] ?? null;
-                if ($entryChannel === null || strcasecmp((string) $entryChannel, $targetChannel) === 0) {
-                    $selectedQuantity = (int) $topLevel[0]['quantity'];
-                    $selectedSource = "fulfillmentAvailability[0] (single-entry compatibility fallback)";
-                    $selectedChannel = (string) ($entryChannel ?? 'unspecified');
-                }
-            } elseif (is_array($attrLevel) && count($attrLevel) === 1 && isset($attrLevel[0]['quantity']) && $attrLevel[0]['quantity'] !== null) {
-                $entryChannel = $attrLevel[0]['fulfillment_channel_code'] ?? $attrLevel[0]['fulfillmentChannelCode'] ?? null;
-                if ($entryChannel === null || strcasecmp((string) $entryChannel, $targetChannel) === 0) {
-                    $selectedQuantity = (int) $attrLevel[0]['quantity'];
-                    $selectedSource = "attributes.fulfillment_availability[0] (single-entry compatibility fallback)";
-                    $selectedChannel = (string) ($entryChannel ?? 'unspecified');
                 }
             }
         }
