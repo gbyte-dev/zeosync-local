@@ -326,4 +326,21 @@ class CategorySearchDropdownTest extends TestCase
         $this->assertStringContainsString('Escape', $html);
         $this->assertStringContainsString('No subcategories found', $html);
     }
+
+    public function test_amazon_products_index_view_renders_empty_state_correctly(): void
+    {
+        View::share('cspNonce', 'test-csp-nonce-products');
+        View::share('errors', new ViewErrorBag());
+
+        $html = View::make('schema.products.index', [
+            'products' => [],
+            'parent_productid' => null,
+            'productLimitReached' => false,
+        ])->render();
+
+        $this->assertStringContainsString('No Products Found', $html);
+        $this->assertStringContainsString('Products added through ZeoSync will appear here.', $html);
+        $this->assertStringContainsString('bi bi-box-seam', $html);
+        $this->assertStringNotContainsString('No products has been aded by our plateform.', $html);
+    }
 }

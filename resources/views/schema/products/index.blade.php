@@ -605,15 +605,7 @@
                     search: "",
                     searchPlaceholder: "Search products...",
                     // CHANGED: Injected your custom empty layout design cleanly into DataTables
-                    emptyTable: "<div style='display: flex; flex-direction: column; align-items: center; color: #6B7280; padding: 40px 12px;'>
-    <div style='background: #F3F4F6; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;'>
-        <i class='bi bi-box-seam' style='font-size: 18px; color: #9CA3AF;'></i>
-    </div>
-    <span style='font-size: 13px; font-weight: 600; color: #111827;'>No Products Found</span>
-    <span style='font-size: 12px; color: #6B7280; margin-top: 4px; text-align: center;'>
-        Products added through ZeoSync will appear here.
-    </span>
-</div>"
+                    emptyTable: "<div style='display: flex; flex-direction: column; align-items: center; color: #6B7280; padding: 40px 12px;'><div style='background: #F3F4F6; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;'><i class='bi bi-box-seam' style='font-size: 18px; color: #9CA3AF;'></i></div><span style='font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 2px;'>No Products Found</span><span style='font-size: 12px; color: #6B7280;'>Products added through ZeoSync will appear here.</span></div>"
                 }
             });
         }
