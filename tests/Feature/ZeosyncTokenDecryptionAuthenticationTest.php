@@ -112,14 +112,61 @@ beforeEach(function () {
             $table->string('amazon_endpoint')->nullable();
             $table->string('stripe_customer_id')->nullable();
             $table->string('hmac')->nullable();
+            $table->string('store_status')->nullable();
+            $table->string('shopify_connection_status')->nullable();
+            $table->json('shopify_locations')->nullable();
+            $table->integer('selected_location_index')->nullable();
             $table->timestamp('installed_at')->nullable();
             $table->boolean('is_active')->default(1);
             $table->softDeletes();
             $table->timestamps();
         });
     } else {
+        if (!Schema::hasColumn('shops', 'store_status')) {
+            Schema::table('shops', function (Blueprint $table) {
+                $table->string('store_status')->nullable();
+                $table->string('shopify_connection_status')->nullable();
+                $table->json('shopify_locations')->nullable();
+                $table->integer('selected_location_index')->nullable();
+            });
+        }
         Shop::truncate();
     }
+
+    if (!Schema::hasTable('notification_settings')) {
+        Schema::create('notification_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('notification_key')->nullable();
+            $table->boolean('email_enabled')->default(false);
+            $table->boolean('in_app_enabled')->default(false);
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('admin_notifications')) {
+        Schema::create('admin_notifications', function (Blueprint $table) {
+            $table->id();
+            $table->string('type')->nullable();
+            $table->string('title')->nullable();
+            $table->text('message')->nullable();
+            $table->boolean('is_read')->default(false);
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('user_notifications')) {
+        Schema::create('user_notifications', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id')->nullable();
+            $table->string('type')->nullable();
+            $table->string('title')->nullable();
+            $table->text('message')->nullable();
+            $table->boolean('is_read')->default(false);
+            $table->timestamps();
+        });
+    }
+
+    view()->share('cspNonce', 'test-csp-nonce');
 
     if (!Schema::hasTable('plans')) {
         Schema::create('plans', function (Blueprint $table) {
@@ -231,9 +278,9 @@ it('5. Opening / with an existing session cookie remains on public landing page'
 it('6. Store Name + Connect form submission starts the Shopify connection flow', function () {
     $response = $this->get('/install?shop=demo-store');
 
-    $response->assertStatus(200);
-    $response->assertViewIs('shopify.auth-popup');
-    $response->assertViewHas('shop', 'demo-store.myshopify.com');
+    $response->assertStatus(302);
+    $redirectUrl = (string) $response->headers->get('Location');
+    expect($redirectUrl)->toContain('https://demo-store.myshopify.com/admin/oauth/authorize?');
 });
 
 it('7. Valid encrypted/signed Zeosync token in query param (id_token) authenticates and establishes session', function () {
@@ -494,9 +541,10 @@ it('18. Successful OAuth callback establishes shop session and completes install
 
     $response = $this->get('/callback?' . $queryString);
 
-    $response->assertStatus(200);
-    $response->assertViewIs('shopify.auth-callback');
-    $response->assertViewHas('shop', 'new-store.myshopify.com');
+    $response->assertStatus(302);
+    $location = (string) $response->headers->get('Location');
+    expect($location)->toContain('/dashboard');
+    expect($location)->toContain('shop=new-store.myshopify.com');
 
     $createdShop = Shop::where('shop', 'new-store.myshopify.com')->first();
     expect($createdShop)->not->toBeNull();

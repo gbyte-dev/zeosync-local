@@ -355,13 +355,42 @@ class ShopifyController extends Controller
         ]);
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
 
-        //   IMPORTANT (iframe fix)
-        $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
+        $isEmbedded = $request->query('embedded') === '1'
+            || $request->query('embedded') === 'true'
+            || $request->filled('host')
+            || $request->header('Sec-Fetch-Dest') === 'iframe'
+            || (str_contains((string) $request->header('referer'), 'admin.shopify.com') || str_contains((string) $request->header('referer'), '.myshopify.com'));
 
-        return response()->view('shopify.auth-popup', [
-            'redirectUrl' => $redirectUrl,
-            'shop' => $shop,
-        ]);
+        if ($isEmbedded) {
+            $cspNonce = request()->attributes->get('csp_nonce')
+                ?? (app()->has('csp_nonce') ? app('csp_nonce') : (view()->shared('cspNonce') ?? ''));
+            $escapedUrl = json_encode($redirectUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES);
+            $html = <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Redirecting to Shopify...</title>
+    <script nonce="{$cspNonce}">
+        if (window.top !== window.self) {
+            window.top.location.href = {$escapedUrl};
+        } else {
+            window.location.href = {$escapedUrl};
+        }
+    </script>
+    <noscript>
+        <meta http-equiv="refresh" content="0; url={$redirectUrl}">
+    </noscript>
+</head>
+<body>
+    <p>Redirecting to Shopify authorization...</p>
+</body>
+</html>
+HTML;
+            return response($html, 200)->header('Content-Type', 'text/html');
+        }
+
+        return redirect()->away($redirectUrl);
     }
 
     public function callback(Request $request)
@@ -397,6 +426,10 @@ class ShopifyController extends Controller
         $shop = $decodedState['shop'] ?? null;
         if (!$shop) {
             Log::error('STATE INVALID OR SHOP MISSING');
+            abort(403, 'Invalid state');
+        }
+        if ($request->filled('shop') && strcasecmp((string) $shop, (string) $request->query('shop')) !== 0) {
+            Log::error('STATE SHOP MISMATCH', ['state_shop' => $shop, 'query_shop' => $request->query('shop')]);
             abort(403, 'Invalid state');
         }
         // =========================
@@ -446,6 +479,53 @@ class ShopifyController extends Controller
             }
         }
 
+        // Query shop name and email from Shopify Admin GraphQL API using the fresh access token
+        $shopName = null;
+        $shopEmail = null;
+
+        try {
+            $shopifyService = new ShopifyService($shop, $accessToken);
+            $gqlResponse = $shopifyService->graphql(<<<'GRAPHQL'
+                query GetShopDetails {
+                    shop {
+                        name
+                        email
+                    }
+                }
+            GRAPHQL);
+
+            if (empty($gqlResponse['error']) && isset($gqlResponse['data']['shop'])) {
+                $gqlShop = $gqlResponse['data']['shop'];
+                if (!empty($gqlShop['name'])) {
+                    $shopName = trim((string) $gqlShop['name']);
+                }
+                if (!empty($gqlShop['email'])) {
+                    $shopEmail = trim((string) $gqlShop['email']);
+                }
+            } else {
+                Log::warning('SHOPIFY_GQL_SHOP_FETCH_FAILED', [
+                    'shop' => $shop,
+                    'response' => $gqlResponse,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('SHOPIFY_GQL_SHOP_FETCH_EXCEPTION', [
+                'shop' => $shop,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Safe fallback for shop_name if empty
+        if (empty($shopName)) {
+            $shopName = $existingShop?->shop_name
+                ?: ucwords(str_replace(['-', '_'], ' ', explode('.', $shop)[0]));
+        }
+
+        // Preserve existing valid email if GraphQL returned null/empty
+        if (empty($shopEmail)) {
+            $shopEmail = $existingShop?->email ?: null;
+        }
+
         $shopData = [
             'access_token' => $accessToken,
             'refresh_token' => $refreshToken,
@@ -456,13 +536,9 @@ class ShopifyController extends Controller
             'is_active' => 1,
             'store_status' => 'active',
             'shopify_connection_status' => 'connected',
+            'shop_name' => $shopName,
+            'email' => $shopEmail,
         ];
-
-        // If newly installing or reinstalling after deactivation/uninstallation, clear stale activation details
-        if (!$existingShop || $isReinstall) {
-            $shopData['shop_name'] = null;
-            $shopData['email'] = null;
-        }
 
         $shopModel = \App\Models\Shop::updateOrCreate(
             ['shop' => $shop],
@@ -473,7 +549,8 @@ class ShopifyController extends Controller
             'shop' => $shop,
             'shop_id' => $shopModel->id,
             'is_reinstall' => $isReinstall,
-            'activation_required' => empty($shopModel->shop_name) || empty($shopModel->email),
+            'shop_name' => $shopModel->shop_name,
+            'email_present' => !empty($shopModel->email),
         ]);
 
         // Fetch and store all Shopify locations via GraphQL
@@ -540,11 +617,39 @@ class ShopifyController extends Controller
             $shopModel->shop . ' connected successfully.'
         );
 
-        $setupUrl = route('setup.form', ['shop' => $shop, 'popup' => 1]);
-        return response()->view('shopify.auth-callback', [
+        if (!$existingShop && !empty($shopModel->email)) {
+            try {
+                $template = \App\Models\MailTemplate::active()
+                    ->where('slug', 'welcome-email')->first();
+
+                if ($template) {
+                    app(\App\Services\EmailService::class)
+                        ->sendDynamicEmail($template, (object) [
+                            'name' => $shopModel->shop_name ?? $shopModel->shop,
+                            'email' => $shopModel->email,
+                        ]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('WELCOME_EMAIL_SEND_FAILED', [
+                    'shop' => $shopModel->shop,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $redirectParams = [
             'shop' => $shopModel->shop,
-            'redirectUrl' => $setupUrl,
-        ]);
+        ];
+
+        if ($request->filled('host')) {
+            $redirectParams['host'] = $request->query('host');
+        }
+
+        if ($request->filled('embedded')) {
+            $redirectParams['embedded'] = $request->query('embedded');
+        }
+
+        return redirect()->route('dashboard', $redirectParams);
     }
 
     public function checkShopStatus(Request $request)
