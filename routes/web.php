@@ -34,7 +34,6 @@ Route::get('/store/{shop_handle}/apps/{token}/dashboard', [ShopifyController::cl
 Route::get('/store/{shop_handle}/apps/{token}', [ShopifyController::class, 'appLaunchStore'])->name('shopify.app.launch.store');
 Route::get('/install', [ShopifyController::class, 'install'])->name('shopify.install');
 Route::get('/callback', [ShopifyController::class, 'callback'])->name('shopify.callback');
-Route::get('/api/shop-status', [ShopifyController::class, 'checkShopStatus'])->name('api.shop.status');
 
 Route::middleware('shopify.session')->group(function () {
     Route::view('/about', 'about')->name('about');

@@ -51,6 +51,50 @@ beforeEach(function () {
             $table->timestamps();
         });
     }
+
+    if (!Schema::hasTable('notification_settings')) {
+        Schema::create('notification_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('notification_key')->nullable();
+            $table->boolean('email_enabled')->default(false);
+            $table->boolean('in_app_enabled')->default(false);
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('admin_notifications')) {
+        Schema::create('admin_notifications', function (Blueprint $table) {
+            $table->id();
+            $table->string('type')->nullable();
+            $table->string('title')->nullable();
+            $table->text('message')->nullable();
+            $table->boolean('is_read')->default(false);
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('user_notifications')) {
+        Schema::create('user_notifications', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('shop_id')->nullable();
+            $table->string('type')->nullable();
+            $table->string('title')->nullable();
+            $table->text('message')->nullable();
+            $table->boolean('is_read')->default(false);
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('mail_templates')) {
+        Schema::create('mail_templates', function (Blueprint $table) {
+            $table->id();
+            $table->string('slug')->nullable();
+            $table->string('subject')->nullable();
+            $table->text('body')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+    }
 });
 
 it('Test 1: successfully fetches single location via GraphQL with backward-compatible structure', function () {
@@ -367,8 +411,9 @@ it('Test 6: OAuth callback persists locations fetched via GraphQL to the shop mo
 
     $response = $this->get('/callback?' . http_build_query($params));
 
-    $response->assertOk();
-    $response->assertViewIs('shopify.auth-callback');
+    $response->assertStatus(302);
+    $response->assertRedirect();
+    expect((string) $response->headers->get('Location'))->toContain('/dashboard');
 
     $shopModel = Shop::where('shop', $shopDomain)->first();
     expect($shopModel)->not->toBeNull();

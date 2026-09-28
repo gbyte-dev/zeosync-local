@@ -46,7 +46,7 @@ class DashboardController extends ShopifyController
             $shop = Shop::where('shop', $activeShop)->where('is_active', 1)->first();
 
             if (!$shop) {
-                return view('dashboard-waiting', ['shop' => $activeShop ]);
+                return redirect()->route('shopify.install', ['shop' => $activeShop]);
             }
         }
 

@@ -706,27 +706,6 @@ HTML;
         return redirect()->route('dashboard', $redirectParams);
     }
 
-    public function checkShopStatus(Request $request)
-    {
-        $shop = $request->query('shop');
-        if (!$shop) {
-            return response()->json(['error' => 'Shop parameter required'], 400);
-        }
-        $shopModel = Shop::where('shop', $shop)->first();
-        if (!$shopModel || (int) $shopModel->is_active !== 1 || empty($shopModel->access_token)) {
-            return response()->json([
-                'shop_name' => null,
-                'email' => null,
-                'is_active' => false,
-            ], 200);
-        }
-        return response()->json([
-            'shop_name' => $shopModel->shop_name,
-            'email' => $shopModel->email,
-            'is_active' => true,
-        ], 200);
-    }
-
     public function plans(Request $request)
     {
         $shopModel = $this->getActiveShop($request);
