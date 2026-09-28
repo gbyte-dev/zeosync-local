@@ -4009,17 +4009,16 @@ class ShopifyController extends Controller
 
     public function searchCategories(Request $request)
     {
-        $search = trim($request->query('search', ''));
+        $search = trim((string) $request->query('search', ''));
         $parentId = $request->query('parent_id');
 
-        if ($search === '') {
-            return response()->json([]);
+        $query = Category::query();
+
+        if ($search !== '') {
+            $query->where('name', 'like', '%' . $search . '%');
         }
 
-        $query = Category::query()
-            ->where('name', 'like', '%' . $search . '%');
-
-        if ($parentId !== null) {
+        if ($parentId !== null && $parentId !== '') {
             $query->where('parent_id', (int) $parentId);
         } else {
             $query->whereNull('parent_id');
@@ -4028,7 +4027,7 @@ class ShopifyController extends Controller
         return response()->json(
             $query
                 ->orderBy('name')
-                ->limit(20)
+                ->limit(100)
                 ->get(['id', 'name'])
         );
     }

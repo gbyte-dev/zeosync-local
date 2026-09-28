@@ -214,12 +214,17 @@
         border-bottom: 0;
     }
 
-    .subcategory-dropdown .list-group-item:hover {
-        background: #F9FAFB;
+    .subcategory-dropdown .list-group-item:hover,
+    .subcategory-dropdown .list-group-item.active,
+    .subcategory-dropdown .list-group-item.is-active {
+        background: #F3F4F6 !important;
+        color: #111827 !important;
+        outline: none;
     }
 
     .subcategory-dropdown .list-group-item:focus {
-        background: #F3F4F6;
+        background: #F3F4F6 !important;
+        color: #111827 !important;
         outline: none;
     }
 
@@ -700,23 +705,24 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
 
                         @php
                         $selectedsubCategory = old(
-                        'sub_category',
-                        $dbProduct['sub_category_id'] ?? ''
+                            'sub_category',
+                            $dbProduct['sub_category_id'] ?? ''
                         );
 
                         $selectedsubCategoryName = '';
+                        $activeCategoryId = old('category', $dbProduct['category_id'] ?? '');
 
-                        if (isset($dbProduct['category_id'])) {
-                        foreach (getCategorires($dbProduct['category_id']) as $collection) {
-                        if ($selectedsubCategory == $collection['id']) {
-                        $selectedsubCategoryName = $collection['name'];
-                        break;
-                        }
-                        }
+                        if ($activeCategoryId) {
+                            foreach (getCategorires($activeCategoryId) as $collection) {
+                                if ($selectedsubCategory == $collection['id']) {
+                                    $selectedsubCategoryName = $collection['name'];
+                                    break;
+                                }
+                            }
                         }
                         @endphp
 
-                        <div class="position-relative">
+                        <div class="position-relative" id="sub_category_wrapper">
 
                             <input
                                 type="text"
@@ -724,7 +730,8 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                                 class="form-control"
                                 placeholder="Search sub category..."
                                 autocomplete="off"
-                                value="{{ $selectedsubCategoryName }}">
+                                value="{{ $selectedsubCategoryName }}"
+                                {{ empty($activeCategoryId) ? 'disabled' : '' }}>
 
                             <input
                                 type="hidden"
@@ -1841,77 +1848,131 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
     const subCategorySearch = document.getElementById('sub_category_search');
     const subCategoryInput = document.getElementById('sub_category');
     const subCategoryResults = document.getElementById('sub_category_results');
+    const categorySelect = document.getElementById('category');
 
     let subCategoryTimer = null;
+    let subCategoryCache = {};
+    let currentSubCategoryItems = [];
+    let highlightedSubCategoryIndex = -1;
 
-    subCategorySearch.addEventListener('input', function() {
+    function openSubCategoryDropdown() {
+        if (!subCategorySearch || subCategorySearch.disabled) return;
+        if (!categorySelect || !categorySelect.value) return;
+        subCategoryResults.style.display = 'block';
+    }
 
-        const search = this.value.trim();
-
-        clearTimeout(subCategoryTimer);
-
-        subCategoryResults.innerHTML = '';
+    function closeSubCategoryDropdown() {
+        if (!subCategoryResults) return;
         subCategoryResults.style.display = 'none';
+        highlightedSubCategoryIndex = -1;
+        updateHighlightedSubCategory();
+    }
 
-        subCategoryInput.value = '';
+    function updateHighlightedSubCategory() {
+        if (!subCategoryResults) return;
+        const buttons = subCategoryResults.querySelectorAll('.list-group-item-action');
+        buttons.forEach((btn, index) => {
+            if (index === highlightedSubCategoryIndex) {
+                btn.classList.add('active');
+                btn.classList.add('is-active');
+                btn.scrollIntoView({ block: 'nearest' });
+            } else {
+                btn.classList.remove('active');
+                btn.classList.remove('is-active');
+            }
+        });
+    }
 
-        if (search.length < 2) {
+    function selectSubCategory(id, name) {
+        if (subCategorySearch) {
+            subCategorySearch.value = name;
+            subCategorySearch.setCustomValidity('');
+        }
+        if (subCategoryInput) {
+            subCategoryInput.value = id;
+        }
+        closeSubCategoryDropdown();
+    }
+
+    function renderSubCategories(categories) {
+        if (!subCategoryResults) return;
+        currentSubCategoryItems = Array.isArray(categories) ? categories : [];
+        highlightedSubCategoryIndex = -1;
+        subCategoryResults.innerHTML = '';
+
+        if (currentSubCategoryItems.length === 0) {
+            subCategoryResults.innerHTML = `
+                <div class="list-group-item text-muted">
+                    No subcategories found
+                </div>
+            `;
+            openSubCategoryDropdown();
             return;
         }
 
-        subCategoryTimer = setTimeout(() => {
-            searchSubCategories(search);
-        }, 500);
-    });
+        currentSubCategoryItems.forEach((category, idx) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action';
+            item.textContent = category.name;
+            item.setAttribute('data-id', category.id);
+            item.setAttribute('data-name', category.name);
 
+            item.addEventListener('mouseenter', function() {
+                highlightedSubCategoryIndex = idx;
+                updateHighlightedSubCategory();
+            });
 
-    function searchSubCategories(search) {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                selectSubCategory(category.id, category.name);
+            });
 
-        const categoryElement = document.getElementById('category');
+            subCategoryResults.appendChild(item);
+        });
 
-        if (!categoryElement) {
-            console.error('Category element not found');
-            return;
-        }
+        openSubCategoryDropdown();
+    }
 
-        const categoryId = categoryElement.value;
-
+    function fetchAndFilterSubCategories(searchQuery) {
+        const catSelect = document.getElementById('category');
+        if (!catSelect) return;
+        const categoryId = catSelect.value;
         if (!categoryId) {
-            console.warn('No category selected');
+            closeSubCategoryDropdown();
             return;
         }
 
-        const url =
-            "{{ route('shopify.categories.search') }}" +
-            "?parent_id=" + encodeURIComponent(categoryId) +
-            "&search=" + encodeURIComponent(search);
+        const query = (searchQuery || '').trim().toLowerCase();
 
-        
+        // If all subcategories for this parent are cached, filter locally in real time (zero lag)
+        if (subCategoryCache[categoryId]) {
+            const filtered = query === '' 
+                ? subCategoryCache[categoryId]
+                : subCategoryCache[categoryId].filter(cat => 
+                    cat.name && cat.name.toLowerCase().includes(query)
+                  );
+            renderSubCategories(filtered);
+            return;
+        }
+
+        const url = "{{ route('shopify.categories.search') }}" +
+            "?parent_id=" + encodeURIComponent(categoryId) +
+            "&search=" + encodeURIComponent(searchQuery || '');
 
         const xhr = new XMLHttpRequest();
-
         xhr.open('GET', url, true);
-
         xhr.setRequestHeader('Accept', 'application/json');
 
         xhr.onreadystatechange = function() {
-
-            if (xhr.readyState !== XMLHttpRequest.DONE) {
-                return;
-            }
-
-            
-
+            if (xhr.readyState !== XMLHttpRequest.DONE) return;
             if (xhr.status !== 200) {
-                console.error(
-                    'Subcategory request failed:',
-                    xhr.status
-                );
+                console.error('Subcategory request failed:', xhr.status);
                 return;
             }
 
             let categories;
-
             try {
                 categories = JSON.parse(xhr.responseText);
             } catch (error) {
@@ -1919,76 +1980,127 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                 return;
             }
 
-            subCategoryResults.innerHTML = '';
+            if (!Array.isArray(categories)) categories = [];
 
-            if (!Array.isArray(categories) || categories.length === 0) {
-
-                subCategoryResults.innerHTML = `
-                <div class="list-group-item text-muted">
-                    No sub category found
-                </div>
-            `;
-
-                subCategoryResults.style.display = 'block';
-
-                return;
+            if (!query) {
+                subCategoryCache[categoryId] = categories;
             }
 
-            categories.forEach(category => {
-
-                const item = document.createElement('button');
-
-                item.type = 'button';
-                item.className =
-                    'list-group-item list-group-item-action';
-
-                item.textContent = category.name;
-
-                item.addEventListener('click', function() {
-
-                    subCategorySearch.value = category.name;
-                    subCategoryInput.value = category.id;
-
-                    subCategoryResults.innerHTML = '';
-                    subCategoryResults.style.display = 'none';
-                });
-
-                subCategoryResults.appendChild(item);
-            });
-
-            subCategoryResults.style.display = 'block';
+            renderSubCategories(categories);
         };
 
-        xhr.onerror = function() {
-            console.error('XHR NETWORK ERROR');
-        };
-
-        xhr.ontimeout = function() {
-            console.error('XHR TIMEOUT');
-        };
-
+        xhr.onerror = function() { console.error('XHR NETWORK ERROR'); };
+        xhr.ontimeout = function() { console.error('XHR TIMEOUT'); };
         xhr.timeout = 10000;
-
         xhr.send();
     }
 
+    if (subCategorySearch) {
+        subCategorySearch.addEventListener('click', function() {
+            const catSelect = document.getElementById('category');
+            if (!catSelect || !catSelect.value) return;
+            openSubCategoryDropdown();
+            fetchAndFilterSubCategories(this.value);
+        });
+
+        subCategorySearch.addEventListener('focus', function() {
+            const catSelect = document.getElementById('category');
+            if (!catSelect || !catSelect.value) return;
+            openSubCategoryDropdown();
+            fetchAndFilterSubCategories(this.value);
+        });
+
+        subCategorySearch.addEventListener('input', function() {
+            const search = this.value;
+            clearTimeout(subCategoryTimer);
+
+            if (subCategoryInput) {
+                subCategoryInput.value = '';
+            }
+
+            subCategoryTimer = setTimeout(() => {
+                fetchAndFilterSubCategories(search);
+            }, 150);
+        });
+
+        subCategorySearch.addEventListener('keydown', function(event) {
+            const isOpen = subCategoryResults && subCategoryResults.style.display === 'block';
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                if (!isOpen) {
+                    openSubCategoryDropdown();
+                    fetchAndFilterSubCategories(this.value);
+                    return;
+                }
+                const count = currentSubCategoryItems.length;
+                if (count > 0) {
+                    highlightedSubCategoryIndex = (highlightedSubCategoryIndex + 1) % count;
+                    updateHighlightedSubCategory();
+                }
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (!isOpen) {
+                    openSubCategoryDropdown();
+                    fetchAndFilterSubCategories(this.value);
+                    return;
+                }
+                const count = currentSubCategoryItems.length;
+                if (count > 0) {
+                    highlightedSubCategoryIndex = highlightedSubCategoryIndex <= 0 ? count - 1 : highlightedSubCategoryIndex - 1;
+                    updateHighlightedSubCategory();
+                }
+            } else if (event.key === 'Enter') {
+                if (isOpen && currentSubCategoryItems.length > 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (highlightedSubCategoryIndex >= 0 && highlightedSubCategoryIndex < currentSubCategoryItems.length) {
+                        const selected = currentSubCategoryItems[highlightedSubCategoryIndex];
+                        selectSubCategory(selected.id, selected.name);
+                    } else if (currentSubCategoryItems.length === 1) {
+                        const selected = currentSubCategoryItems[0];
+                        selectSubCategory(selected.id, selected.name);
+                    }
+                }
+            } else if (event.key === 'Escape') {
+                if (isOpen) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeSubCategoryDropdown();
+                }
+            }
+        });
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!subCategorySearch) return;
+        const wrapper = document.getElementById('sub_category_wrapper') || subCategorySearch.closest('.position-relative');
+        if (wrapper && !wrapper.contains(e.target)) {
+            closeSubCategoryDropdown();
+        }
+    });
 
     function updatecategory(category) {
-
         clearTimeout(subCategoryTimer);
 
-        subCategorySearch.value = '';
-        subCategoryInput.value = '';
-
-        subCategoryResults.innerHTML = '';
-        subCategoryResults.style.display = 'none';
-
-        if (!category) {
-            subCategorySearch.disabled = true;
-            return;
+        if (subCategorySearch) {
+            subCategorySearch.value = '';
+            subCategorySearch.disabled = !category;
+            subCategorySearch.setCustomValidity('');
         }
+        if (subCategoryInput) {
+            subCategoryInput.value = '';
+        }
+        if (subCategoryResults) {
+            subCategoryResults.innerHTML = '';
+            subCategoryResults.style.display = 'none';
+        }
+        highlightedSubCategoryIndex = -1;
+        currentSubCategoryItems = [];
 
-        subCategorySearch.disabled = false;
+        if (category) {
+            fetchAndFilterSubCategories('');
+        }
     }
 </script>
 @endpush
