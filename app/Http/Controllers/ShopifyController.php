@@ -355,11 +355,11 @@ class ShopifyController extends Controller
         ]);
         $redirectUrl = "https://{$shop}/admin/oauth/authorize?{$query}";
 
-        $isEmbedded = $request->query('embedded') === '1'
-            || $request->query('embedded') === 'true'
-            || $request->filled('host')
-            || $request->header('Sec-Fetch-Dest') === 'iframe'
-            || (str_contains((string) $request->header('referer'), 'admin.shopify.com') || str_contains((string) $request->header('referer'), '.myshopify.com'));
+        $isEmbedded = $request->query('embedded') === '1' ||
+            $request->query('embedded') === 'true' ||
+            $request->filled('host') ||
+            $request->header('Sec-Fetch-Dest') === 'iframe' ||
+            (str_contains((string) $request->header('referer'), 'admin.shopify.com') || str_contains((string) $request->header('referer'), '.myshopify.com'));
 
         if ($isEmbedded) {
             $cspNonce = request()->attributes->get('csp_nonce')
@@ -367,80 +367,80 @@ class ShopifyController extends Controller
             $escapedUrl = json_encode($redirectUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES);
             $appName = e(config('app.name', 'ZeoSync'));
             $html = <<<HTML
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connecting to Shopify &mdash; {$appName}</title>
-    <script nonce="{$cspNonce}">
-        if (window.top !== window.self) {
-            window.top.location.href = {$escapedUrl};
-        } else {
-            window.location.href = {$escapedUrl};
-        }
-    </script>
-    <noscript>
-        <meta http-equiv="refresh" content="0; url={$redirectUrl}">
-    </noscript>
-    <style nonce="{$cspNonce}">
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-            background: #F4F6F8;
-            color: #202223;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-        }
-        .redirect-card {
-            text-align: center;
-            padding: 36px 28px;
-            max-width: 420px;
-            width: 90%;
-            background: #FFFFFF;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-            border: 1px solid #E5E7EB;
-        }
-        .spinner {
-            width: 36px;
-            height: 36px;
-            border: 3px solid #E5E7EB;
-            border-top: 3px solid #2563EB;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 16px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .redirect-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #111827;
-            margin-bottom: 6px;
-        }
-        .redirect-desc {
-            font-size: 13px;
-            color: #6B7280;
-            line-height: 1.5;
-        }
-    </style>
-</head>
-<body>
-    <div class="redirect-card" role="status" aria-live="polite">
-        <div class="spinner"></div>
-        <h1 class="redirect-title">Connecting to Shopify</h1>
-        <p class="redirect-desc">Securely redirecting you to Shopify authorization…</p>
-    </div>
-</body>
-</html>
-HTML;
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Connecting to Shopify &mdash; {$appName}</title>
+                    <script nonce="{$cspNonce}">
+                        if (window.top !== window.self) {
+                            window.top.location.href = {$escapedUrl};
+                        } else {
+                            window.location.href = {$escapedUrl};
+                        }
+                    </script>
+                    <noscript>
+                        <meta http-equiv="refresh" content="0; url={$redirectUrl}">
+                    </noscript>
+                    <style nonce="{$cspNonce}">
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+                            background: #F4F6F8;
+                            color: #202223;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            height: 100vh;
+                            width: 100vw;
+                            overflow: hidden;
+                        }
+                        .redirect-card {
+                            text-align: center;
+                            padding: 36px 28px;
+                            max-width: 420px;
+                            width: 90%;
+                            background: #FFFFFF;
+                            border-radius: 12px;
+                            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+                            border: 1px solid #E5E7EB;
+                        }
+                        .spinner {
+                            width: 36px;
+                            height: 36px;
+                            border: 3px solid #E5E7EB;
+                            border-top: 3px solid #2563EB;
+                            border-radius: 50%;
+                            animation: spin 0.8s linear infinite;
+                            margin: 0 auto 16px;
+                        }
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                        .redirect-title {
+                            font-size: 16px;
+                            font-weight: 600;
+                            color: #111827;
+                            margin-bottom: 6px;
+                        }
+                        .redirect-desc {
+                            font-size: 13px;
+                            color: #6B7280;
+                            line-height: 1.5;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="redirect-card" role="status" aria-live="polite">
+                        <div class="spinner"></div>
+                        <h1 class="redirect-title">Setting things up</h1>
+                        <p class="redirect-desc">Confirming your store details. This only takes a moment…</p>
+                    </div>
+                </body>
+                </html>
+                HTML;
             return response($html, 200)->header('Content-Type', 'text/html');
         }
 
@@ -540,13 +540,13 @@ HTML;
         try {
             $shopifyService = new ShopifyService($shop, $accessToken);
             $gqlResponse = $shopifyService->graphql(<<<'GRAPHQL'
-                query GetShopDetails {
-                    shop {
-                        name
-                        email
+                    query GetShopDetails {
+                        shop {
+                            name
+                            email
+                        }
                     }
-                }
-            GRAPHQL);
+                GRAPHQL);
 
             if (empty($gqlResponse['error']) && isset($gqlResponse['data']['shop'])) {
                 $gqlShop = $gqlResponse['data']['shop'];
@@ -674,7 +674,8 @@ HTML;
         if (!$existingShop && !empty($shopModel->email)) {
             try {
                 $template = \App\Models\MailTemplate::active()
-                    ->where('slug', 'welcome-email')->first();
+                    ->where('slug', 'welcome-email')
+                    ->first();
 
                 if ($template) {
                     app(\App\Services\EmailService::class)
@@ -2474,7 +2475,7 @@ HTML;
             $optionsInput = $request->input('options', []);
             $variantNames = $request->input('variant_names', []);
             $options = [];
-            
+
             if (!empty($optionsInput) && is_array($optionsInput) && isset($optionsInput[0]['name'])) {
                 foreach ($optionsInput as $opt) {
                     $optName = trim((string) ($opt['name'] ?? ''));
