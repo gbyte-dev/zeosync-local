@@ -603,7 +603,7 @@ GRAPHQL
             $payload['variables'] = (object) $variables;
         }
 
-        $apiVersion = config('services.shopify.api_version', '2026-01');
+        $apiVersion = config('shopify.api_version', config('services.shopify.api_version', '2026-07'));
         $endpoint = sprintf('https://%s/admin/api/%s/graphql.json', $shop->shop, $apiVersion);
 
         try {

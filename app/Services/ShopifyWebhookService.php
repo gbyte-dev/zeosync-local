@@ -369,7 +369,7 @@ GRAPHQL
                 $shop->shop,
                 $this->setting(
                     'SHOPIFY_API_VERSION',
-                    config('services.shopify.api_version', '2026-01')
+                    config('shopify.api_version', config('services.shopify.api_version', '2026-07'))
                 )
             ),
             $payload

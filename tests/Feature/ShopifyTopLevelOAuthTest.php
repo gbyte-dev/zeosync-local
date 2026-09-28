@@ -197,8 +197,8 @@ it('2. Embedded /install returns iframe breakout navigation with clean loading U
     expect($content)->toContain('https://demo-store.myshopify.com/admin/oauth/authorize?');
     expect($content)->toContain('<script nonce=');
     expect($content)->toContain('<style nonce=');
-    expect($content)->toContain('Connecting to Shopify');
-    expect($content)->toContain('Securely redirecting you to Shopify authorization…');
+    expect($content)->toContain('Setting things up');
+    expect($content)->toContain('Confirming your store details');
     expect($content)->toContain('spinner');
     expect($content)->toContain('role="status"');
     expect($content)->toContain('aria-live="polite"');

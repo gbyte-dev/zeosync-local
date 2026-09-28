@@ -18,7 +18,7 @@ class ShopifyService
     {
         $this->shop = $shop;
         $this->token = $token;
-        $this->version = config('services.shopify.api_version', '2026-07');
+        $this->version = config('shopify.api_version', config('services.shopify.api_version', '2026-07'));
     }
 
     /**
@@ -2650,7 +2650,7 @@ class ShopifyService
         $response = Http::withHeaders([
             'X-Shopify-Access-Token' => $this->token,
             'Content-Type' => 'application/json',
-        ])->post("https://{$this->shop}/admin/api/2024-01/graphql.json", [
+        ])->post("https://{$this->shop}/admin/api/{$this->version}/graphql.json", [
             'query' => $query,
             'variables' => [
                 'id' => $orderId

@@ -236,7 +236,7 @@ class ShopifyController extends Controller
                     'Content-Type' => 'application/json',
                 ])
                 ->post(
-                    "https://{$shop->shop}/admin/api/2025-01/graphql.json",
+                    "https://{$shop->shop}/admin/api/" . config('shopify.api_version', config('services.shopify.api_version', '2026-07')) . "/graphql.json",
                     [
                         'query' => '
                         query {
@@ -2145,7 +2145,7 @@ class ShopifyController extends Controller
                     'X-Shopify-Access-Token' => $shopModel->access_token,
                     'Content-Type' => 'application/json',
                 ])
-                ->post("https://{$shopModel->shop}/admin/api/" . config('services.shopify.api_version', '2026-07') . '/graphql.json', [
+                ->post("https://{$shopModel->shop}/admin/api/" . config('shopify.api_version', config('services.shopify.api_version', '2026-07')) . '/graphql.json', [
                     'query' => $query,
                     'variables' => [
                         'metafields' => $metafields
