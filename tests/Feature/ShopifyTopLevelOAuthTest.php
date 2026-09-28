@@ -187,7 +187,7 @@ it('1. Top-level /install redirects directly (302) to Shopify OAuth', function (
     expect($redirectLocation)->toContain('state=');
 });
 
-it('2. Embedded /install returns iframe breakout navigation', function () {
+it('2. Embedded /install returns iframe breakout navigation with clean loading UI', function () {
     $response = $this->get('/install?shop=demo-store.myshopify.com&embedded=1');
 
     $response->assertStatus(200);
@@ -196,6 +196,13 @@ it('2. Embedded /install returns iframe breakout navigation', function () {
     expect($content)->toContain('window.top.location.href');
     expect($content)->toContain('https://demo-store.myshopify.com/admin/oauth/authorize?');
     expect($content)->toContain('<script nonce=');
+    expect($content)->toContain('<style nonce=');
+    expect($content)->toContain('Connecting to Shopify');
+    expect($content)->toContain('Securely redirecting you to Shopify authorization…');
+    expect($content)->toContain('spinner');
+    expect($content)->toContain('role="status"');
+    expect($content)->toContain('aria-live="polite"');
+    expect($content)->toContain('<noscript>');
 });
 
 it('3. Invalid shop domain fails with 400', function () {

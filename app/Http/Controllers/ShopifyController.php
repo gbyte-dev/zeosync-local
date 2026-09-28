@@ -365,12 +365,14 @@ class ShopifyController extends Controller
             $cspNonce = request()->attributes->get('csp_nonce')
                 ?? (app()->has('csp_nonce') ? app('csp_nonce') : (view()->shared('cspNonce') ?? ''));
             $escapedUrl = json_encode($redirectUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES);
+            $appName = e(config('app.name', 'ZeoSync'));
             $html = <<<HTML
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Redirecting to Shopify...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connecting to Shopify &mdash; {$appName}</title>
     <script nonce="{$cspNonce}">
         if (window.top !== window.self) {
             window.top.location.href = {$escapedUrl};
@@ -381,9 +383,61 @@ class ShopifyController extends Controller
     <noscript>
         <meta http-equiv="refresh" content="0; url={$redirectUrl}">
     </noscript>
+    <style nonce="{$cspNonce}">
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            background: #F4F6F8;
+            color: #202223;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+        .redirect-card {
+            text-align: center;
+            padding: 36px 28px;
+            max-width: 420px;
+            width: 90%;
+            background: #FFFFFF;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            border: 1px solid #E5E7EB;
+        }
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #E5E7EB;
+            border-top: 3px solid #2563EB;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .redirect-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 6px;
+        }
+        .redirect-desc {
+            font-size: 13px;
+            color: #6B7280;
+            line-height: 1.5;
+        }
+    </style>
 </head>
 <body>
-    <p>Redirecting to Shopify authorization...</p>
+    <div class="redirect-card" role="status" aria-live="polite">
+        <div class="spinner"></div>
+        <h1 class="redirect-title">Connecting to Shopify</h1>
+        <p class="redirect-desc">Securely redirecting you to Shopify authorization…</p>
+    </div>
 </body>
 </html>
 HTML;
