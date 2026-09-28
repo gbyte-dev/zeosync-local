@@ -368,7 +368,7 @@
         <div class="saas-page-header">
             <div class="col-md-7 col-sm-12">
                 <h5 class="sp-title">Amazon Products </h5>
-                <p class="sp-text-muted" style="font-size: 13px;">Manage your Amazon products added from our platform.</p>
+                <p class="sp-text-muted" style="font-size: 13px;">Manage your Amazon products <span style="font-weight: bold;">added from our platform.</span></p>
             </div>
             @if(checkAmazonConnected())
             <div class="sp-actions col-md-5 col-sm-12">
@@ -605,7 +605,7 @@
                     search: "",
                     searchPlaceholder: "Search products...",
                     // CHANGED: Injected your custom empty layout design cleanly into DataTables
-                    emptyTable: "<div style='display: flex; flex-direction: column; align-items: center; color: #6B7280; padding: 40px 12px;'><div style='background: #F3F4F6; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;'><i class='bi bi-box-seam' style='font-size: 18px; color: #9CA3AF;'></i></div><span style='font-size: 13px; font-weight: 500; color: #111827;'>No products found</span></div>"
+                    emptyTable: "<div style='display: flex; flex-direction: column; align-items: center; color: #6B7280; padding: 40px 12px;'><div style='background: #F3F4F6; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;'><i class='bi bi-box-seam' style='font-size: 18px; color: #9CA3AF;'></i></div><span style='font-size: 13px; font-weight: 500; color: #111827;'>No products has been aded by our plateform.</span></div>"
                 }
             });
         }
