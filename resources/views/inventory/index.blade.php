@@ -235,6 +235,11 @@
         transform: translateX(140px) !important;
     }
 
+    #mapAmazonProductModal .modal-dialog,
+    #mapShopifyProductModal .modal-dialog {
+        max-width: 700px !important;
+    }
+
     #amazonProductActionModal.fade .modal-dialog,
     #mapAmazonProductModal.fade .modal-dialog,
     #productActionModal.fade .modal-dialog,
