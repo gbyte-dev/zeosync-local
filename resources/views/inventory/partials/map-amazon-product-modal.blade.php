@@ -45,6 +45,9 @@
                 
                 <input type="hidden" id="shopifyVariantId">
 
+                <!-- Status / Alert Container -->
+                <div id="amazonMappingStatusContainer" class="mb-3" style="display: none;"></div>
+
                 <!-- Flex Grid for Dropdowns (Restored Variant Section) -->
                 <div class="row g-2 mb-2">
                     
@@ -52,6 +55,7 @@
                     <div class="col-md-6">
                         <label class="form-label fw-semibold mb-1 text-dark" style="font-size: 0.85rem;">
                             <i class="fas fa-box me-1 text-primary"></i> Select Product
+                            <span id="amazonProductLoadingSpinner" class="spinner-border spinner-border-sm text-primary ms-1 align-middle" role="status" style="display: none; width: 0.85rem; height: 0.85rem;"></span>
                         </label>
                         <select id="amazonProduct" class="form-select form-select-sm">
                             <option value="">Select Amazon Product</option>
