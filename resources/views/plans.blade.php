@@ -8,9 +8,11 @@ $shop = \App\Models\Shop::where('shop', $currentShop)->first();
 $shopLabel = $currentShop ?: 'your connected store';
 
 $statusValue = strtolower((string) ($subscription?->status ?? 'pending'));
+$subscriptionService = app(\App\Services\SubscriptionService::class);
+$isScheduledCancel = $subscriptionService->isCancellationScheduled($subscription);
 
 $hasActivePlan = $subscription
-&& in_array($statusValue, ['active', 'accepted', 'trialing'], true);
+&& (in_array($statusValue, ['active', 'accepted', 'trialing'], true) || $isScheduledCancel);
 
 $currentPlan = $hasActivePlan
 ? $subscription->plan
@@ -30,7 +32,9 @@ $statusLabels = [
 ];
 $subscriptionStatus = $statusLabels[$statusValue] ?? ucfirst($statusValue ?: 'Pending');
 
-if (
+if ($isScheduledCancel) {
+$subscriptionStatus = 'Cancellation scheduled';
+} elseif (
 $subscription?->is_trial == 1 &&
 $subscription?->status === 'trialing' &&
 $subscription?->trial_ends_at?->isFuture()
@@ -715,7 +719,12 @@ $subscriptionStatus = 'Trialing';
                 @endif
             </div>
 
-            @if(in_array($statusValue, ['active', 'accepted']))
+            @if($isScheduledCancel)
+            <div class="alert alert-warning py-2 px-3 mb-0 text-center" style="font-size: 12px; border-radius: 8px;">
+                <i class="bi bi-info-circle me-1"></i>
+                Cancellation scheduled. Your plan remains active until <strong>{{ $subscription->current_period_end ? $subscription->current_period_end->format('d M Y') : 'the end of your billing cycle' }}</strong>.
+            </div>
+            @elseif(in_array($statusValue, ['active', 'accepted']))
             <button type="button" class="saas-btn saas-btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#cancelModal">
                 Cancel Subscription
             </button>

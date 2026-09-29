@@ -10,10 +10,7 @@ class ProductLimitService
 {
     public function canCreateProduct(int $shopId): array
     {
-        $subscription = ShopSubscription::with('plan')
-            ->where('shop_id', $shopId)
-            ->where('status', 'active')
-            ->first();
+        $subscription = app(SubscriptionService::class)->getActiveSubscription($shopId);
 
         if (!$subscription) {
             return [

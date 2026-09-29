@@ -20,11 +20,7 @@ class ImageLimitService
 
         $used = Image::where('shop_id', $shopId)->count();
 
-        $subscription = ShopSubscription::with('plan')
-            ->where('shop_id', $shopId)
-            ->whereIn('status', ['active', 'trialing'])
-            ->latest('started_at')
-            ->first();
+        $subscription = app(SubscriptionService::class)->getActiveSubscription($shopId);
 
         // If no active subscription or no plan attached
         if (!$subscription || !$subscription->plan) {
@@ -35,21 +31,6 @@ class ImageLimitService
                 'unlimited'       => false,
                 'has_active_plan' => false,
                 'plan_name'       => null,
-            ];
-        }
-
-        // Check if subscription has expired
-        if (
-            $subscription->current_period_end &&
-            now()->gt($subscription->current_period_end)
-        ) {
-            return [
-                'limit'           => 0,
-                'used'            => $used,
-                'remaining'       => 0,
-                'unlimited'       => false,
-                'has_active_plan' => false,
-                'plan_name'       => $subscription->plan->name ?? null,
             ];
         }
 

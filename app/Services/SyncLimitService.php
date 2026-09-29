@@ -10,14 +10,7 @@ class SyncLimitService
 {
     public function canMap(Shop $shop): array
     {
-        $subscription = ShopSubscription::with('plan')
-            ->where('shop_id', $shop->id)
-            ->whereIn('status', [
-                'active',
-                'trialing',
-            ])
-            ->latest('started_at')
-            ->first();
+        $subscription = app(SubscriptionService::class)->getActiveSubscription($shop);
 
         if (!$subscription) {
             return [
@@ -27,21 +20,6 @@ class SyncLimitService
                 'limit'     => 0,
                 'remaining' => 0,
                 'plan_name' => null,
-            ];
-        }
-
-        // Subscription expired
-        if (
-            $subscription->current_period_end &&
-            now()->gt($subscription->current_period_end)
-        ) {
-            return [
-                'allowed'   => false,
-                'message'   => 'Your subscription has expired. Please renew your plan.',
-                'used'      => 0,
-                'limit'     => 0,
-                'remaining' => 0,
-                'plan_name' => $subscription->plan?->name,
             ];
         }
 
