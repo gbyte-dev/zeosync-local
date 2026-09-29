@@ -81,17 +81,56 @@ class InventoryMappingController extends Controller
             ], 401);
         }
 
+        // Get all occupied shopify_variant_id values for the current shop in one query
+        $occupiedVariantIds = ProductMarketplaceMapping::where('shop_id', $shop->id)
+            ->whereNotNull('shopify_variant_id')
+            ->where('shopify_variant_id', '!=', '')
+            ->pluck('shopify_variant_id')
+            ->map(fn($id) => (string) $id)
+            ->flip()
+            ->toArray();
+
+        // Load products belonging to this shop
         $products = Product::where('shop_id', $shop->id)
             ->orderBy('title')
             ->get([
                 'id',
                 'title',
-                'shopify_id'
+                'shopify_id',
+                'variants'
             ]);
+
+        // Filter products: include only those having at least ONE unmapped variant
+        $availableProducts = $products->filter(function ($product) use ($occupiedVariantIds) {
+            $rawVariants = $product->variants;
+            if (!is_array($rawVariants)) {
+                $rawVariants = json_decode($rawVariants, true) ?? [];
+            }
+
+            if (!empty($rawVariants)) {
+                foreach ($rawVariants as $variant) {
+                    $variantId = (string) ($variant['id'] ?? '');
+                    if ($variantId !== '' && !isset($occupiedVariantIds[$variantId])) {
+                        return true; // Found at least one available variant
+                    }
+                }
+                return false; // All variants are occupied
+            }
+
+            // Standalone product without variants: target ID is shopify_id or product table ID
+            $targetId = (string) ($product->shopify_id ?: $product->id);
+            return !isset($occupiedVariantIds[$targetId]);
+        })->map(function ($product) {
+            return [
+                'id' => $product->id,
+                'title' => $product->title,
+                'shopify_id' => $product->shopify_id,
+            ];
+        })->values();
 
         return response()->json([
             'success' => true,
-            'products' => $products
+            'products' => $availableProducts
         ]);
     }
 

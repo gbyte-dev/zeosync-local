@@ -2597,12 +2597,14 @@
         }, function(response) {
             $('#shopifyProductLoadingSpinner').hide();
             let html = '<option value="">Select Shopify Product</option>';
-            if (response && Array.isArray(response.products)) {
+            if (response && Array.isArray(response.products) && response.products.length > 0) {
                 response.products.forEach(p => {
                     const title = p.title || '';
                     const shopifyId = p.shopify_id || p.id || '';
                     html += `<option value="${p.id}" data-shopify-product="${shopifyId}">${escapeHtmlText(title)}</option>`;
                 });
+            } else if (response && Array.isArray(response.products) && response.products.length === 0) {
+                html = '<option value="" disabled selected>No unmapped Shopify products available</option>';
             }
             $('#shopifyProduct').html(html).prop('disabled', false);
             $('#shopifyVariant').html('<option value="">Select Product First</option>').prop('disabled', true);
@@ -2641,25 +2643,40 @@
                 currentShopifyProductId = response.shopify_product_id;
             }
 
-            // Case B: No variants exist
-            if (!response.success || !response.has_variants || !response.variants || response.variants.length === 0) {
+            if (!response || !response.success) {
                 currentProductHasVariants = false;
-                $('#shopifyVariant').html('<option value="">No variants available</option>').prop('disabled', true);
-                $('#saveProductMapping').prop('disabled', false);
+                $('#shopifyVariant').html('<option value="">Failed to load variants</option>').prop('disabled', true);
+                $('#saveProductMapping').prop('disabled', true);
                 return;
             }
 
             // Case A: Product has variants
-            currentProductHasVariants = true;
-            let html = '<option value="">Select Variant</option>';
-            response.variants.forEach(v => {
-                const title = v.title || 'Default Title';
-                const invId = v.inventory_item_id || '';
-                html += `<option value="${v.id}" data-inventory-item="${invId}" data-shopify-product-id="${response.shopify_product_id}">${escapeHtmlText(title)}</option>`;
-            });
-            $('#shopifyVariant').html(html).prop('disabled', false);
-            initOrRefreshShopifyVariantSelect2();
-            $('#saveProductMapping').prop('disabled', !$('#shopifyVariant').val());
+            if (response.has_variants) {
+                if (!response.variants || response.variants.length === 0) {
+                    // All variants for this product are already mapped
+                    currentProductHasVariants = true;
+                    $('#shopifyVariant').html('<option value="">All variants are already mapped</option>').prop('disabled', true);
+                    $('#saveProductMapping').prop('disabled', true);
+                    return;
+                }
+
+                currentProductHasVariants = true;
+                let html = '<option value="">Select Variant</option>';
+                response.variants.forEach(v => {
+                    const title = v.title || 'Default Title';
+                    const invId = v.inventory_item_id || '';
+                    html += `<option value="${v.id}" data-inventory-item="${invId}" data-shopify-product-id="${response.shopify_product_id}">${escapeHtmlText(title)}</option>`;
+                });
+                $('#shopifyVariant').html(html).prop('disabled', false);
+                initOrRefreshShopifyVariantSelect2();
+                $('#saveProductMapping').prop('disabled', !$('#shopifyVariant').val());
+                return;
+            }
+
+            // Case B: Truly standalone product without variants
+            currentProductHasVariants = false;
+            $('#shopifyVariant').html('<option value="">Default (No variants)</option>').prop('disabled', true);
+            $('#saveProductMapping').prop('disabled', false);
         }).fail(function() {
             $('#shopifyVariantLoadingSpinner').hide();
             currentProductHasVariants = false;
