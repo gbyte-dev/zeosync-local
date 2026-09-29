@@ -455,8 +455,30 @@ GRAPHQL
             ]);
         }
 
-        $currentPeriodEnd = $shopifySubscription['current_period_end'] ?? null;
+        $incomingPeriodEnd = $shopifySubscription['current_period_end'] ?? null;
         $status = strtolower((string) ($shopifySubscription['status'] ?? 'pending'));
+        $existingPeriodEnd = $localSubscription?->current_period_end;
+
+        if ($incomingPeriodEnd !== null) {
+            // A. If Shopify provides a non-null current_period_end: use Shopify value.
+            $currentPeriodEnd = $incomingPeriodEnd;
+        } elseif (in_array($status, ['cancelled', 'pending_cancel'], true) && $existingPeriodEnd !== null) {
+            // B. If Shopify status is cancelled AND incoming current_period_end is null:
+            // preserve existing local current_period_end if it exists.
+            $currentPeriodEnd = $existingPeriodEnd;
+
+            Log::info('BILLING_PERIOD_END_PRESERVED_ON_CANCEL', [
+                'shop_id' => $shop->id,
+                'subscription_id' => $localSubscription?->id,
+                'incoming_status' => $status,
+                'incoming_period_end' => null,
+                'existing_period_end' => $existingPeriodEnd,
+                'persisted_period_end' => $currentPeriodEnd,
+            ]);
+        } else {
+            $currentPeriodEnd = $existingPeriodEnd ?? null;
+        }
+
         $billingInterval = $shopifySubscription['billing_interval'] ?? 'EVERY_30_DAYS';
         $billingCycleMonths = $billingInterval === 'ANNUAL' ? 12 : 1;
         $amount = $shopifySubscription['amount'] ?? (float) ($plan?->price ?? 0);
@@ -464,6 +486,8 @@ GRAPHQL
         Log::info('SHOPIFY SUBSCRIPTION DATA', [
             'gid' => $shopifySubscription['gid'] ?? null,
             'status' => $shopifySubscription['status'] ?? null,
+            'incoming_period_end' => $shopifySubscription['current_period_end'] ?? null,
+            'persisted_period_end' => $currentPeriodEnd,
             'billing_interval' => $billingInterval,
             'amount' => $amount,
         ]);
@@ -472,6 +496,7 @@ GRAPHQL
             'final_plan_id' => $finalPlanId,
             'local_plan_id' => $localSubscription?->plan_id,
             'resolved_plan_id' => $plan?->id,
+            'current_period_end' => $currentPeriodEnd,
         ]);
         $subscription = ShopSubscription::updateOrCreate(
             ['shop_id' => $shop->id],
@@ -502,15 +527,16 @@ GRAPHQL
                     : null,
                 'current_period_end' => $currentPeriodEnd,
                 'ended_at' => $currentPeriodEnd,
-                'cancelled_at' => $status === 'cancelled'
+                'cancelled_at' => in_array($status, ['cancelled', 'pending_cancel'], true)
                     ? ($localSubscription?->cancelled_at ?? now())
-                    : null,
+                    : ($this->isActivatedStatus($status) ? null : ($localSubscription?->cancelled_at)),
             ]
         );
         Log::info('PERSIST COMPLETE', [
             'shop_id' => $subscription->shop_id,
             'saved_plan_id' => $subscription->plan_id,
             'saved_status' => $subscription->status,
+            'saved_current_period_end' => $subscription->current_period_end,
         ]);
         return $subscription;
     }

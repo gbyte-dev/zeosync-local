@@ -193,12 +193,14 @@ class PlanController extends Controller
             return back()->with('error', 'No active Shopify subscription found.');
         }
 
-        // Log::info('SHOPIFY PLAN CANCELLATION REQUEST', [
-        //     'shop_id' => $shop->id,
-        //     'shop' => $shop->shop,
-        //     'subscription_id' => $subscription->id,
-        //     'subscription_gid' => $subscription->shopify_subscription_gid,
-        // ]);
+        Log::info('SHOPIFY PLAN CANCELLATION REQUEST', [
+            'shop_id' => $shop->id,
+            'shop' => $shop->shop,
+            'subscription_id' => $subscription->id,
+            'subscription_gid' => $subscription->shopify_subscription_gid,
+            'status_before' => $subscription->status,
+            'current_period_end_before' => $subscription->current_period_end,
+        ]);
 
         $billingService = app(ShopifyBillingService::class);
 
@@ -207,23 +209,26 @@ class PlanController extends Controller
         );
 
         if (!$result) {
-            // Log::error('SHOPIFY PLAN CANCELLATION FAILED', [
-            //     'shop_id' => $shop->id,
-            //     'subscription_gid' => $subscription->shopify_subscription_gid,
-            // ]);
+            Log::error('SHOPIFY PLAN CANCELLATION FAILED', [
+                'shop_id' => $shop->id,
+                'subscription_gid' => $subscription->shopify_subscription_gid,
+            ]);
 
-            return back()->with( 'error', 'Unable to cancel Shopify subscription.'  );
+            return back()->with('error', 'Unable to cancel Shopify subscription.');
         }
 
-        $subscription->update([ 'status' => 'cancelled', 'cancelled_at' => now()  ]);
+        $subscription->update(['status' => 'cancelled', 'cancelled_at' => now()]);
 
-        // Log::info('SHOPIFY PLAN CANCELLED', [
-        //     'shop_id' => $shop->id,
-        //     'subscription_id' => $subscription->id,
-        //     'subscription_gid' => $subscription->shopify_subscription_gid,
-        // ]);
+        Log::info('SHOPIFY PLAN CANCELLED', [
+            'shop_id' => $shop->id,
+            'subscription_id' => $subscription->id,
+            'subscription_gid' => $subscription->shopify_subscription_gid,
+            'status_after' => $subscription->status,
+            'current_period_end_after' => $subscription->current_period_end,
+            'cancelled_at' => $subscription->cancelled_at,
+        ]);
 
-        return back()->with(  'success', 'Subscription cancelled successfully.'  );
+        return back()->with('success', 'Subscription cancelled successfully.');
     }
 
     public function destroy(Plan $plan)
