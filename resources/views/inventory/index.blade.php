@@ -5,6 +5,7 @@
 @include('inventory.partials.map-shopify-product-modal')
 @include('inventory.partials.map-amazon-product-modal')
 
+@push('css')
 <!-- Bootstrap Icons -->
 <link nonce="{{ $cspNonce }}" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
@@ -521,7 +522,16 @@
     .zeosync-custom-tooltip.visible {
         opacity: 1;
     }
+
+    .s2-name { font-size: small; font-weight: 500; line-height: 1.25; white-space: normal; }
+    .s2-sku  { font-size: .70rem;  margin-top: 2px; }
+    .select2-container--bootstrap-5 .select2-dropdown .select2-search .select2-search__field{
+        font-size: .70rem !important;
+    }     
 </style>
+<link nonce="{{ $cspNonce??'' }}" href="{{ asset('assets/vendor/select2/css/select2.min.css') }}?v={{ time() }}" rel="stylesheet">
+<link nonce="{{ $cspNonce??'' }}" href="{{ asset('assets/vendor/select2/css/select2-bootstrap-5-theme.min.css') }}?v={{ time() }}" rel="stylesheet">
+@endpush
 
 <div class="container-fluid py-3 px-3 saas-wrapper">
 
@@ -1019,6 +1029,7 @@
 @endsection
 
 @push('scripts')
+<script nonce="{{ $cspNonce??'' }}" src="{{ asset('assets/vendor/select2/js/select2.min.js') }}?v={{ time() }}"></script>
 <script nonce="{{ $cspNonce }}">
     const amazonConnected = @json(!empty($shop -> amazon_refresh_token));
     let selectedAmazonSku = null;
@@ -1719,7 +1730,6 @@
 
     function renderAmazonTable(data, isLoading = false) {
     
-
         if (!data || data.length === 0) {
             $('#amazonTableWrapper').hide();
 
@@ -2591,5 +2601,63 @@
             console.error('Failed to load Amazon products:', xhr.responseText);
         });
     });
+
+    function formatAmazonOption(opt) {
+        if (!opt.id) return opt.text; // placeholder row
+        const sku = $(opt.element).attr('data-sku');
+        return $('<div></div>').append(
+            $('<div class="s2-name"></div>').text(opt.text),
+            $('<div class="s2-sku"></div>').text('SKU: ' + sku)
+        );
+    }
+
+    function initAmazonSelect() {
+        const $select = $('#amazonProduct');
+        if ($select.hasClass('select2-hidden-accessible')) return; // init only once
+
+        $select.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Select Amazon Product',
+            dropdownParent: $('#mapAmazonProductModal'),
+            templateResult: formatAmazonOption,
+            templateSelection: formatAmazonOption,
+            matcher: function (params, data) {
+                const term = (params.term || '').trim().toLowerCase();
+                if (!term) return data;
+                const sku = data.element ? (data.element.getAttribute('data-sku') || '') : '';
+                return (data.text + ' ' + sku).toLowerCase().includes(term) ? data : null;
+            }
+        });
+    }
+
+    // $(document).on('click', '#existingAmazonProductBtn', function () {
+    //     const shop = new URLSearchParams(window.location.search).get('shop');
+
+    //     $.get("{{ route('shopify.inventory.amazon') }}", { shop: shop }, function (response) {
+    //         const items = (response.products ?? []).filter(item => !item.is_mapped);
+    //         const $select = $('#amazonProduct');
+
+    //         $select.empty().append(new Option('', '', false, false)); // empty option for placeholder
+
+    //         items.forEach(item => {
+    //             if (item.title.length > 40) {
+    //                 item.title = item.title.substring(0, 40) + '...';
+    //             }
+    //             const opt = new Option(item.title || item.sku, item.sku, false, false);
+    //             opt.setAttribute('data-sku', item.sku);
+    //             $select.append(opt);
+    //         });
+
+    //         initAmazonSelect();
+    //         $select.val(null).trigger('change'); // refresh Select2 with the new options
+
+    //         $('#amazonProductActionModal').modal('hide');
+    //         $('#mapAmazonProductModal').modal('show');
+    //     }).fail(function (xhr) {
+    //         console.error('Failed to load Amazon products:', xhr.responseText);
+    //     });
+    // });
+
 </script>
 @endpush
