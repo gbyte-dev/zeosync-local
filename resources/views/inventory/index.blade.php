@@ -524,7 +524,7 @@
     }
 
     .s2-name { font-size: small; font-weight: 500; line-height: 1.25; white-space: normal; }
-    .s2-sku  { font-size: .70rem; color: #6c757d; margin-top: 2px; }
+    .s2-sku  { font-size: .70rem;  margin-top: 2px; }
     .select2-container--bootstrap-5 .select2-dropdown .select2-search .select2-search__field{
         font-size: .70rem !important;
     }     
@@ -2574,33 +2574,33 @@
         });
     });
 
-    // $(document).on('click', '#existingAmazonProductBtn', function() {
-    //     const shop = new URLSearchParams(window.location.search).get('shop');
-    //     $.get("{{ route('shopify.inventory.amazon') }}", {
-    //         shop: shop
-    //     }, function(response) {
-    //         let items = response.products ?? [];
-    //         let options = '<option value="">Select Amazon Product</option>';
+    $(document).on('click', '#existingAmazonProductBtn', function() {
+        const shop = new URLSearchParams(window.location.search).get('shop');
+        $.get("{{ route('shopify.inventory.amazon') }}", {
+            shop: shop
+        }, function(response) {
+            let items = response.products ?? [];
+            let options = '<option value="">Select Amazon Product</option>';
 
-    //         items.filter(item => !item.is_mapped)
-    //             .forEach(item => {
-    //                 let title = item.title || '';
-    //                 if (title.length > 40) {
-    //                     title = title.substring(0, 40) + '...';
-    //                 }
+            items.filter(item => !item.is_mapped)
+                .forEach(item => {
+                    let title = item.title || '';
+                    if (title.length > 40) {
+                        title = title.substring(0, 40) + '...';
+                    }
 
-    //                 options += `<option value="${item.sku}">
-    //                 ${title} (${item.sku})
-    //                 </option>`;
-    //             });
+                    options += `<option value="${item.sku}">
+                    ${title} (${item.sku})
+                    </option>`;
+                });
 
-    //         $('#amazonProduct').html(options);
-    //         $('#amazonProductActionModal').modal('hide');
-    //         $('#mapAmazonProductModal').modal('show');
-    //     }).fail(function(xhr) {
-    //         console.error('Failed to load Amazon products:', xhr.responseText);
-    //     });
-    // });
+            $('#amazonProduct').html(options);
+            $('#amazonProductActionModal').modal('hide');
+            $('#mapAmazonProductModal').modal('show');
+        }).fail(function(xhr) {
+            console.error('Failed to load Amazon products:', xhr.responseText);
+        });
+    });
 
     function formatAmazonOption(opt) {
         if (!opt.id) return opt.text; // placeholder row
@@ -2631,33 +2631,33 @@
         });
     }
 
-    $(document).on('click', '#existingAmazonProductBtn', function () {
-        const shop = new URLSearchParams(window.location.search).get('shop');
+    // $(document).on('click', '#existingAmazonProductBtn', function () {
+    //     const shop = new URLSearchParams(window.location.search).get('shop');
 
-        $.get("{{ route('shopify.inventory.amazon') }}", { shop: shop }, function (response) {
-            const items = (response.products ?? []).filter(item => !item.is_mapped);
-            const $select = $('#amazonProduct');
+    //     $.get("{{ route('shopify.inventory.amazon') }}", { shop: shop }, function (response) {
+    //         const items = (response.products ?? []).filter(item => !item.is_mapped);
+    //         const $select = $('#amazonProduct');
 
-            $select.empty().append(new Option('', '', false, false)); // empty option for placeholder
+    //         $select.empty().append(new Option('', '', false, false)); // empty option for placeholder
 
-            items.forEach(item => {
-                if (item.title.length > 40) {
-                    item.title = item.title.substring(0, 40) + '...';
-                }
-                const opt = new Option(item.title || item.sku, item.sku, false, false);
-                opt.setAttribute('data-sku', item.sku);
-                $select.append(opt);
-            });
+    //         items.forEach(item => {
+    //             if (item.title.length > 40) {
+    //                 item.title = item.title.substring(0, 40) + '...';
+    //             }
+    //             const opt = new Option(item.title || item.sku, item.sku, false, false);
+    //             opt.setAttribute('data-sku', item.sku);
+    //             $select.append(opt);
+    //         });
 
-            initAmazonSelect();
-            $select.val(null).trigger('change'); // refresh Select2 with the new options
+    //         initAmazonSelect();
+    //         $select.val(null).trigger('change'); // refresh Select2 with the new options
 
-            $('#amazonProductActionModal').modal('hide');
-            $('#mapAmazonProductModal').modal('show');
-        }).fail(function (xhr) {
-            console.error('Failed to load Amazon products:', xhr.responseText);
-        });
-    });
+    //         $('#amazonProductActionModal').modal('hide');
+    //         $('#mapAmazonProductModal').modal('show');
+    //     }).fail(function (xhr) {
+    //         console.error('Failed to load Amazon products:', xhr.responseText);
+    //     });
+    // });
 
 </script>
 @endpush
