@@ -561,6 +561,11 @@ class AmazonService
                                     'shopify_variant_id' => $mapping->shopify_variant_id,
                                 ]);
                             } else {
+                                $liveLevelResponse = $shopify->getInventoryLevel($shop, $inventoryItemId, $locationId);
+                                $liveAvailable = (!empty($liveLevelResponse['error']) || !isset($liveLevelResponse['available']) || $liveLevelResponse['available'] === null)
+                                    ? null
+                                    : (int) $liveLevelResponse['available'];
+
                                 Log::info('Updating Shopify inventory from AmazonService', [
                                     'shop_id'                   => $shop->id,
                                     'amazon_sku'                => $sku,
@@ -570,44 +575,62 @@ class AmazonService
                                     'shopify_inventory_item_id' => $inventoryItemId,
                                     'shopify_location_id'       => $locationId,
                                     'old_quantity'              => $mapping->quantity,
+                                    'live_available'            => $liveAvailable,
+                                    'desired_quantity'          => $quantity,
                                     'new_quantity'              => $quantity,
+                                    'change_from_quantity'      => $liveAvailable,
                                 ]);
 
-                                $shopifyResponse = $shopify->setInventoryQuantity(
-                                    $shop,
-                                    $inventoryItemId,
-                                    $locationId,
-                                    $quantity
-                                );
-
-                                $isShopifySuccess = empty($shopifyResponse['error']) && empty($shopifyResponse['userErrors']);
-
-                                if ($isShopifySuccess) {
-                                    $selectedIndex = $shop->selected_location_index ?? 0;
-                                    Cache::forget("shopify_inventory_{$shop->shop}_location_{$selectedIndex}");
-
-                                    Log::info('Shopify inventory updated and cache invalidated from AmazonService', [
+                                if ($liveAvailable === null) {
+                                    Log::error('Shopify inventory update aborted in AmazonService: Failed to resolve live baseline inventory', [
                                         'shop_id'                   => $shop->id,
                                         'amazon_sku'                => $sku,
                                         'mapping_id'                => $mapping->id,
                                         'shopify_inventory_item_id' => $inventoryItemId,
                                         'shopify_location_id'       => $locationId,
-                                        'quantity'                  => $quantity,
-                                        'cleared_cache_index'       => $selectedIndex,
+                                        'desired_quantity'          => $quantity,
+                                        'level_response'            => $liveLevelResponse,
                                     ]);
                                 } else {
-                                    Log::error('Shopify inventory update failed in AmazonService', [
-                                        'shop_id'                   => $shop->id,
-                                        'amazon_sku'                => $sku,
-                                        'mapping_id'                => $mapping->id,
-                                        'shopify_product_id'        => $mapping->shopify_product_id,
-                                        'shopify_variant_id'        => $mapping->shopify_variant_id,
-                                        'shopify_inventory_item_id' => $inventoryItemId,
-                                        'shopify_location_id'       => $locationId,
-                                        'quantity'                  => $quantity,
-                                        'error'                     => $shopifyResponse['message'] ?? ($shopifyResponse['error'] ?? 'Unknown error'),
-                                        'userErrors'                => $shopifyResponse['userErrors'] ?? [],
-                                    ]);
+                                    $shopifyResponse = $shopify->setInventoryQuantity(
+                                        $shop,
+                                        $inventoryItemId,
+                                        $locationId,
+                                        $quantity,
+                                        $liveAvailable
+                                    );
+
+                                    $isShopifySuccess = empty($shopifyResponse['error']) && empty($shopifyResponse['userErrors']);
+
+                                    if ($isShopifySuccess) {
+                                        $selectedIndex = $shop->selected_location_index ?? 0;
+                                        Cache::forget("shopify_inventory_{$shop->shop}_location_{$selectedIndex}");
+
+                                        Log::info('Shopify inventory updated and cache invalidated from AmazonService', [
+                                            'shop_id'                   => $shop->id,
+                                            'amazon_sku'                => $sku,
+                                            'mapping_id'                => $mapping->id,
+                                            'shopify_inventory_item_id' => $inventoryItemId,
+                                            'shopify_location_id'       => $locationId,
+                                            'quantity'                  => $quantity,
+                                            'change_from_quantity'      => $liveAvailable,
+                                            'cleared_cache_index'       => $selectedIndex,
+                                        ]);
+                                    } else {
+                                        Log::error('Shopify inventory update failed in AmazonService', [
+                                            'shop_id'                   => $shop->id,
+                                            'amazon_sku'                => $sku,
+                                            'mapping_id'                => $mapping->id,
+                                            'shopify_product_id'        => $mapping->shopify_product_id,
+                                            'shopify_variant_id'        => $mapping->shopify_variant_id,
+                                            'shopify_inventory_item_id' => $inventoryItemId,
+                                            'shopify_location_id'       => $locationId,
+                                            'quantity'                  => $quantity,
+                                            'change_from_quantity'      => $liveAvailable,
+                                            'error'                     => $shopifyResponse['message'] ?? ($shopifyResponse['error'] ?? 'Unknown error'),
+                                            'userErrors'                => $shopifyResponse['userErrors'] ?? [],
+                                        ]);
+                                    }
                                 }
                             }
                         }

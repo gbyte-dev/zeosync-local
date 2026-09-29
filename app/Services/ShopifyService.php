@@ -2316,15 +2316,35 @@ class ShopifyService
             }
             GRAPHQL;
 
+        if ($changeFromQuantity === null) {
+            $levelResponse = ($shop instanceof Shop)
+                ? $this->getInventoryLevel($shop, $inventoryItemId, $locationId)
+                : $this->getInventoryLevel($inventoryItemId, $locationId);
+
+            if (empty($levelResponse['error']) && isset($levelResponse['available']) && $levelResponse['available'] !== null) {
+                $changeFromQuantity = (int) $levelResponse['available'];
+            } else {
+                Log::error('Shopify GraphQL setInventoryQuantity Error: Unable to resolve live baseline inventory (changeFromQuantity)', [
+                    'shop' => $this->shop,
+                    'inventory_item_id' => $inventoryItemId,
+                    'location_id' => $locationId,
+                    'quantity' => $quantity,
+                    'level_response' => $levelResponse,
+                ]);
+                return [
+                    'error' => true,
+                    'status' => 422,
+                    'message' => 'Unable to resolve authoritative Shopify live baseline inventory (changeFromQuantity).',
+                ];
+            }
+        }
+
         $quantityInput = [
             'inventoryItemId' => $itemGid,
             'locationId' => $locGid,
             'quantity' => (int) $quantity,
+            'changeFromQuantity' => (int) $changeFromQuantity,
         ];
-
-        if ($changeFromQuantity !== null) {
-            $quantityInput['changeFromQuantity'] = (int) $changeFromQuantity;
-        }
 
         $resolvedIdempotencyKey = !blank($idempotencyKey)
             ? (string) $idempotencyKey
