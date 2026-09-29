@@ -301,7 +301,10 @@ class AmazonService
 
         $execute = function () use ($shop, $sku, $quantity, $syncToShopify, $shopifyMappingQuantity) {
             $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
-                ->where('amazon_sku', $sku)
+                ->where(function ($q) use ($sku) {
+                    $q->where('amazon_sku', $sku)
+                      ->orWhere('amazon_parent_sku', $sku);
+                })
                 ->first();
 
             $requestSubmitted = false;
@@ -519,34 +522,93 @@ class AmazonService
                                 );
                             }
 
-                            Log::info('Updating Shopify inventory from AmazonService', [
-                                'shop_id'            => $shop->id,
-                                'amazon_sku'         => $sku,
-                                'mapping_id'         => $mapping->id,
-                                'shopify_product_id' => $mapping->shopify_product_id,
-                                'shopify_variant_id' => $mapping->shopify_variant_id,
-                                'shopify_location_id'=> $locationId,
-                                'old_quantity'       => $mapping->quantity,
-                                'new_quantity'       => $quantity,
-                            ]);
+                            // Resolve missing shopify_inventory_item_id using variant if necessary
+                            $inventoryItemId = $mapping->shopify_inventory_item_id;
 
-                            $shopifyResponse = $shopify->setInventoryQuantity(
-                                $shop,
-                                $mapping->shopify_inventory_item_id,
-                                $locationId,
-                                $quantity
-                            );
-
-                            if (!empty($shopifyResponse['error'])) {
-                                Log::error('Shopify inventory update failed in AmazonService', [
-                                    'shop_id'             => $shop->id,
-                                    'amazon_sku'          => $sku,
-                                    'mapping_id'          => $mapping->id,
-                                    'shopify_product_id'  => $mapping->shopify_product_id,
-                                    'shopify_variant_id'  => $mapping->shopify_variant_id,
-                                    'shopify_location_id' => $locationId,
-                                    'error'               => $shopifyResponse['message'] ?? 'Unknown error',
+                            if (blank($inventoryItemId) && !blank($mapping->shopify_variant_id)) {
+                                Log::info('Resolving missing shopify_inventory_item_id from Shopify variant', [
+                                    'shop_id'            => $shop->id,
+                                    'mapping_id'         => $mapping->id,
+                                    'shopify_variant_id' => $mapping->shopify_variant_id,
+                                    'amazon_sku'         => $sku,
                                 ]);
+
+                                $resolvedItemId = $shopify->getInventoryItemIdByVariantId($shop, $mapping->shopify_variant_id);
+
+                                if (!blank($resolvedItemId)) {
+                                    $inventoryItemId = (string) $resolvedItemId;
+                                    $mapping->update(['shopify_inventory_item_id' => $inventoryItemId]);
+
+                                    Log::info('Successfully resolved and persisted shopify_inventory_item_id', [
+                                        'shop_id'                   => $shop->id,
+                                        'mapping_id'                => $mapping->id,
+                                        'shopify_inventory_item_id' => $inventoryItemId,
+                                    ]);
+                                } else {
+                                    Log::error('Failed to resolve shopify_inventory_item_id for Shopify variant', [
+                                        'shop_id'            => $shop->id,
+                                        'mapping_id'         => $mapping->id,
+                                        'shopify_variant_id' => $mapping->shopify_variant_id,
+                                    ]);
+                                }
+                            }
+
+                            if (blank($inventoryItemId)) {
+                                Log::error('Shopify inventory update skipped: Missing shopify_inventory_item_id', [
+                                    'shop_id'            => $shop->id,
+                                    'mapping_id'         => $mapping->id,
+                                    'amazon_sku'         => $sku,
+                                    'shopify_variant_id' => $mapping->shopify_variant_id,
+                                ]);
+                            } else {
+                                Log::info('Updating Shopify inventory from AmazonService', [
+                                    'shop_id'                   => $shop->id,
+                                    'amazon_sku'                => $sku,
+                                    'mapping_id'                => $mapping->id,
+                                    'shopify_product_id'        => $mapping->shopify_product_id,
+                                    'shopify_variant_id'        => $mapping->shopify_variant_id,
+                                    'shopify_inventory_item_id' => $inventoryItemId,
+                                    'shopify_location_id'       => $locationId,
+                                    'old_quantity'              => $mapping->quantity,
+                                    'new_quantity'              => $quantity,
+                                ]);
+
+                                $shopifyResponse = $shopify->setInventoryQuantity(
+                                    $shop,
+                                    $inventoryItemId,
+                                    $locationId,
+                                    $quantity
+                                );
+
+                                $isShopifySuccess = empty($shopifyResponse['error']) && empty($shopifyResponse['userErrors']);
+
+                                if ($isShopifySuccess) {
+                                    $selectedIndex = $shop->selected_location_index ?? 0;
+                                    Cache::forget("shopify_inventory_{$shop->shop}_location_{$selectedIndex}");
+
+                                    Log::info('Shopify inventory updated and cache invalidated from AmazonService', [
+                                        'shop_id'                   => $shop->id,
+                                        'amazon_sku'                => $sku,
+                                        'mapping_id'                => $mapping->id,
+                                        'shopify_inventory_item_id' => $inventoryItemId,
+                                        'shopify_location_id'       => $locationId,
+                                        'quantity'                  => $quantity,
+                                        'cleared_cache_index'       => $selectedIndex,
+                                    ]);
+                                } else {
+                                    Log::error('Shopify inventory update failed in AmazonService', [
+                                        'shop_id'                   => $shop->id,
+                                        'amazon_sku'                => $sku,
+                                        'mapping_id'                => $mapping->id,
+                                        'shopify_product_id'        => $mapping->shopify_product_id,
+                                        'shopify_variant_id'        => $mapping->shopify_variant_id,
+                                        'shopify_inventory_item_id' => $inventoryItemId,
+                                        'shopify_location_id'       => $locationId,
+                                        'quantity'                  => $quantity,
+                                        'error'                     => $shopifyResponse['message'] ?? ($shopifyResponse['error'] ?? 'Unknown error'),
+                                        'userErrors'                => $shopifyResponse['userErrors'] ?? [],
+                                    ]);
+                                }
                             }
                         }
 

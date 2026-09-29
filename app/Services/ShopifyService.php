@@ -2407,6 +2407,72 @@ class ShopifyService
     }
 
     /**
+     * Resolve inventory item ID from a Shopify variant ID.
+     */
+    public function getInventoryItemIdByVariantId(?Shop $shop, string|int $variantId): ?string
+    {
+        if ($shop instanceof Shop) {
+            $this->shop = $shop->shop;
+            $this->token = $shop->access_token;
+        }
+
+        if (empty($this->shop) || empty($this->token) || empty($variantId)) {
+            return null;
+        }
+
+        $variantGid = str_starts_with((string) $variantId, 'gid://')
+            ? (string) $variantId
+            : "gid://shopify/ProductVariant/{$variantId}";
+
+        $query = <<<'GRAPHQL'
+            query GetVariantInventoryItem($id: ID!) {
+                productVariant(id: $id) {
+                    id
+                    legacyResourceId
+                    inventoryItem {
+                        id
+                        legacyResourceId
+                    }
+                }
+            }
+            GRAPHQL;
+
+        $response = $this->graphql($query, ['id' => $variantGid]);
+
+        if (!empty($response['error']) || !empty($response['errors'])) {
+            Log::warning('Shopify GraphQL getVariantInventoryItem error', [
+                'shop' => $this->shop,
+                'variant_id' => $variantId,
+                'response' => $response,
+            ]);
+            return null;
+        }
+
+        $item = data_get($response, 'data.productVariant.inventoryItem');
+        if (!$item) {
+            Log::warning('Shopify variant inventoryItem not found', [
+                'shop' => $this->shop,
+                'variant_id' => $variantId,
+            ]);
+            return null;
+        }
+
+        $legacyId = $item['legacyResourceId'] ?? null;
+        if (!empty($legacyId)) {
+            return (string) $legacyId;
+        }
+
+        $gid = $item['id'] ?? null;
+        if (!empty($gid)) {
+            return str_contains($gid, 'gid://shopify/InventoryItem/')
+                ? substr($gid, strrpos($gid, '/') + 1)
+                : (string) $gid;
+        }
+
+        return null;
+    }
+
+    /**
      * 2. Paginated Query (Array → GraphQL)
      */
     public function paginate($structure, $first = 50, $cursor = null)
