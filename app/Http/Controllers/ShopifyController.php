@@ -3297,12 +3297,33 @@ class ShopifyController extends Controller
             }
         }
 
-        // If no valid options, ensure single/default variants do not contain dangling option keys
+        // If no valid options, ensure single/default standalone variant has default Color and Size options
         if (empty($options)) {
-            foreach ($variants as &$v) {
-                unset($v['option1'], $v['option2'], $v['option3']);
+            $colorVal = !empty($variants[0]['option1'])
+                ? trim((string) $variants[0]['option1'])
+                : (!empty($request->input('color')) ? trim((string) $request->input('color')) : 'Default');
+            $sizeVal = !empty($variants[0]['option2'])
+                ? trim((string) $variants[0]['option2'])
+                : 'M';
+
+            $options = [
+                ['name' => 'Color', 'values' => [$colorVal]],
+                ['name' => 'Size', 'values' => [$sizeVal]],
+            ];
+
+            if (!empty($variants)) {
+                $variants[0]['option1'] = $colorVal;
+                $variants[0]['option2'] = $sizeVal;
             }
-            unset($v);
+        }
+
+        // Ensure first variant has primary image attached if no variant-specific image is provided
+        if (!empty($variants) && empty($variants[0]['image']) && empty($variants[0]['image_src']) && !empty($images)) {
+            $firstImgUrl = $images[0]['src'] ?? null;
+            if ($firstImgUrl) {
+                $variants[0]['image_src'] = $firstImgUrl;
+                $variants[0]['image'] = ['url' => $firstImgUrl];
+            }
         }
 
         $category = \App\Models\Category::where('id', $request->input('category'))->first();

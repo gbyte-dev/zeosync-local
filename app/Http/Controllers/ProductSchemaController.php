@@ -1415,6 +1415,33 @@ class ProductSchemaController extends Controller
     {
         $hasVariations = !empty($childSkus);
         $options = $hasVariations ? self::variants($attributes) : [];
+        $images = self::images($attributes);
+
+        if (empty($options)) {
+            $rawColor = $attributes['color'][0]['value']
+                ?? $attributes['color_name'][0]['value']
+                ?? $attributes['colour'][0]['value']
+                ?? null;
+
+            if (is_array($rawColor)) {
+                $rawColor = reset($rawColor);
+            }
+
+            $amazonColor = (!empty($rawColor) && trim((string) $rawColor) !== '')
+                ? trim((string) $rawColor)
+                : 'Default';
+
+            $options = [
+                [
+                    'name' => 'Color',
+                    'values' => [$amazonColor],
+                ],
+                [
+                    'name' => 'Size',
+                    'values' => ['M'],
+                ],
+            ];
+        }
 
         return [
             'title' => self::value($attributes, 'item_name'),
@@ -1426,9 +1453,9 @@ class ProductSchemaController extends Controller
             'product_type' => self::value($attributes, 'item_type_keyword'),
             'tags' => self::tags($attributes),
             'collections' => '',
-            'images' => self::images($attributes),
+            'images' => $images,
             'options' => $options,
-            'variants' => self::shopifyVariants($attributes, $childSkus, $options, $sku),
+            'variants' => self::shopifyVariants($attributes, $childSkus, $options, $sku, $images),
             'metafields' => self::metafields($attributes),
             'amazon' => [
                 'variation_theme' => $attributes['variation_theme'][0]['name'] ?? null,
@@ -1444,14 +1471,30 @@ class ProductSchemaController extends Controller
             ]
         ];
     }
-    private static function shopifyVariants(array $attributes, array $childSkus, array $options = [], string $mainSku = ''): array
+    private static function shopifyVariants(array $attributes, array $childSkus, array $options = [], string $mainSku = '', array $images = []): array
     {
         // No children → single variant
         if (empty($childSkus)) {
+            $rawColor = $attributes['color'][0]['value']
+                ?? $attributes['color_name'][0]['value']
+                ?? $attributes['colour'][0]['value']
+                ?? null;
+
+            if (is_array($rawColor)) {
+                $rawColor = reset($rawColor);
+            }
+
+            $amazonColor = (!empty($rawColor) && trim((string) $rawColor) !== '')
+                ? trim((string) $rawColor)
+                : 'Default';
+
             return [
                 [
                     'sku' => $mainSku ?: (self::value($attributes, 'merchant_sku') ?: ''),
                     'price' => self::price($attributes),
+                    'option1' => $amazonColor,
+                    'option2' => 'M',
+                    'image' => $images[0]['src'] ?? null,
                 ]
             ];
         }

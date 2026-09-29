@@ -807,26 +807,31 @@ document.addEventListener('DOMContentLoaded', function() {
 function initVariantTypes() {
     const container = document.getElementById('variantTypesContainer');
     container.innerHTML = '';
-    if (productData.options && productData.options.length > 0) {
-        productData.options.forEach(option => {
-            const div = document.createElement('div');
-            div.classList.add('variant-type-box');
-            div.innerHTML = `
-                <span class="remove-btn" onclick="this.parentElement.remove()">✖</span>
-                <div class="row">
-                    <div class="col-md-4 mb-2">
-                        <label class="form-label">Type Name</label>
-                        <input type="text" class="form-control variant-type-name" name="variant_names[]" placeholder="e.g., Color" value="${option.name}">
-                    </div>
-                    <div class="col-md-8 mb-2">
-                        <label class="form-label">Possible Values</label>
-                        <input type="text" class="form-control variant-type-values" name="variant_values[]" placeholder="e.g., Red, Blue, Green" value="${option.values ? option.values.join(', ') : ''}">
-                    </div>
+    const options = (productData.options && productData.options.length > 0)
+        ? productData.options
+        : [
+            { name: 'Color', values: ['Default'] },
+            { name: 'Size', values: ['M'] }
+        ];
+
+    options.forEach(option => {
+        const div = document.createElement('div');
+        div.classList.add('variant-type-box');
+        div.innerHTML = `
+            <span class="remove-btn" onclick="this.parentElement.remove()">✖</span>
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <label class="form-label">Type Name</label>
+                    <input type="text" class="form-control variant-type-name" name="variant_names[]" placeholder="e.g., Color" value="${option.name}">
                 </div>
-            `;
-            container.appendChild(div);
-        });
-    }
+                <div class="col-md-8 mb-2">
+                    <label class="form-label">Possible Values</label>
+                    <input type="text" class="form-control variant-type-values" name="variant_values[]" placeholder="e.g., Red, Blue, Green" value="${option.values ? option.values.join(', ') : ''}">
+                </div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
 }
 
 // Initialize metafields from product data
@@ -1080,6 +1085,26 @@ function generateCombinations() {
                     <input type="hidden"
                         name="variants[${idx}][existing_image_id]"
                         value="${existingVariant.image_id}">
+                </div>
+            `;
+        } else if (existingVariant && existingVariant.image) {
+            imageHtml = `
+                <div class="mt-2">
+                    <img src="${existingVariant.image}"
+                         style="width:45px;height:45px;object-fit:cover">
+                    <input type="hidden"
+                        name="variants[${idx}][image]"
+                        value="${existingVariant.image}">
+                </div>
+            `;
+        } else if (idx === 0 && productData.images && productData.images.length > 0 && productData.images[0].src) {
+            imageHtml = `
+                <div class="mt-2">
+                    <img src="${productData.images[0].src}"
+                         style="width:45px;height:45px;object-fit:cover">
+                    <input type="hidden"
+                        name="variants[${idx}][image]"
+                        value="${productData.images[0].src}">
                 </div>
             `;
         }

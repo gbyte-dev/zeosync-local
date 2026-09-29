@@ -868,6 +868,27 @@ class ShopifyService
             }
         }
 
+        $rawVariants = $payload['variants'] ?? [];
+        if (empty($productOptions) && !empty($rawVariants)) {
+            $detectedColor = 'Default';
+            foreach ($rawVariants as $v) {
+                if (!empty($v['option1']) && trim((string) $v['option1']) !== '') {
+                    $detectedColor = trim((string) $v['option1']);
+                    break;
+                }
+            }
+            $productOptions = [
+                [
+                    'name' => 'Color',
+                    'values' => [['name' => $detectedColor]],
+                ],
+                [
+                    'name' => 'Size',
+                    'values' => [['name' => 'M']],
+                ],
+            ];
+        }
+
         // Build files / images with deduplication
         $files = [];
         $seenFiles = [];
@@ -887,15 +908,18 @@ class ShopifyService
         };
 
         $rawImages = $payload['images'] ?? [];
+        $firstProductImage = null;
         foreach ($rawImages as $img) {
             $src = is_array($img) ? ($img['src'] ?? ($img['url'] ?? '')) : (string) $img;
             $addFile($src);
+            if (!$firstProductImage && is_string($src) && filter_var($src, FILTER_VALIDATE_URL)) {
+                $firstProductImage = $src;
+            }
         }
 
         // Build variants
         $variants = [];
-        $rawVariants = $payload['variants'] ?? [];
-        foreach ($rawVariants as $v) {
+        foreach ($rawVariants as $index => $v) {
             $price = isset($v['price']) ? (string) $v['price'] : '0.00';
             $sku = (string) ($v['sku'] ?? '');
 
@@ -919,13 +943,25 @@ class ShopifyService
                         'optionName' => $productOptions[0]['name'],
                         'name' => trim((string) $v['option1']),
                     ];
+                } elseif (isset($productOptions[0]['name']) && $productOptions[0]['name'] === 'Color') {
+                    $optionValues[] = [
+                        'optionName' => 'Color',
+                        'name' => 'Default',
+                    ];
                 }
+
                 if (!empty($v['option2']) && isset($productOptions[1]['name'])) {
                     $optionValues[] = [
                         'optionName' => $productOptions[1]['name'],
                         'name' => trim((string) $v['option2']),
                     ];
+                } elseif (isset($productOptions[1]['name']) && $productOptions[1]['name'] === 'Size') {
+                    $optionValues[] = [
+                        'optionName' => 'Size',
+                        'name' => 'M',
+                    ];
                 }
+
                 if (!empty($v['option3']) && isset($productOptions[2]['name'])) {
                     $optionValues[] = [
                         'optionName' => $productOptions[2]['name'],
@@ -933,6 +969,18 @@ class ShopifyService
                     ];
                 }
             }
+
+            // Defensively ensure optionValues is NEVER empty if productOptions has items
+            if (empty($optionValues) && !empty($productOptions)) {
+                foreach ($productOptions as $pOpt) {
+                    $firstVal = $pOpt['values'][0]['name'] ?? 'Default';
+                    $optionValues[] = [
+                        'optionName' => $pOpt['name'],
+                        'name' => $firstVal,
+                    ];
+                }
+            }
+
             if (!empty($optionValues)) {
                 $variantInput['optionValues'] = $optionValues;
             }
@@ -982,6 +1030,11 @@ class ShopifyService
                 }
                 if (!$vImgId && !empty($v['media_id'])) {
                     $vImgId = $v['media_id'];
+                }
+
+                // If first variant has no specific image or image id, fallback to first product image
+                if (!$vImgUrl && !$vImgId && $index === 0 && $firstProductImage) {
+                    $vImgUrl = $firstProductImage;
                 }
 
                 if ($vImgUrl && filter_var($vImgUrl, FILTER_VALIDATE_URL) && (str_starts_with($vImgUrl, 'http://') || str_starts_with($vImgUrl, 'https://'))) {
