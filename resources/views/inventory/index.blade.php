@@ -522,7 +522,10 @@
     .zeosync-custom-tooltip.visible {
         opacity: 1;
     }
-    
+
+    .s2-name { font-size: small; font-weight: 500; line-height: 1.25; white-space: normal; }
+    .s2-sku  { font-size: .70rem; color: #6c757d; margin-top: 2px; }
+        
 </style>
 <link nonce="{{ $cspNonce??'' }}" href="{{ asset('assets/vendor/select2/css/select2.min.css') }}?v={{ time() }}" rel="stylesheet">
 <link nonce="{{ $cspNonce??'' }}" href="{{ asset('assets/vendor/select2/css/select2-bootstrap-5-theme.min.css') }}?v={{ time() }}" rel="stylesheet">
@@ -2636,6 +2639,9 @@
             $select.empty().append(new Option('', '', false, false)); // empty option for placeholder
 
             items.forEach(item => {
+                if (item.title.length > 40) {
+                    item.title = item.title.substring(0, 40) + '...';
+                }
                 const opt = new Option(item.title || item.sku, item.sku, false, false);
                 opt.setAttribute('data-sku', item.sku);
                 $select.append(opt);
