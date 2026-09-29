@@ -15,7 +15,7 @@ Schedule::command('stores:check-status')->everyMinute()
     ->withoutOverlapping()
     ->runInBackground();
 
-Schedule::command('shops:refresh-access-token')->everyMinute()
+Schedule::command('shops:refresh-access-token')->cron('2-59/5 * * * *') 
     ->withoutOverlapping()
     ->runInBackground();
 
