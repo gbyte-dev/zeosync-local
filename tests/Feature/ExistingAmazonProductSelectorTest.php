@@ -297,7 +297,7 @@ test('5. GET /inventory/amazon isolates cache strictly by shop_id and seller_id'
     expect($responseB->json('products.0.sku'))->toBe('SKU-B-ONLY');
 });
 
-test('6. map-amazon-product-modal contains status container and spinner elements', function () {
+test('6. map-amazon-product-modal contains polished single-selector structure without variant dropdown', function () {
     $shop = createExistingMappingTestShop();
 
     $view = view('inventory.partials.map-amazon-product-modal', [
@@ -307,6 +307,14 @@ test('6. map-amazon-product-modal contains status container and spinner elements
     expect($view)->toContain('id="amazonMappingStatusContainer"');
     expect($view)->toContain('id="amazonProductLoadingSpinner"');
     expect($view)->toContain('id="amazonProduct"');
+    expect($view)->toContain('id="selectedAmazonProductSummary"');
     expect($view)->toContain('id="existingAmazonProductBtn"');
     expect($view)->toContain('id="newAmazonProductBtn"');
+    expect($view)->toContain('Map Amazon Product');
+    expect($view)->toContain('Select the Amazon product you want to map to this Shopify variant.');
+    expect($view)->toContain('Each Amazon product can map to only one Shopify variant.');
+
+    // Ensure Shopify Variant / Select Product First dropdown is completely removed
+    expect($view)->not->toContain('id="amazonVariant"');
+    expect($view)->not->toContain('Select Product First');
 });

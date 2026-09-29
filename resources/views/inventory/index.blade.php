@@ -526,8 +526,59 @@
     .s2-name { font-size: small; font-weight: 500; line-height: 1.25; white-space: normal; }
     .s2-sku  { font-size: .70rem;  margin-top: 2px; }
     .select2-container--bootstrap-5 .select2-dropdown .select2-search .select2-search__field{
-        font-size: .70rem !important;
-    }     
+        font-size: .75rem !important;
+    }
+
+    /* Select2 UI Polishing for Map Amazon Product Modal */
+    #mapAmazonProductModal .select2-container--bootstrap-5 .select2-selection {
+        border-color: #dee2e6;
+        font-size: 0.85rem;
+        min-height: 38px;
+        border-radius: 6px;
+    }
+    #mapAmazonProductModal .select2-container--bootstrap-5.select2-container--focus .select2-selection {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    }
+    #mapAmazonProductModal .select2-dropdown {
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        border: 1px solid #e2e8f0;
+        z-index: 1060;
+    }
+    #mapAmazonProductModal .select2-results__option {
+        padding: 6px 10px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    #mapAmazonProductModal .select2-results__option:last-child {
+        border-bottom: none;
+    }
+    #mapAmazonProductModal .select2-results__option--highlighted[aria-selected] {
+        background-color: #f0f7ff !important;
+        color: #1e293b !important;
+    }
+    #mapAmazonProductModal .select2-results__option--highlighted .amazon-option-title {
+        color: #0d6efd !important;
+    }
+    #mapAmazonProductModal .select2-results__option--selected {
+        background-color: #e2eeff !important;
+    }
+    .amazon-option-item {
+        line-height: 1.3;
+    }
+    .amazon-option-title {
+        font-size: 0.83rem;
+        color: #212529;
+        font-weight: 500;
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .amazon-option-meta {
+        font-size: 0.72rem;
+    }
 </style>
 <link nonce="{{ $cspNonce??'' }}" href="{{ asset('assets/vendor/select2/css/select2.min.css') }}?v={{ time() }}" rel="stylesheet">
 <link nonce="{{ $cspNonce??'' }}" href="{{ asset('assets/vendor/select2/css/select2-bootstrap-5-theme.min.css') }}?v={{ time() }}" rel="stylesheet">
@@ -2367,9 +2418,6 @@
             $('#saveProductMapping').prop('disabled', !$(this).val());
         }
     });
-    $(document).on('change', '#amazonProduct', function() {
-        $('#saveAmazonProductMapping').prop('disabled', !$(this).val());
-    });
 
     function resetShopifyLocationToDefault() {
         const defaultLocId = $('#shopifyLocation').data('default-location-id');
@@ -2575,13 +2623,128 @@
     });
 
     // ==========================================
-    // Existing Amazon Product Mapping Selector State
+    // Existing Amazon Product Mapping Selector State & Polished UI
     // ==========================================
     let existingAmazonProductLoading = false;
     let existingAmazonProductRequestId = 0;
     let amazonMappingPollTimer = null;
     let amazonMappingPollCount = 0;
     const MAX_AMAZON_MAPPING_POLL_ATTEMPTS = 25; // ~50s at 2s interval
+
+    function escapeHtmlText(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function matchAmazonProduct(params, data) {
+        if ($.trim(params.term) === '') {
+            return data;
+        }
+        if (typeof data.text === 'undefined') {
+            return null;
+        }
+
+        const term = params.term.toLowerCase().trim();
+        const $el = $(data.element);
+        const title = ($el.data('title') || data.text || '').toString().toLowerCase();
+        const sku = ($el.data('sku') || data.id || '').toString().toLowerCase();
+        const asin = ($el.data('asin') || '').toString().toLowerCase();
+
+        if (title.indexOf(term) > -1 || sku.indexOf(term) > -1 || asin.indexOf(term) > -1) {
+            return data;
+        }
+        return null;
+    }
+
+    function formatAmazonOption(item) {
+        if (!item.id || !item.element) {
+            return item.text;
+        }
+        const $el = $(item.element);
+        const title = $el.data('title') || item.text;
+        const sku = $el.data('sku') || item.id;
+        const asin = $el.data('asin') || '';
+
+        const asinBadge = asin ? `<span class="badge bg-light text-secondary border me-1" style="font-size: 0.7rem; font-weight: 500;">ASIN: ${escapeHtmlText(asin)}</span>` : '';
+        const skuBadge = sku ? `<span class="badge bg-light text-primary border" style="font-size: 0.7rem; font-weight: 500;">SKU: ${escapeHtmlText(sku)}</span>` : '';
+
+        const $container = $(`
+            <div class="amazon-option-item py-1">
+                <div class="amazon-option-title" title="${escapeHtmlText(title)}">
+                    ${escapeHtmlText(title)}
+                </div>
+                <div class="amazon-option-meta d-flex flex-wrap gap-1 mt-1">
+                    ${skuBadge}
+                    ${asinBadge}
+                </div>
+            </div>
+        `);
+        return $container;
+    }
+
+    function formatAmazonSelection(item) {
+        if (!item.id || !item.element) {
+            return item.text;
+        }
+        const $el = $(item.element);
+        const title = $el.data('title') || item.text;
+        const sku = $el.data('sku') || item.id;
+        let shortTitle = title;
+        if (shortTitle.length > 50) {
+            shortTitle = shortTitle.substring(0, 50) + '...';
+        }
+        return `${shortTitle} (${sku})`;
+    }
+
+    function destroyAmazonSelect2() {
+        const $select = $('#amazonProduct');
+        if (typeof $.fn.select2 !== 'undefined' && $select.hasClass('select2-hidden-accessible')) {
+            $select.select2('destroy');
+        }
+    }
+
+    function initOrRefreshAmazonSelect2() {
+        const $select = $('#amazonProduct');
+        if (typeof $.fn.select2 !== 'undefined') {
+            destroyAmazonSelect2();
+            $select.select2({
+                dropdownParent: $('#mapAmazonProductModal'),
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Search Amazon products by Title, SKU, ASIN...',
+                allowClear: true,
+                matcher: matchAmazonProduct,
+                templateResult: formatAmazonOption,
+                templateSelection: formatAmazonSelection
+            });
+        }
+    }
+
+    function updateSelectedAmazonProductSummary(selectedSku) {
+        if (selectedSku) {
+            const $selectedOpt = $('#amazonProduct').find(`option[value="${selectedSku}"]`);
+            const title = $selectedOpt.data('title') || $selectedOpt.text() || selectedSku;
+            const sku = $selectedOpt.data('sku') || selectedSku;
+            const asin = $selectedOpt.data('asin') || '';
+
+            $('#selectedAmazonTitle').text(title).attr('title', title);
+            $('#selectedAmazonSku').text(sku);
+            if (asin) {
+                $('#selectedAmazonAsin').text(asin);
+                $('#selectedAmazonAsinWrap').show();
+            } else {
+                $('#selectedAmazonAsinWrap').hide();
+            }
+            $('#selectedAmazonProductSummary').slideDown(150);
+        } else {
+            $('#selectedAmazonProductSummary').slideUp(150);
+        }
+    }
 
     function clearAmazonMappingPolling() {
         if (amazonMappingPollTimer) {
@@ -2592,21 +2755,25 @@
     }
 
     function setAmazonProductSelectorLoading(message = 'Loading Amazon products...') {
+        destroyAmazonSelect2();
+        $('#selectedAmazonProductSummary').hide();
         $('#amazonProductLoadingSpinner').show();
         $('#amazonMappingStatusContainer').html(`
-            <div class="alert alert-light border py-2 px-3 mb-0 d-flex align-items-center text-muted" style="font-size: 0.8rem;">
+            <div class="alert alert-light border py-2 px-3 mb-0 d-flex align-items-center text-muted" style="font-size: 0.8rem; border-radius: 8px;">
                 <span class="spinner-border spinner-border-sm text-primary me-2" role="status"></span>
-                <span>${message}</span>
+                <span>${escapeHtmlText(message)}</span>
             </div>
         `).show();
-        $('#amazonProduct').html(`<option value="" disabled selected>${message}</option>`).prop('disabled', true);
+        $('#amazonProduct').html(`<option value="" disabled selected>${escapeHtmlText(message)}</option>`).prop('disabled', true);
         $('#saveAmazonProductMapping').prop('disabled', true);
     }
 
     function setAmazonProductSelectorSyncing() {
+        destroyAmazonSelect2();
+        $('#selectedAmazonProductSummary').hide();
         $('#amazonProductLoadingSpinner').show();
         $('#amazonMappingStatusContainer').html(`
-            <div class="alert alert-warning py-2 px-3 mb-0 d-flex align-items-center" style="font-size: 0.8rem;">
+            <div class="alert alert-warning py-2 px-3 mb-0 d-flex align-items-center border-0 bg-warning-subtle text-warning-emphasis" style="font-size: 0.8rem; border-radius: 8px;">
                 <span class="spinner-border spinner-border-sm text-warning me-2" role="status"></span>
                 <div>
                     <strong>Amazon inventory is syncing...</strong>
@@ -2624,24 +2791,33 @@
 
         let options = '<option value="">Select Amazon Product</option>';
         unmappedProducts.forEach(item => {
-            let title = item.title || '';
-            if (title.length > 50) {
-                title = title.substring(0, 50) + '...';
+            const rawTitle = item.title || item.sku || '';
+            const rawSku = item.sku || '';
+            const rawAsin = item.asin || '';
+            let displayTitle = rawTitle;
+            if (displayTitle.length > 55) {
+                displayTitle = displayTitle.substring(0, 55) + '...';
             }
-            options += `<option value="${item.sku}">
-                ${title} (${item.sku})
+            options += `<option value="${escapeHtmlText(rawSku)}" data-sku="${escapeHtmlText(rawSku)}" data-asin="${escapeHtmlText(rawAsin)}" data-title="${escapeHtmlText(rawTitle)}">
+                ${escapeHtmlText(displayTitle)} (${escapeHtmlText(rawSku)})
             </option>`;
         });
 
         $('#amazonProduct').html(options).prop('disabled', false);
-        $('#saveAmazonProductMapping').prop('disabled', !$('#amazonProduct').val());
+        initOrRefreshAmazonSelect2();
+
+        const currentVal = $('#amazonProduct').val();
+        $('#saveAmazonProductMapping').prop('disabled', !currentVal);
+        updateSelectedAmazonProductSummary(currentVal);
     }
 
     function setAmazonProductSelectorAllMapped() {
+        destroyAmazonSelect2();
+        $('#selectedAmazonProductSummary').hide();
         $('#amazonProductLoadingSpinner').hide();
         $('#amazonMappingStatusContainer').html(`
-            <div class="alert alert-info py-2 px-3 mb-0 d-flex align-items-center" style="font-size: 0.8rem;">
-                <i class="fas fa-info-circle text-info me-2"></i>
+            <div class="alert alert-info py-2 px-3 mb-0 d-flex align-items-center border-0 bg-info-subtle text-info-emphasis" style="font-size: 0.8rem; border-radius: 8px;">
+                <i class="fas fa-info-circle text-info me-2 fs-6"></i>
                 <span>All Amazon products in your inventory are already mapped to Shopify variants.</span>
             </div>
         `).show();
@@ -2650,10 +2826,12 @@
     }
 
     function setAmazonProductSelectorEmpty() {
+        destroyAmazonSelect2();
+        $('#selectedAmazonProductSummary').hide();
         $('#amazonProductLoadingSpinner').hide();
         $('#amazonMappingStatusContainer').html(`
-            <div class="alert alert-warning py-2 px-3 mb-0 d-flex align-items-center" style="font-size: 0.8rem;">
-                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+            <div class="alert alert-warning py-2 px-3 mb-0 d-flex align-items-center border-0 bg-warning-subtle text-warning-emphasis" style="font-size: 0.8rem; border-radius: 8px;">
+                <i class="fas fa-exclamation-triangle text-warning me-2 fs-6"></i>
                 <span>No Amazon products found in your Amazon account.</span>
             </div>
         `).show();
@@ -2662,14 +2840,16 @@
     }
 
     function setAmazonProductSelectorNotConnected() {
+        destroyAmazonSelect2();
+        $('#selectedAmazonProductSummary').hide();
         $('#amazonProductLoadingSpinner').hide();
         const shop = new URLSearchParams(window.location.search).get('shop');
         const connectUrl = "{{ route('amazon.connect') }}" + (shop ? ('?shop=' + encodeURIComponent(shop)) : '');
         $('#amazonMappingStatusContainer').html(`
-            <div class="alert alert-danger py-2 px-3 mb-0" style="font-size: 0.8rem;">
+            <div class="alert alert-danger py-2 px-3 mb-0 border-0 bg-danger-subtle text-danger-emphasis" style="font-size: 0.8rem; border-radius: 8px;">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <i class="fas fa-plug text-danger me-1"></i>
+                        <i class="fas fa-plug text-danger me-1 fs-6"></i>
                         <span>Amazon account is not connected.</span>
                     </div>
                     <a href="${connectUrl}" class="btn btn-sm btn-danger py-0 px-2 fw-medium" style="font-size: 0.75rem;">Connect</a>
@@ -2681,19 +2861,21 @@
     }
 
     function setAmazonProductSelectorError(errorMessage = 'Failed to load Amazon products.', isTimeout = false) {
+        destroyAmazonSelect2();
+        $('#selectedAmazonProductSummary').hide();
         $('#amazonProductLoadingSpinner').hide();
         $('#amazonMappingStatusContainer').html(`
-            <div class="alert alert-danger py-2 px-3 mb-0 d-flex align-items-center justify-content-between" style="font-size: 0.8rem;">
+            <div class="alert alert-danger py-2 px-3 mb-0 d-flex align-items-center justify-content-between border-0 bg-danger-subtle text-danger-emphasis" style="font-size: 0.8rem; border-radius: 8px;">
                 <div>
-                    <i class="fas fa-exclamation-circle text-danger me-1"></i>
-                    <span>${errorMessage}</span>
+                    <i class="fas fa-exclamation-circle text-danger me-1 fs-6"></i>
+                    <span>${escapeHtmlText(errorMessage)}</span>
                 </div>
                 <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 fw-medium retry-amazon-mapping-btn" style="font-size: 0.75rem;">
                     <i class="fas fa-redo-alt me-1"></i> Retry
                 </button>
             </div>
         `).show();
-        $('#amazonProduct').html(`<option value="" disabled selected>${errorMessage}</option>`).prop('disabled', true);
+        $('#amazonProduct').html(`<option value="" disabled selected>${escapeHtmlText(errorMessage)}</option>`).prop('disabled', true);
         $('#saveAmazonProductMapping').prop('disabled', true);
     }
 
@@ -2796,7 +2978,7 @@
             },
             complete: function() {
                 existingAmazonProductLoading = false;
-                $('#existingAmazonProductBtn').prop('disabled', false).html('Existing Amazon Product');
+                $('#existingAmazonProductBtn').prop('disabled', false).html('<i class="fas fa-boxes me-1"></i> Existing Amazon Product');
             }
         });
     }
@@ -2817,6 +2999,12 @@
         loadAmazonProductsForMapping(false, false);
     });
 
+    $(document).on('change', '#amazonProduct', function() {
+        const val = $(this).val();
+        $('#saveAmazonProductMapping').prop('disabled', !val);
+        updateSelectedAmazonProductSummary(val);
+    });
+
     $(document).on('click', '.retry-amazon-mapping-btn', function() {
         clearAmazonMappingPolling();
         loadAmazonProductsForMapping(true, false);
@@ -2825,9 +3013,12 @@
     $('#mapAmazonProductModal').on('hidden.bs.modal', function() {
         clearAmazonMappingPolling();
         existingAmazonProductLoading = false;
-        $('#existingAmazonProductBtn').prop('disabled', false).html('Existing Amazon Product');
+        $('#existingAmazonProductBtn').prop('disabled', false).html('<i class="fas fa-boxes me-1"></i> Existing Amazon Product');
         $('#amazonProductLoadingSpinner').hide();
         $('#amazonMappingStatusContainer').hide().empty();
+        destroyAmazonSelect2();
+        $('#amazonProduct').val('').trigger('change');
+        $('#selectedAmazonProductSummary').hide();
     });
 
 </script>
