@@ -525,7 +525,9 @@
 
     .s2-name { font-size: small; font-weight: 500; line-height: 1.25; white-space: normal; }
     .s2-sku  { font-size: .70rem; color: #6c757d; margin-top: 2px; }
-        
+    .select2-container--bootstrap-5 .select2-dropdown .select2-search .select2-search__field{
+        font-size: .70rem !important;
+    }     
 </style>
 <link nonce="{{ $cspNonce??'' }}" href="{{ asset('assets/vendor/select2/css/select2.min.css') }}?v={{ time() }}" rel="stylesheet">
 <link nonce="{{ $cspNonce??'' }}" href="{{ asset('assets/vendor/select2/css/select2-bootstrap-5-theme.min.css') }}?v={{ time() }}" rel="stylesheet">
