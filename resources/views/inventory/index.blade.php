@@ -529,44 +529,54 @@
         font-size: .75rem !important;
     }
 
-    /* Select2 UI Polishing for Map Amazon Product Modal */
-    #mapAmazonProductModal .select2-container--bootstrap-5 .select2-selection {
+    /* Select2 UI Polishing for Map Amazon Product & Map Shopify Product Modals */
+    #mapAmazonProductModal .select2-container--bootstrap-5 .select2-selection,
+    #mapShopifyProductModal .select2-container--bootstrap-5 .select2-selection {
         border-color: #dee2e6;
         font-size: 0.85rem;
         min-height: 38px;
         border-radius: 6px;
     }
-    #mapAmazonProductModal .select2-container--bootstrap-5.select2-container--focus .select2-selection {
+    #mapAmazonProductModal .select2-container--bootstrap-5.select2-container--focus .select2-selection,
+    #mapShopifyProductModal .select2-container--bootstrap-5.select2-container--focus .select2-selection {
         border-color: #0d6efd;
         box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
     }
-    #mapAmazonProductModal .select2-dropdown {
+    #mapAmazonProductModal .select2-dropdown,
+    #mapShopifyProductModal .select2-dropdown {
         border-radius: 8px;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
         border: 1px solid #e2e8f0;
         z-index: 1060;
     }
-    #mapAmazonProductModal .select2-results__option {
+    #mapAmazonProductModal .select2-results__option,
+    #mapShopifyProductModal .select2-results__option {
         padding: 6px 10px;
         border-bottom: 1px solid #f1f5f9;
     }
-    #mapAmazonProductModal .select2-results__option:last-child {
+    #mapAmazonProductModal .select2-results__option:last-child,
+    #mapShopifyProductModal .select2-results__option:last-child {
         border-bottom: none;
     }
-    #mapAmazonProductModal .select2-results__option--highlighted[aria-selected] {
+    #mapAmazonProductModal .select2-results__option--highlighted[aria-selected],
+    #mapShopifyProductModal .select2-results__option--highlighted[aria-selected] {
         background-color: #f0f7ff !important;
         color: #1e293b !important;
     }
-    #mapAmazonProductModal .select2-results__option--highlighted .amazon-option-title {
+    #mapAmazonProductModal .select2-results__option--highlighted .amazon-option-title,
+    #mapShopifyProductModal .select2-results__option--highlighted .shopify-option-title {
         color: #0d6efd !important;
     }
-    #mapAmazonProductModal .select2-results__option--selected {
+    #mapAmazonProductModal .select2-results__option--selected,
+    #mapShopifyProductModal .select2-results__option--selected {
         background-color: #e2eeff !important;
     }
-    .amazon-option-item {
+    .amazon-option-item,
+    .shopify-option-item {
         line-height: 1.3;
     }
-    .amazon-option-title {
+    .amazon-option-title,
+    .shopify-option-title {
         font-size: 0.83rem;
         color: #212529;
         font-weight: 500;
@@ -576,7 +586,8 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
-    .amazon-option-meta {
+    .amazon-option-meta,
+    .shopify-option-meta {
         font-size: 0.72rem;
     }
 </style>
@@ -2402,11 +2413,59 @@
     // Modals & Mappings Logic
     // ==========================================
 
+    function destroyShopifySelect2() {
+        const $select = $('#shopifyProduct');
+        if (typeof $.fn.select2 !== 'undefined' && $select.hasClass('select2-hidden-accessible')) {
+            $select.select2('destroy');
+        }
+    }
+
+    function destroyShopifyVariantSelect2() {
+        const $select = $('#shopifyVariant');
+        if (typeof $.fn.select2 !== 'undefined' && $select.hasClass('select2-hidden-accessible')) {
+            $select.select2('destroy');
+        }
+    }
+
+    function initOrRefreshShopifyProductSelect2() {
+        const $select = $('#shopifyProduct');
+        if (typeof $.fn.select2 !== 'undefined') {
+            destroyShopifySelect2();
+            $select.select2({
+                dropdownParent: $('#mapShopifyProductModal'),
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Search / Select Shopify Product...',
+                allowClear: true
+            });
+        }
+    }
+
+    function initOrRefreshShopifyVariantSelect2() {
+        const $select = $('#shopifyVariant');
+        if (typeof $.fn.select2 !== 'undefined') {
+            destroyShopifyVariantSelect2();
+            $select.select2({
+                dropdownParent: $('#mapShopifyProductModal'),
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Select Shopify Variant...',
+                allowClear: true
+            });
+        }
+    }
+
     $(document).on('click', '.map-shopify-product', function() {
         $('#saveProductMapping').prop('disabled', true);
         selectedAmazonSku = $(this).data('sku');
         var routetoadd = "{{route('user.product.syncAmazonToShopify',['sku' => 'SKU_PLACEHOLDER'])}}".replace('SKU_PLACEHOLDER', encodeURIComponent(selectedAmazonSku));
         document.getElementById('newProductBtn').setAttribute('href', routetoadd);
+        if (selectedAmazonSku) {
+            $('#displayTargetAmazonSku').text(selectedAmazonSku);
+            $('#targetAmazonProductCard').show();
+        } else {
+            $('#targetAmazonProductCard').hide();
+        }
         $('#productActionModal').modal('show');
     });
 
@@ -2428,6 +2487,13 @@
 
     $('#mapShopifyProductModal').on('show.bs.modal', function() {
         resetShopifyLocationToDefault();
+    });
+
+    $('#mapShopifyProductModal').on('hidden.bs.modal', function() {
+        destroyShopifySelect2();
+        destroyShopifyVariantSelect2();
+        $('#shopifyProductLoadingSpinner').hide();
+        $('#shopifyVariantLoadingSpinner').hide();
     });
 
     $(document).on('click', '#saveProductMapping', function() {
@@ -2496,6 +2562,12 @@
     $(document).on('click', '#existingProductBtn', function() {
         $('#productActionModal').modal('hide');
         $('#amazonSku').val(selectedAmazonSku);
+        if (selectedAmazonSku) {
+            $('#displayTargetAmazonSku').text(selectedAmazonSku);
+            $('#targetAmazonProductCard').show();
+        } else {
+            $('#targetAmazonProductCard').hide();
+        }
         resetShopifyLocationToDefault();
         $('#mapShopifyProductModal').modal('show');
         loadShopifyProducts();
@@ -2511,12 +2583,28 @@
         currentProductHasVariants = false;
         currentShopifyProductId = null;
         $('#saveProductMapping').prop('disabled', true);
+        $('#shopifyProductLoadingSpinner').show();
+        destroyShopifySelect2();
+        destroyShopifyVariantSelect2();
+
         $.get("{{ route('inventory.shopify.products') }}", {
             shop: shop
         }, function(response) {
-            let html = '<option value="">Select Product</option>';
-            response.products.forEach(p => html += `<option value="${p.id}" data-shopify-product="${p.shopify_id}">${p.title}</option>`);
-            $('#shopifyProduct').html(html);
+            $('#shopifyProductLoadingSpinner').hide();
+            let html = '<option value="">Select Shopify Product</option>';
+            if (response && Array.isArray(response.products)) {
+                response.products.forEach(p => {
+                    const title = p.title || '';
+                    const shopifyId = p.shopify_id || p.id || '';
+                    html += `<option value="${p.id}" data-shopify-product="${shopifyId}">${escapeHtmlText(title)}</option>`;
+                });
+            }
+            $('#shopifyProduct').html(html).prop('disabled', false);
+            $('#shopifyVariant').html('<option value="">Select Product First</option>').prop('disabled', true);
+            initOrRefreshShopifyProductSelect2();
+        }).fail(function() {
+            $('#shopifyProductLoadingSpinner').hide();
+            $('#shopifyProduct').html('<option value="" disabled selected>Failed to load products</option>').prop('disabled', true);
             $('#shopifyVariant').html('<option value="">Select Product First</option>').prop('disabled', true);
         });
     }
@@ -2526,6 +2614,7 @@
         $('#saveProductMapping').prop('disabled', true);
         currentProductHasVariants = false;
         currentShopifyProductId = null;
+        destroyShopifyVariantSelect2();
 
         if (!productId) {
             $('#shopifyVariant').html('<option value="">Select Product First</option>').prop('disabled', true);
@@ -2535,10 +2624,14 @@
         const selectedOpt = $(this).find('option:selected');
         currentShopifyProductId = selectedOpt.data('shopify-product') || null;
 
+        $('#shopifyVariantLoadingSpinner').show();
+        $('#shopifyVariant').html('<option value="" disabled selected>Loading variants...</option>').prop('disabled', true);
+
         const shop = new URLSearchParams(window.location.search).get('shop');
         $.get("{{ url('inventory/shopify-product-variants') }}/" + productId, {
             shop: shop
         }, function(response) {
+            $('#shopifyVariantLoadingSpinner').hide();
             if (response.shopify_product_id) {
                 currentShopifyProductId = response.shopify_product_id;
             }
@@ -2555,11 +2648,15 @@
             currentProductHasVariants = true;
             let html = '<option value="">Select Variant</option>';
             response.variants.forEach(v => {
-                html += `<option value="${v.id}" data-inventory-item="${v.inventory_item_id || ''}" data-shopify-product-id="${response.shopify_product_id}">${v.title}</option>`;
+                const title = v.title || 'Default Title';
+                const invId = v.inventory_item_id || '';
+                html += `<option value="${v.id}" data-inventory-item="${invId}" data-shopify-product-id="${response.shopify_product_id}">${escapeHtmlText(title)}</option>`;
             });
             $('#shopifyVariant').html(html).prop('disabled', false);
-            $('#saveProductMapping').prop('disabled', true);
+            initOrRefreshShopifyVariantSelect2();
+            $('#saveProductMapping').prop('disabled', !$('#shopifyVariant').val());
         }).fail(function() {
+            $('#shopifyVariantLoadingSpinner').hide();
             currentProductHasVariants = false;
             $('#shopifyVariant').html('<option value="">Failed to load variants</option>').prop('disabled', true);
             $('#saveProductMapping').prop('disabled', true);
