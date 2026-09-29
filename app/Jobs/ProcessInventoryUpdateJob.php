@@ -661,7 +661,6 @@ class ProcessInventoryUpdateJob implements ShouldQueue, ShouldBeUnique
                             'sync_status'       => 'success',
                             'submission_status' => 'accepted',
                             'submission_id'     => $submissionId,
-                            'last_synced_at'    => now(),
                             'error_message'     => null,
                         ]);
                     }

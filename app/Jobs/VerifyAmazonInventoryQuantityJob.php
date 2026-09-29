@@ -74,18 +74,34 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
             return;
         }
 
+        $hasMatchingSubmissionId = $this->submissionId !== null
+            && !empty($mapping->submission_id)
+            && $mapping->submission_id === $this->submissionId;
+
         if ($this->syncedAt !== null && !empty($mapping->last_synced_at)) {
             try {
                 $currentSyncedAt = Carbon::parse($mapping->last_synced_at);
                 $originalSyncedAt = Carbon::parse($this->syncedAt);
                 if ($currentSyncedAt->greaterThan($originalSyncedAt)) {
-                    Log::info('VerifyAmazonInventoryQuantityJob: Abandoning verification (newer sync timestamp).', [
-                        'shop_id'            => $this->shopId,
-                        'sku'                => $this->sku,
-                        'job_synced_at'      => $this->syncedAt,
-                        'db_last_synced_at'  => $mapping->last_synced_at,
-                    ]);
-                    return;
+                    if ($hasMatchingSubmissionId) {
+                        Log::info('VerifyAmazonInventoryQuantityJob: Timestamp skew detected but submission_id matches, proceeding with verification.', [
+                            'shop_id'            => $this->shopId,
+                            'sku'                => $this->sku,
+                            'mapping_id'         => $mapping->id,
+                            'job_submission_id'  => $this->submissionId,
+                            'db_submission_id'   => $mapping->submission_id,
+                            'job_synced_at'      => $this->syncedAt,
+                            'db_last_synced_at'  => $mapping->last_synced_at,
+                        ]);
+                    } else {
+                        Log::info('VerifyAmazonInventoryQuantityJob: Abandoning verification (newer sync timestamp).', [
+                            'shop_id'            => $this->shopId,
+                            'sku'                => $this->sku,
+                            'job_synced_at'      => $this->syncedAt,
+                            'db_last_synced_at'  => $mapping->last_synced_at,
+                        ]);
+                        return;
+                    }
                 }
             } catch (\Throwable $e) {
                 Log::warning('VerifyAmazonInventoryQuantityJob: Timestamp parse error, proceeding cautiously.', [
@@ -315,7 +331,11 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
             return false;
         }
 
-        if ($this->syncedAt !== null && !empty($mapping->last_synced_at)) {
+        $hasMatchingSubmissionId = $this->submissionId !== null
+            && !empty($mapping->submission_id)
+            && $mapping->submission_id === $this->submissionId;
+
+        if (!$hasMatchingSubmissionId && $this->syncedAt !== null && !empty($mapping->last_synced_at)) {
             try {
                 $currentSyncedAt = Carbon::parse($mapping->last_synced_at);
                 $originalSyncedAt = Carbon::parse($this->syncedAt);

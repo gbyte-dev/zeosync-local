@@ -1789,7 +1789,7 @@
                                       data-bs-placement="top"
                                       title="Amazon verification in progress"
                                       style="width: 14px; height: 14px; border-width: 2px; cursor: help;">
-                                    <span class="visually-hidden">Amazon verification in progress</span>
+                                    <span class="visually-hidden">Amazon verification in progress Check after few minutes</span>
                                 </span>` : '';
                             return `
                                 <div class="d-flex align-items-center">

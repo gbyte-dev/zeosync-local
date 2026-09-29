@@ -467,13 +467,15 @@ class AmazonService
                             ? $shopifyMappingQuantity
                             : $quantity;
 
+                        $syncedAt = now();
+
                         $mapping->update([
                             'quantity'          => $mappingQuantityToSave,
                             'inventory_version' => ($mapping->inventory_version ?? 1) + 1,
                             'sync_status'       => 'success',
                             'submission_status' => 'accepted',
                             'submission_id'     => $submissionId ?? $mapping->submission_id,
-                            'last_synced_at'    => now(),
+                            'last_synced_at'    => $syncedAt,
                             'error_message'     => null,
                         ]);
 
@@ -555,12 +557,16 @@ class AmazonService
                             'submission_id' => $submissionId ?? null,
                         ]);
 
+                        $jobSyncedAt = isset($syncedAt) && $syncedAt instanceof \DateTimeInterface
+                            ? $syncedAt->toDateTimeString()
+                            : now()->toDateTimeString();
+
                         VerifyAmazonInventoryQuantityJob::dispatch(
                             $shop->id,
                             $sku,
                             $quantity,
                             $submissionId,
-                            now()->toDateTimeString(),
+                            $jobSyncedAt,
                             1
                         )->onConnection('database')
                          ->onQueue('default')
