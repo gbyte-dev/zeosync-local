@@ -18,7 +18,17 @@ class SubscriptionService
      */
     public function hasActiveEntitlement(int|Shop $shop): bool
     {
-        return $this->getActiveSubscription($shop) !== null;
+        $subscription = $this->getActiveSubscription($shop);
+        $hasEntitlement = $subscription !== null;
+
+        Log::info('SUBSCRIPTION ENTITLEMENT DECISION', [
+            'shop_id' => $shop instanceof Shop ? $shop->id : (int) $shop,
+            'status' => $subscription?->status,
+            'current_period_end' => $subscription?->current_period_end,
+            'has_active_entitlement' => $hasEntitlement,
+        ]);
+
+        return $hasEntitlement;
     }
 
     /**

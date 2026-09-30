@@ -115,6 +115,15 @@ beforeEach(function () {
         });
     }
 
+    if (!Schema::hasTable('admin_settings')) {
+        Schema::create('admin_settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('option_key')->nullable();
+            $table->text('option_value')->nullable();
+            $table->timestamps();
+        });
+    }
+
     Shop::query()->delete();
     ShopSubscription::query()->delete();
     Plan::query()->delete();
@@ -487,4 +496,399 @@ test('17. isCancellationScheduled correctly separates scheduled cancellation fro
     ]);
     expect($service->isCancellationScheduled($scheduledSub))->toBeTrue();
 });
+
+test('18. TEST 1: sync Shopify CANCELLED with null currentPeriodEnd preserves future current_period_end and grants entitlement', function () {
+    $shop = Shop::create([
+        'shop' => 'test1-sync.myshopify.com',
+        'access_token' => 'shpat_test_token',
+    ]);
+    $plan = Plan::create([
+        'name' => 'Growth Plan',
+        'price' => 29.00,
+        'product_limit' => 500,
+        'sync_limit' => 500,
+    ]);
+
+    $futureDate = now()->addDays(20)->startOfSecond();
+
+    $localSub = ShopSubscription::create([
+        'shop_id' => $shop->id,
+        'plan_id' => $plan->id,
+        'shopify_subscription_gid' => 'gid://shopify/AppSubscription/111',
+        'status' => 'active',
+        'current_period_end' => $futureDate,
+        'is_trial' => 0,
+    ]);
+
+    \Illuminate\Support\Facades\Http::fake([
+        '*/admin/api/*/graphql.json' => \Illuminate\Support\Facades\Http::response([
+            'data' => [
+                'currentAppInstallation' => [
+                    'allSubscriptions' => [
+                        'edges' => [
+                            [
+                                'node' => [
+                                    'id' => 'gid://shopify/AppSubscription/111',
+                                    'name' => 'Growth Plan',
+                                    'status' => 'CANCELLED',
+                                    'test' => false,
+                                    'createdAt' => now()->subDays(10)->toIso8601String(),
+                                    'currentPeriodEnd' => null,
+                                    'lineItems' => [
+                                        [
+                                            'id' => 'gid://shopify/AppSubscriptionLineItem/1',
+                                            'plan' => [
+                                                'pricingDetails' => [
+                                                    '__typename' => 'AppRecurringPricing',
+                                                    'interval' => 'EVERY_30_DAYS',
+                                                    'price' => [
+                                                        'amount' => 29.00,
+                                                        'currencyCode' => 'USD',
+                                                    ],
+                                                ],
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $billingService = app(\App\Services\ShopifyBillingService::class);
+    $synced = $billingService->syncSubscription($shop, $localSub);
+
+    expect($synced)->not->toBeNull();
+    expect($synced->status)->toBe('cancelled');
+    expect($synced->current_period_end)->not->toBeNull();
+    expect($synced->current_period_end->toIso8601String())->toBe($futureDate->toIso8601String());
+
+    $subscriptionService = app(\App\Services\SubscriptionService::class);
+    expect($subscriptionService->hasActiveEntitlement($shop->id))->toBeTrue();
+});
+
+test('19. TEST 2: same cancelled subscription after current_period_end denies entitlement', function () {
+    $shop = Shop::create([
+        'shop' => 'test2-expired.myshopify.com',
+        'access_token' => 'shpat_test_token',
+    ]);
+    $plan = Plan::create([
+        'name' => 'Growth Plan',
+        'price' => 29.00,
+    ]);
+
+    $localSub = ShopSubscription::create([
+        'shop_id' => $shop->id,
+        'plan_id' => $plan->id,
+        'shopify_subscription_gid' => 'gid://shopify/AppSubscription/222',
+        'status' => 'cancelled',
+        'cancelled_at' => now()->subDays(31),
+        'current_period_end' => now()->subMinute(),
+        'is_trial' => 0,
+    ]);
+
+    $subscriptionService = app(\App\Services\SubscriptionService::class);
+    expect($subscriptionService->hasActiveEntitlement($shop->id))->toBeFalse();
+
+    $localSub->refresh();
+    expect($localSub->status)->toBe('expired');
+});
+
+test('20. TEST 3: plans page after cancellation displays current plan and cancellation scheduled banner', function () {
+    $shop = Shop::create([
+        'shop' => 'test3-plans-ui.myshopify.com',
+        'access_token' => 'shpat_test_token',
+    ]);
+    $plan = Plan::create([
+        'name' => 'Growth Plan',
+        'price' => 29.00,
+        'prices' => ['EVERY_30_DAYS' => 29.00, 'ANNUAL' => 290.00],
+    ]);
+
+    $sub = ShopSubscription::create([
+        'shop_id' => $shop->id,
+        'plan_id' => $plan->id,
+        'shopify_subscription_gid' => 'gid://shopify/AppSubscription/333',
+        'status' => 'cancelled',
+        'cancelled_at' => now()->subDay(),
+        'current_period_end' => now()->addDays(20),
+        'is_trial' => 0,
+    ]);
+
+    $viewHtml = view('plans', [
+        'plans' => [$plan],
+        'customPlan' => null,
+        'subscription' => $sub,
+        'activeShop' => $shop->shop,
+        'billingOptions' => [],
+        'cspNonce' => 'test-csp-nonce',
+        'errors' => new \Illuminate\Support\ViewErrorBag(),
+    ])->render();
+
+    expect($viewHtml)->toContain('Cancellation scheduled');
+    expect($viewHtml)->toContain('Growth Plan');
+    expect($viewHtml)->not->toContain('No active plan');
+});
+
+test('21. TEST 4: normal ACTIVE sync with non-null currentPeriodEnd persists Shopify value', function () {
+    $shop = Shop::create([
+        'shop' => 'test4-active-sync.myshopify.com',
+        'access_token' => 'shpat_test_token',
+    ]);
+    $plan = Plan::create([
+        'name' => 'Growth Plan',
+        'price' => 29.00,
+    ]);
+
+    $shopifyPeriodEnd = now()->addDays(28)->startOfSecond();
+
+    $localSub = ShopSubscription::create([
+        'shop_id' => $shop->id,
+        'plan_id' => $plan->id,
+        'shopify_subscription_gid' => 'gid://shopify/AppSubscription/444',
+        'status' => 'active',
+        'current_period_end' => now()->addDays(5),
+        'is_trial' => 0,
+    ]);
+
+    \Illuminate\Support\Facades\Http::fake([
+        '*/admin/api/*/graphql.json' => \Illuminate\Support\Facades\Http::response([
+            'data' => [
+                'currentAppInstallation' => [
+                    'allSubscriptions' => [
+                        'edges' => [
+                            [
+                                'node' => [
+                                    'id' => 'gid://shopify/AppSubscription/444',
+                                    'name' => 'Growth Plan',
+                                    'status' => 'ACTIVE',
+                                    'test' => false,
+                                    'createdAt' => now()->subDays(2)->toIso8601String(),
+                                    'currentPeriodEnd' => $shopifyPeriodEnd->toIso8601String(),
+                                    'lineItems' => [
+                                        [
+                                            'id' => 'gid://shopify/AppSubscriptionLineItem/4',
+                                            'plan' => [
+                                                'pricingDetails' => [
+                                                    '__typename' => 'AppRecurringPricing',
+                                                    'interval' => 'EVERY_30_DAYS',
+                                                    'price' => [
+                                                        'amount' => 29.00,
+                                                        'currencyCode' => 'USD',
+                                                    ],
+                                                ],
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $billingService = app(\App\Services\ShopifyBillingService::class);
+    $synced = $billingService->syncSubscription($shop, $localSub);
+
+    expect($synced->status)->toBe('active');
+    expect($synced->current_period_end->toIso8601String())->toBe($shopifyPeriodEnd->toIso8601String());
+});
+
+test('22. TEST 5: immediate cancellation or genuinely expired subscription revokes access', function () {
+    $shop = Shop::create([
+        'shop' => 'test5-revoked.myshopify.com',
+        'access_token' => 'shpat_test_token',
+    ]);
+    $plan = Plan::create([
+        'name' => 'Growth Plan',
+        'price' => 29.00,
+    ]);
+
+    ShopSubscription::create([
+        'shop_id' => $shop->id,
+        'plan_id' => $plan->id,
+        'status' => 'expired',
+        'current_period_end' => now()->subDays(5),
+        'ended_at' => now()->subDays(5),
+        'is_trial' => 0,
+    ]);
+
+    $subscriptionService = app(\App\Services\SubscriptionService::class);
+    expect($subscriptionService->hasActiveEntitlement($shop->id))->toBeFalse();
+    expect(isSubscriptionActive($shop->id))->toBeFalse();
+});
+
+test('23. TEST 6: trial subscription preserves existing trial behavior unchanged', function () {
+    $shop = Shop::create(['shop' => 'test6-trial.myshopify.com']);
+    $plan = Plan::create([
+        'name' => 'Trial Plan',
+        'is_trial' => 1,
+        'trial_days' => 4,
+        'price' => 0,
+    ]);
+
+    $activeTrial = ShopSubscription::create([
+        'shop_id' => $shop->id,
+        'plan_id' => $plan->id,
+        'status' => 'trialing',
+        'is_trial' => 1,
+        'trial_used' => 0,
+        'trial_ends_at' => now()->addDays(2),
+    ]);
+
+    $subscriptionService = app(\App\Services\SubscriptionService::class);
+    expect($subscriptionService->hasActiveEntitlement($shop->id))->toBeTrue();
+
+    // Now advance trial to expired
+    $activeTrial->update([
+        'trial_ends_at' => now()->subHour(),
+    ]);
+
+    expect($subscriptionService->hasActiveEntitlement($shop->id))->toBeFalse();
+
+    $activeTrial->refresh();
+    expect($activeTrial->status)->toBe('expired');
+    expect((int) $activeTrial->trial_used)->toBe(1);
+    expect((int) $activeTrial->is_trial)->toBe(0);
+});
+
+test('24. TEST 7: repeated Plans page sync after cancellation never nulls current_period_end', function () {
+    $shop = Shop::create([
+        'shop' => 'test7-repeated-sync.myshopify.com',
+        'access_token' => 'shpat_test_token',
+    ]);
+    $plan = Plan::create([
+        'name' => 'Growth Plan',
+        'price' => 29.00,
+    ]);
+
+    $futurePeriodEnd = now()->addDays(18)->startOfSecond();
+
+    $localSub = ShopSubscription::create([
+        'shop_id' => $shop->id,
+        'plan_id' => $plan->id,
+        'shopify_subscription_gid' => 'gid://shopify/AppSubscription/777',
+        'status' => 'cancelled',
+        'cancelled_at' => now()->subHours(2),
+        'current_period_end' => $futurePeriodEnd,
+        'is_trial' => 0,
+    ]);
+
+    \Illuminate\Support\Facades\Http::fake([
+        '*/admin/api/*/graphql.json' => \Illuminate\Support\Facades\Http::response([
+            'data' => [
+                'currentAppInstallation' => [
+                    'allSubscriptions' => [
+                        'edges' => [
+                            [
+                                'node' => [
+                                    'id' => 'gid://shopify/AppSubscription/777',
+                                    'name' => 'Growth Plan',
+                                    'status' => 'CANCELLED',
+                                    'test' => false,
+                                    'createdAt' => now()->subDays(12)->toIso8601String(),
+                                    'currentPeriodEnd' => null,
+                                    'lineItems' => [
+                                        [
+                                            'id' => 'gid://shopify/AppSubscriptionLineItem/7',
+                                            'plan' => [
+                                                'pricingDetails' => [
+                                                    '__typename' => 'AppRecurringPricing',
+                                                    'interval' => 'EVERY_30_DAYS',
+                                                    'price' => [
+                                                        'amount' => 29.00,
+                                                        'currencyCode' => 'USD',
+                                                    ],
+                                                ],
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $billingService = app(\App\Services\ShopifyBillingService::class);
+
+    // Sync 1
+    $synced1 = $billingService->syncSubscription($shop, $localSub);
+    expect($synced1->current_period_end)->not->toBeNull();
+    expect($synced1->current_period_end->toIso8601String())->toBe($futurePeriodEnd->toIso8601String());
+
+    // Sync 2
+    $synced2 = $billingService->syncSubscription($shop, $synced1);
+    expect($synced2->current_period_end)->not->toBeNull();
+    expect($synced2->current_period_end->toIso8601String())->toBe($futurePeriodEnd->toIso8601String());
+
+    // Sync 3
+    $synced3 = $billingService->syncSubscription($shop, $synced2);
+    expect($synced3->current_period_end)->not->toBeNull();
+    expect($synced3->current_period_end->toIso8601String())->toBe($futurePeriodEnd->toIso8601String());
+
+    $subscriptionService = app(\App\Services\SubscriptionService::class);
+    expect($subscriptionService->hasActiveEntitlement($shop->id))->toBeTrue();
+});
+
+test('25. TEST 8: existing future current_period_end + Shopify CANCELLED/null produces no destructive overwrite', function () {
+    $shop = Shop::create([
+        'shop' => 'test8-no-overwrite.myshopify.com',
+        'access_token' => 'shpat_test_token',
+    ]);
+    $plan = Plan::create([
+        'name' => 'Growth Plan',
+        'price' => 29.00,
+    ]);
+
+    $futurePeriodEnd = now()->addDays(25)->startOfSecond();
+
+    $localSub = ShopSubscription::create([
+        'shop_id' => $shop->id,
+        'plan_id' => $plan->id,
+        'shopify_subscription_gid' => 'gid://shopify/AppSubscription/888',
+        'status' => 'active',
+        'current_period_end' => $futurePeriodEnd,
+        'is_trial' => 0,
+    ]);
+
+    \Illuminate\Support\Facades\Http::fake([
+        '*/admin/api/*/graphql.json' => \Illuminate\Support\Facades\Http::response([
+            'data' => [
+                'currentAppInstallation' => [
+                    'allSubscriptions' => [
+                        'edges' => [
+                            [
+                                'node' => [
+                                    'id' => 'gid://shopify/AppSubscription/888',
+                                    'name' => 'Growth Plan',
+                                    'status' => 'CANCELLED',
+                                    'test' => false,
+                                    'createdAt' => now()->subDays(5)->toIso8601String(),
+                                    'currentPeriodEnd' => null,
+                                    'lineItems' => [],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $billingService = app(\App\Services\ShopifyBillingService::class);
+    $synced = $billingService->syncSubscription($shop, $localSub);
+
+    expect($synced->status)->toBe('cancelled');
+    expect($synced->current_period_end)->not->toBeNull();
+    expect($synced->current_period_end->toIso8601String())->toBe($futurePeriodEnd->toIso8601String());
+});
+
 
