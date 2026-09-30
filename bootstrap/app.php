@@ -1,10 +1,10 @@
 <?php
 
-use Illuminate\Foundation\Application;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -21,9 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__ . '/../app/Console/Commands',
     ])
     ->withMiddleware(function (Middleware $middleware): void {
-
         $middleware->redirectGuestsTo(function (Request $request) {
-
             if ($request->is('admin') || $request->is('admin/*')) {
                 return route('admin.login');
             }
@@ -45,14 +43,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'guest'                => \App\Http\Middleware\RedirectIfAuthenticated::class,
-            'shopify.auth'         => \App\Http\Middleware\VerifyShopifyAuthentication::class,
+            'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
+            'shopify.auth' => \App\Http\Middleware\VerifyShopifyAuthentication::class,
             'shopify.subscription' => \App\Http\Middleware\VerifyShopifySubscription::class,
-            'subscription.check'   => \App\Http\Middleware\CheckSubscription::class,
-            'ip.rate'              => \App\Http\Middleware\EnforceIpAndRateLimit::class,
-            'admin.verify'         => \App\Http\Middleware\VerifyAdminRequest::class,
-            'admin.auth'           => \App\Http\Middleware\EnsureAdminAuthenticated::class,
-            'shopify.session' => \App\Http\Middleware\VerifyShopifySession::class,
+            'subscription.check' => \App\Http\Middleware\CheckSubscription::class,
+            'ip.rate' => \App\Http\Middleware\EnforceIpAndRateLimit::class,
+            'admin.verify' => \App\Http\Middleware\VerifyAdminRequest::class,
+            'admin.auth' => \App\Http\Middleware\EnsureAdminAuthenticated::class,
         ]);
 
         // $middleware->validateCsrfTokens(except: [
@@ -63,12 +60,11 @@ return Application::configure(basePath: dirname(__DIR__))
         //     'shop/redact',
         // ]);
 
-       
         $middleware->validateCsrfTokens(except: [
             '*',
             '!contacts',
             '!/contact',
-            'contact' 
+            'contact'
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

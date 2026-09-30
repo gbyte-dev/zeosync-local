@@ -110,7 +110,7 @@ class VerifyShopifyAuthentication
                         'shop' => $tokenResult['shop'],
                     ]);
 
-                    Log::warning('SHOPIFY TOKEN AUTH SUCCESS', [
+                    Log::info('SHOPIFY TOKEN AUTH SUCCESS', [
                         'shop' => $tokenResult['shop'],
                         'shop_id' => $tokenResult['shop_model']->id,
                         'session_id' => session()->getId(),
@@ -118,13 +118,6 @@ class VerifyShopifyAuthentication
                         'session_cookie' => config('session.cookie'),
                         'session_driver' => config('session.driver'),
                     ]);
-
-                    if ($request->isMethod('GET') && !$request->ajax() && !$request->expectsJson() && ($request->has('id_token') || $request->has('session_token'))) {
-                        $cleanQuery = $request->query();
-                        unset($cleanQuery['id_token'], $cleanQuery['session_token']);
-                        $redirectUrl = $request->url() . (!empty($cleanQuery) ? '?' . http_build_query($cleanQuery) : '');
-                        return redirect($redirectUrl);
-                    }
 
                     return $next($request);
                 }

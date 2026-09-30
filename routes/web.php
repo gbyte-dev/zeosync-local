@@ -18,11 +18,10 @@ use App\Http\Controllers\ShopifyController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TestController;
 use App\Http\Middleware\ResolveActiveShop;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Shopify\App\ShopifyApp;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
-
 
 require base_path('routes/webShopify.php');
 require base_path('routes/webnotification.php');
@@ -67,7 +66,8 @@ Route::middleware([ResolveActiveShop::class, \App\Http\Middleware\CheckSubscript
 });
 
 Route::middleware([ResolveActiveShop::class])->group(function () {
-    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard')->middleware('shopify.session');
+    Route::get('dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
     Route::get('/dashboard/top-selling-products', [DashboardController::class, 'topSellingProducts'])->name('dashboard.top-selling');
     Route::get('/products', [ShopifyController::class, 'products'])->name('shopify.products');
     Route::post('/createProduct', [ShopifyController::class, 'createProduct'])->name('shopify.product.create.post');
@@ -83,9 +83,15 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::post('/image-upload', [ImageController::class, 'store'])->name('shopify.imgupload.store');
     Route::delete('/image-upload/{id}', [ImageController::class, 'destroy'])
         ->name('shopify.imgupload.delete');
-    Route::get('/rules', function () {  return view('rules');  })->name('shopify.rules');
-    Route::get('/help', function () {  return view('help');  })->name('shopify.help');
-    Route::get('/support', function () { return view('support'); })->name('shopify.support');
+    Route::get('/rules', function () {
+        return view('rules');
+    })->name('shopify.rules');
+    Route::get('/help', function () {
+        return view('help');
+    })->name('shopify.help');
+    Route::get('/support', function () {
+        return view('support');
+    })->name('shopify.support');
     Route::get('/notification', [NotificationController::class, 'usernotification'])->name('user.notification');
     Route::post('/settings/notifications', [NotificationController::class, 'updateNotificationSettings'])->name('notification.settings.update');
     Route::delete('/notification/user/all', [NotificationController::class, 'removeAllUserNotifications'])->name('user.notification.delete.all');
@@ -131,7 +137,9 @@ Route::post('/inventory/amazon/sync', [InventoryController::class, 'syncAmazonIn
 Route::post('/webhooks/app-uninstalled', [ShopifyController::class, 'handleAppUninstalledWebhook'])
     ->name('shopify.webhooks.app.uninstalled');
 
-Route::get('/support_front', function () {  return view('support_front'); })->name('shopify.support_front');
+Route::get('/support_front', function () {
+    return view('support_front');
+})->name('shopify.support_front');
 Route::get('/test/{type}', [TestController::class, 'test'])->name('test.by.productype');
 Route::get('/logout', [SettingsController::class, 'logout'])->name('site.logout');
 
@@ -157,23 +165,21 @@ Route::prefix('admin')->middleware([\App\Http\Middleware\VerifyAdminRequest::cla
 
 // webhook routes
 
-Route::withoutMiddleware([VerifyCsrfToken::class,])->group(function () {
+Route::withoutMiddleware([
+    VerifyCsrfToken::class,
+])->group(function () {
     Route::post('webhooks/shopify/orders/create', [ShopifyController::class, 'handleOrdersCreateWebhook'])->name('shopify.webhooks.orders.create');
     Route::post('webhooks/shopify/orders/updated', [ShopifyController::class, 'handleOrdersUpdateWebhook'])->name('shopify.webhooks.orders.updated');
     Route::post('webhooks/shopify/orders/deleted', [ShopifyController::class, 'handleOrdersDeleteWebhook'])->name('shopify.webhooks.orders.deleted');
-    Route::post('webhooks/shopify/orders/update', [ ShopifyController::class, 'handleOrdersUpdateWebhook'])->name('shopify.webhooks.orders.update');
-    Route::post('webhooks/shopify/orders/delete', [ ShopifyController::class, 'handleOrdersDeleteWebhook'])->name('shopify.webhooks.orders.delete');
+    Route::post('webhooks/shopify/orders/update', [ShopifyController::class, 'handleOrdersUpdateWebhook'])->name('shopify.webhooks.orders.update');
+    Route::post('webhooks/shopify/orders/delete', [ShopifyController::class, 'handleOrdersDeleteWebhook'])->name('shopify.webhooks.orders.delete');
     Route::post('webhooks/shopify/products/delete', [ShopifyController::class, 'handleProductsDeleteWebhook'])->name('shopify.webhooks.products.delete');
     Route::post('webhooks/shopify/returns/create', [ShopifyController::class, 'returnCreate'])->name('shopify.webhooks.returns.create');
     Route::post('webhooks/shopify/returns/update', [ShopifyController::class, 'returnUpdate'])->name('shopify.webhooks.returns.update');
     Route::post('customers/data_request', [ShopifyComplianceWebhookController::class, 'customersDataRequest'])->name('shopify.webhooks.customers.data_request');
     Route::post('customers/redact', [ShopifyComplianceWebhookController::class, 'customersRedact'])->name('shopify.webhooks.customers.redact');
     Route::post('shop/redact', [ShopifyComplianceWebhookController::class, 'shopRedact'])->name('shopify.webhooks.shop.redact');
-
 });
-
-
-
 
 // Route::get('/check-mail-test', [TestController::class, 'checkMailTest'])->name('check.mail.test');
 // Route::get('/clear', function () {
