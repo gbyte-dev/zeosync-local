@@ -9,7 +9,7 @@
     max-width: var(--sidebar-width); /* Hard ceiling stops horizontal shifting */
     height: 100% !important;
     min-height: 100vh !important;
-    background-color: #202938;
+    background-color: white;
     padding: 16px 12px;
     
     /* Hardened Flex Layout */
@@ -54,7 +54,7 @@
     padding: 0 12px;
     border-radius: 8px;
     text-decoration: none;
-    color: var(--sidebar-text);
+    color: #272829;
     font-size: 14px;
     font-weight: 500;
     transition: background-color 0.15s ease, color 0.15s ease;
@@ -64,12 +64,12 @@
 .sidebar__link:hover,
 .sidebar__link:focus {
     background-color: var(--sidebar-hover-bg);
-    color: var(--sidebar-text-hover);
+    color: #272829;
     outline: none;
 }
 
 .sidebar__link.active {
-    background-color: #2563EB;
+    background-color: lightslategrey;
     color: var(--sidebar-text-active);
     font-weight: 600;
 }
@@ -135,7 +135,7 @@
     padding: 0 12px;
     border-radius: 6px;
     text-decoration: none;
-    color: var(--sidebar-text);
+    color: black;
     font-size: 13.5px;
     font-weight: 500;
     transition: background-color 0.15s ease, color 0.15s ease;
