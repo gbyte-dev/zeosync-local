@@ -63,7 +63,7 @@
      */
         :root {
             /* Colors */
-            --sp-bg: #F4F6F8;
+            --sp-bg: #EBEBEB;
             --sp-card: #FFFFFF;
             --sp-border: #E5E7EB;
             --sp-primary: #2563EB;
