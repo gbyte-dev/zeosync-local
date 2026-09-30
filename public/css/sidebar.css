@@ -26,6 +26,7 @@
     /* MacOS-like smooth scrollbar */
     scrollbar-width: thin;
     scrollbar-color: var(--sidebar-border) transparent;
+    border-left: 4px solid white;
 }
 .sidebar::-webkit-scrollbar {
     width: 4px;
