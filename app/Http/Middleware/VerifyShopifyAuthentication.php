@@ -83,18 +83,18 @@ class VerifyShopifyAuthentication
 
                 if ($requestedShop && strcasecmp($requestedShop, $tokenResult['shop']) !== 0) {
                     Log::warning('VerifyShopifyAuthentication: Token destination does not match requested shop.', [
-                        'token_shop'     => $tokenResult['shop'],
+                        'token_shop' => $tokenResult['shop'],
                         'requested_shop' => $requestedShop,
-                        'path'           => $request->path(),
+                        'path' => $request->path(),
                     ]);
 
                     if ($request->ajax() || $request->expectsJson()) {
                         return response()->json([
-                            'success'         => false,
+                            'success' => false,
                             'requires_reauth' => true,
-                            'redirect_url'    => route('shopify.install', array_filter(['shop' => $requestedShop])),
-                            'error'           => 'Unauthorized',
-                            'message'         => 'Shopify session token destination does not match requested shop.',
+                            'redirect_url' => route('shopify.install', array_filter(['shop' => $requestedShop])),
+                            'error' => 'Unauthorized',
+                            'message' => 'Shopify session token destination does not match requested shop.',
                         ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');
                     }
                 } else {
@@ -104,10 +104,19 @@ class VerifyShopifyAuthentication
 
                     session([
                         '_shopify_verified_shop' => $tokenResult['shop'],
-                        '_shopify_verified_at'   => time(),
-                        'active_shop'            => $tokenResult['shop'],
-                        'active_shop_id'         => $tokenResult['shop_model']->id,
-                        'shop'                   => $tokenResult['shop'],
+                        '_shopify_verified_at' => time(),
+                        'active_shop' => $tokenResult['shop'],
+                        'active_shop_id' => $tokenResult['shop_model']->id,
+                        'shop' => $tokenResult['shop'],
+                    ]);
+
+                    Log::warning('SHOPIFY TOKEN AUTH SUCCESS', [
+                        'shop' => $tokenResult['shop'],
+                        'shop_id' => $tokenResult['shop_model']->id,
+                        'session_id' => session()->getId(),
+                        'session_verified_shop' => session('_shopify_verified_shop'),
+                        'session_cookie' => config('session.cookie'),
+                        'session_driver' => config('session.driver'),
                     ]);
 
                     if ($request->isMethod('GET') && !$request->ajax() && !$request->expectsJson() && ($request->has('id_token') || $request->has('session_token'))) {
@@ -137,10 +146,10 @@ class VerifyShopifyAuthentication
 
                 session([
                     '_shopify_verified_shop' => $cryptResult['shop'],
-                    '_shopify_verified_at'   => time(),
-                    'active_shop'            => $cryptResult['shop'],
-                    'active_shop_id'         => $cryptResult['shop_model']->id,
-                    'shop'                   => $cryptResult['shop'],
+                    '_shopify_verified_at' => time(),
+                    'active_shop' => $cryptResult['shop'],
+                    'active_shop_id' => $cryptResult['shop_model']->id,
+                    'shop' => $cryptResult['shop'],
                 ]);
 
                 return $next($request);
@@ -174,6 +183,14 @@ class VerifyShopifyAuthentication
             // ]);
             return $next($request);
         }
+
+        Log::warning('SHOPIFY SESSION CHECK', [
+            'session_id' => session()->getId(),
+            'has_verified_shop' => session()->has('_shopify_verified_shop'),
+            'verified_shop' => session('_shopify_verified_shop'),
+            'active_shop' => session('active_shop'),
+            'url' => $request->fullUrl(),
+        ]);
 
         // 4. Priority 3: Established Cryptographically Verified Session
         if (session()->has('_shopify_verified_shop')) {
@@ -211,7 +228,7 @@ class VerifyShopifyAuthentication
                 // Request remains unverified so downstream ResolveActiveShop can render shopify.reauth.
                 Log::info('VerifyShopifyAuthentication: Session mismatch detected; bypassing stale session fallback.', [
                     'requested_shop' => $requestedShop,
-                    'session_shop'   => $sessionShopDomain,
+                    'session_shop' => $sessionShopDomain,
                 ]);
             } else {
                 try {
@@ -382,22 +399,33 @@ class VerifyShopifyAuthentication
     protected function shouldBypass(Request $request): bool
     {
         // Webhook routes
-        if ($request->routeIs('shopify.webhooks.*') || $request->routeIs('webhooks.*') ||
-            $request->routeIs('stripe.webhook') ||  $request->routeIs('amazon.webhooks.*') ||
-            $request->is('webhooks/*') || $request->is('shopify/webhooks/*') ||
-            $request->is('customers/*') || $request->is('shop/*')) {
+        if ($request->routeIs('shopify.webhooks.*') ||
+                $request->routeIs('webhooks.*') ||
+                $request->routeIs('stripe.webhook') ||
+                $request->routeIs('amazon.webhooks.*') ||
+                $request->is('webhooks/*') ||
+                $request->is('shopify/webhooks/*') ||
+                $request->is('customers/*') ||
+                $request->is('shop/*')) {
             return true;
         }
 
         // OAuth lifecycle & public / CRM entry routes
-        if ($request->routeIs('crm.entry') || $request->routeIs('shopify.install') ||
-            $request->routeIs('shopify.callback') ||   $request->routeIs('api.shop.status') ||
-            $request->routeIs('setup.form') || $request->routeIs('setup.store') ||
-            $request->routeIs('setup.activation.status') ||
-            $request->routeIs('about') ||  $request->routeIs('pricing') ||
-            $request->routeIs('contact') || $request->routeIs('contact.store') ||
-            $request->routeIs('terms') || $request->routeIs('privacy') ||
-            $request->is('admin') || $request->is('admin/*')) {
+        if ($request->routeIs('crm.entry') ||
+                $request->routeIs('shopify.install') ||
+                $request->routeIs('shopify.callback') ||
+                $request->routeIs('api.shop.status') ||
+                $request->routeIs('setup.form') ||
+                $request->routeIs('setup.store') ||
+                $request->routeIs('setup.activation.status') ||
+                $request->routeIs('about') ||
+                $request->routeIs('pricing') ||
+                $request->routeIs('contact') ||
+                $request->routeIs('contact.store') ||
+                $request->routeIs('terms') ||
+                $request->routeIs('privacy') ||
+                $request->is('admin') ||
+                $request->is('admin/*')) {
             return true;
         }
 
