@@ -13,24 +13,6 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
 ]));
 @endphp
 
-<style nonce="{{ $cspNonce ?? '' }}">
-    .sidebar__logo {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 10px 16px 14px;
-        border-bottom: 1px solid rgba(255, 255, 255, .08);
-        margin-bottom: 12px;
-    }
-
-    .sidebar__logo-img {
-        width: 100%;
-        max-width: 180px;
-        height: auto;
-        object-fit: contain;
-        display: block;
-    }
-</style>
 <s-app-nav>
     <s-link href="{{ route('dashboard').($currentShop ? '?shop='.$currentShop : '') }}" rel="home">Dashboard</s-link>
     <s-link href="{{ route('amazon.connect').($currentShop ? '?shop='.$currentShop : '') }}">Account Connected</s-link>
