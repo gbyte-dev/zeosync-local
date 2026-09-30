@@ -96,7 +96,7 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
             id="productsMenu">
             <div class="sidebar__submenu">
                 <a href="{{ route('shopify.products').($currentShop ? '?shop='.$currentShop : '') }}"
-                    class="sidebar__sublink {{ request()->routeIs('shopify.products') ? 'active' : '' }}">
+                    class="sidebar__sublink sidebar__sublink--shopify-products {{ request()->routeIs('shopify.products') ? 'active' : '' }}">
                     <i class="bi bi-plus-circle sidebar__subicon"></i>
                     <span class="sidebar__text">Shopify Products</span>
                 </a>
