@@ -81,11 +81,11 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
 
     <!-- Products (Dropdown) -->
     <div class="sidebar__item">
-        <a class="sidebar__link {{ (request()->routeIs('shopify.products*')|| request()->routeIs('user.product*')) ? 'active' : '' }}"
+        <a class="sidebar__link {{ (request()->routeIs('shopify.products*') || request()->routeIs('user.product*')) ? 'active' : '' }}"
             data-bs-toggle="collapse"
             href="#productsMenu"
             role="button"
-            aria-expanded="{{ request()->routeIs('shopify.products*') ? 'true' : 'false' }}"
+            aria-expanded="{{ (request()->routeIs('shopify.products*') || request()->routeIs('user.product*')) ? 'true' : 'false' }}"
             aria-controls="productsMenu">
             <i class="bi bi-box-seam sidebar__icon"></i>
             <span class="sidebar__text">Products</span>
@@ -96,7 +96,7 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
             id="productsMenu">
             <div class="sidebar__submenu">
                 <a href="{{ route('shopify.products').($currentShop ? '?shop='.$currentShop : '') }}"
-                    class="sidebar__sublink {{ request()->routeIs('shopify.products') ? 'active' : '' }}">
+                    class="sidebar__sublink {{ request()->routeIs('shopify.products*') ? 'active' : '' }}">
                     <i class="bi bi-plus-circle sidebar__subicon"></i>
                     <span class="sidebar__text">Shopify Products</span>
                 </a>
@@ -120,26 +120,26 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
 
     <!-- Orders (Dropdown) -->
     <div class="sidebar__item">
-        <a class="sidebar__link {{ request()->routeIs('orders*') ? 'active' : '' }}"
+        <a class="sidebar__link {{ (request()->routeIs('orders*') || request()->is('orders*') || $isOrdersSectionOpen) ? 'active' : '' }}"
             data-bs-toggle="collapse"
             href="#ordersMenu"
             role="button"
-            aria-expanded="{{ request()->routeIs('orders*') ? 'true' : 'false' }}"
+            aria-expanded="{{ (request()->routeIs('orders*') || request()->is('orders*') || $isOrdersSectionOpen) ? 'true' : 'false' }}"
             aria-controls="ordersMenu">
             <i class="bi bi-box-seam sidebar__icon"></i>
             <span class="sidebar__text">Orders</span>
             <i class="bi bi-chevron-down sidebar__chevron"></i>
         </a>
 
-        <div class="collapse {{ request()->routeIs('orders*') ? 'show' : '' }}" id="ordersMenu">
+        <div class="collapse {{ (request()->routeIs('orders*') || request()->is('orders*') || $isOrdersSectionOpen) ? 'show' : '' }}" id="ordersMenu">
             <div class="sidebar__submenu">
                 <a href="{{ $shopifyOrdersUrl }}"
-                    class="sidebar__sublink {{ request()->is('orders') && $orderSource === 'shopify' ? 'active' : '' }}">
+                    class="sidebar__sublink {{ (request()->is('orders*') || request()->routeIs('orders*')) && ($orderSource === 'shopify' || empty($orderSource)) ? 'active' : '' }}">
                     <i class="bi bi-bag-check sidebar__subicon"></i>
                     <span class="sidebar__text">Shopify Orders</span>
                 </a>
                 <a href="{{ $amazonOrdersUrl }}"
-                    class="sidebar__sublink {{ request()->is('orders') && $orderSource === 'amazon' ? 'active' : '' }}">
+                    class="sidebar__sublink {{ (request()->is('orders*') || request()->routeIs('orders*')) && $orderSource === 'amazon' ? 'active' : '' }}">
                     <i class="bi bi-cart-check sidebar__subicon"></i>
                     <span class="sidebar__text">Amazon Orders</span>
                 </a>
