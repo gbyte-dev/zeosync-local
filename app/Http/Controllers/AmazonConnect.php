@@ -419,4 +419,104 @@ class AmazonConnect extends ShopifyController
             
         return view('amazonconnect.success', [ 'shop' => $shop  ]);
     }
+
+    /**
+     * Temporary Amazon Testing Access mechanism for Shopify App Store reviewer / testing purposes.
+     */
+    public function testingAccess(Request $request)
+    {
+        // 1. Feature flag check
+        if (!config('services.amazon.test_access_enabled')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Testing access is currently disabled.',
+            ], 403);
+        }
+
+        // 2. Validate current shop context
+        $shop = $this->getActiveShop($request);
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized: Active shop could not be resolved.',
+            ], 401);
+        }
+
+        // 3. Validate password server-side securely
+        $providedPassword = (string) $request->input('password', '');
+        $expectedPassword = (string) config('services.amazon.test_access_password', '');
+
+        if ($expectedPassword === '' || !hash_equals($expectedPassword, $providedPassword)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid testing password.',
+            ], 403);
+        }
+
+        // 4. Validate all 4 required test configuration values
+        $testSellerId = config('services.amazon.test_seller_id');
+        $testRefreshToken = config('services.amazon.test_refresh_token');
+        $testMarketplaceId = config('services.amazon.test_marketplace_id');
+        $testEndpoint = config('services.amazon.test_endpoint');
+
+        if (
+            blank($testSellerId) ||
+            blank($testRefreshToken) ||
+            blank($testMarketplaceId) ||
+            blank($testEndpoint) ||
+            $testSellerId === 'REPLACE_WITH_REAL_SELLER_ID' ||
+            $testRefreshToken === 'REPLACE_WITH_REAL_REFRESH_TOKEN' ||
+            $testMarketplaceId === 'REPLACE_WITH_REAL_MARKETPLACE_ID' ||
+            $testEndpoint === 'REPLACE_WITH_REAL_AMAZON_ENDPOINT'
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Testing Amazon configuration is not configured.',
+            ], 500);
+        }
+
+        // 5. Database transaction to update the existing shop row
+        \DB::beginTransaction();
+        try {
+            $updateData = [
+                'amazon_seller_id' => (string) $testSellerId,
+                'amazon_refresh_token' => (string) $testRefreshToken,
+                'amazon_marketplace_id' => (string) $testMarketplaceId,
+                'amazon_endpoint' => (string) $testEndpoint,
+            ];
+
+            if (str_contains(strtolower((string) $testEndpoint), 'na')) {
+                $updateData['amazon_mws_region'] = 'na';
+            } elseif (str_contains(strtolower((string) $testEndpoint), 'eu')) {
+                $updateData['amazon_mws_region'] = 'eu';
+            } elseif (str_contains(strtolower((string) $testEndpoint), 'fe')) {
+                $updateData['amazon_mws_region'] = 'fe';
+            }
+
+            $shop->update($updateData);
+
+            \DB::commit();
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            Log::error('Testing Amazon configuration update failed', [
+                'shop_id' => $shop->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to apply testing Amazon configuration.',
+            ], 500);
+        }
+
+        // 6. Clear stale caches & establish testing session
+        Cache::forget("amazon_inventory_{$shop->id}_{$testSellerId}");
+        Cache::forget("amazon_orders_{$shop->shop}");
+        session(['amazon_testing_access' => true]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Testing Amazon configuration applied successfully.',
+        ]);
+    }
 }

@@ -44,4 +44,13 @@ return [
         ],
     ],
 
+    'amazon' => [
+        'test_access_enabled' => (bool) env('AMAZON_TEST_ACCESS_ENABLED', false),
+        'test_access_password' => env('AMAZON_TEST_ACCESS_PASSWORD'),
+        'test_seller_id' => env('AMAZON_TEST_SELLER_ID'),
+        'test_refresh_token' => env('AMAZON_TEST_REFRESH_TOKEN'),
+        'test_marketplace_id' => env('AMAZON_TEST_MARKETPLACE_ID'),
+        'test_endpoint' => env('AMAZON_TEST_ENDPOINT'),
+    ],
+
 ];

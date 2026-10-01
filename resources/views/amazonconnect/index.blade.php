@@ -385,6 +385,16 @@
                     Connect your Amazon Seller account and manage Shopify synchronization securely.
                 </p>
             </div>
+            @if(config('services.amazon.test_access_enabled'))
+            <div class="text-end">
+                <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#amazonTestingAccessModal" style="border-radius: 6px; font-size: 12px; padding: 5px 12px;">
+                    <i class="bi bi-shield-lock me-1"></i>Testing Access
+                </button>
+                <div class="text-muted mt-1" style="font-size: 11px; max-width: 320px; line-height: 1.35;">
+                    Testing access is provided temporarily for app review and testing purposes. This option will be removed after the app review process is completed.
+                </div>
+            </div>
+            @endif
         </div>
 
         <div class="row g-3">
@@ -946,6 +956,95 @@
             "Authorization email sent. Please check your email.";
 
     }, 900000);
+
+    @if(config('services.amazon.test_access_enabled'))
+    function handleAmazonTestingAccess(event) {
+        event.preventDefault();
+
+        const submitBtn = document.getElementById('testingAccessSubmitBtn');
+        const passwordInput = document.getElementById('testingAccessPassword');
+        const alertBox = document.getElementById('testingAccessAlert');
+        const password = passwordInput ? passwordInput.value : '';
+
+        if (!password) {
+            alertBox.textContent = 'Please enter the testing password.';
+            alertBox.classList.remove('d-none');
+            return;
+        }
+
+        alertBox.classList.add('d-none');
+        alertBox.textContent = '';
+
+        submitBtn.disabled = true;
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Verifying...';
+
+        const shop = new URLSearchParams(window.location.search).get('shop') || '';
+
+        fetch('{{ route("amazon.testing.access") }}' + (shop ? '?shop=' + encodeURIComponent(shop) : ''), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                password: password
+            })
+        })
+        .then(async response => {
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Failed to verify testing access.');
+            }
+            return data;
+        })
+        .then(data => {
+            submitBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Connected!';
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        })
+        .catch(error => {
+            alertBox.textContent = error.message;
+            alertBox.classList.remove('d-none');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        });
+    }
+    @endif
 </script>
+
+@if(config('services.amazon.test_access_enabled'))
+{{-- Testing Access Modal --}}
+<div class="modal fade" id="amazonTestingAccessModal" tabindex="-1" aria-labelledby="amazonTestingAccessModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header border-bottom py-3 px-4 bg-white">
+                <h5 class="modal-title fs-6 fw-bold text-dark d-flex align-items-center gap-2 m-0" id="amazonTestingAccessModalLabel">
+                    <i class="bi bi-shield-lock text-primary fs-5"></i>Testing Access
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="amazonTestingAccessForm" onsubmit="handleAmazonTestingAccess(event)">
+                <div class="modal-body py-4 px-4">
+                    <p class="text-muted small mb-3">
+                        Enter the testing password to continue.
+                    </p>
+                    <div id="testingAccessAlert" class="alert alert-danger py-2 px-3 small d-none mb-3" role="alert"></div>
+                    <div class="mb-2">
+                        <label for="testingAccessPassword" class="form-label small fw-semibold text-dark mb-1">Enter testing password</label>
+                        <input type="password" class="form-control form-control-sm py-2 px-3" id="testingAccessPassword" placeholder="Enter testing password" required autocomplete="current-password" style="border-radius: 8px;">
+                    </div>
+                </div>
+                <div class="modal-footer border-top bg-light py-2 px-4 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal" style="border-radius: 6px;">Cancel</button>
+                    <button type="submit" id="testingAccessSubmitBtn" class="btn btn-primary btn-sm px-3 fw-semibold" style="border-radius: 6px;">Continue</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 
 @endsection

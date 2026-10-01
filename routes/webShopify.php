@@ -156,6 +156,7 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::post('/inventory/shopify/update', [InventoryMappingController::class, 'updateShopifyInventory'])->name('inventory.shopify.update');
     Route::get('/inventory/mappings', [InventoryMappingController::class, 'mappings'])->name('inventory.mappings');
     Route::post('inventory/page-length', [InventoryController::class, 'updatePageLength'])->name('shopify.inventory.page_length');
+    Route::post('amazon/testing-access', [AmazonConnect::class, 'testingAccess'])->name('amazon.testing.access');
 });
 
 Route::get('amazon-schema', [AmazonSchemaController::class, 'index']);
