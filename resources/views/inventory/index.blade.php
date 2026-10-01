@@ -1198,6 +1198,34 @@
     let amazonProductsLoading = false;
     let amazonProductsRequestVersion = 0;
 
+    // Tab-specific isolated Stat Cards state
+    let shopifyStats = null;
+    let amazonStats = null;
+    let mappingStats = null;
+    let amazonProductsStats = null;
+
+    function applyStatsToDOM(stats) {
+        if (!stats) {
+            $('#totalCount').text('0');
+            $('#syncedCount').text('0');
+            $('#pendingCount').text('0');
+            $('#errorCount').text('0');
+            return;
+        }
+        $('#totalCount').text(stats.total ?? 0);
+        $('#syncedCount').text(stats.synced ?? 0);
+        $('#pendingCount').text(stats.pending ?? 0);
+        $('#errorCount').text(stats.error ?? 0);
+    }
+
+    function showStatsLoader() {
+        const spinnerHtml = `<span class="spinner-border spinner-border-sm text-secondary" role="status" style="width: 14px; height: 14px; border-width: 2px;"><span class="visually-hidden">Loading...</span></span>`;
+        $('#totalCount').html(spinnerHtml);
+        $('#syncedCount').html(spinnerHtml);
+        $('#pendingCount').html(spinnerHtml);
+        $('#errorCount').html(spinnerHtml);
+    }
+
     // Saved page length from Laravel session (default to 10)
     let savedShopifyLength = {{ $shopifyPageLength ?? 10 }};
     let savedAmazonLength = {{ $amazonPageLength ?? 10 }};
@@ -1288,6 +1316,11 @@
             if (original === 'active' || original === 'discoverable') return 'synced';
             if (original === 'inactive' || original === 'incomplete') return 'pending';
         }
+        if (tab === 'mapped') {
+            if (original === 'synced' || original === 'active') return 'synced';
+            if (original === 'pending') return 'pending';
+            return 'error';
+        }
         if (original === 'synced') return 'synced';
         if (original === 'oversold') return 'oversold';
         if (original === 'out_of_stock') return 'out_of_stock';
@@ -1354,6 +1387,13 @@
             window._amazonVerifyPollTimer = null;
         }
         hideAmazonLoader();
+
+        if (mappingStats !== null) {
+            applyStatsToDOM(mappingStats);
+        } else if (!dtMapped || dtMapped.rows().count() === 0) {
+            showStatsLoader();
+        }
+
         renderMappedTable([], true);
         refreshMappingUI();
     }
@@ -1391,6 +1431,11 @@
                 dtMapped = null;
             }
             $('#mappedTable tbody').empty();
+
+            mappingStats = { total: 0, synced: 0, pending: 0, error: 0 };
+            if (activeTab === 'mapped') {
+                applyStatsToDOM(mappingStats);
+            }
             return;
         }
 
@@ -1512,6 +1557,7 @@
                 ],
                 drawCallback: function() {
                     initTooltips();
+                    calculateStats(this.api(), 'mapped');
                 }
             });
         }
@@ -1677,17 +1723,30 @@
             search: 'applied'
         }).every(function() {
             let rowData = this.data();
-            let status = getMappedStatus(rowData.status, tab);
+            let statusValue = (tab === 'mapped') ? (rowData.sync_status || rowData.status) : rowData.status;
+            let status = getMappedStatus(statusValue, tab);
             total++;
             if (status === 'synced') synced++;
             else if (status === 'pending') pending++;
             else error++;
         });
 
-        $('#totalCount').text(total);
-        $('#syncedCount').text(synced);
-        $('#pendingCount').text(pending);
-        $('#errorCount').text(error);
+        const stats = { total, synced, pending, error };
+
+        if (tab === 'shopify') {
+            shopifyStats = stats;
+        } else if (tab === 'amazon') {
+            amazonStats = stats;
+        } else if (tab === 'amazon_products') {
+            amazonProductsStats = stats;
+        } else if (tab === 'mapped') {
+            mappingStats = stats;
+        }
+
+        // ONLY update DOM if this calculation belongs to the currently active tab!
+        if (activeTab === tab) {
+            applyStatsToDOM(stats);
+        }
     }
 
     function badge(status, tab) {
@@ -1710,6 +1769,9 @@
 
     function loadShopify() {
         activeTab = 'shopify';
+        if (!shopifyStats && (!dtShopify || dtShopify.rows().count() === 0)) {
+            showStatsLoader();
+        }
         fetch(`{{ route('shopify.inventory.shopify') }}?shop={{ $shop->shop }}`)
             .then(res => res.json())
             .then(data => {
@@ -1824,6 +1886,12 @@
     function switchToAmazonTab() {
         activeTab = 'amazon';
 
+        if (amazonStats !== null) {
+            applyStatsToDOM(amazonStats);
+        } else if (amazonProductsCache === null && (!dtAmazon || dtAmazon.rows().count() === 0)) {
+            showStatsLoader();
+        }
+
         // Products already loaded in browser cache
         if (amazonProductsCache !== null) {
             renderAmazonTable(amazonProductsCache, false);
@@ -1855,6 +1923,12 @@
         // Hide Amazon loader when user leaves Amazon tab
         hideAmazonLoader();
 
+        if (shopifyStats !== null) {
+            applyStatsToDOM(shopifyStats);
+        } else if (!dtShopify || dtShopify.rows().count() === 0) {
+            showStatsLoader();
+        }
+
         // Do NOT stop background request/progress
         loadShopify();
     }
@@ -1868,7 +1942,10 @@
                 dtShopify.destroy();
                 dtShopify = null;
             }
-            $('#totalCount, #syncedCount, #pendingCount, #errorCount').text('0');
+            shopifyStats = { total: 0, synced: 0, pending: 0, error: 0 };
+            if (activeTab === 'shopify') {
+                applyStatsToDOM(shopifyStats);
+            }
             return;
         }
 
@@ -1985,7 +2062,14 @@
                 dtAmazon = null;
             }
 
-            $('#totalCount, #syncedCount, #pendingCount, #errorCount').text('0');
+            amazonStats = { total: 0, synced: 0, pending: 0, error: 0 };
+            if (activeTab === 'amazon') {
+                if (isLoading) {
+                    showStatsLoader();
+                } else {
+                    applyStatsToDOM(amazonStats);
+                }
+            }
 
             return;
         }
@@ -2213,6 +2297,12 @@
     function switchToAmazonProductsTab() {
         activeTab = 'amazon_products';
 
+        if (amazonProductsStats !== null) {
+            applyStatsToDOM(amazonProductsStats);
+        } else if (isolatedAmazonProductsCache === null && (!dtAmazonProducts || dtAmazonProducts.rows().count() === 0)) {
+            showStatsLoader();
+        }
+
         if (isolatedAmazonProductsCache !== null) {
             renderAmazonProductsTable(isolatedAmazonProductsCache, false);
 
@@ -2247,7 +2337,14 @@
                 dtAmazonProducts = null;
             }
 
-            $('#totalCount, #syncedCount, #pendingCount, #errorCount').text('0');
+            amazonProductsStats = { total: 0, synced: 0, pending: 0, error: 0 };
+            if (activeTab === 'amazon_products') {
+                if (isLoading) {
+                    showStatsLoader();
+                } else {
+                    applyStatsToDOM(amazonProductsStats);
+                }
+            }
             return;
         }
 
@@ -2667,12 +2764,18 @@
         fetch(`{{ route('shopify.inventory.refresh') }}?shop=${encodeURIComponent(shop)}&type=${type}`)
             .then(() => {
                 if (activeTab === 'shopify') {
+                    shopifyStats = null;
+                    showStatsLoader();
                     loadShopify();
                 } else if (activeTab === 'amazon_products') {
                     isolatedAmazonProductsCache = null;
+                    amazonProductsStats = null;
+                    showStatsLoader();
                     loadAmazonProductsTab(true);
                 } else {
                     amazonProductsCache = null;
+                    amazonStats = null;
+                    showStatsLoader();
                     loadAmazon(true);
                 }
             })
