@@ -678,7 +678,8 @@
             $requestedTab = strtolower((string) request('tab', 'shopify'));
             $isMappedActive = in_array($requestedTab, ['mapped', 'mappings'], true);
             $isAmazonActive = ($requestedTab === 'amazon');
-            $isShopifyActive = !$isMappedActive && !$isAmazonActive;
+            $isAmazonProductsActive = in_array($requestedTab, ['amazon_products', 'amazon-products', 'amazonproducts'], true);
+            $isShopifyActive = !$isMappedActive && !$isAmazonActive && !$isAmazonProductsActive;
         @endphp
         <ul class="nav nav-tabs saas-tabs">
             <li class="nav-item">
@@ -707,6 +708,16 @@
                     data-bs-target="#mappedAmazonTab"
                     onclick="switchToMappedTab();">
                     Mappings
+                </button>
+            </li>
+            <li class="nav-item">
+                <button
+                    class="nav-link {{ $isAmazonProductsActive ? 'active' : '' }}"
+                    id="amazon-products-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#amazonProductsTab"
+                    onclick="switchToAmazonProductsTab();">
+                    Amazon Products
                 </button>
             </li>
         </ul>
@@ -1068,7 +1079,77 @@
             </div>
         </div>
 
-        {{-- Mapped Tab --}}
+        {{-- Amazon Products Tab --}}
+        <div class="tab-pane fade {{ $isAmazonProductsActive ? 'show active' : '' }}" id="amazonProductsTab">
+            @if($shop->amazon_refresh_token)
+            <div class="saas-toolbar">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-4 col-12">
+                        <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Search Product</label>
+                        <input type="text" id="dtSearchAmazonProducts" class="saas-input" placeholder="Search SKU / Title / Mapped...">
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Amazon Status</label>
+                        <select id="dtStatusAmazonProducts" class="saas-select">
+                            <option value="">All Statuses</option>
+                            <option value="active">Active</option>
+                            <option value="accepted">Accepted</option>
+                            <option value="draft">Draft</option>
+                            <option value="discoverable">Discoverable</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="incomplete">Incomplete</option>
+                            <option value="unknown">Unknown</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 col-6">
+                        <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Rows Per Page</label>
+                        <select id="dtLengthAmazonProducts" class="saas-select">
+                            <option value="10" {{ ($amazonProductsPageLength ?? 10) === 10 ? 'selected' : '' }}>10 Rows</option>
+                            <option value="25" {{ ($amazonProductsPageLength ?? 10) === 25 ? 'selected' : '' }}>25 Rows</option>
+                            <option value="50" {{ ($amazonProductsPageLength ?? 10) === 50 ? 'selected' : '' }}>50 Rows</option>
+                            <option value="100" {{ ($amazonProductsPageLength ?? 10) === 100 ? 'selected' : '' }}>100 Rows</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-6">
+                        <label class="form-label d-none d-md-block mb-1">&nbsp;</label>
+                        <button onclick="refreshCache(event)" class="btn btn-light w-100">
+                            <i class="bi bi-arrow-repeat me-1"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom No Data Message -->
+            <div id="amazonProductsNoDataMsg" class="no-data-msg" style="display: none;">
+                <i class="bi bi-inboxes"></i>
+                <h4>No Amazon Products Found</h4>
+                <p>It looks like there are no Amazon products available to display.</p>
+            </div>
+
+            <div class="table-responsive" id="amazonProductsTableWrapper">
+                <table class="saas-table" id="amazonProductsTable" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th class="text-nowrap">Amazon Status</th>
+                            <th class="text-nowrap">Mapped To</th>
+                            <th class="text-nowrap">Amazon Qty</th>
+                            <th class="text-nowrap">Shopify Qty</th>
+                            <th class="text-nowrap text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 12px;"></tbody>
+                </table>
+            </div>
+            @else
+            <div class="p-3">
+                <div class="alert alert-warning mb-0 border-0" style="border-radius: 8px; font-size: 13px;">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> Please connect your Amazon account first.
+                    <a href="{{ route('amazon.connect') }}" class="fw-bold ms-1 text-dark text-decoration-underline">Connect Amazon</a>
+                </div>
+            </div>
+            @endif
+        </div>
 
     </div>
 </div>
@@ -1107,13 +1188,50 @@
     let dtShopify = null;
     let dtAmazon = null;
     let dtMapped = null;
+    let dtAmazonProducts = null;
     let progressTimer = null;
     let amazonProductsCache = null;
     let amazonLoading = false;
 
+    // Dedicated, isolated state for Amazon Products Tab
+    let isolatedAmazonProductsCache = null;
+    let amazonProductsLoading = false;
+    let amazonProductsRequestVersion = 0;
+    const amazonProductsRowLoading = {};
+    window._amazonProductsVerifyPollTimer = null;
+
+    // Tab-specific isolated Stat Cards state
+    let shopifyStats = null;
+    let amazonStats = null;
+    let mappingStats = null;
+    let amazonProductsStats = null;
+
+    function applyStatsToDOM(stats) {
+        if (!stats) {
+            $('#totalCount').text('0');
+            $('#syncedCount').text('0');
+            $('#pendingCount').text('0');
+            $('#errorCount').text('0');
+            return;
+        }
+        $('#totalCount').text(stats.total ?? 0);
+        $('#syncedCount').text(stats.synced ?? 0);
+        $('#pendingCount').text(stats.pending ?? 0);
+        $('#errorCount').text(stats.error ?? 0);
+    }
+
+    function showStatsLoader() {
+        const spinnerHtml = `<span class="spinner-border spinner-border-sm text-secondary" role="status" style="width: 14px; height: 14px; border-width: 2px;"><span class="visually-hidden">Loading...</span></span>`;
+        $('#totalCount').html(spinnerHtml);
+        $('#syncedCount').html(spinnerHtml);
+        $('#pendingCount').html(spinnerHtml);
+        $('#errorCount').html(spinnerHtml);
+    }
+
     // Saved page length from Laravel session (default to 10)
     let savedShopifyLength = {{ $shopifyPageLength ?? 10 }};
     let savedAmazonLength = {{ $amazonPageLength ?? 10 }};
+    let savedAmazonProductsLength = {{ $amazonProductsPageLength ?? 10 }};
     let savedMappedLength = 10;
 
     function persistPageLength(type, length) {
@@ -1137,6 +1255,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         $('#dtLengthShopify').val(savedShopifyLength);
         $('#dtLengthAmazon').val(savedAmazonLength);
+        $('#dtLengthAmazonProducts').val(savedAmazonProductsLength);
         $('#dtLengthMapped').val(savedMappedLength);
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -1161,7 +1280,22 @@
             });
         }
 
-        if (tabParam === 'mapped' || tabParam === 'mappings' || window.location.hash === '#mappedAmazonTab' || window.location.hash === '#mapped') {
+        const amazonProductsTabEl = document.querySelector(
+            '[data-bs-target="#amazonProductsTab"]'
+        );
+        if (amazonProductsTabEl) {
+            amazonProductsTabEl.addEventListener('shown.bs.tab', function() {
+                switchToAmazonProductsTab();
+            });
+        }
+
+        if (tabParam === 'amazon_products' || tabParam === 'amazon-products' || tabParam === 'amazonproducts' || window.location.hash === '#amazonProductsTab' || window.location.hash === '#amazon-products') {
+            if (amazonProductsTabEl) {
+                const bsTab = bootstrap.Tab.getOrCreateInstance(amazonProductsTabEl);
+                bsTab.show();
+            }
+            switchToAmazonProductsTab();
+        } else if (tabParam === 'mapped' || tabParam === 'mappings' || window.location.hash === '#mappedAmazonTab' || window.location.hash === '#mapped') {
             if (mappedTabEl) {
                 const bsTab = bootstrap.Tab.getOrCreateInstance(mappedTabEl);
                 bsTab.show();
@@ -1180,9 +1314,14 @@
 
     function getMappedStatus(rawStatus, tab) {
         let original = (rawStatus || '').toLowerCase();
-        if (tab === 'amazon') {
-            if (original === 'active') return 'synced';
+        if (tab === 'amazon' || tab === 'amazon_products') {
+            if (original === 'active' || original === 'discoverable') return 'synced';
             if (original === 'inactive' || original === 'incomplete') return 'pending';
+        }
+        if (tab === 'mapped') {
+            if (original === 'synced' || original === 'active') return 'synced';
+            if (original === 'pending') return 'pending';
+            return 'error';
         }
         if (original === 'synced') return 'synced';
         if (original === 'oversold') return 'oversold';
@@ -1249,7 +1388,18 @@
             clearTimeout(window._amazonVerifyPollTimer);
             window._amazonVerifyPollTimer = null;
         }
+        if (window._amazonProductsVerifyPollTimer) {
+            clearTimeout(window._amazonProductsVerifyPollTimer);
+            window._amazonProductsVerifyPollTimer = null;
+        }
         hideAmazonLoader();
+
+        if (mappingStats !== null) {
+            applyStatsToDOM(mappingStats);
+        } else if (!dtMapped || dtMapped.rows().count() === 0) {
+            showStatsLoader();
+        }
+
         renderMappedTable([], true);
         refreshMappingUI();
     }
@@ -1287,6 +1437,11 @@
                 dtMapped = null;
             }
             $('#mappedTable tbody').empty();
+
+            mappingStats = { total: 0, synced: 0, pending: 0, error: 0 };
+            if (activeTab === 'mapped') {
+                applyStatsToDOM(mappingStats);
+            }
             return;
         }
 
@@ -1408,6 +1563,7 @@
                 ],
                 drawCallback: function() {
                     initTooltips();
+                    calculateStats(this.api(), 'mapped');
                 }
             });
         }
@@ -1476,7 +1632,29 @@
                 dtAmazon.draw(false);
             }
 
-            // Synchronize in-memory amazonProductsCache if present
+            // Update Amazon Products DataTable rows
+            if (dtAmazonProducts) {
+                dtAmazonProducts.rows().every(function() {
+                    const row = this.data();
+                    const mapping = amazonMappings[String(row.sku)];
+
+                    row.is_mapped = !!mapping;
+                    row.mapping_id = mapping ? mapping.id : null;
+                    row.mapped_shopify_variant_id = mapping ? mapping.shopify_variant_id : null;
+                    row.mapped_shopify_product_id = mapping ? mapping.shopify_product_id : null;
+                    row.mapped_shopify_product_title = mapping ? mapping.shopify_product_title : null;
+                    row.mapped_shopify_variant_title = mapping ? mapping.shopify_variant_title : null;
+                    row.mapped_shopify_variant_sku = mapping ? mapping.shopify_variant_sku : null;
+                    row.mapped_shopify_location_name = mapping ? mapping.shopify_location_name : null;
+                    row.mapped_shopify_product_url = mapping ? mapping.shopify_product_url : null;
+
+                    this.data(row);
+                });
+
+                dtAmazonProducts.draw(false);
+            }
+
+            // Synchronize in-memory amazonProductsCache (Amazon tab) if present
             if (Array.isArray(amazonProductsCache)) {
                 amazonProductsCache.forEach(function(item) {
                     const mapping = amazonMappings[String(item.sku)];
@@ -1484,6 +1662,54 @@
                     item.mapping_id = mapping ? mapping.id : null;
                     item.mapped_shopify_variant_id = mapping ?
                         mapping.shopify_variant_id :
+                        null;
+                    item.mapped_shopify_product_id = mapping ?
+                        mapping.shopify_product_id :
+                        null;
+                    item.mapped_shopify_product_title = mapping ?
+                        mapping.shopify_product_title :
+                        null;
+                    item.mapped_shopify_variant_title = mapping ?
+                        mapping.shopify_variant_title :
+                        null;
+                    item.mapped_shopify_variant_sku = mapping ?
+                        mapping.shopify_variant_sku :
+                        null;
+                    item.mapped_shopify_location_name = mapping ?
+                        mapping.shopify_location_name :
+                        null;
+                    item.mapped_shopify_product_url = mapping ?
+                        mapping.shopify_product_url :
+                        null;
+                });
+            }
+
+            // Synchronize in-memory isolatedAmazonProductsCache (Amazon Products tab) if present
+            if (Array.isArray(isolatedAmazonProductsCache)) {
+                isolatedAmazonProductsCache.forEach(function(item) {
+                    const mapping = amazonMappings[String(item.sku)];
+                    item.is_mapped = !!mapping;
+                    item.mapping_id = mapping ? mapping.id : null;
+                    item.mapped_shopify_variant_id = mapping ?
+                        mapping.shopify_variant_id :
+                        null;
+                    item.mapped_shopify_product_id = mapping ?
+                        mapping.shopify_product_id :
+                        null;
+                    item.mapped_shopify_product_title = mapping ?
+                        mapping.shopify_product_title :
+                        null;
+                    item.mapped_shopify_variant_title = mapping ?
+                        mapping.shopify_variant_title :
+                        null;
+                    item.mapped_shopify_variant_sku = mapping ?
+                        mapping.shopify_variant_sku :
+                        null;
+                    item.mapped_shopify_location_name = mapping ?
+                        mapping.shopify_location_name :
+                        null;
+                    item.mapped_shopify_product_url = mapping ?
+                        mapping.shopify_product_url :
                         null;
                 });
             }
@@ -1503,17 +1729,30 @@
             search: 'applied'
         }).every(function() {
             let rowData = this.data();
-            let status = getMappedStatus(rowData.status, tab);
+            let statusValue = (tab === 'mapped') ? (rowData.sync_status || rowData.status) : rowData.status;
+            let status = getMappedStatus(statusValue, tab);
             total++;
             if (status === 'synced') synced++;
             else if (status === 'pending') pending++;
             else error++;
         });
 
-        $('#totalCount').text(total);
-        $('#syncedCount').text(synced);
-        $('#pendingCount').text(pending);
-        $('#errorCount').text(error);
+        const stats = { total, synced, pending, error };
+
+        if (tab === 'shopify') {
+            shopifyStats = stats;
+        } else if (tab === 'amazon') {
+            amazonStats = stats;
+        } else if (tab === 'amazon_products') {
+            amazonProductsStats = stats;
+        } else if (tab === 'mapped') {
+            mappingStats = stats;
+        }
+
+        // ONLY update DOM if this calculation belongs to the currently active tab!
+        if (activeTab === tab) {
+            applyStatsToDOM(stats);
+        }
     }
 
     function badge(status, tab) {
@@ -1536,6 +1775,9 @@
 
     function loadShopify() {
         activeTab = 'shopify';
+        if (!shopifyStats && (!dtShopify || dtShopify.rows().count() === 0)) {
+            showStatsLoader();
+        }
         fetch(`{{ route('shopify.inventory.shopify') }}?shop={{ $shop->shop }}`)
             .then(res => res.json())
             .then(data => {
@@ -1649,6 +1891,16 @@
 
     function switchToAmazonTab() {
         activeTab = 'amazon';
+        if (window._amazonProductsVerifyPollTimer) {
+            clearTimeout(window._amazonProductsVerifyPollTimer);
+            window._amazonProductsVerifyPollTimer = null;
+        }
+
+        if (amazonStats !== null) {
+            applyStatsToDOM(amazonStats);
+        } else if (amazonProductsCache === null && (!dtAmazon || dtAmazon.rows().count() === 0)) {
+            showStatsLoader();
+        }
 
         // Products already loaded in browser cache
         if (amazonProductsCache !== null) {
@@ -1677,9 +1929,19 @@
             clearTimeout(window._amazonVerifyPollTimer);
             window._amazonVerifyPollTimer = null;
         }
+        if (window._amazonProductsVerifyPollTimer) {
+            clearTimeout(window._amazonProductsVerifyPollTimer);
+            window._amazonProductsVerifyPollTimer = null;
+        }
 
         // Hide Amazon loader when user leaves Amazon tab
         hideAmazonLoader();
+
+        if (shopifyStats !== null) {
+            applyStatsToDOM(shopifyStats);
+        } else if (!dtShopify || dtShopify.rows().count() === 0) {
+            showStatsLoader();
+        }
 
         // Do NOT stop background request/progress
         loadShopify();
@@ -1694,7 +1956,10 @@
                 dtShopify.destroy();
                 dtShopify = null;
             }
-            $('#totalCount, #syncedCount, #pendingCount, #errorCount').text('0');
+            shopifyStats = { total: 0, synced: 0, pending: 0, error: 0 };
+            if (activeTab === 'shopify') {
+                applyStatsToDOM(shopifyStats);
+            }
             return;
         }
 
@@ -1811,7 +2076,14 @@
                 dtAmazon = null;
             }
 
-            $('#totalCount, #syncedCount, #pendingCount, #errorCount').text('0');
+            amazonStats = { total: 0, synced: 0, pending: 0, error: 0 };
+            if (activeTab === 'amazon') {
+                if (isLoading) {
+                    showStatsLoader();
+                } else {
+                    applyStatsToDOM(amazonStats);
+                }
+            }
 
             return;
         }
@@ -1937,6 +2209,357 @@
         }
     }
 
+    function loadAmazonProductsTab(force = false) {
+        if (!amazonConnected) return;
+
+        activeTab = 'amazon_products';
+
+        // Browser cache hit for Amazon Products tab
+        if (!force && isolatedAmazonProductsCache !== null) {
+            renderAmazonProductsTable(isolatedAmazonProductsCache, false);
+
+            requestAnimationFrame(() => {
+                if (dtAmazonProducts) {
+                    dtAmazonProducts.columns.adjust().draw(false);
+                }
+            });
+
+            hideAmazonLoader();
+            return;
+        }
+
+        // Prevent duplicate requests
+        if (amazonProductsLoading) {
+            return;
+        }
+
+        amazonProductsLoading = true;
+        const requestId = ++amazonProductsRequestVersion;
+
+        if (!isolatedAmazonProductsCache && (!dtAmazonProducts || dtAmazonProducts.rows().count() === 0)) {
+            showAmazonLoader();
+        }
+
+        const shop = new URLSearchParams(window.location.search).get('shop');
+
+        $.ajax({
+            url: "{{ route('shopify.inventory.amazon_products') }}",
+            type: 'GET',
+            data: {
+                shop: shop
+            },
+            success: function(response) {
+                // Ignore stale / out-of-order responses
+                if (requestId !== amazonProductsRequestVersion) {
+                    return;
+                }
+
+                const items = Array.isArray(response.products) ?
+                    response.products : [];
+                const isRefreshing = response.status?.refreshing === true;
+                const syncCompleted = response.status?.sync_completed === true;
+
+                if ((isRefreshing || !syncCompleted) && items.length === 0) {
+                    isolatedAmazonProductsCache = null;
+                    renderAmazonProductsTable([], true);
+                    showAmazonLoader();
+                    startProgress();
+                    return;
+                }
+
+                isolatedAmazonProductsCache = items;
+                renderAmazonProductsTable(items, false);
+
+                requestAnimationFrame(() => {
+                    if (dtAmazonProducts) {
+                        dtAmazonProducts.columns.adjust().draw(false);
+                    }
+                });
+
+                hideAmazonLoader();
+
+                if (progressTimer) {
+                    clearInterval(progressTimer);
+                    progressTimer = null;
+                }
+            },
+            error: function(xhr) {
+                // Ignore stale / out-of-order responses
+                if (requestId !== amazonProductsRequestVersion) {
+                    return;
+                }
+
+                console.error(
+                    'Failed to load Amazon products:',
+                    xhr.responseText
+                );
+
+                renderAmazonProductsTable([], false);
+                hideAmazonLoader();
+
+                if (progressTimer) {
+                    clearInterval(progressTimer);
+                    progressTimer = null;
+                }
+            },
+            complete: function() {
+                amazonProductsLoading = false;
+            }
+        });
+    }
+
+    function switchToAmazonProductsTab() {
+        activeTab = 'amazon_products';
+
+        if (amazonProductsStats !== null) {
+            applyStatsToDOM(amazonProductsStats);
+        } else if (isolatedAmazonProductsCache === null && (!dtAmazonProducts || dtAmazonProducts.rows().count() === 0)) {
+            showStatsLoader();
+        }
+
+        if (isolatedAmazonProductsCache !== null) {
+            renderAmazonProductsTable(isolatedAmazonProductsCache, false);
+
+            requestAnimationFrame(() => {
+                if (dtAmazonProducts) {
+                    dtAmazonProducts.columns.adjust().draw(false);
+                }
+            });
+
+            hideAmazonLoader();
+            return;
+        }
+
+        if (!dtAmazonProducts || dtAmazonProducts.rows().count() === 0) {
+            showAmazonLoader();
+        }
+        loadAmazonProductsTab();
+    }
+
+    function renderAmazonProductsTable(data, isLoading = false) {
+        if (!data || data.length === 0) {
+            $('#amazonProductsTableWrapper').hide();
+
+            if (isLoading) {
+                $('#amazonProductsNoDataMsg').hide();
+            } else {
+                $('#amazonProductsNoDataMsg').show();
+            }
+
+            if ($.fn.DataTable.isDataTable('#amazonProductsTable')) {
+                dtAmazonProducts.destroy();
+                dtAmazonProducts = null;
+            }
+
+            amazonProductsStats = { total: 0, synced: 0, pending: 0, error: 0 };
+            if (activeTab === 'amazon_products') {
+                if (isLoading) {
+                    showStatsLoader();
+                } else {
+                    applyStatsToDOM(amazonProductsStats);
+                }
+            }
+            return;
+        }
+
+        $('#amazonProductsNoDataMsg').hide();
+        $('#amazonProductsTableWrapper').show();
+
+        const currentShop = new URLSearchParams(window.location.search).get('shop') || '{{ $shop->shop }}';
+
+        if (!$.fn.DataTable.isDataTable('#amazonProductsTable')) {
+            dtAmazonProducts = $('#amazonProductsTable').DataTable({
+                pageLength: parseInt(savedAmazonProductsLength, 10) || 10,
+                ordering: true,
+                dom: 'rt<"saas-pagination-wrapper"ip>',
+                language: {
+                    emptyTable: "No matching Amazon products found"
+                },
+                columns: [
+                    // Col 0: SKU (Image + Title + SKU)
+                    {
+                        data: 'sku',
+                        render: function(data, type, row) {
+                            let title = row.title || 'Amazon Product';
+                            let sku = row.sku || '';
+                            if (type === 'sort' || type === 'filter') {
+                                return sku + ' ' + title;
+                            }
+                            let isTruncated = title.length > 25;
+                            let displayTitle = isTruncated ? title.substring(0, 22) + '...' : title;
+                            let escapedFull = escapeHtml(title);
+                            let escapedDisplay = escapeHtml(displayTitle);
+                            let tooltipAttr = isTruncated ? ` title="${escapedFull}" data-bs-toggle="tooltip" data-bs-container="body" data-bs-placement="top"` : '';
+                            let url = row.amazon_product_url || ("{{ route('user.product.amazonView', ['sku' => '__SKU__', 'shop' => '__SHOP__']) }}".replace('__SKU__', encodeURIComponent(sku)).replace('__SHOP__', encodeURIComponent(currentShop)));
+                            let imageSrc = row.image || row.image_url || 'https://via.placeholder.com/40';
+
+                            return `
+                                <div class="d-flex align-items-center gap-2" style="min-width: 0;">
+                                    <img src="${imageSrc}" class="product-img flex-shrink-0" style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #e5e7eb;" alt="${escapedDisplay}">
+                                    <div style="min-width: 0;">
+                                        <a href="${url}" class="fw-semibold text-dark text-decoration-none product-title-clamp"${tooltipAttr}>${escapedDisplay}</a>
+                                        <small class="text-muted d-block" style="font-size: 11px;">SKU: ${escapeHtml(sku || '—')}</small>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    },
+                    // Col 1: Amazon Status (Dynamic Badge)
+                    {
+                        data: 'status',
+                        render: function(data, type, row) {
+                            let raw = (row.status || 'UNKNOWN').toUpperCase();
+                            if (type === 'sort' || type === 'filter') {
+                                return raw.toLowerCase();
+                            }
+                            let badgeClass = 'bg-secondary-subtle text-secondary';
+                            if (raw === 'ACTIVE' || raw === 'ACCEPTED') {
+                                badgeClass = 'bg-success-subtle text-success';
+                            } else if (raw === 'DISCOVERABLE') {
+                                badgeClass = 'bg-info-subtle text-info';
+                            } else if (raw === 'DRAFT') {
+                                badgeClass = 'bg-warning-subtle text-warning';
+                            } else if (raw === 'INACTIVE') {
+                                badgeClass = 'bg-secondary-subtle text-secondary';
+                            } else if (raw === 'INCOMPLETE') {
+                                badgeClass = 'bg-warning-subtle text-warning';
+                            }
+                            return `<span class="soft-badge ${badgeClass}">${escapeHtml(raw)}</span>`;
+                        }
+                    },
+                    // Col 2: Mapped To (Shopify Product / Variant / Location)
+                    {
+                        data: 'mapped_shopify_product_title',
+                        render: function(data, type, row) {
+                            if (type === 'sort' || type === 'filter') {
+                                return (row.mapped_shopify_product_title || '') + ' ' + (row.mapped_shopify_variant_title || '') + ' ' + (row.mapped_shopify_location_name || '');
+                            }
+                            if (!row.is_mapped) {
+                                return `<span class="text-muted">—</span>`;
+                            }
+                            let prodTitle = row.mapped_shopify_product_title || ('Shopify Product #' + (row.mapped_shopify_product_id || ''));
+                            let isTruncated = prodTitle.length > 20;
+                            let displayProdTitle = isTruncated ? prodTitle.substring(0, 17) + '...' : prodTitle;
+                            let escapedFull = escapeHtml(prodTitle);
+                            let escapedDisplay = escapeHtml(displayProdTitle);
+                            let tooltipAttr = isTruncated ? ` title="${escapedFull}" data-bs-toggle="tooltip" data-bs-container="body" data-bs-placement="top"` : '';
+
+                            let link = row.mapped_shopify_product_url;
+                            let titleHtml = link
+                                ? `<a href="${link}" class="fw-semibold text-dark text-decoration-none"${tooltipAttr}>${escapedDisplay}</a>`
+                                : `<span class="fw-semibold text-dark"${tooltipAttr}>${escapedDisplay}</span>`;
+
+                            let varTitle = row.mapped_shopify_variant_title || 'Default';
+                            let locName = row.mapped_shopify_location_name || 'Default';
+
+                            return `
+                                <div>
+                                    ${titleHtml}
+                                    <small class="text-muted d-block" style="font-size: 11px;">${escapeHtml(varTitle)} &bull; ${escapeHtml(locName)}</small>
+                                </div>
+                            `;
+                        }
+                    },
+                    // Col 3: Amazon Qty
+                    {
+                        data: 'quantity',
+                        render: function(data, type, row) {
+                            let qty = (row.quantity !== null && row.quantity !== undefined) ? row.quantity : (row.qty ?? 0);
+                            if (type === 'sort' || type === 'filter') return qty;
+                            let isUpdating = (typeof amazonProductsRowLoading !== 'undefined' && !!amazonProductsRowLoading[String(row.sku)]);
+                            let isVerifying = (row.is_verifying === true) || isUpdating;
+                            let spinner = isVerifying ? `
+                                <span class="spinner-border spinner-border-sm text-primary flex-shrink-0 ms-1 zeosync-row-spinner"
+                                      role="status"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="top"
+                                      title="Amazon verification in progress"
+                                      style="width: 14px; height: 14px; border-width: 2px; cursor: help;">
+                                    <span class="visually-hidden">Amazon verification in progress</span>
+                                </span>` : '';
+                            return `
+                                <div class="d-flex align-items-center">
+                                    <input type="number" class="form-control form-control-sm qty-input amazon-qty" value="${qty}" data-sku="${row.sku}" style="max-width: 75px;">
+                                    ${spinner}
+                                </div>`;
+                        }
+                    },
+                    // Col 4: Shopify Qty
+                    {
+                        data: 'shopify_available_qty',
+                        render: function(data, type, row) {
+                            if (type === 'sort' || type === 'filter') {
+                                return (row.shopify_available_qty !== null && row.shopify_available_qty !== undefined) ? row.shopify_available_qty : -999999;
+                            }
+                            if (!row.is_mapped || row.shopify_available_qty === null || row.shopify_available_qty === undefined) {
+                                return `<span class="text-muted">—</span>`;
+                            }
+                            return `<span class="fw-semibold text-dark">${row.shopify_available_qty}</span>`;
+                        }
+                    },
+                    // Col 5: Actions
+                    {
+                        data: null,
+                        orderable: false,
+                        className: 'text-end',
+                        render: function(data, type, row) {
+                            if (row.is_mapped) {
+                                return `
+                                    <div class="d-flex align-items-center justify-content-end gap-1">
+                                        <button class="btn btn-primary btn-sm update-amazon-qty" data-sku="${row.sku}" title="Update Stock" data-bs-toggle="tooltip" data-bs-placement="top">Update</button>
+                                        <button class="btn btn-danger btn-sm unmap-product" data-mapping-id="${row.mapping_id}" title="Unmap Product" data-bs-toggle="tooltip" data-bs-placement="top">
+                                            <i class="bi bi-link"></i>
+                                        </button>
+                                    </div>
+                                `;
+                            }
+                            return `
+                                <div class="d-flex align-items-center justify-content-end">
+                                    <button class="btn btn-primary btn-sm map-shopify-product" data-sku="${row.sku}" title="Map Product" data-bs-toggle="tooltip" data-bs-placement="top">
+                                        <i class="bi bi-link-45deg me-1"></i>Map
+                                    </button>
+                                </div>
+                            `;
+                        }
+                    }
+                ],
+                drawCallback: function() {
+                    initTooltips();
+                    calculateStats(this.api(), 'amazon_products');
+                }
+            });
+        }
+
+        if (Array.isArray(data)) {
+            data.forEach(item => {
+                if (!item.is_verifying && typeof amazonProductsRowLoading !== 'undefined' && amazonProductsRowLoading[String(item.sku)]) {
+                    delete amazonProductsRowLoading[String(item.sku)];
+                }
+            });
+        }
+
+        dtAmazonProducts.clear().rows.add(data).draw(false);
+
+        const hasVerifying = Array.isArray(data) && (data.some(item => item.is_verifying === true) || (typeof amazonProductsRowLoading !== 'undefined' && Object.keys(amazonProductsRowLoading).length > 0));
+        if (hasVerifying && activeTab === 'amazon_products') {
+            if (window._amazonProductsVerifyPollTimer) {
+                clearTimeout(window._amazonProductsVerifyPollTimer);
+            }
+            window._amazonProductsVerifyPollTimer = setTimeout(function() {
+                if (activeTab === 'amazon_products') {
+                    loadAmazonProductsTab(true);
+                }
+            }, 10000);
+        } else if (!hasVerifying && window._amazonProductsVerifyPollTimer) {
+            clearTimeout(window._amazonProductsVerifyPollTimer);
+            window._amazonProductsVerifyPollTimer = null;
+        }
+
+        if (!isLoading) {
+            refreshMappingUI();
+        }
+    }
+
     // ==========================================
     // Custom UI Interfacing with DataTables API
     // ==========================================
@@ -1998,6 +2621,20 @@
         savedAmazonLength = val; // Sync active variable
         if (dtAmazon) dtAmazon.page.len(val).draw();
         persistPageLength('amazon', val);
+    });
+
+    // Amazon Products Inputs
+    $('#dtSearchAmazonProducts').on('keyup', function() {
+        if (dtAmazonProducts) dtAmazonProducts.search(this.value).draw();
+    });
+    $('#dtStatusAmazonProducts').on('change', function() {
+        if (dtAmazonProducts) dtAmazonProducts.column(1).search(this.value).draw();
+    });
+    $('#dtLengthAmazonProducts').on('change', function() {
+        let val = parseInt(this.value, 10);
+        savedAmazonProductsLength = val;
+        if (dtAmazonProducts) dtAmazonProducts.page.len(val).draw();
+        persistPageLength('amazon_products', val);
     });
 
     // Mappings Inputs
@@ -2148,14 +2785,23 @@
         btn.disabled = true;
 
         const shop = new URLSearchParams(window.location.search).get('shop');
-        const type = activeTab;
+        const type = activeTab === 'amazon_products' ? 'amazon' : activeTab;
 
         fetch(`{{ route('shopify.inventory.refresh') }}?shop=${encodeURIComponent(shop)}&type=${type}`)
             .then(() => {
                 if (activeTab === 'shopify') {
+                    shopifyStats = null;
+                    showStatsLoader();
                     loadShopify();
+                } else if (activeTab === 'amazon_products') {
+                    isolatedAmazonProductsCache = null;
+                    amazonProductsStats = null;
+                    showStatsLoader();
+                    loadAmazonProductsTab(true);
                 } else {
                     amazonProductsCache = null;
+                    amazonStats = null;
+                    showStatsLoader();
                     loadAmazon(true);
                 }
             })
@@ -2202,10 +2848,14 @@
                         clearInterval(progressTimer);
                         progressTimer = null;
 
-                        // Force fresh Amazon inventory request.
-                        amazonProductsCache = null;
-
-                        loadAmazon(true);
+                        if (activeTab === 'amazon_products') {
+                            isolatedAmazonProductsCache = null;
+                            loadAmazonProductsTab(true);
+                        } else {
+                            // Force fresh Amazon inventory request.
+                            amazonProductsCache = null;
+                            loadAmazon(true);
+                        }
                     }
                 }
             });
@@ -2256,8 +2906,15 @@
         button.prop('disabled', true).text('Updating...');
         qtyInput.prop('disabled', true);
 
-        // Immediate row-level spinner
-        activeAmazonUpdatingSkus[String(sku)] = true;
+        const isAmazonProductsTab = (activeTab === 'amazon_products' || button.closest('#amazonProductsTable').length > 0);
+
+        if (isAmazonProductsTab) {
+            amazonProductsRowLoading[String(sku)] = true;
+        } else {
+            // Immediate row-level spinner for Amazon tab
+            activeAmazonUpdatingSkus[String(sku)] = true;
+        }
+
         let inputContainer = qtyInput.parent();
         if (inputContainer.find('.zeosync-row-spinner').length === 0) {
             inputContainer.append(`
@@ -2286,11 +2943,27 @@
             },
             success: function(response) {
                 showToast('Amazon inventory update submitted. Verification in progress.', 'success');
-                // Silent refresh of Amazon data
-                loadAmazon(true);
+
+                if (isAmazonProductsTab) {
+                    delete amazonProductsRowLoading[String(sku)];
+                    if (Array.isArray(isolatedAmazonProductsCache)) {
+                        const targetItem = isolatedAmazonProductsCache.find(p => String(p.sku) === String(sku));
+                        if (targetItem) {
+                            targetItem.quantity = parseInt(quantity, 10);
+                            targetItem.is_verifying = false;
+                        }
+                    }
+                    loadAmazonProductsTab(true);
+                } else {
+                    loadAmazon(true);
+                }
             },
             error: function(xhr) {
-                delete activeAmazonUpdatingSkus[String(sku)];
+                if (isAmazonProductsTab) {
+                    delete amazonProductsRowLoading[String(sku)];
+                } else {
+                    delete activeAmazonUpdatingSkus[String(sku)];
+                }
                 inputContainer.find('.zeosync-row-spinner').remove();
                 showToast(
                     xhr.responseJSON?.message ?? 'Inventory update failed.',
@@ -2372,6 +3045,8 @@
                     amazonProductsCache = null;
                     if (activeTab === 'amazon') {
                         loadAmazon(true);
+                    } else if (activeTab === 'amazon_products') {
+                        loadAmazonProductsTab(true);
                     }
                 },
 

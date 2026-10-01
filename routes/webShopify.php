@@ -142,6 +142,7 @@ Route::middleware([ResolveActiveShop::class])->group(function () {
     Route::get('connect', [AmazonConnect::class, 'connect'])->name('amazon.connect');
     Route::get('inventory/shopify', [InventoryController::class, 'shopify'])->name('shopify.inventory.shopify');
     Route::get('inventory/amazon', [InventoryController::class, 'amazon'])->name('shopify.inventory.amazon');
+    Route::get('inventory/amazon-products', [InventoryController::class, 'amazonProducts'])->name('shopify.inventory.amazon_products');
     Route::get('inventory/refresh', [InventoryController::class, 'refresh'])->name('shopify.inventory.refresh');
     Route::get('inventory/product/{id}', [InventoryController::class, 'productDetails'])->name('shopify.inventory.details');
     Route::get('product/category', [InventoryController::class, 'getProductCategory'])->name('shopify.product.category');
