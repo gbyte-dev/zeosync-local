@@ -533,6 +533,7 @@ class InventoryController extends ShopifyController
 
             $enrichedProducts[] = [
                 'id' => $amzProduct->id,
+                'user_id' => $amzProduct->user_id,
                 'sku' => $sku,
                 'asin' => $asin,
                 'title' => $title,
