@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\ShopifyController;
 use App\Models\AdminSetting;
 use App\Models\InventorySyncOperation;
+use App\Models\Product;
 use App\Models\ProductMarketplaceMapping;
 use App\Models\Shop;
 use App\Services\AmazonInventoryReportService;
@@ -72,12 +73,14 @@ class InventoryController extends ShopifyController
         $allowedLengths = [10, 25, 50, 100];
         $rawShopifyLength = (int) session("inventory_page_length_{$shop->id}.shopify", 10);
         $rawAmazonLength = (int) session("inventory_page_length_{$shop->id}.amazon", 10);
+        $rawAmazonProductsLength = (int) session("inventory_page_length_{$shop->id}.amazon_products", 10);
 
         $shopifyPageLength = in_array($rawShopifyLength, $allowedLengths, true) ? $rawShopifyLength : 10;
         $amazonPageLength = in_array($rawAmazonLength, $allowedLengths, true) ? $rawAmazonLength : 10;
+        $amazonProductsPageLength = in_array($rawAmazonProductsLength, $allowedLengths, true) ? $rawAmazonProductsLength : 10;
 
         return view('inventory.index', compact( 'inventories', 'shop', 'syncUsage',
-         'shopifyPageLength',  'amazonPageLength' ,'mappedproducts'  ));
+         'shopifyPageLength',  'amazonPageLength', 'amazonProductsPageLength', 'mappedproducts'  ));
     }
 
     public function updatePageLength(Request $request)
@@ -91,7 +94,7 @@ class InventoryController extends ShopifyController
         }
 
         $validated = $request->validate([
-            'type' => ['required', 'string', 'in:shopify,amazon'],
+            'type' => ['required', 'string', 'in:shopify,amazon,amazon_products'],
             'length' => ['required', 'integer', 'in:10,25,50,100'],
         ]);
 
@@ -194,7 +197,7 @@ class InventoryController extends ShopifyController
 
         // Overlay authoritative database mapping state onto cached Amazon products
         $mappings = ProductMarketplaceMapping::where('shop_id', $shop->id)
-            ->get(['id', 'amazon_sku', 'shopify_variant_id', 'shopify_product_id', 'quantity', 'submission_status', 'sync_status'])
+            ->get(['id', 'amazon_sku', 'shopify_variant_id', 'shopify_product_id', 'shopify_location_id', 'quantity', 'submission_status', 'sync_status'])
             ->keyBy(fn($m) => (string) $m->amazon_sku);
 
         $activeVerifications = InventorySyncOperation::where('shop_id', $shop->id)
@@ -202,6 +205,30 @@ class InventoryController extends ShopifyController
             ->pluck('mapping_id')
             ->filter()
             ->flip();
+
+        $shopifyProductIds = $mappings->pluck('shopify_product_id')->filter()->unique();
+        $productsByShopifyId = collect();
+        if ($shopifyProductIds->isNotEmpty()) {
+            $productsByShopifyId = Product::where('shop_id', $shop->id)
+                ->whereIn('shopify_id', $shopifyProductIds)
+                ->get(['id', 'shopify_id', 'title', 'variants', 'images'])
+                ->keyBy(fn($p) => (string) $p->shopify_id);
+        }
+
+        $locations = is_array($shop->shopify_locations)
+            ? $shop->shopify_locations
+            : (json_decode($shop->shopify_locations, true) ?? []);
+
+        $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+            ? (int) $shop->selected_location_index
+            : 0;
+
+        $shopifyCachedInventory = Cache::get(
+            "shopify_inventory_{$shop->shop}_location_{$selectedIndex}",
+            []
+        );
+        $shopifyInventoryByVid = collect(is_array($shopifyCachedInventory) ? $shopifyCachedInventory : [])
+            ->keyBy(fn($i) => (string) ($i['vid'] ?? ''));
 
         if (is_array($products)) {
             foreach ($products as &$item) {
@@ -224,6 +251,71 @@ class InventoryController extends ShopifyController
                 $item['mapped_shopify_product_id'] = $isMapped ? $mapping->shopify_product_id : null;
                 $item['is_verifying'] = $isVerifying;
                 $item['submission_status'] = $mapping ? $mapping->submission_status : null;
+
+                // Enriched mapping fields for Amazon Products tab
+                if ($isMapped) {
+                    $shopifyProd = $mapping->shopify_product_id ? $productsByShopifyId->get((string) $mapping->shopify_product_id) : null;
+                    $shopifyProdTitle = $shopifyProd ? $shopifyProd->title : null;
+                    if (empty($shopifyProdTitle) && !empty($mapping->shopify_product_id)) {
+                        $shopifyProdTitle = 'Shopify Product #' . $mapping->shopify_product_id;
+                    }
+
+                    $shopifyVarTitle = null;
+                    $shopifyVarSku = null;
+                    if ($shopifyProd && !empty($shopifyProd->variants)) {
+                        $vars = is_array($shopifyProd->variants) ? $shopifyProd->variants : (json_decode($shopifyProd->variants, true) ?? []);
+                        $matchedVar = collect($vars)->first(fn($v) => (string) ($v['id'] ?? '') === (string) $mapping->shopify_variant_id);
+                        if ($matchedVar) {
+                            $shopifyVarTitle = $matchedVar['title'] ?? null;
+                            $shopifyVarSku = $matchedVar['sku'] ?? null;
+                        }
+                    }
+                    if (empty($shopifyVarTitle)) {
+                        if ((string) $mapping->shopify_variant_id === (string) $mapping->shopify_product_id) {
+                            $shopifyVarTitle = 'Default';
+                        } else {
+                            $shopifyVarTitle = $mapping->shopify_variant_id;
+                        }
+                    }
+
+                    // Location Name
+                    $locationName = 'Default';
+                    if (!empty($mapping->shopify_location_id)) {
+                        foreach ($locations as $loc) {
+                            $locId = (string) ($loc['id'] ?? '');
+                            if ($locId === (string) $mapping->shopify_location_id || (!empty($locId) && str_ends_with($locId, (string) $mapping->shopify_location_id))) {
+                                $locationName = $loc['name'] ?? 'Default';
+                                break;
+                            }
+                        }
+                    } elseif (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index])) {
+                        $locationName = $locations[$shop->selected_location_index]['name'] ?? 'Default';
+                    }
+
+                    // Shopify Available Quantity from cache
+                    $shopifyInvItem = $shopifyInventoryByVid->get((string) $mapping->shopify_variant_id);
+                    $shopifyAvailableQty = $shopifyInvItem ? ($shopifyInvItem['available'] ?? null) : null;
+
+                    $item['mapped_shopify_product_title'] = $shopifyProdTitle;
+                    $item['mapped_shopify_variant_title'] = $shopifyVarTitle;
+                    $item['mapped_shopify_variant_sku'] = $shopifyVarSku;
+                    $item['mapped_shopify_location_name'] = $locationName;
+                    $item['shopify_available_qty'] = $shopifyAvailableQty;
+                    $item['mapped_shopify_product_url'] = !empty($mapping->shopify_product_id)
+                        ? route('shopify.product.view', ['id' => $mapping->shopify_product_id, 'shop' => $shop->shop])
+                        : null;
+                } else {
+                    $item['mapped_shopify_product_title'] = null;
+                    $item['mapped_shopify_variant_title'] = null;
+                    $item['mapped_shopify_variant_sku'] = null;
+                    $item['mapped_shopify_location_name'] = null;
+                    $item['shopify_available_qty'] = null;
+                    $item['mapped_shopify_product_url'] = null;
+                }
+
+                $item['amazon_product_url'] = !empty($sku)
+                    ? route('user.product.amazonView', ['sku' => $sku, 'shop' => $shop->shop])
+                    : null;
 
                 // Only overlay mapping quantity if verification is NOT active and mapping has not failed/mismatched
                 if ($isMapped && !$isVerifying && !in_array($mapping->submission_status, ['mismatch', 'failed', 'rejected'], true)) {
