@@ -1084,11 +1084,11 @@
             @if($shop->amazon_refresh_token)
             <div class="saas-toolbar">
                 <div class="row g-2 align-items-end">
-                    <div class="col-md-3 col-12">
+                    <div class="col-md-4 col-12">
                         <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Search Product</label>
-                        <input type="text" id="dtSearchAmazonProducts" class="saas-input" placeholder="Search SKU / ASIN / Title / Mapped...">
+                        <input type="text" id="dtSearchAmazonProducts" class="saas-input" placeholder="Search SKU / Title / Mapped...">
                     </div>
-                    <div class="col-md-2 col-6">
+                    <div class="col-md-3 col-6">
                         <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Amazon Status</label>
                         <select id="dtStatusAmazonProducts" class="saas-select">
                             <option value="">All Statuses</option>
@@ -1099,14 +1099,6 @@
                             <option value="inactive">Inactive</option>
                             <option value="incomplete">Incomplete</option>
                             <option value="unknown">Unknown</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2 col-6">
-                        <label class="form-label text-muted fw-semibold mb-1" style="font-size: 11px;">Mapping</label>
-                        <select id="dtMappingFilterAmazonProducts" class="saas-select">
-                            <option value="">All</option>
-                            <option value="mapped">Mapped</option>
-                            <option value="not_mapped">Not Mapped</option>
                         </select>
                     </div>
                     <div class="col-md-3 col-6">
@@ -1138,15 +1130,11 @@
                 <table class="saas-table" id="amazonProductsTable" style="width: 100%;">
                     <thead>
                         <tr>
-                            <th>Product</th>
-                            <th class="text-nowrap">SKU</th>
-                            <th class="text-nowrap">ASIN</th>
+                            <th>SKU</th>
                             <th class="text-nowrap">Amazon Status</th>
-                            <th class="text-nowrap">Mapping</th>
                             <th class="text-nowrap">Mapped To</th>
                             <th class="text-nowrap">Amazon Qty</th>
                             <th class="text-nowrap">Shopify Qty</th>
-                            <th class="text-nowrap">Fulfillment</th>
                             <th class="text-nowrap text-end">Action</th>
                         </tr>
                     </thead>
@@ -2230,15 +2218,14 @@
                     emptyTable: "No matching Amazon products found"
                 },
                 columns: [
-                    // Col 0: Product (Image + Title + SKU)
+                    // Col 0: SKU (Image + Title + SKU)
                     {
-                        data: 'title',
+                        data: 'sku',
                         render: function(data, type, row) {
                             let title = row.title || 'Amazon Product';
                             let sku = row.sku || '';
-                            let asin = row.asin || '';
                             if (type === 'sort' || type === 'filter') {
-                                return title + ' ' + sku + ' ' + asin;
+                                return sku + ' ' + title;
                             }
                             let isTruncated = title.length > 25;
                             let displayTitle = isTruncated ? title.substring(0, 22) + '...' : title;
@@ -2259,33 +2246,7 @@
                             `;
                         }
                     },
-                    // Col 1: SKU
-                    {
-                        data: 'sku',
-                        render: function(data, type, row) {
-                            let sku = row.sku || '';
-                            if (type === 'sort' || type === 'filter') return sku;
-                            if (!sku) return `<span class="text-muted">—</span>`;
-                            let isTruncated = sku.length > 20;
-                            let displaySku = isTruncated ? sku.substring(0, 17) + '...' : sku;
-                            let escapedFull = escapeHtml(sku);
-                            let escapedDisplay = escapeHtml(displaySku);
-                            let tooltipAttr = isTruncated ? ` title="${escapedFull}" data-bs-toggle="tooltip" data-bs-container="body" data-bs-placement="top"` : '';
-                            let url = row.amazon_product_url || ("{{ route('user.product.amazonView', ['sku' => '__SKU__', 'shop' => '__SHOP__']) }}".replace('__SKU__', encodeURIComponent(sku)).replace('__SHOP__', encodeURIComponent(currentShop)));
-                            return `<a class="text-dark fw-medium text-decoration-none" href="${url}"${tooltipAttr}>${escapedDisplay}</a>`;
-                        }
-                    },
-                    // Col 2: ASIN
-                    {
-                        data: 'asin',
-                        render: function(data, type, row) {
-                            let asin = row.asin || '';
-                            if (type === 'sort' || type === 'filter') return asin;
-                            if (!asin) return `<span class="text-muted">—</span>`;
-                            return `<span class="badge bg-light text-dark border fw-normal" style="font-size: 11px;">${escapeHtml(asin)}</span>`;
-                        }
-                    },
-                    // Col 3: Amazon Status (Dynamic Badge)
+                    // Col 1: Amazon Status (Dynamic Badge)
                     {
                         data: 'status',
                         render: function(data, type, row) {
@@ -2308,21 +2269,7 @@
                             return `<span class="soft-badge ${badgeClass}">${escapeHtml(raw)}</span>`;
                         }
                     },
-                    // Col 4: Mapping (Mapped / Not Mapped)
-                    {
-                        data: 'is_mapped',
-                        render: function(data, type, row) {
-                            let isMapped = !!row.is_mapped;
-                            if (type === 'sort' || type === 'filter') {
-                                return isMapped ? 'mapped' : 'not_mapped';
-                            }
-                            if (isMapped) {
-                                return `<span class="soft-badge bg-primary-subtle text-primary">Mapped</span>`;
-                            }
-                            return `<span class="soft-badge bg-secondary-subtle text-secondary">Not Mapped</span>`;
-                        }
-                    },
-                    // Col 5: Mapped To (Shopify Product / Variant / Location)
+                    // Col 2: Mapped To (Shopify Product / Variant / Location)
                     {
                         data: 'mapped_shopify_product_title',
                         render: function(data, type, row) {
@@ -2355,7 +2302,7 @@
                             `;
                         }
                     },
-                    // Col 6: Amazon Qty
+                    // Col 3: Amazon Qty
                     {
                         data: 'quantity',
                         render: function(data, type, row) {
@@ -2378,7 +2325,7 @@
                                 </div>`;
                         }
                     },
-                    // Col 7: Shopify Qty
+                    // Col 4: Shopify Qty
                     {
                         data: 'shopify_available_qty',
                         render: function(data, type, row) {
@@ -2391,17 +2338,7 @@
                             return `<span class="fw-semibold text-dark">${row.shopify_available_qty}</span>`;
                         }
                     },
-                    // Col 8: Fulfillment
-                    {
-                        data: 'fulfillment_channel',
-                        render: function(data, type, row) {
-                            let channel = row.fulfillment_channel;
-                            if (type === 'sort' || type === 'filter') return channel || '';
-                            if (!channel) return `<span class="text-muted">—</span>`;
-                            return `<span class="badge bg-secondary-subtle text-secondary" style="font-size: 10px;">${escapeHtml(channel)}</span>`;
-                        }
-                    },
-                    // Col 9: Actions
+                    // Col 5: Actions
                     {
                         data: null,
                         orderable: false,
@@ -2521,13 +2458,7 @@
         if (dtAmazonProducts) dtAmazonProducts.search(this.value).draw();
     });
     $('#dtStatusAmazonProducts').on('change', function() {
-        if (dtAmazonProducts) dtAmazonProducts.column(3).search(this.value).draw();
-    });
-    $('#dtMappingFilterAmazonProducts').on('change', function() {
-        if (dtAmazonProducts) {
-            const val = this.value;
-            dtAmazonProducts.column(4).search(val ? '^' + val + '$' : '', true, false).draw();
-        }
+        if (dtAmazonProducts) dtAmazonProducts.column(1).search(this.value).draw();
     });
     $('#dtLengthAmazonProducts').on('change', function() {
         let val = parseInt(this.value, 10);
