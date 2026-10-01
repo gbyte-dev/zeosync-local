@@ -32,7 +32,7 @@ class InventoryController extends ShopifyController
 
         if ($request?->attributes->has('active_shop_model')) {
             $shop = $request->attributes->get('active_shop_model');
-            if ($shop instanceof Shop && (int) $shop->is_active === 1 && !empty($shop->access_token)) {
+            if ($shop instanceof Shop) {
                 return $shop;
             }
         }
