@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\ShopifyController;
 use App\Models\AdminSetting;
+use App\Models\AllProduct;
 use App\Models\AmazonProduct;
 use App\Models\InventorySyncOperation;
 use App\Models\Product;
 use App\Models\ProductMarketplaceMapping;
 use App\Models\Shop;
 use App\Services\AmazonInventoryReportService;
+use App\Services\AmazonProductQueryService;
 use App\Services\AmazonService;
 use App\Services\AutoSkuMappingService;
 use App\Services\InventoryCacheService;
@@ -350,7 +352,7 @@ class InventoryController extends ShopifyController
     }
 
     /**
-     * Amazon Products (Scoped to the shop's Inventory product universe)
+     * Amazon Products (Powered by the shared AmazonProductQueryService, enriched with Inventory/Mapping details)
      */
     public function amazonProducts(Request $request)
     {
@@ -363,31 +365,12 @@ class InventoryController extends ShopifyController
             ], 401);
         }
 
-        if (empty($shop->amazon_refresh_token)) {
-            return response()->json([
-                'success' => false,
-                'connected' => false,
-                'status' => [
-                    'connected' => false,
-                    'refreshing' => false,
-                    'sync_completed' => false,
-                    'error' => 'amazon_not_connected',
-                ],
-                'message' => 'Please connect your Amazon account first.',
-                'products' => [],
-            ]);
-        }
+        $isConnected = !empty($shop->amazon_refresh_token);
 
-        $inventoryCacheService = app(InventoryCacheService::class);
+        // 1. Fetch the EXACT base Amazon Products collection from the shared service
+        $baseAmazonProducts = app(AmazonProductQueryService::class)->getProductsForShop($shop);
 
-        $response = $inventoryCacheService->getAmazonInventory(
-            $shop,
-            $shop->amazon_marketplace_id
-        );
-
-        $allAmazonProducts = $response['products'] ?? [];
-
-        // 1. Authoritative database mappings for this shop
+        // 2. Load shop's authoritative database mappings
         $mappings = ProductMarketplaceMapping::where('shop_id', $shop->id)
             ->get(['id', 'amazon_sku', 'shopify_variant_id', 'shopify_product_id', 'shopify_location_id', 'quantity', 'submission_status', 'sync_status']);
 
@@ -409,7 +392,7 @@ class InventoryController extends ShopifyController
                 ->keyBy(fn($p) => (string) $p->shopify_id);
         }
 
-        // 2. Resolve Shopify Inventory for the shop (the core inventory universe)
+        // 3. Resolve Shopify Inventory for the shop (for available qty & location)
         $locations = is_array($shop->shopify_locations)
             ? $shop->shopify_locations
             : (json_decode($shop->shopify_locations, true) ?? []);
@@ -420,155 +403,169 @@ class InventoryController extends ShopifyController
 
         $shopifyCachedInventory = Cache::get(
             "shopify_inventory_{$shop->shop}_location_{$selectedIndex}",
-            null
+            []
         );
-
-        if ($shopifyCachedInventory === null) {
-            try {
-                $shopifyCachedInventory = app(ShopifyInventoryService::class)->getInventory($shop);
-            } catch (\Throwable $e) {
-                Log::warning('Failed to load Shopify inventory for Amazon Products universe', [
-                    'shop' => $shop->shop,
-                    'error' => $e->getMessage()
-                ]);
-                $shopifyCachedInventory = [];
-            }
-        }
-
-        $shopifyInventoryItems = is_array($shopifyCachedInventory) ? $shopifyCachedInventory : [];
-
-        $shopifyInventoryByVid = collect($shopifyInventoryItems)
+        $shopifyInventoryByVid = collect(is_array($shopifyCachedInventory) ? $shopifyCachedInventory : [])
             ->keyBy(fn($i) => (string) ($i['vid'] ?? ''));
 
-        $shopifyVariantsBySku = collect($shopifyInventoryItems)
-            ->filter(fn($i) => !empty($i['sku']) && $i['sku'] !== 'No SKU')
-            ->groupBy(fn($i) => strtolower(trim((string) $i['sku'])));
+        // 4. Resolve cached Amazon listing inventory (for real-time Amazon quantity & fulfillment channel)
+        $amazonInventoryCache = Cache::get("amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}", []);
+        $amazonCacheBySku = collect(is_array($amazonInventoryCache) ? $amazonInventoryCache : [])
+            ->keyBy(fn($item) => strtolower(trim((string) ($item['sku'] ?? ''))));
 
-        // 3. Local AmazonProduct SKUs tied to the shop's products
-        $localShopProductIds = Product::where('shop_id', $shop->id)->pluck('id');
-        $localAmazonSkus = AmazonProduct::whereIn('product_id', $localShopProductIds)
-            ->pluck('sku')
-            ->filter()
-            ->map(fn($s) => strtolower(trim((string) $s)))
-            ->flip();
+        // 5. Enrich each base Amazon Product record
+        $enrichedProducts = [];
 
-        // 4. Filter Amazon report listings against the Inventory universe
-        $filteredProducts = [];
+        foreach ($baseAmazonProducts as $amzProduct) {
+            $sku = trim((string) ($amzProduct->sku ?? ''));
+            $skuLower = strtolower($sku);
 
-        if (is_array($allAmazonProducts)) {
-            foreach ($allAmazonProducts as $rawItem) {
-                $sku = trim((string) ($rawItem['sku'] ?? ''));
-                if (empty($sku)) {
-                    continue;
+            // Extract title, image, asin, quantity from filled_json or attributes
+            $filledData = [];
+            if (!empty($amzProduct->filled_json)) {
+                $filledData = is_array($amzProduct->filled_json)
+                    ? $amzProduct->filled_json
+                    : (json_decode($amzProduct->filled_json, true) ?? []);
+            }
+
+            $title = $filledData['item_name']
+                ?? optional($amzProduct->attributes->firstWhere('attribute_name', 'item_name'))->attribute_value
+                ?? optional($amzProduct->attributes->firstWhere('attribute_name', 'product_name'))->attribute_value
+                ?? ($sku ?: 'Amazon Product #' . $amzProduct->id);
+
+            $image = $filledData['main_product_image_locator']
+                ?? optional($amzProduct->attributes->firstWhere('attribute_name', 'main_product_image_locator'))->attribute_value
+                ?? optional($amzProduct->attributes->firstWhere('attribute_name', 'other_product_image_locator_1'))->attribute_value
+                ?? asset('b6.png');
+
+            $asin = optional($amzProduct->attributes->firstWhere('attribute_name', 'asin'))->attribute_value
+                ?? optional($amzProduct->attributes->firstWhere('attribute_name', 'standard_product_id'))->attribute_value
+                ?? ($filledData['asin'] ?? ($filledData['standard_product_id'] ?? null));
+
+            $status = $amzProduct->status ?? 'draft';
+
+            // Cached Amazon inventory data (real-time quantity & fulfillment channel)
+            $cachedItem = $amazonCacheBySku->get($skuLower);
+            $amazonQty = $cachedItem['quantity']
+                ?? ($cachedItem['qty']
+                    ?? ($filledData['number_of_items']
+                        ?? (optional($amzProduct->attributes->firstWhere('attribute_name', 'number_of_items'))->attribute_value ?? 0)));
+            $fulfillmentChannel = $cachedItem['fulfillment_channel']
+                ?? ($cachedItem['fulfillment_channel_code'] ?? 'DEFAULT');
+
+            // Mapping association
+            $mapping = $mappingsByAmazonSku->get($skuLower);
+            $isMapped = $mapping &&
+                !empty($mapping->shopify_variant_id) &&
+                !empty($mapping->amazon_sku);
+
+            $isVerifying = false;
+            if ($mapping) {
+                $isVerifying = ($mapping->submission_status === 'accepted')
+                    || isset($activeVerifications[$mapping->id]);
+            }
+
+            // Enriched mapping fields
+            $mappedShopifyProductTitle = null;
+            $mappedShopifyVariantTitle = null;
+            $mappedShopifyVariantSku = null;
+            $mappedShopifyLocationName = null;
+            $shopifyAvailableQty = null;
+            $mappedShopifyProductUrl = null;
+
+            if ($isMapped) {
+                $shopifyProd = $mapping->shopify_product_id ? $productsByShopifyId->get((string) $mapping->shopify_product_id) : null;
+                $mappedShopifyProductTitle = $shopifyProd ? $shopifyProd->title : null;
+                if (empty($mappedShopifyProductTitle) && !empty($mapping->shopify_product_id)) {
+                    $mappedShopifyProductTitle = 'Shopify Product #' . $mapping->shopify_product_id;
                 }
 
-                $skuLower = strtolower($sku);
-                $mapping = $mappingsByAmazonSku->get($skuLower);
-
-                $isMapped = $mapping &&
-                    !empty($mapping->shopify_variant_id) &&
-                    !empty($mapping->amazon_sku);
-
-                $hasInventoryMatch = $shopifyVariantsBySku->has($skuLower) || isset($localAmazonSkus[$skuLower]);
-
-                // Scope rule: Only include if mapped OR matching an Inventory product/variant in this shop
-                if (!$isMapped && !$hasInventoryMatch) {
-                    continue;
-                }
-
-                $item = $rawItem;
-                $isVerifying = false;
-                if ($mapping) {
-                    $isVerifying = ($mapping->submission_status === 'accepted')
-                        || isset($activeVerifications[$mapping->id]);
-                }
-
-                $item['is_mapped'] = $isMapped;
-                $item['mapping_id'] = $isMapped ? $mapping->id : null;
-                $item['mapped_shopify_variant_id'] = $isMapped ? $mapping->shopify_variant_id : null;
-                $item['mapped_shopify_product_id'] = $isMapped ? $mapping->shopify_product_id : null;
-                $item['is_verifying'] = $isVerifying;
-                $item['submission_status'] = $mapping ? $mapping->submission_status : null;
-
-                // Enriched mapping fields for Amazon Products tab
-                if ($isMapped) {
-                    $shopifyProd = $mapping->shopify_product_id ? $productsByShopifyId->get((string) $mapping->shopify_product_id) : null;
-                    $shopifyProdTitle = $shopifyProd ? $shopifyProd->title : null;
-                    if (empty($shopifyProdTitle) && !empty($mapping->shopify_product_id)) {
-                        $shopifyProdTitle = 'Shopify Product #' . $mapping->shopify_product_id;
+                if ($shopifyProd && !empty($shopifyProd->variants)) {
+                    $vars = is_array($shopifyProd->variants) ? $shopifyProd->variants : (json_decode($shopifyProd->variants, true) ?? []);
+                    $matchedVar = collect($vars)->first(fn($v) => (string) ($v['id'] ?? '') === (string) $mapping->shopify_variant_id);
+                    if ($matchedVar) {
+                        $mappedShopifyVariantTitle = $matchedVar['title'] ?? null;
+                        $mappedShopifyVariantSku = $matchedVar['sku'] ?? null;
                     }
+                }
+                if (empty($mappedShopifyVariantTitle)) {
+                    if ((string) $mapping->shopify_variant_id === (string) $mapping->shopify_product_id) {
+                        $mappedShopifyVariantTitle = 'Default';
+                    } else {
+                        $mappedShopifyVariantTitle = $mapping->shopify_variant_id;
+                    }
+                }
 
-                    $shopifyVarTitle = null;
-                    $shopifyVarSku = null;
-                    if ($shopifyProd && !empty($shopifyProd->variants)) {
-                        $vars = is_array($shopifyProd->variants) ? $shopifyProd->variants : (json_decode($shopifyProd->variants, true) ?? []);
-                        $matchedVar = collect($vars)->first(fn($v) => (string) ($v['id'] ?? '') === (string) $mapping->shopify_variant_id);
-                        if ($matchedVar) {
-                            $shopifyVarTitle = $matchedVar['title'] ?? null;
-                            $shopifyVarSku = $matchedVar['sku'] ?? null;
+                // Location name
+                $locationName = 'Default';
+                if (!empty($mapping->shopify_location_id)) {
+                    foreach ($locations as $loc) {
+                        $locId = (string) ($loc['id'] ?? '');
+                        if ($locId === (string) $mapping->shopify_location_id || (!empty($locId) && str_ends_with($locId, (string) $mapping->shopify_location_id))) {
+                            $locationName = $loc['name'] ?? 'Default';
+                            break;
                         }
                     }
-                    if (empty($shopifyVarTitle)) {
-                        if ((string) $mapping->shopify_variant_id === (string) $mapping->shopify_product_id) {
-                            $shopifyVarTitle = 'Default';
-                        } else {
-                            $shopifyVarTitle = $mapping->shopify_variant_id;
-                        }
-                    }
-
-                    // Location Name
-                    $locationName = 'Default';
-                    if (!empty($mapping->shopify_location_id)) {
-                        foreach ($locations as $loc) {
-                            $locId = (string) ($loc['id'] ?? '');
-                            if ($locId === (string) $mapping->shopify_location_id || (!empty($locId) && str_ends_with($locId, (string) $mapping->shopify_location_id))) {
-                                $locationName = $loc['name'] ?? 'Default';
-                                break;
-                            }
-                        }
-                    } elseif (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index])) {
-                        $locationName = $locations[$shop->selected_location_index]['name'] ?? 'Default';
-                    }
-
-                    // Shopify Available Quantity from cache
-                    $shopifyInvItem = $shopifyInventoryByVid->get((string) $mapping->shopify_variant_id);
-                    $shopifyAvailableQty = $shopifyInvItem ? ($shopifyInvItem['available'] ?? null) : null;
-
-                    $item['mapped_shopify_product_title'] = $shopifyProdTitle;
-                    $item['mapped_shopify_variant_title'] = $shopifyVarTitle;
-                    $item['mapped_shopify_variant_sku'] = $shopifyVarSku;
-                    $item['mapped_shopify_location_name'] = $locationName;
-                    $item['shopify_available_qty'] = $shopifyAvailableQty;
-                    $item['mapped_shopify_product_url'] = !empty($mapping->shopify_product_id)
-                        ? route('shopify.product.view', ['id' => $mapping->shopify_product_id, 'shop' => $shop->shop])
-                        : null;
-                } else {
-                    $item['mapped_shopify_product_title'] = null;
-                    $item['mapped_shopify_variant_title'] = null;
-                    $item['mapped_shopify_variant_sku'] = null;
-                    $item['mapped_shopify_location_name'] = null;
-                    $item['shopify_available_qty'] = null;
-                    $item['mapped_shopify_product_url'] = null;
+                } elseif (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index])) {
+                    $locationName = $locations[$shop->selected_location_index]['name'] ?? 'Default';
                 }
+                $mappedShopifyLocationName = $locationName;
 
-                $item['amazon_product_url'] = !empty($sku)
-                    ? route('user.product.amazonView', ['sku' => $sku, 'shop' => $shop->shop])
+                // Shopify available quantity
+                $shopifyInvItem = $shopifyInventoryByVid->get((string) $mapping->shopify_variant_id);
+                $shopifyAvailableQty = $shopifyInvItem ? ($shopifyInvItem['available'] ?? null) : null;
+
+                $mappedShopifyProductUrl = !empty($mapping->shopify_product_id)
+                    ? route('shopify.product.view', ['id' => $mapping->shopify_product_id, 'shop' => $shop->shop])
                     : null;
 
-                // Only overlay mapping quantity if verification is NOT active and mapping has not failed/mismatched
-                if ($isMapped && !$isVerifying && !in_array($mapping->submission_status, ['mismatch', 'failed', 'rejected'], true)) {
+                // Overlay mapping quantity if verified/active
+                if (!$isVerifying && !in_array($mapping->submission_status, ['mismatch', 'failed', 'rejected'], true)) {
                     if ($mapping->quantity !== null && $mapping->quantity !== '') {
-                        $item['quantity'] = (int) $mapping->quantity;
+                        $amazonQty = (int) $mapping->quantity;
                     }
                 }
-
-                $filteredProducts[] = $item;
             }
+
+            $amazonProductUrl = !empty($sku)
+                ? route('user.product.amazonView', ['sku' => $sku, 'shop' => $shop->shop])
+                : null;
+
+            $enrichedProducts[] = [
+                'id' => $amzProduct->id,
+                'sku' => $sku,
+                'asin' => $asin,
+                'title' => $title,
+                'image' => $image,
+                'status' => $status,
+                'is_mapped' => $isMapped,
+                'mapping_id' => $isMapped ? $mapping->id : null,
+                'mapped_shopify_variant_id' => $isMapped ? $mapping->shopify_variant_id : null,
+                'mapped_shopify_product_id' => $isMapped ? $mapping->shopify_product_id : null,
+                'mapped_shopify_product_title' => $mappedShopifyProductTitle,
+                'mapped_shopify_variant_title' => $mappedShopifyVariantTitle,
+                'mapped_shopify_variant_sku' => $mappedShopifyVariantSku,
+                'mapped_shopify_location_name' => $mappedShopifyLocationName,
+                'mapped_shopify_product_url' => $mappedShopifyProductUrl,
+                'shopify_available_qty' => $shopifyAvailableQty,
+                'quantity' => (int) $amazonQty,
+                'fulfillment_channel' => $fulfillmentChannel,
+                'is_verifying' => $isVerifying,
+                'submission_status' => $mapping ? $mapping->submission_status : ($amzProduct->submission_status ?? null),
+                'amazon_product_url' => $amazonProductUrl,
+            ];
         }
 
-        $response['products'] = $filteredProducts;
-
-        return response()->json($response);
+        return response()->json([
+            'success' => true,
+            'connected' => true,
+            'status' => [
+                'connected' => true,
+                'refreshing' => false,
+                'sync_completed' => true,
+            ],
+            'products' => $enrichedProducts,
+        ]);
     }
 
     public function syncAmazonInventory( Request $request,

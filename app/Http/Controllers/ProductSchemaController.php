@@ -1172,14 +1172,7 @@ class ProductSchemaController extends Controller
         $productLimit = 0;
         $productUsed = 0;
         if (!$product_id) {
-            $products = Product::with('attributes', 'schema')
-                ->where('user_id', $shop_id)
-                ->whereNull('parent_id')
-                ->where(function ($query) {
-                    $query->whereNotNull('submission_status')
-                        ->orWhere('status', 'draft');
-                })
-                ->get();
+            $products = app(\App\Services\AmazonProductQueryService::class)->getProductsForShop($shop_id);
             $parent_productid = '';
         } else {
             $parent = Product::where('id', $product_id)
@@ -1190,7 +1183,7 @@ class ProductSchemaController extends Controller
                 abort(404, 'Parent product not found.');
             }
 
-            $products = Product::with('attributes', 'schema')->where('user_id', $shop_id)->where('parent_id', $product_id)->get();
+            $products = app(\App\Services\AmazonProductQueryService::class)->getProductsForShop($shop_id, (int) $product_id);
            
             $parent_productid = $product_id;
         }

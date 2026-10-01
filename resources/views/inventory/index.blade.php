@@ -1093,6 +1093,8 @@
                         <select id="dtStatusAmazonProducts" class="saas-select">
                             <option value="">All Statuses</option>
                             <option value="active">Active</option>
+                            <option value="accepted">Accepted</option>
+                            <option value="draft">Draft</option>
                             <option value="discoverable">Discoverable</option>
                             <option value="inactive">Inactive</option>
                             <option value="incomplete">Incomplete</option>
@@ -2292,10 +2294,12 @@
                                 return raw.toLowerCase();
                             }
                             let badgeClass = 'bg-secondary-subtle text-secondary';
-                            if (raw === 'ACTIVE') {
+                            if (raw === 'ACTIVE' || raw === 'ACCEPTED') {
                                 badgeClass = 'bg-success-subtle text-success';
                             } else if (raw === 'DISCOVERABLE') {
                                 badgeClass = 'bg-info-subtle text-info';
+                            } else if (raw === 'DRAFT') {
+                                badgeClass = 'bg-warning-subtle text-warning';
                             } else if (raw === 'INACTIVE') {
                                 badgeClass = 'bg-secondary-subtle text-secondary';
                             } else if (raw === 'INCOMPLETE') {
