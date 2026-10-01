@@ -397,16 +397,29 @@ class InventoryController extends ShopifyController
             ? $shop->shopify_locations
             : (json_decode($shop->shopify_locations, true) ?? []);
 
-        $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
-            ? (int) $shop->selected_location_index
-            : 0;
+        $this->ensureFreshAccessToken($shop);
 
-        $shopifyCachedInventory = Cache::get(
-            "shopify_inventory_{$shop->shop}_location_{$selectedIndex}",
-            []
-        );
-        $shopifyInventoryByVid = collect(is_array($shopifyCachedInventory) ? $shopifyCachedInventory : [])
-            ->keyBy(fn($i) => (string) ($i['vid'] ?? ''));
+        $shopifyInventoryByVid = collect();
+        try {
+            $shopifyInventoryService = app(ShopifyInventoryService::class);
+            $shopifyInventoryData = $shopifyInventoryService->getInventory($shop);
+            $shopifyInventoryByVid = collect(is_array($shopifyInventoryData) ? $shopifyInventoryData : [])
+                ->keyBy(fn($i) => (string) ($i['vid'] ?? ''));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to load Shopify inventory in amazonProducts', [
+                'shop_id' => $shop->id,
+                'error' => $e->getMessage(),
+            ]);
+            $selectedIndex = (isset($shop->selected_location_index) && isset($locations[$shop->selected_location_index]))
+                ? (int) $shop->selected_location_index
+                : 0;
+            $shopifyCachedInventory = Cache::get(
+                "shopify_inventory_{$shop->shop}_location_{$selectedIndex}",
+                []
+            );
+            $shopifyInventoryByVid = collect(is_array($shopifyCachedInventory) ? $shopifyCachedInventory : [])
+                ->keyBy(fn($i) => (string) ($i['vid'] ?? ''));
+        }
 
         // 4. Resolve cached Amazon listing inventory (for real-time Amazon quantity & fulfillment channel)
         $amazonInventoryCache = Cache::get("amazon_inventory_{$shop->id}_{$shop->amazon_seller_id}", []);

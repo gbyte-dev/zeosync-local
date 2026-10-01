@@ -1198,6 +1198,7 @@
     let amazonProductsLoading = false;
     let amazonProductsRequestVersion = 0;
     const amazonProductsRowLoading = {};
+    const amazonProductsShopifyQtyLoading = {};
     window._amazonProductsVerifyPollTimer = null;
 
     // Tab-specific isolated Stat Cards state
@@ -2491,6 +2492,15 @@
                             if (type === 'sort' || type === 'filter') {
                                 return (row.shopify_available_qty !== null && row.shopify_available_qty !== undefined) ? row.shopify_available_qty : -999999;
                             }
+                            if (typeof amazonProductsShopifyQtyLoading !== 'undefined' && !!amazonProductsShopifyQtyLoading[String(row.sku)]) {
+                                return `
+                                    <span class="spinner-border spinner-border-sm text-secondary"
+                                          role="status"
+                                          style="width: 14px; height: 14px; border-width: 2px;">
+                                        <span class="visually-hidden">Loading Shopify quantity...</span>
+                                    </span>
+                                `;
+                            }
                             if (!row.is_mapped || row.shopify_available_qty === null || row.shopify_available_qty === undefined) {
                                 return `<span class="text-muted">—</span>`;
                             }
@@ -2534,6 +2544,9 @@
             data.forEach(item => {
                 if (!item.is_verifying && typeof amazonProductsRowLoading !== 'undefined' && amazonProductsRowLoading[String(item.sku)]) {
                     delete amazonProductsRowLoading[String(item.sku)];
+                }
+                if (typeof amazonProductsShopifyQtyLoading !== 'undefined' && amazonProductsShopifyQtyLoading[String(item.sku)]) {
+                    delete amazonProductsShopifyQtyLoading[String(item.sku)];
                 }
             });
         }
@@ -2910,6 +2923,15 @@
 
         if (isAmazonProductsTab) {
             amazonProductsRowLoading[String(sku)] = true;
+            amazonProductsShopifyQtyLoading[String(sku)] = true;
+            if (dtAmazonProducts) {
+                dtAmazonProducts.rows().every(function() {
+                    const r = this.data();
+                    if (r && String(r.sku) === String(sku)) {
+                        this.invalidate().draw(false);
+                    }
+                });
+            }
         } else {
             // Immediate row-level spinner for Amazon tab
             activeAmazonUpdatingSkus[String(sku)] = true;
@@ -2945,12 +2967,11 @@
                 showToast('Amazon inventory update submitted. Verification in progress.', 'success');
 
                 if (isAmazonProductsTab) {
-                    delete amazonProductsRowLoading[String(sku)];
                     if (Array.isArray(isolatedAmazonProductsCache)) {
                         const targetItem = isolatedAmazonProductsCache.find(p => String(p.sku) === String(sku));
                         if (targetItem) {
                             targetItem.quantity = parseInt(quantity, 10);
-                            targetItem.is_verifying = false;
+                            targetItem.is_verifying = true;
                         }
                     }
                     loadAmazonProductsTab(true);
@@ -2961,6 +2982,15 @@
             error: function(xhr) {
                 if (isAmazonProductsTab) {
                     delete amazonProductsRowLoading[String(sku)];
+                    delete amazonProductsShopifyQtyLoading[String(sku)];
+                    if (dtAmazonProducts) {
+                        dtAmazonProducts.rows().every(function() {
+                            const r = this.data();
+                            if (r && String(r.sku) === String(sku)) {
+                                this.invalidate().draw(false);
+                            }
+                        });
+                    }
                 } else {
                     delete activeAmazonUpdatingSkus[String(sku)];
                 }
