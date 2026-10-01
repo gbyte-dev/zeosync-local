@@ -1197,6 +1197,8 @@
     let isolatedAmazonProductsCache = null;
     let amazonProductsLoading = false;
     let amazonProductsRequestVersion = 0;
+    const amazonProductsRowLoading = {};
+    window._amazonProductsVerifyPollTimer = null;
 
     // Tab-specific isolated Stat Cards state
     let shopifyStats = null;
@@ -1385,6 +1387,10 @@
         if (window._amazonVerifyPollTimer) {
             clearTimeout(window._amazonVerifyPollTimer);
             window._amazonVerifyPollTimer = null;
+        }
+        if (window._amazonProductsVerifyPollTimer) {
+            clearTimeout(window._amazonProductsVerifyPollTimer);
+            window._amazonProductsVerifyPollTimer = null;
         }
         hideAmazonLoader();
 
@@ -1885,6 +1891,10 @@
 
     function switchToAmazonTab() {
         activeTab = 'amazon';
+        if (window._amazonProductsVerifyPollTimer) {
+            clearTimeout(window._amazonProductsVerifyPollTimer);
+            window._amazonProductsVerifyPollTimer = null;
+        }
 
         if (amazonStats !== null) {
             applyStatsToDOM(amazonStats);
@@ -1918,6 +1928,10 @@
         if (window._amazonVerifyPollTimer) {
             clearTimeout(window._amazonVerifyPollTimer);
             window._amazonVerifyPollTimer = null;
+        }
+        if (window._amazonProductsVerifyPollTimer) {
+            clearTimeout(window._amazonProductsVerifyPollTimer);
+            window._amazonProductsVerifyPollTimer = null;
         }
 
         // Hide Amazon loader when user leaves Amazon tab
@@ -2452,8 +2466,9 @@
                         render: function(data, type, row) {
                             let qty = (row.quantity !== null && row.quantity !== undefined) ? row.quantity : (row.qty ?? 0);
                             if (type === 'sort' || type === 'filter') return qty;
-                            let isUpdatingOrVerifying = row.is_verifying || (typeof activeAmazonUpdatingSkus !== 'undefined' && !!activeAmazonUpdatingSkus[String(row.sku)]);
-                            let spinner = isUpdatingOrVerifying ? `
+                            let isUpdating = (typeof amazonProductsRowLoading !== 'undefined' && !!amazonProductsRowLoading[String(row.sku)]);
+                            let isVerifying = (row.is_verifying === true) || isUpdating;
+                            let spinner = isVerifying ? `
                                 <span class="spinner-border spinner-border-sm text-primary flex-shrink-0 ms-1 zeosync-row-spinner"
                                       role="status"
                                       data-bs-toggle="tooltip"
@@ -2515,18 +2530,29 @@
             });
         }
 
+        if (Array.isArray(data)) {
+            data.forEach(item => {
+                if (!item.is_verifying && typeof amazonProductsRowLoading !== 'undefined' && amazonProductsRowLoading[String(item.sku)]) {
+                    delete amazonProductsRowLoading[String(item.sku)];
+                }
+            });
+        }
+
         dtAmazonProducts.clear().rows.add(data).draw(false);
 
-        const hasVerifying = Array.isArray(data) && (data.some(item => item.is_verifying === true) || (typeof activeAmazonUpdatingSkus !== 'undefined' && Object.keys(activeAmazonUpdatingSkus).length > 0));
+        const hasVerifying = Array.isArray(data) && (data.some(item => item.is_verifying === true) || (typeof amazonProductsRowLoading !== 'undefined' && Object.keys(amazonProductsRowLoading).length > 0));
         if (hasVerifying && activeTab === 'amazon_products') {
-            if (window._amazonVerifyPollTimer) {
-                clearTimeout(window._amazonVerifyPollTimer);
+            if (window._amazonProductsVerifyPollTimer) {
+                clearTimeout(window._amazonProductsVerifyPollTimer);
             }
-            window._amazonVerifyPollTimer = setTimeout(function() {
+            window._amazonProductsVerifyPollTimer = setTimeout(function() {
                 if (activeTab === 'amazon_products') {
                     loadAmazonProductsTab(true);
                 }
             }, 10000);
+        } else if (!hasVerifying && window._amazonProductsVerifyPollTimer) {
+            clearTimeout(window._amazonProductsVerifyPollTimer);
+            window._amazonProductsVerifyPollTimer = null;
         }
 
         if (!isLoading) {
@@ -2880,8 +2906,15 @@
         button.prop('disabled', true).text('Updating...');
         qtyInput.prop('disabled', true);
 
-        // Immediate row-level spinner
-        activeAmazonUpdatingSkus[String(sku)] = true;
+        const isAmazonProductsTab = (activeTab === 'amazon_products' || button.closest('#amazonProductsTable').length > 0);
+
+        if (isAmazonProductsTab) {
+            amazonProductsRowLoading[String(sku)] = true;
+        } else {
+            // Immediate row-level spinner for Amazon tab
+            activeAmazonUpdatingSkus[String(sku)] = true;
+        }
+
         let inputContainer = qtyInput.parent();
         if (inputContainer.find('.zeosync-row-spinner').length === 0) {
             inputContainer.append(`
@@ -2910,15 +2943,27 @@
             },
             success: function(response) {
                 showToast('Amazon inventory update submitted. Verification in progress.', 'success');
-                // Silent refresh of Amazon data
-                if (activeTab === 'amazon_products') {
+
+                if (isAmazonProductsTab) {
+                    delete amazonProductsRowLoading[String(sku)];
+                    if (Array.isArray(isolatedAmazonProductsCache)) {
+                        const targetItem = isolatedAmazonProductsCache.find(p => String(p.sku) === String(sku));
+                        if (targetItem) {
+                            targetItem.quantity = parseInt(quantity, 10);
+                            targetItem.is_verifying = false;
+                        }
+                    }
                     loadAmazonProductsTab(true);
                 } else {
                     loadAmazon(true);
                 }
             },
             error: function(xhr) {
-                delete activeAmazonUpdatingSkus[String(sku)];
+                if (isAmazonProductsTab) {
+                    delete amazonProductsRowLoading[String(sku)];
+                } else {
+                    delete activeAmazonUpdatingSkus[String(sku)];
+                }
                 inputContainer.find('.zeosync-row-spinner').remove();
                 showToast(
                     xhr.responseJSON?.message ?? 'Inventory update failed.',
