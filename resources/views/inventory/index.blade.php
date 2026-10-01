@@ -1190,8 +1190,18 @@
     let dtMapped = null;
     let dtAmazonProducts = null;
     let progressTimer = null;
+
+    // Isolated in-memory caches for each tab
+    let amazonInventoryCache = null;
     let amazonProductsCache = null;
-    let amazonLoading = false;
+
+    // Isolated loading flags
+    let amazonInventoryLoading = false;
+    let amazonProductsLoading = false;
+
+    // Monotonic request versioning to prevent async cross-tab race conditions
+    let amazonInventoryRequestVersion = 0;
+    let amazonProductsRequestVersion = 0;
 
     // Saved page length from Laravel session (default to 10)
     let savedShopifyLength = {{ $shopifyPageLength ?? 10 }};
@@ -1597,6 +1607,18 @@
                 dtAmazonProducts.draw(false);
             }
 
+            // Synchronize in-memory amazonInventoryCache if present
+            if (Array.isArray(amazonInventoryCache)) {
+                amazonInventoryCache.forEach(function(item) {
+                    const mapping = amazonMappings[String(item.sku)];
+                    item.is_mapped = !!mapping;
+                    item.mapping_id = mapping ? mapping.id : null;
+                    item.mapped_shopify_variant_id = mapping ?
+                        mapping.shopify_variant_id :
+                        null;
+                });
+            }
+
             // Synchronize in-memory amazonProductsCache if present
             if (Array.isArray(amazonProductsCache)) {
                 amazonProductsCache.forEach(function(item) {
@@ -1692,10 +1714,22 @@
         if (!amazonConnected) return;
 
         activeTab = 'amazon';
+        const requestId = ++amazonInventoryRequestVersion;
+
+        console.debug('[Inventory][Amazon] request START', {
+            activeTab,
+            requestId,
+            endpoint: "{{ route('shopify.inventory.amazon') }}",
+            targetTable: '#amazonTable'
+        });
 
         // Browser cache hit
-        if (!force && amazonProductsCache !== null) {
-            renderAmazonTable(amazonProductsCache, false);
+        if (!force && amazonInventoryCache !== null) {
+            console.debug('[Inventory][Amazon] cache HIT', {
+                requestId,
+                count: amazonInventoryCache.length
+            });
+            renderAmazonTable(amazonInventoryCache, false);
 
             requestAnimationFrame(() => {
                 if (dtAmazon) {
@@ -1708,13 +1742,13 @@
         }
 
         // Prevent duplicate requests
-        if (amazonLoading) {
+        if (amazonInventoryLoading) {
             return;
         }
 
-        amazonLoading = true;
+        amazonInventoryLoading = true;
         // Only display full-table loader on initial load when no data exists yet
-        if (!amazonProductsCache && (!dtAmazon || dtAmazon.rows().count() === 0)) {
+        if (!amazonInventoryCache && (!dtAmazon || dtAmazon.rows().count() === 0)) {
             showAmazonLoader();
         }
 
@@ -1727,17 +1761,32 @@
                 shop: shop
             },
             success: function(response) {
+                if (requestId !== amazonInventoryRequestVersion) {
+                    console.debug('[Inventory][Amazon] ignored superseded response', {
+                        requestId,
+                        latest: amazonInventoryRequestVersion
+                    });
+                    return;
+                }
+
                 const items = Array.isArray(response.products) ?
                     response.products : [];
                 const isRefreshing = response.status?.refreshing === true;
                 const syncCompleted = response.status?.sync_completed === true;
+
+                console.debug('[Inventory][Amazon] response RECEIVED', {
+                    requestId,
+                    responseCount: items.length,
+                    activeTab,
+                    targetTable: '#amazonTable'
+                });
 
                 /*
                  * Server sync is still running or pending completion.
                  * Do not treat empty response as final browser cache.
                  */
                 if ((isRefreshing || !syncCompleted) && items.length === 0) {
-                    amazonProductsCache = null;
+                    amazonInventoryCache = null;
                     renderAmazonTable([], true);
                     showAmazonLoader();
                     startProgress();
@@ -1745,7 +1794,7 @@
                 }
 
                 /* Final server result.  */
-                amazonProductsCache = items;
+                amazonInventoryCache = items;
 
                 renderAmazonTable(items, false);
 
@@ -1767,6 +1816,8 @@
             },
 
             error: function(xhr) {
+                if (requestId !== amazonInventoryRequestVersion) return;
+
                 console.error(
                     'Failed to load Amazon inventory:',
                     xhr.responseText
@@ -1781,7 +1832,9 @@
                 }
             },
             complete: function() {
-                amazonLoading = false;
+                if (requestId === amazonInventoryRequestVersion) {
+                    amazonInventoryLoading = false;
+                }
             }
         });
     }
@@ -1790,8 +1843,8 @@
         activeTab = 'amazon';
 
         // Products already loaded in browser cache
-        if (amazonProductsCache !== null) {
-            renderAmazonTable(amazonProductsCache, false);
+        if (amazonInventoryCache !== null) {
+            renderAmazonTable(amazonInventoryCache, false);
 
             requestAnimationFrame(() => {
                 if (dtAmazon) {
@@ -2080,9 +2133,21 @@
         if (!amazonConnected) return;
 
         activeTab = 'amazon_products';
+        const requestId = ++amazonProductsRequestVersion;
+
+        console.debug('[Inventory][Amazon Products] request START', {
+            activeTab,
+            requestId,
+            endpoint: "{{ route('shopify.inventory.amazon_products') }}",
+            targetTable: '#amazonProductsTable'
+        });
 
         // Browser cache hit
         if (!force && amazonProductsCache !== null) {
+            console.debug('[Inventory][Amazon Products] cache HIT', {
+                requestId,
+                count: amazonProductsCache.length
+            });
             renderAmazonProductsTable(amazonProductsCache, false);
 
             requestAnimationFrame(() => {
@@ -2096,11 +2161,11 @@
         }
 
         // Prevent duplicate requests
-        if (amazonLoading) {
+        if (amazonProductsLoading) {
             return;
         }
 
-        amazonLoading = true;
+        amazonProductsLoading = true;
         if (!amazonProductsCache && (!dtAmazonProducts || dtAmazonProducts.rows().count() === 0)) {
             showAmazonLoader();
         }
@@ -2114,10 +2179,25 @@
                 shop: shop
             },
             success: function(response) {
+                if (requestId !== amazonProductsRequestVersion) {
+                    console.debug('[Inventory][Amazon Products] ignored superseded response', {
+                        requestId,
+                        latest: amazonProductsRequestVersion
+                    });
+                    return;
+                }
+
                 const items = Array.isArray(response.products) ?
                     response.products : [];
                 const isRefreshing = response.status?.refreshing === true;
                 const syncCompleted = response.status?.sync_completed === true;
+
+                console.debug('[Inventory][Amazon Products] response RECEIVED', {
+                    requestId,
+                    responseCount: items.length,
+                    activeTab,
+                    targetTable: '#amazonProductsTable'
+                });
 
                 if ((isRefreshing || !syncCompleted) && items.length === 0) {
                     amazonProductsCache = null;
@@ -2144,6 +2224,8 @@
                 }
             },
             error: function(xhr) {
+                if (requestId !== amazonProductsRequestVersion) return;
+
                 console.error(
                     'Failed to load Amazon products:',
                     xhr.responseText
@@ -2158,7 +2240,9 @@
                 }
             },
             complete: function() {
-                amazonLoading = false;
+                if (requestId === amazonProductsRequestVersion) {
+                    amazonProductsLoading = false;
+                }
             }
         });
     }
@@ -2625,7 +2709,7 @@
                     amazonProductsCache = null;
                     loadAmazonProductsTab(true);
                 } else {
-                    amazonProductsCache = null;
+                    amazonInventoryCache = null;
                     loadAmazon(true);
                 }
             })
@@ -2672,7 +2756,8 @@
                         clearInterval(progressTimer);
                         progressTimer = null;
 
-                        // Force fresh Amazon inventory request.
+                        // Invalidate both caches on fresh SP-API sync completion
+                        amazonInventoryCache = null;
                         amazonProductsCache = null;
 
                         if (activeTab === 'amazon_products') {
@@ -2846,7 +2931,8 @@
                         });
                     }, 2000);
 
-                    // Refresh Amazon data if Amazon tab is active, or invalidate browser cache
+                    // Invalidate both caches on Shopify inventory update
+                    amazonInventoryCache = null;
                     amazonProductsCache = null;
                     if (activeTab === 'amazon') {
                         loadAmazon(true);
@@ -3543,8 +3629,8 @@
             setAmazonProductSelectorLoading('Loading Amazon products...');
 
             // Fast-path: If client cache exists and is non-empty, render it immediately for 0ms delay
-            if (!forceFresh && Array.isArray(amazonProductsCache) && amazonProductsCache.length > 0) {
-                const unmappedCached = amazonProductsCache.filter(item => !item.is_mapped);
+            if (!forceFresh && Array.isArray(amazonInventoryCache) && amazonInventoryCache.length > 0) {
+                const unmappedCached = amazonInventoryCache.filter(item => !item.is_mapped);
                 if (unmappedCached.length > 0) {
                     setAmazonProductSelectorSuccess(unmappedCached);
                 }
@@ -3561,9 +3647,9 @@
                     return; // Ignore stale responses
                 }
 
-                // If response has products, update the global client cache too
+                // If response has products, update the Amazon inventory client cache too
                 if (Array.isArray(response?.products) && response.products.length > 0) {
-                    amazonProductsCache = response.products;
+                    amazonInventoryCache = response.products;
                 }
 
                 renderAmazonProductSelector(response, false);
