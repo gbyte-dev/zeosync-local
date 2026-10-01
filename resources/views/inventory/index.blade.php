@@ -2118,7 +2118,7 @@
         const shop = new URLSearchParams(window.location.search).get('shop');
 
         $.ajax({
-            url: "{{ route('shopify.inventory.amazon') }}",
+            url: "{{ route('shopify.inventory.amazon_products') }}",
             type: 'GET',
             data: {
                 shop: shop
