@@ -642,13 +642,58 @@ class TestController extends Controller
             return response()->json(['status' => false, 'message' => "No Active Shop"]);
         }
         $listingsApi = $connector->listingsItemsV20210801();
-        $response = $listingsApi->putListingsItem(
-            sellerId: $this->credentials['seller_id'],
-            sku: $sku,
-            marketplaceIds: [$this->credentials['marketplace_id']],
-            listingsItemPutRequest: $putRequest
-        );
-        return  $response->json();
+
+        $debugId = session('mapping_debug_id');
+
+        Log::info('MAPPING DEBUG - AMAZON LISTING REQUEST', [
+            'debug_id' => $debugId,
+            'sku' => $sku,
+            'seller_id' => $this->credentials['seller_id'] ?? null,
+            'marketplace_id' => $this->credentials['marketplace_id'] ?? null,
+            'request' => json_decode(json_encode($putRequest), true),
+        ]);
+
+        try {
+            $response = $listingsApi->putListingsItem(
+                sellerId: $this->credentials['seller_id'],
+                sku: $sku,
+                marketplaceIds: [$this->credentials['marketplace_id']],
+                listingsItemPutRequest: $putRequest
+            );
+
+            Log::info('MAPPING DEBUG - AMAZON RESPONSE', [
+                'debug_id' => $debugId,
+                'sku' => $sku ?? null,
+                'status_code' => method_exists($response, 'getStatusCode')
+                    ? $response->getStatusCode()
+                    : null,
+                'response' => json_decode(
+                    json_encode($response->json() ?? $response),
+                    true
+                ),
+            ]);
+
+            Log::info('MAPPING DEBUG - AMAZON ISSUES', [
+                'debug_id' => $debugId,
+                'status' => data_get($response->json(), 'status'),
+                'submissionId' => data_get($response->json(), 'submissionId'),
+                'issues' => data_get($response->json(), 'issues', []),
+            ]);
+
+            dd(json_decode(json_encode($response->json() ?? $response), true));
+            return  $response->json();
+        } catch (\Throwable $e) {
+            Log::error('MAPPING DEBUG - EXCEPTION', [
+                'debug_id' => $debugId,
+                'message' => $e->getMessage(),
+                'class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            throw $e;
+        }
     }
 
 

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Shop;
 use App\Traits\AmazonServiceValues;
 use App\Traits\AmzonNormalizerTrait;
+
 /**
  * class TransformsAmazonAttributes
  *
@@ -14,17 +15,16 @@ use App\Traits\AmzonNormalizerTrait;
  *
  * Usage: add `$transformer = new TransformsAmazonAttributes();` to any class that needs
  * to build Amazon attribute payloads, then call:
- *
  */
-
 class TransformsAmazonAttributes
 {
-    use AmazonServiceValues,AmzonNormalizerTrait;
+    use AmazonServiceValues, AmzonNormalizerTrait;
+
     /**
      * Transform a raw (name, value) pair into Amazon's expected attribute array.
      * Returns null when the value can't be mapped/validated and should be skipped.
      */
-    public function transformAttribute(string $name, mixed $value , mixed $productAttributes = null): ?array
+    public function transformAttribute(string $name, mixed $value, mixed $productAttributes = null): ?array
     {
         $shop = null;
         if (request()?->attributes?->has('active_shop_model')) {
@@ -135,7 +135,7 @@ class TransformsAmazonAttributes
                 $unit = $unitMap[strtolower($m[2])] ?? strtolower($m[2]);
                 return [[
                     'value' => (float) $m[1],
-                    'unit'  => $unit,
+                    'unit' => $unit,
                 ]];
             }
 
@@ -165,7 +165,7 @@ class TransformsAmazonAttributes
 
                 return [[
                     'length' => ['value' => (float) $m[1], 'unit' => $unit],
-                    'width'  => ['value' => (float) $m[2], 'unit' => $unit],
+                    'width' => ['value' => (float) $m[2], 'unit' => $unit],
                     'height' => ['value' => (float) $m[3], 'unit' => $unit],
                     'marketplace_id' => $marketplaceId,
                 ]];
@@ -173,7 +173,6 @@ class TransformsAmazonAttributes
 
             // ── L x W x T dimensions ─────────────────────────────────────
             if ($name === 'item_length_width_thickness') {
-
                 $valueString = str_replace(['×', '*'], 'x', trim((string) $value));
 
                 $regex = '/^\s*([\d.]+)\s*[Ll]?\s*x\s*([\d.]+)\s*[Ww]?\s*x\s*([\d.]+)\s*[Tt]?\s*(.*?)\s*$/i';
@@ -214,8 +213,8 @@ class TransformsAmazonAttributes
                 preg_match('/(\d+(?:\.\d+)?)\s*([a-zA-Z]+)?/', strtolower(trim($value)), $m);
 
                 return [[
-                    'value' => (float)($m[1] ?? $value),
-                    'unit'  => [
+                    'value' => (float) ($m[1] ?? $value),
+                    'unit' => [
                         'day' => 'days',
                         'days' => 'days',
                         'week' => 'weeks',
@@ -238,7 +237,6 @@ class TransformsAmazonAttributes
 
             // ── item_depth_width_height — schema only accepts "inches" ─────────
             if ($name == 'item_depth_width_height') {
-
                 $valueString = trim((string) $value);
                 return $this->parseDepthWidthHeight($valueString, $marketplaceId);
             }
@@ -294,8 +292,8 @@ class TransformsAmazonAttributes
                 }
 
                 $field = match ($name) {
-                    'seat_depth'  => 'depth',
-                    'seat_width'  => 'width',
+                    'seat_depth' => 'depth',
+                    'seat_width' => 'width',
                     'seat_height' => 'height',
                 };
 
@@ -322,7 +320,6 @@ class TransformsAmazonAttributes
             }
 
             if ($name === 'seat') {
-
                 $raw = strtolower(trim((string) $value));
 
                 preg_match('/([\d.]+)\s*h\b\s*\*\s*([\d.]+)\s*d\b\s*([a-z]+)/i', $raw, $m);
@@ -332,7 +329,6 @@ class TransformsAmazonAttributes
                 ];
 
                 if (!empty($m)) {
-
                     $unit = $unitMap[strtolower($m[3])] ?? 'centimeters';
 
                     $seat['back_interior_height'] = [[
@@ -353,11 +349,9 @@ class TransformsAmazonAttributes
                 return [$seat];
             }
 
-
-
             // ── Frame ────────────────────────────────────────────────────────────
             if ($name === 'frame_material') {
-                return null; // merged into 'frame' below
+                return null;  // merged into 'frame' below
             }
 
             if ($name === 'frame') {
@@ -371,7 +365,7 @@ class TransformsAmazonAttributes
                     }
                 }
                 return [[
-                    'color'    => [['value' => $matchedColor, 'language_tag' => 'en_US']],
+                    'color' => [['value' => $matchedColor, 'language_tag' => 'en_US']],
                     'material' => [['value' => 'Wood', 'language_tag' => 'en_US']],
                     'marketplace_id' => $marketplaceId,
                 ]];
@@ -396,13 +390,12 @@ class TransformsAmazonAttributes
                 ];
             }
 
-
             if ($name === 'title_differentiation') {
                 $values = array_filter(array_map('trim', explode(',', $value)));
 
                 //  return array_values(array_map(function ($item) {
                 return [[
-                    'value' => mb_substr($value, 0, 125), // Amazon limit
+                    'value' => mb_substr($value, 0, 125),  // Amazon limit
                     'language_tag' => 'en_US'
                 ]];
                 // }, $values));
@@ -424,26 +417,21 @@ class TransformsAmazonAttributes
             if ($name === 'stone') {
                 return [[
                     'marketplace_id' => $marketplaceId,
-
                     'clarity' => [[
                         'language_tag' => 'en_US',
                         'value' => 'VS1'
                     ]],
-
                     'color' => [[
                         'language_tag' => 'en_US',
                         'value' => 'D'
                     ]],
-
                     'creation_method' => [[
                         'value' => 'natural'
                     ]],
-
                     'shape' => [[
                         'language_tag' => 'en_US',
                         'value' => 'Round'
                     ]],
-
                     'weight' => [[
                         'value' => 1,
                         'unit' => 'carats'
@@ -454,29 +442,23 @@ class TransformsAmazonAttributes
             if ($name === 'stones') {
                 return [[
                     'id' => 1,
-
                     'type' => [
                         'language_tag' => 'en_US',
                         'value' => 'Diamond'
                     ],
-
                     'number_of_stones' => 1,
-
                     'creation_method' => [
                         'language_tag' => 'en_US',
                         'value' => 'Natural'
                     ],
-
                     'treatment_method' => [
                         'language_tag' => 'en_US',
                         'value' => 'Not Treated'
                     ],
-
                     'cut' => [
                         'language_tag' => 'en_US',
                         'value' => 'Excellent'
                     ],
-
                     'marketplace_id' => $marketplaceId,
                 ]];
             }
@@ -505,12 +487,11 @@ class TransformsAmazonAttributes
             if ($name === 'item_diameter' || $name === 'item_thickness') {
                 preg_match('/(\d+(?:\.\d+)?)\s*([a-zA-Z\s]+)?/', strtolower(trim($value)), $m);
                 return [[
-                    'value' => (float)($m[1] ?? $value),
+                    'value' => (float) ($m[1] ?? $value),
                     'unit' => $unitMap[$m[2] ?? 'mm'] ?? 'millimeters',
                     'marketplace_id' => $marketplaceId,
                 ]];
             }
-
 
             if ($name === 'list_price') {
                 return [['value' => (float) $value, 'currency' => 'USD']];
@@ -531,7 +512,6 @@ class TransformsAmazonAttributes
             }
 
             if ($name === 'externally_assigned_product_identifier') {
-
                 $value = trim((string) $value);
 
                 if (preg_match('/^(EAN|GTIN|UPC)\s*:\s*(\d+)$/i', $value, $m)) {
@@ -557,11 +537,11 @@ class TransformsAmazonAttributes
                 return [[
                     'quantity' => (int) $value,
                     'type' => 'nonstandard_battery',
-                    'marketplace_id' => $marketplaceId, // whatever you're threading through elsewhere
+                    'marketplace_id' => $marketplaceId,  // whatever you're threading through elsewhere
                 ]];
             }
 
-           if (in_array($name, ['memory_storage_capacity', 'digital_storage_capacity'])) {
+            if (in_array($name, ['memory_storage_capacity', 'digital_storage_capacity'])) {
                 preg_match('/([\d.]+)\s*(bytes|GB|KB|MB|TB)?/i', (string) $value, $m);
 
                 return [[
@@ -648,7 +628,7 @@ class TransformsAmazonAttributes
                     'candela per square meter' => 'candela_per_square_meter',
                     'candela_per_square_meter' => 'candela_per_square_meter',
                 ];
-                $unit = $unitAliases[$unitRaw] ?? 'nit'; // fallback default
+                $unit = $unitAliases[$unitRaw] ?? 'nit';  // fallback default
 
                 // enforce schema constraints: 0-50000, multiple of 0.001
                 $num = max(0, min(50000, $num));
@@ -662,7 +642,6 @@ class TransformsAmazonAttributes
             }
 
             if ($name === 'ram_memory') {
-
                 preg_match('/([\d.]+)\s*(GB|MB|TB)\s*(DDR\d+|LPDDR\d+)?/i', trim((string) $value), $m);
 
                 $size = isset($m[1]) ? (float) $m[1] : 8;
@@ -697,7 +676,6 @@ class TransformsAmazonAttributes
             }
 
             if ($name === 'cpu_model') {
-
                 [$raw, $speedRaw] = array_pad(
                     array_map('trim', explode(',', (string) $value, 2)),
                     2,
@@ -805,11 +783,11 @@ class TransformsAmazonAttributes
                 return [[
                     'length' => [[
                         'value' => (float) $m[1],
-                        'unit'  => $unit,
+                        'unit' => $unit,
                     ]],
                     'width' => [[
                         'value' => (float) $m[2],
-                        'unit'  => $unit,
+                        'unit' => $unit,
                     ]]
                 ]];
             }
@@ -827,11 +805,10 @@ class TransformsAmazonAttributes
                 return [[
                     'size' => [[
                         'value' => (float) $m[1],
-                        'unit'  => $unit ?? 'millimeters',
+                        'unit' => $unit ?? 'millimeters',
                     ]]
                 ]];
             }
-
 
             if ($name === 'package_level') {
                 $map = ['unit' => 'each', 'each' => 'each', 'pack' => 'pack', 'set' => 'set'];
@@ -841,8 +818,8 @@ class TransformsAmazonAttributes
             if (in_array($name, ['capacity', 'liquid_volume'])) {
                 preg_match('/(\d+(?:\.\d+)?)\s*([a-zA-Z\s]+)?/', strtolower(trim($value)), $m);
                 return [[
-                    'value' => (float)($m[1] ?? $value),
-                    'unit'  => $liquidUnit[$m[2] ?? 'ml'] ?? 'milliliters'
+                    'value' => (float) ($m[1] ?? $value),
+                    'unit' => $liquidUnit[$m[2] ?? 'ml'] ?? 'milliliters'
                 ]];
             }
 
@@ -852,8 +829,8 @@ class TransformsAmazonAttributes
                 $unit = strtolower(trim($m[2] ?? 'v'));
 
                 return [[
-                    'value' => (float)($m[1] ?? $value),
-                    'unit'  => $voltageUnit[$unit] ?? 'volts',
+                    'value' => (float) ($m[1] ?? $value),
+                    'unit' => $voltageUnit[$unit] ?? 'volts',
                 ]];
             }
 
@@ -894,7 +871,7 @@ class TransformsAmazonAttributes
             if ($name === 'flash_memory') {
                 $installed = parseUnitValue((string) $value, ['GB', 'MB', 'TB'], 'GB');
                 if ($installed['value'] <= 0) {
-                    return []; // nothing to submit — omit attribute entirely
+                    return [];  // nothing to submit — omit attribute entirely
                 }
                 return [[
                     'marketplace_id' => $marketplaceId,
@@ -909,7 +886,7 @@ class TransformsAmazonAttributes
                 $size = parseUnitValue($sizePart, ['GB', 'MB', 'TB'], 'GB');
 
                 if ($size['value'] <= 0) {
-                    return []; // integrated/shared graphics, or unparseable — omit
+                    return [];  // integrated/shared graphics, or unparseable — omit
                 }
 
                 $typePart = trim($m[2] ?? '');
@@ -922,21 +899,23 @@ class TransformsAmazonAttributes
             }
 
             if ($name === 'battery') {
-
-                if(is_array($value)){
-                    return $this->parseBatteryInfo($value,$marketplaceId );
+                if (is_array($value)) {
+                    return $this->parseBatteryInfo($value, $marketplaceId);
                 }
 
                 $raw = trim((string) $value);
                 $battery = [
                     'marketplace_id' => $marketplaceId,
                 ];
-               
-                foreach ( [ 'Lithium-Ion' => 'lithium_ion', 'Lithium-Metal' => 'lithium_metal',
-                        'Lithium-Polymer' => 'lithium_polymer', 'Alkaline' => 'alkaline',
-                        'NiMH' => 'NiMh',  'NiCad' => 'NiCAD',  ] as $label => $cell ) 
-                {
-                    
+
+                foreach ([
+                    'Lithium-Ion' => 'lithium_ion',
+                    'Lithium-Metal' => 'lithium_metal',
+                    'Lithium-Polymer' => 'lithium_polymer',
+                    'Alkaline' => 'alkaline',
+                    'NiMH' => 'NiMh',
+                    'NiCad' => 'NiCAD',
+                ] as $label => $cell) {
                     if (stripos($raw, $label) !== false) {
                         $battery['cell_composition'] = [['value' => $cell]];
                         break;
@@ -957,15 +936,13 @@ class TransformsAmazonAttributes
                         'value' => (float) $m[1],
                         'unit' => match ($unit) {
                             'mah' => 'Milliampere Hour (mAh)',
-                            'ah'  => 'Ampere Hours',
-                            'wh'  => 'Watt Hours',
+                            'ah' => 'Ampere Hours',
+                            'wh' => 'Watt Hours',
                             'kwh' => 'Kilowatt Hours',
                         },
                     ]];
                 }
 
-                
-            
                 return [$battery];
             }
 
@@ -974,7 +951,7 @@ class TransformsAmazonAttributes
 
                 $knownTypes = ['Emmc', 'HDD', 'SSD', 'SSHD', 'UFS'];
                 $matched = array_filter($knownTypes, fn($t) => strtolower($t) === strtolower($raw));
-                $normalized = $matched ? array_values($matched)[0] : $raw; // keep raw as free text if no match
+                $normalized = $matched ? array_values($matched)[0] : $raw;  // keep raw as free text if no match
 
                 return [[
                     'marketplace_id' => $marketplaceId,
@@ -1036,7 +1013,6 @@ class TransformsAmazonAttributes
                 return [['value' => $map[strtolower($value)] ?? 'new_new']];
             }
 
-
             // ── 50 watt_hours | 0.5 grams ─────────────────────────────
             if ($name === 'lithium_battery') {
                 $valueString = trim((string) $value);
@@ -1075,7 +1051,7 @@ class TransformsAmazonAttributes
                 // extract percentage number
                 preg_match('/([\d.]+)\s*%/', $raw, $numMatch);
                 $num = (float) ($numMatch[1] ?? 0);
-                $num = min(150, $num); // enforce schema max
+                $num = min(150, $num);  // enforce schema max
 
                 // detect standard name
                 $validNames = [
@@ -1099,7 +1075,7 @@ class TransformsAmazonAttributes
                 }
 
                 if ($nameToken === null || $num <= 0) {
-                    return []; // can't produce a valid required pair — omit rather than guess
+                    return [];  // can't produce a valid required pair — omit rather than guess
                 }
 
                 return [[
@@ -1110,11 +1086,11 @@ class TransformsAmazonAttributes
             }
 
             if (in_array($name, ['subject', 'subject_code'])) {
-                return [['value' => $value, "type" => "bisac_description", "language_tag" => "en_US"]];
+                return [['value' => $value, 'type' => 'bisac_description', 'language_tag' => 'en_US']];
             }
 
             if ($name === 'regulatory_compliance_certification') {
-                return [['value' => $value, "regulation_type" => "ul_cetrification_no", "marketplace_id" => $marketplaceId]];
+                return [['value' => $value, 'regulation_type' => 'ul_cetrification_no', 'marketplace_id' => $marketplaceId]];
             }
 
             if ($name === 'variation_theme') {
@@ -1142,7 +1118,6 @@ class TransformsAmazonAttributes
                     $materialValue = $decoded['material'] ?? $decoded['lens_material'] ?? null;
                     $colorValue = $decoded['color'] ?? $decoded['lens_color'] ?? null;
 
-
                     if ($widthValue !== null && $widthValue !== '') {
                         $lensPayload['width'] = [[
                             'value' => (string) $widthValue ?? 20,
@@ -1168,7 +1143,6 @@ class TransformsAmazonAttributes
                 }
 
                 if (is_string($value) && $value !== '') {
-
                     $lensPayload['width'] = [[
                         'value' => (string) 20,
                         'unit' => 'millimeters',
@@ -1199,7 +1173,8 @@ class TransformsAmazonAttributes
             // GUESSES ONLY — need schema confirmation before trusting these
             if ($name === 'bridge') {
                 [$val, $unit] = $this->parseUnitValue($value, $this->lengthUnitMap());
-                if ($unit === null) return null;
+                if ($unit === null)
+                    return null;
                 return [[
                     'width' => [['value' => $val, 'unit' => $unit]],
                     'marketplace_id' => $marketplaceId,
@@ -1208,7 +1183,8 @@ class TransformsAmazonAttributes
 
             if ($name === 'arm') {
                 [$val, $unit] = $this->parseUnitValue($value, $this->lengthUnitMap());
-                if ($unit === null) return null;
+                if ($unit === null)
+                    return null;
                 return [[
                     'length' => [['value' => $val, 'unit' => $unit]],
                     'marketplace_id' => $marketplaceId,
@@ -1282,7 +1258,6 @@ class TransformsAmazonAttributes
                 return $this->waterResistanceLevel($value, $marketplaceId);
             }
 
-
             if ($name === 'tank_volume') {
                 return $this->tankVolume($value, $marketplaceId);
             }
@@ -1294,7 +1269,7 @@ class TransformsAmazonAttributes
             if ($name === 'melting_temperature') {
                 return $this->meltingTemperature($value, $marketplaceId);
             }
-    
+
             if ($name === 'esrb_rating') {
                 return $this->createEsrbRating($value, [], $marketplaceId);
             }
@@ -1358,14 +1333,13 @@ class TransformsAmazonAttributes
         }
 
         $length = $ml[1] ?? null;
-        $width  = $mw[1] ?? null;
+        $width = $mw[1] ?? null;
         $height = $mh[1] ?? null;
 
-        if (($length === null || $width === null || $height === null)
-            && preg_match('/([\d.]+)\s*L\s*x\s*([\d.]+)\s*W\s*x\s*([\d.]+)\s*H\s*(\w+)?/i', $value, $m)
-        ) {
+        if (($length === null || $width === null || $height === null) &&
+                preg_match('/([\d.]+)\s*L\s*x\s*([\d.]+)\s*W\s*x\s*([\d.]+)\s*H\s*(\w+)?/i', $value, $m)) {
             $length = $m[1];
-            $width  = $m[2];
+            $width = $m[2];
             $height = $m[3];
             if (!empty($m[4])) {
                 $unit = $unitMap[strtolower($m[4])] ?? strtolower($m[4]);
@@ -1380,7 +1354,7 @@ class TransformsAmazonAttributes
 
         return [[
             'length' => ['value' => (float) $length, 'unit' => $unit],
-            'width'  => ['value' => (float) $width, 'unit' => $unit],
+            'width' => ['value' => (float) $width, 'unit' => $unit],
             'height' => ['value' => (float) $height, 'unit' => $unit],
         ]];
     }
@@ -1398,7 +1372,7 @@ class TransformsAmazonAttributes
         ]];
     }
 
-    // lightsource 
+    // lightsource
     private function lightSource($value, $marketplaceId = null): array
     {
         $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
@@ -1448,16 +1422,16 @@ class TransformsAmazonAttributes
         $unit = match (true) {
             str_contains($unit, 'gigabit'),
             str_contains($unit, 'gb/s'),
-            str_contains($unit, 'gbps')
-            => 'gigabits_per_second',
+            str_contains($unit, 'gbps') =>
+                'gigabits_per_second',
 
             str_contains($unit, 'megabyte'),
             str_contains($unit, 'mb/s'),
-            str_contains($unit, 'mbps')
-            => 'megabytes_per_second',
+            str_contains($unit, 'mbps') =>
+                'megabytes_per_second',
 
-            str_contains($unit, 'megabit')
-            => 'megabits_per_second',
+            str_contains($unit, 'megabit') =>
+                'megabits_per_second',
 
             default => 'megabits_per_second',
         };
@@ -1544,8 +1518,8 @@ class TransformsAmazonAttributes
     {
         $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
 
-        preg_match( '/([\d.]+)\s*(hours?|minutes?|seconds?)/i',
-            trim((string) $value),  $matches     );
+        preg_match('/([\d.]+)\s*(hours?|minutes?|seconds?)/i',
+            trim((string) $value), $matches);
 
         $number = (float) ($matches[1] ?? 0);
         $unit = strtolower($matches[2] ?? 'hours');
@@ -1587,25 +1561,51 @@ class TransformsAmazonAttributes
         ]];
     }
 
-
     private function tankVolume($value, $marketplaceId = null): array
     {
         $marketplaceId = $marketplaceId ?: 'ATVPDKIKX0DER';
         $value = trim((string) $value);
         preg_match('/^\s*([\d.]+)\s*(ml|milliliters?|l|liters?|cl|centiliters?|dl|deciliters?|gal|gallons?|imperial\s*gallons?|fl\s*oz|fluid\s*ounces?|pints?|quarts?)\s*$/i',
-            $value,  $matches  );
+            $value, $matches);
 
         $number = (float) ($matches[1] ?? 0);
         $rawUnit = strtolower(trim($matches[2] ?? ''));
 
         $unit = match (true) {
-            in_array($rawUnit, [ 'ml', 'milliliter', 'milliliters',  ]) => 'milliliters',
-            in_array($rawUnit, [ 'l', 'liter',  'liters', ]) => 'liters',
-            in_array($rawUnit, [ 'cl', 'centiliter', 'centiliters', ]) => 'centiliters',
-            in_array($rawUnit, [ 'dl', 'deciliter', 'deciliters', ]) => 'deciliters',
-            in_array($rawUnit, [ 'gal', 'gallon','gallons',  ]) => 'gallons',
-            in_array($rawUnit, [ 'imperial gallons', 'imperial gallon', ]) => 'imperial_gallons',
-            in_array($rawUnit, [ 'fl oz', 'fluid ounce', 'fluid ounces', ]) => 'fluid_ounces',
+            in_array($rawUnit, [
+                'ml',
+                'milliliter',
+                'milliliters',
+            ]) => 'milliliters',
+            in_array($rawUnit, [
+                'l',
+                'liter',
+                'liters',
+            ]) => 'liters',
+            in_array($rawUnit, [
+                'cl',
+                'centiliter',
+                'centiliters',
+            ]) => 'centiliters',
+            in_array($rawUnit, [
+                'dl',
+                'deciliter',
+                'deciliters',
+            ]) => 'deciliters',
+            in_array($rawUnit, [
+                'gal',
+                'gallon',
+                'gallons',
+            ]) => 'gallons',
+            in_array($rawUnit, [
+                'imperial gallons',
+                'imperial gallon',
+            ]) => 'imperial_gallons',
+            in_array($rawUnit, [
+                'fl oz',
+                'fluid ounce',
+                'fluid ounces',
+            ]) => 'fluid_ounces',
             str_starts_with($rawUnit, 'pint') => 'pints',
             str_starts_with($rawUnit, 'quart') => 'quarts',
             default => 'liters',
@@ -1618,7 +1618,7 @@ class TransformsAmazonAttributes
         ]];
     }
 
-    function createEsrbRating($rating, $descriptors, $marketplaceId) 
+    function createEsrbRating($rating, $descriptors, $marketplaceId)
     {
         $ratings = [
             'adults_only' => 'Adults Only',
@@ -1710,7 +1710,8 @@ class TransformsAmazonAttributes
             }
 
             $normalizedInput = $normalize($input);
-            if (empty($normalizedInput)) return null;
+            if (empty($normalizedInput))
+                return null;
 
             $words = array_unique(explode(' ', $normalizedInput));
             $wordsSize = count($words);
@@ -1721,8 +1722,8 @@ class TransformsAmazonAttributes
                 $targetSize = count($target);
 
                 $common = count(array_intersect($words, $target));
-                $score = ($wordsSize && $targetSize) 
-                    ? (2 * $common) / ($wordsSize + $targetSize) 
+                $score = ($wordsSize && $targetSize)
+                    ? (2 * $common) / ($wordsSize + $targetSize)
                     : 0;
 
                 if ($score > $best['score']) {
@@ -1766,10 +1767,9 @@ class TransformsAmazonAttributes
             'marketplace_id' => $marketplaceId,
         ];
 
-        $timeUnplacedCount = 0; // tracks unlabeled time values in order: average_life, talk_time, charge_time
+        $timeUnplacedCount = 0;  // tracks unlabeled time values in order: average_life, talk_time, charge_time
 
         foreach ((array) $value as $raw) {
-
             $raw = trim((string) $raw);
 
             if ($raw === '') {
@@ -1778,15 +1778,15 @@ class TransformsAmazonAttributes
 
             // Cell
             $cells = [
-                'Lithium-Ion'     => 'lithium_ion',
-                'Lithium-Metal'   => 'lithium_metal',
+                'Lithium-Ion' => 'lithium_ion',
+                'Lithium-Metal' => 'lithium_metal',
                 'Lithium-Polymer' => 'lithium_polymer',
-                'Alkaline'        => 'alkaline',
-                'NiMH'            => 'NiMh',
-                'NiCad'           => 'NiCAD',
-                'Lead Acid'       => 'lead_acid',
-                'Sodium-Ion'      => 'sodium_ion',
-                'Wet Alkali'      => 'wet_alkali',
+                'Alkaline' => 'alkaline',
+                'NiMH' => 'NiMh',
+                'NiCad' => 'NiCAD',
+                'Lead Acid' => 'lead_acid',
+                'Sodium-Ion' => 'sodium_ion',
+                'Wet Alkali' => 'wet_alkali',
             ];
 
             foreach ($cells as $label => $cell) {
@@ -1924,5 +1924,4 @@ class TransformsAmazonAttributes
 
         return [$battery];
     }
-
 }

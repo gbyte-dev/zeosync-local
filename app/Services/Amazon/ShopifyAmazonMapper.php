@@ -2,6 +2,8 @@
 
 namespace App\Services\Amazon;
 
+use Illuminate\Support\Facades\Log;
+
 class ShopifyAmazonMapper
 {
     /**
@@ -9,9 +11,17 @@ class ShopifyAmazonMapper
      */
     public function map(array $product): array
     {
+        $debugId = session('mapping_debug_id');
+
+        Log::info('MAPPING DEBUG - MAPPER START', [
+            'debug_id' => $debugId,
+            'shop_id' => session('active_shop_id') ?? null,
+            'shopify_product_id' => $product['id'] ?? null,
+        ]);
+
         $variant = $product['variants'][0] ?? [];
 
-        return [
+        $mappedData = [
 
             // Basic
             'item_name'         => $this->text($product['title'] ?? ''),
@@ -47,7 +57,7 @@ class ShopifyAmazonMapper
 
             // Barcode
             'externally_assigned_product_identifier'
-                => $this->barcode($variant['barcode'] ?? ''),
+                => $this->text($variant['barcode'] ?? ''),
 
             // Images
             'main_product_image_locator'  => $this->mainImage($product),
@@ -64,6 +74,23 @@ class ShopifyAmazonMapper
             'shopify_handle'     => $product['handle'] ?? '',
             'shopify_status'     => $product['status'] ?? '',
         ];
+
+        Log::info('MAPPING DEBUG - MAPPER OUTPUT', [
+            'debug_id' => $debugId,
+            'mapped_data' => json_decode(json_encode($mappedData), true),
+        ]);
+
+        Log::info('MAPPING DEBUG - IMPORTANT MAPPED FIELDS', [
+            'debug_id' => $debugId,
+            'sku' => $mappedData['sku'] ?? null,
+            'barcode' => $mappedData['externally_assigned_product_identifier'] ?? null,
+            'price' => $mappedData['price'] ?? null,
+            'quantity' => $mappedData['quantity'] ?? null,
+            'fulfillment_availability' => $mappedData['fulfillment_availability'] ?? null,
+            'product_type' => $product['product_type'] ?? null,
+        ]);
+
+        return $mappedData;
     }
 
     /**
@@ -267,32 +294,5 @@ class ShopifyAmazonMapper
     private function limit($text,$limit=500): string
     {
         return substr(trim(strip_tags($text)),0,$limit);
-    }
-
-    /**
-     * Normalize Shopify barcode into Amazon identifier format (UPC/EAN/GTIN)
-     */
-    private function barcode(mixed $rawBarcode): string
-    {
-        $barcode = trim((string) $rawBarcode);
-        if ($barcode === '') {
-            return '';
-        }
-
-        if (preg_match('/^(EAN|GTIN|UPC)\s*:\s*\d+$/i', $barcode)) {
-            return $barcode;
-        }
-
-        if (preg_match('/^\d+$/', $barcode)) {
-            $len = strlen($barcode);
-            return match ($len) {
-                12 => 'UPC: ' . $barcode,
-                13 => 'EAN: ' . $barcode,
-                14 => 'GTIN: ' . $barcode,
-                default => '',
-            };
-        }
-
-        return '';
     }
 }

@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use SellingPartnerApi\Enums\Endpoint;
 use SellingPartnerApi\Seller\ListingsItemsV20210801\Dto\ListingsItemPutRequest;
 use SellingPartnerApi\Seller\OrdersV0\Requests\GetOrdersRequest;
@@ -3854,8 +3855,18 @@ class ShopifyController extends Controller
 
     public function syncShopifyToAmazon(Request $request, $id)
     {
+        $debugId = (string) Str::uuid();
+        session(['mapping_debug_id' => $debugId]);
+
         $shopModel = $this->getActiveShop($request);
         $activeShop = $shopModel?->shop;
+
+        Log::info('MAPPING DEBUG - SHOPIFY SYNC START', [
+            'debug_id' => $debugId,
+            'shop' => $activeShop ?? null,
+            'shopify_product_id' => $id ?? null,
+        ]);
+
         if (!$shopModel) {
             return redirect('/products')->with('error', 'No shop connected.');
         }
@@ -3872,15 +3883,24 @@ class ShopifyController extends Controller
             $product = $syncResult['product'];
             $product_type = $product['product_type'] ?? '';
 
+            Log::info('MAPPING DEBUG - SHOPIFY PRODUCT FETCHED', [
+                'debug_id' => $debugId,
+                'product' => json_decode(json_encode($product), true),
+            ]);
+
             $dbProduct = \App\Models\Product::where('shopify_id', $id)
                 ->where('shop_id', $shopModel->id)
                 ->first();
             $amazonData = null;
 
+            Log::info('MAPPING DEBUG - MAPPER INPUT', [
+                'debug_id' => $debugId,
+                'product' => json_decode(json_encode($product), true),
+            ]);
+
             $mapper = new ShopifyAmazonMapper();
             $mappedproduct = $mapper->map($product);
             $mappedproduct['shopify_inventory_item_id'] = $product['variants'][0]['inventory_item_id'] ?? '';
-            $mappedproduct['shopify_location_id'] = $locationId ?? null;
             if (isset($dbProduct) && ($dbProduct->sub_category_id != null)) {
                 $category = Category::where('id', $dbProduct->sub_category_id)->first();
 
@@ -3901,25 +3921,8 @@ class ShopifyController extends Controller
 
             $updatesync = new ProductSchemaController();
             $mapped_id = $updatesync->syncProductShopify($mappedproduct, $shopModel->id, $dbProduct->id, $producttype);
-
-            // Preserve Shopify price & quantity into Amazon standard attributes before unsetting
-            if (isset($mappedproduct['price']) && $mappedproduct['price'] !== '') {
-                $mappedproduct['purchasable_offer'] = $mappedproduct['price'];
-                $mappedproduct['list_price'] = $mappedproduct['price'];
-            }
-            if (isset($mappedproduct['quantity']) && $mappedproduct['quantity'] !== '') {
-                $mappedproduct['fulfillment_availability'] = json_encode([
-                    'fulfillment_channel_code' => 'DEFAULT',
-                    'quantity' => (int) $mappedproduct['quantity'],
-                ]);
-            }
-            if (empty($mappedproduct['externally_assigned_product_identifier'])) {
-                unset($mappedproduct['externally_assigned_product_identifier']);
-            }
-
             unset($mappedproduct['shopify_product_id']);
             unset($mappedproduct['shopify_inventory_item_id']);
-            unset($mappedproduct['shopify_location_id']);
             unset($mappedproduct['shopify_variant_id']);
             unset($mappedproduct['sku']);
             unset($mappedproduct['other_product_image_locator']);
@@ -3942,7 +3945,15 @@ class ShopifyController extends Controller
                     'shop' => $shopModel->shop,
                 ]
             )->with('success', 'Product all information to update');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('MAPPING DEBUG - EXCEPTION', [
+                'debug_id' => $debugId,
+                'message' => $e->getMessage(),
+                'class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return back()->with('error', $e->getMessage());
         }
     }

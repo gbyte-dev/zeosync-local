@@ -340,6 +340,14 @@ class ProductSchemaController extends Controller
 
     public function productEdit($productid)
     {
+        $debugId = session('mapping_debug_id');
+
+        Log::info('MAPPING DEBUG - PRODUCT EDIT OPEN', [
+            'debug_id' => $debugId,
+            'product_id' => $productid,
+            'shop' => request('shop'),
+        ]);
+
         $activeShop = $this->getActiveShopModel();
         if (!$activeShop) {
             return redirect()->route('dashboard')->with('error', 'Product not found');
@@ -361,6 +369,14 @@ class ProductSchemaController extends Controller
             }
         }
         $prodAttri = ProductAttribute::where('product_id', $productid)->get();
+
+        Log::info('MAPPING DEBUG - PRODUCT EDIT DATA', [
+            'debug_id' => $debugId,
+            'product_id' => $productshow->id ?? null,
+            'product' => $productshow->toArray(),
+            'attributes' => $prodAttri?->toArray(),
+        ]);
+
         $amazonDbAutofill = session('amazon_db_autofill', []);
         $fieldSuggestions = [];
         $autofilledFields = [];
@@ -655,6 +671,20 @@ class ProductSchemaController extends Controller
     public function productstore(Request $request, ProductLimitService $productLimitService,
         $product_id = null)
     {
+        $debugId = session('mapping_debug_id');
+
+        Log::info('MAPPING DEBUG - ADDPRODUCT SUBMIT', [
+            'debug_id' => $debugId,
+            'product_id' => $product_id,
+            'shop' => request('shop'),
+            'request' => $request->except([
+                '_token',
+                'password',
+                'access_token',
+                'secret',
+            ]),
+        ]);
+
         $activeShop = $this->getActiveShopModel($request);
         if (!$activeShop) {
             abort(404, 'Active shop not found.');
@@ -695,7 +725,18 @@ class ProductSchemaController extends Controller
                     ]);
             }
         }
-        $product_id = DB::transaction(function () use ($request, $product_id, $shop_id) {
+        $product_id = DB::transaction(function () use ($request, $product_id, $shop_id, $debugId) {
+            Log::info('MAPPING DEBUG - ADDPRODUCT BEFORE SAVE', [
+                'debug_id' => $debugId,
+                'product_id' => $product_id,
+                'attributes' => $request->except([
+                    '_token',
+                    'password',
+                    'access_token',
+                    'secret',
+                ]),
+            ]);
+
             if (!isset($product_id)) {
                 if ($request->parent_id) {
                     $product = Product::create([
@@ -749,6 +790,18 @@ class ProductSchemaController extends Controller
             }
             return $product_id;
         });
+
+        $savedProduct = Product::find($product_id);
+        Log::info('MAPPING DEBUG - ADDPRODUCT AFTER SAVE', [
+            'debug_id' => $debugId,
+            'product_id' => $savedProduct?->id ?? null,
+            'product' => $savedProduct?->toArray(),
+            'attributes' => ProductAttribute::where(
+                'product_id',
+                $product_id
+            )->get()->toArray(),
+        ]);
+
         if ($request->save_draft) {
             return redirect()->route('admin.product.productEdit', [
                 'product' => $product_id,
@@ -763,6 +816,13 @@ class ProductSchemaController extends Controller
 
     public function generatePayload(Product $product, $type = 'main', $fields = []): array
     {
+        $debugId = session('mapping_debug_id');
+
+        Log::info('MAPPING DEBUG - GENERATE PAYLOAD START', [
+            'debug_id' => $debugId,
+            'product_id' => $product->id ?? null,
+        ]);
+
         $attributes = [];
         $requireddata = [];
         $transformer = new TransformsAmazonAttributes();
@@ -841,7 +901,7 @@ class ProductSchemaController extends Controller
             }
 
             $transformed = $transformer->transformAttribute($canonicalName, $value, $product->attributes);
-            if ($transformed === null || (is_array($transformed) && empty($transformed))) {
+            if ($transformed === null) {
                 continue;
             }
             $attributes[$canonicalName] = $transformed;
@@ -853,10 +913,31 @@ class ProductSchemaController extends Controller
             }
         }
 
-        return [
+        $payload = [
             'requirements' => 'LISTING',
             'attributes' => $attributes,
         ];
+
+        Log::info('MAPPING DEBUG - FINAL AMAZON PAYLOAD', [
+            'debug_id' => $debugId,
+            'product_id' => $product->id ?? null,
+            'payload' => json_decode(json_encode($payload), true),
+        ]);
+
+        Log::info('MAPPING DEBUG - FINAL PAYLOAD IMPORTANT FIELDS', [
+            'debug_id' => $debugId,
+            'sku' => data_get($payload, 'sku') ?? $product->sku ?? null,
+            'productType' => data_get($payload, 'productType') ?? null,
+            'marketplaceIds' => data_get($payload, 'marketplaceIds') ?? null,
+            'externally_assigned_product_identifier' =>
+                data_get($payload, 'attributes.externally_assigned_product_identifier'),
+            'fulfillment_availability' =>
+                data_get($payload, 'attributes.fulfillment_availability'),
+            'price' =>
+                data_get($payload, 'attributes.purchasable_offer'),
+        ]);
+
+        return $payload;
     }
 
     public function aiAutoFill(Request $request)
@@ -905,6 +986,7 @@ class ProductSchemaController extends Controller
 
     public function buildListingRequest(Product $product)
     {
+        $debugId = session('mapping_debug_id');
         $activeShop = $this->getActiveShopModel();
         abort_if(!$activeShop || (int) $product->user_id !== (int) $activeShop->id, 404);
 
@@ -922,9 +1004,25 @@ class ProductSchemaController extends Controller
                 $testcontroller = new TestController();
                 $sku = $product->sku;
                 $payload2 = $testcontroller->createOnlyListing($payload['attributes'], $schema->product_type ?? 'KEYBOARDS');
+
+                Log::info('MAPPING DEBUG - AMAZON REQUEST READY', [
+                    'debug_id' => $debugId,
+                    'product_id' => $product->id ?? null,
+                    'sku' => $sku ?? null,
+                    'request' => json_decode(json_encode($payload2), true),
+                ]);
+
                 $payload3 = $testcontroller->createOnlyputListing($payload2, $sku);
             }
             if (isset($payload3['status']) && ($payload3['status'] == 'INVALID')) {
+                Log::info('MAPPING DEBUG - FINAL DECISION', [
+                    'debug_id' => $debugId,
+                    'product_id' => $product->id ?? null,
+                    'amazon_status' => $payload3['status'] ?? null,
+                    'decision' => 'INVALID_LISTING_REDIRECT_TO_PRODUCT_EDIT',
+                    'redirect' => 'admin.product.productEdit',
+                ]);
+
                 $successfulListing = $this->amazonSuccessfulListingService->findFor($product);
 
                 $failedFields = collect($payload3['issues'] ?? [])
@@ -1035,8 +1133,6 @@ class ProductSchemaController extends Controller
             }
             $generatejson = $this->generatejson($product->id);
             $prodAttributes['sku'] = $product->sku;
-            $prodAttributes['submission_id'] = $payload3['submissionId'] ?? null;
-            $prodAttributes['submission_status'] = $payload3['status'] ?? 'ACCEPTED';
             $this->updateSyncAmazon($product->id, $prodAttributes);
             $product->status = $payload3['status'];
             $product->submission_status = $payload3['submissionId'];
@@ -1065,6 +1161,14 @@ class ProductSchemaController extends Controller
                 );
             }
 
+            Log::info('MAPPING DEBUG - FINAL DECISION', [
+                'debug_id' => $debugId,
+                'product_id' => $product->id ?? null,
+                'amazon_status' => $payload3['status'] ?? null,
+                'decision' => 'LISTING_SUCCESS_OR_ACCEPTED',
+                'redirect' => 'showProducts',
+            ]);
+
             return redirect()->route('user.product.showProducts')->with('success', 'Product added Successfully');
             return response()->json([
                 'success' => true,
@@ -1072,7 +1176,16 @@ class ProductSchemaController extends Controller
                 'sku' => $sku,
                 'response' => $payload3
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('MAPPING DEBUG - EXCEPTION', [
+                'debug_id' => $debugId,
+                'message' => $e->getMessage(),
+                'class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             $this->updatelog($product->id, 'amazon', 'sync_failed', false, $e->getMessage());
             $strmessage = str_replace('Bad Request (400) Response:', '', $e->getMessage());
             $strmessage = json_decode($strmessage, true);
@@ -1730,20 +1843,33 @@ class ProductSchemaController extends Controller
 
     public function syncProductShopify($prodAttributes, $shop_id, $product_id, $producttype)
     {
+        $debugId = session('mapping_debug_id');
+
+        Log::info('MAPPING DEBUG - SYNC PRODUCT SHOPIFY START', [
+            'debug_id' => $debugId,
+            'shop_id' => $shop_id ?? null,
+            'shopify_product_id' => $prodAttributes['shopify_product_id'] ?? null,
+        ]);
+
         $productmap = ProductMarketplaceMapping::updateOrCreate(
             [
                 'shop_id' => $shop_id,
-                'shopify_variant_id' => (string) ($prodAttributes['shopify_variant_id'] ?? $prodAttributes['shopify_product_id']),
+                'shopify_variant_id' => (string) $prodAttributes['shopify_variant_id'] ?? $prodAttributes['shopify_product_id'],
                 'shopify_product_id' => (string) $prodAttributes['shopify_product_id']
             ],
             [
                 'product_id' => $product_id ?? '',
                 'amazon_product_type' => $producttype,
-                'shopify_inventory_item_id' => (string) ($prodAttributes['shopify_inventory_item_id'] ?? null),
-                'shopify_location_id' => isset($prodAttributes['shopify_location_id']) ? (string) $prodAttributes['shopify_location_id'] : null,
+                'shopify_inventory_item_id' => (string) $prodAttributes['shopify_inventory_item_id'] ?? null,
                 'sync_status' => 'pending'
             ]
         );
+
+        Log::info('MAPPING DEBUG - MAPPING DB STATE AFTER SYNC', [
+            'debug_id' => $debugId,
+            'mapping' => $productmap ? $productmap->fresh()->toArray() : null,
+        ]);
+
         return $productmap->id;
     }
 
@@ -1755,7 +1881,7 @@ class ProductSchemaController extends Controller
             return;
         }
         $shopifyid = $productmappped->shopify_id;
-        $shopId = $this->getShopIdFromSession() ?? $productmappped->shop_id ?? $productmappped->user_id;
+        $shopId = $this->getShopIdFromSession();
         $data = [];
         if (isset($prodAttributes['variants'])) {
             $data['amazon_sku'] = $prodAttributes['variants']['sku'] ?? $prodAttributes['sku'];
@@ -1766,11 +1892,6 @@ class ProductSchemaController extends Controller
             $data['amazon_parent_sku'] = $prodAttributes['sku'];
             $data['sync_status'] = 'active';
         }
-        if (isset($prodAttributes['submission_id'])) {
-            $data['submission_id'] = $prodAttributes['submission_id'];
-            $data['submission_status'] = $prodAttributes['submission_status'] ?? 'ACCEPTED';
-        }
-        $data['last_synced_at'] = now();
         $updated = ProductMarketplaceMapping::where('shop_id', $shopId)
             ->where('shopify_product_id', $shopifyid)
             ->update($data);
@@ -1783,7 +1904,9 @@ class ProductSchemaController extends Controller
 
     public function productstoreAmazon(array $attributes, $schema_id = null, $product_id = null, $parent_id = null)
     {
-        return DB::transaction(function () use ($attributes, $product_id, $schema_id, $parent_id) {
+        $debugId = session('mapping_debug_id');
+
+        return DB::transaction(function () use ($attributes, $product_id, $schema_id, $parent_id, $debugId) {
             $activeShop = $this->getActiveShopModel();
             if (!$activeShop) {
                 abort(404, 'Active shop not found.');
@@ -1818,6 +1941,12 @@ class ProductSchemaController extends Controller
                 }
                 $product = Product::create($productData);
                 $product_id = $product->id;
+
+                Log::info('MAPPING DEBUG - ALL PRODUCT CREATED', [
+                    'debug_id' => $debugId,
+                    'product_id' => $product->id ?? null,
+                    'product' => $product?->fresh()?->toArray(),
+                ]);
             }
             // Save Attributes
             foreach ($attributes as $key => $value) {
@@ -1845,6 +1974,13 @@ class ProductSchemaController extends Controller
                     ]
                 );
             }
+
+            Log::info('MAPPING DEBUG - PRODUCT ATTRIBUTES CREATED', [
+                'debug_id' => $debugId,
+                'product_id' => $product_id,
+                'attributes' => ProductAttribute::where('product_id', $product_id)->get()->toArray(),
+            ]);
+
             return $product_id;
         });
     }
