@@ -4,6 +4,7 @@ $contactUrl = route('contact', array_filter(['shop' => $currentShop]));
 $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
 $messagesUrl = route('shopify.ai.chat.messages', array_filter(['shop' => $currentShop]));
 $clearUrl = route('shopify.ai.chat.clear', array_filter(['shop' => $currentShop]));
+$progressUrl = route('inventory.amazon.progress', array_filter(['shop' => $currentShop]));
 @endphp
 
 <!-- ======================================================== -->
@@ -1565,6 +1566,136 @@ $clearUrl = route('shopify.ai.chat.clear', array_filter(['shop' => $currentShop]
             return msgDiv;
         };
 
+        const progressUrl = "{{ $progressUrl }}";
+
+        const pollAmazonProgress = () => {
+            return new Promise((resolve, reject) => {
+                const maxAttempts = 36; // 36 * 2.5s = 90s max
+                let attempts = 0;
+                let timer = null;
+
+                const cleanup = () => {
+                    if (timer) clearInterval(timer);
+                    timer = null;
+                };
+
+                const check = async () => {
+                    attempts++;
+                    try {
+                        const res = await fetch(progressUrl, {
+                            headers: { 'Accept': 'application/json' },
+                            cache: 'no-store'
+                        });
+                        if (!res.ok) {
+                            if (attempts >= maxAttempts) {
+                                cleanup();
+                                reject(new Error('Amazon inventory synchronization timed out. Please try again.'));
+                                return;
+                            }
+                            return;
+                        }
+                        const d = await res.json();
+                        const percent = d.percent ?? 0;
+                        const msg = (d.message || '').toString();
+
+                        if (d.error || msg.toLowerCase().startsWith('failed') || d.status === 'Failed') {
+                            cleanup();
+                            reject(new Error('Amazon inventory synchronization failed. Please check your Amazon settings or try again.'));
+                            return;
+                        }
+
+                        if (percent >= 100 || msg === 'Completed' || d.status === 'Complete') {
+                            cleanup();
+                            resolve(d);
+                            return;
+                        }
+
+                        if (attempts >= maxAttempts) {
+                            cleanup();
+                            reject(new Error('Amazon inventory synchronization timed out. Please try again.'));
+                            return;
+                        }
+                    } catch (e) {
+                        if (attempts >= maxAttempts) {
+                            cleanup();
+                            reject(new Error('Amazon inventory synchronization timed out. Please try again.'));
+                            return;
+                        }
+                    }
+                };
+
+                timer = setInterval(check, 2500);
+                check();
+            });
+        };
+
+        const executeAskRequest = async (prompt, userMsgEl = null, attempt = 1) => {
+            const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '{{ csrf_token() }}';
+
+            const response = await fetch(askUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ prompt: prompt })
+            });
+
+            if (!response.ok) {
+                let errData = {};
+                try {
+                    errData = await response.json();
+                } catch (e) {}
+                const errorMsg = errData.error || errData.message || 'Sorry, I couldn\'t process that request right now.';
+                throw new Error(errorMsg);
+            }
+
+            const data = await response.json();
+
+            if (data.status === 'inventory_syncing') {
+                if (attempt > 1) {
+                    throw new Error('Amazon inventory is still synchronizing. Please try again shortly.');
+                }
+
+                // Render a transient syncing indicator in the chat
+                const syncIndicator = document.createElement('div');
+                syncIndicator.className = 'zeosync-ai-support__msg zeosync-ai-support__msg--assistant zeosync-ai-support__msg--syncing';
+                syncIndicator.innerHTML = `
+                    <div class="zeosync-ai-support__msg-avatar">
+                        <svg viewBox="0 0 72 72" fill="none" width="20" height="20">
+                            <circle cx="36" cy="7" r="4" fill="#38BDF8"/>
+                            <rect x="14" y="16" width="44" height="34" rx="12" fill="#1E293B"/>
+                            <rect x="19" y="21" width="34" height="23" rx="7" fill="#0F172A"/>
+                            <circle cx="28" cy="31" r="3.5" fill="#38BDF8"/>
+                            <circle cx="44" cy="31" r="3.5" fill="#38BDF8"/>
+                        </svg>
+                    </div>
+                    <div class="zeosync-ai-support__msg-bubble" style="background:#0f172a; color:#f8fafc; border-color:#334155;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="spinner-border spinner-border-sm text-info" role="status" aria-hidden="true" style="width:14px; height:14px; border-width:2px; display:inline-block;"></span>
+                            <span class="zeosync-ai-sync-text">Synchronizing Amazon inventory...</span>
+                        </div>
+                    </div>
+                `;
+                messagesContainer.appendChild(syncIndicator);
+                scrollToBottom();
+
+                try {
+                    await pollAmazonProgress();
+                } finally {
+                    syncIndicator.remove();
+                }
+
+                // Re-send prompt to get real AI answer from newly synchronized cache
+                return await executeAskRequest(prompt, userMsgEl, attempt + 1);
+            }
+
+            return data;
+        };
+
         // Main Send Message Function
         const sendMessage = async (rawPrompt) => {
             const prompt = (rawPrompt || '').trim();
@@ -1587,36 +1718,10 @@ $clearUrl = route('shopify.ai.chat.clear', array_filter(['shop' => $currentShop]
             if (typingIndicator) typingIndicator.style.display = 'flex';
             scrollToBottom();
 
-            // Prepare CSRF Token
-            const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
-            const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '{{ csrf_token() }}';
-
             try {
-                const response = await fetch(askUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({ prompt: prompt })
-                });
+                const data = await executeAskRequest(prompt, userMsgEl, 1);
 
                 if (typingIndicator) typingIndicator.style.display = 'none';
-
-                if (!response.ok) {
-                    let errData = {};
-                    try {
-                        errData = await response.json();
-                    } catch (e) {}
-
-                    const errorMsg = errData.error || errData.message || 'Sorry, I couldn\'t process that request right now.';
-                    appendMessage('assistant', errorMsg, true);
-                    return;
-                }
-
-                const data = await response.json();
 
                 if (data.success && data.message) {
                     lastFailedPrompt = null;
@@ -1639,7 +1744,7 @@ $clearUrl = route('shopify.ai.chat.clear', array_filter(['shop' => $currentShop]
             } catch (err) {
                 console.error('ZeoSync AI support fetch error:', err);
                 if (typingIndicator) typingIndicator.style.display = 'none';
-                appendMessage('assistant', 'Sorry, I couldn\'t process that request right now. Please check your network connection and try again.', true);
+                appendMessage('assistant', err.message || 'Sorry, I couldn\'t process that request right now. Please check your network connection and try again.', true);
             } finally {
                 isSubmitting = false;
                 if (textarea) {

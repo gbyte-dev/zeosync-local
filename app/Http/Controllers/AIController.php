@@ -57,7 +57,8 @@ class AIController extends Controller
         }
 
         $afterId = $request->query('after_id');
-        $query = AiChatMessage::where('shop_id', $shop->id);
+        $query = AiChatMessage::where('shop_id', $shop->id)
+            ->where('message', '!=', 'Synchronizing Amazon inventory...');
 
         if ($afterId && is_numeric($afterId)) {
             $query->where('id', '>', (int) $afterId);

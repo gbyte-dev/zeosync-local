@@ -686,3 +686,47 @@ test('admin messages polling endpoint returns only selected shop messages chrono
     expect($pollRes->json('messages.0.id'))->toBe($msgA2->id);
     expect($pollRes->json('messages.0.message'))->toBe('Alpha 2 assistant reply');
 });
+
+test('messages endpoint excludes stale transient synchronizing message from chat history while preserving normal messages', function () {
+    $shop = createTestShop('history-cleanup.myshopify.com', 'History Store');
+
+    // Normal user message
+    AiChatMessage::create([
+        'shop_id' => $shop->id,
+        'role'    => 'user',
+        'message' => 'Show my inventory.',
+    ]);
+
+    // Transient sync message (e.g. legacy entry)
+    AiChatMessage::create([
+        'shop_id' => $shop->id,
+        'role'    => 'assistant',
+        'message' => 'Synchronizing Amazon inventory...',
+    ]);
+
+    // Legitimate AI response
+    AiChatMessage::create([
+        'shop_id' => $shop->id,
+        'role'    => 'assistant',
+        'message' => 'You currently have 18 Amazon inventory products.',
+    ]);
+
+    // Admin message
+    AiChatMessage::create([
+        'shop_id' => $shop->id,
+        'role'    => 'admin',
+        'message' => 'Hello from support!',
+    ]);
+
+    $res = $this->withSession(testAuthSession($shop))->getJson(route('shopify.ai.chat.messages'));
+    $res->assertOk();
+    $res->assertJsonCount(3, 'messages');
+
+    // Transient sync message is excluded
+    $res->assertJsonMissing(['message' => 'Synchronizing Amazon inventory...']);
+
+    // Normal messages are fully preserved
+    $res->assertJsonFragment(['message' => 'Show my inventory.']);
+    $res->assertJsonFragment(['message' => 'You currently have 18 Amazon inventory products.']);
+    $res->assertJsonFragment(['message' => 'Hello from support!']);
+});
