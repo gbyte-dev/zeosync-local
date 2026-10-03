@@ -275,12 +275,12 @@
                             Cancel Subscription
                         </button>
                     </form>
-                    <!-- @else
+                    {{--@else
                     <button type="button" class="btn btn-primary btn-sm text-nowrap"
                         data-bs-toggle="modal" data-bs-target="#addPlanToShopModal">
                         Add Plan
                     </button>
-                    @endif -->
+                    @endif --}}
 
                 </div>
             </div>
