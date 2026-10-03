@@ -2,34 +2,34 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\ProductSchema;
-use Illuminate\Support\Facades\DB;
-use App\Services\Amazon\SchemaParser;
-use App\Models\AllProduct as Product;
-use App\Models\ProductAttribute;
-use Illuminate\Support\Str;
-use App\Services\Amazon\SchemaRendererService;
-use App\Http\Controllers\TestController;
-use App\Models\Category;
-use App\Models\Shop;
-use App\Models\AllProduct;
-use App\Models\ProductMarketplaceMapping;
-use App\Models\ProductSyncLog;
-use Illuminate\Support\Facades\Session;
 use App\Http\Controllers\ShopifyController;
-use App\Services\ProductLimitService;
-use App\Models\ShopSubscription;
-use App\Services\TransformsAmazonAttributes;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use App\Services\AI\AIAutoFillService;
-use App\Services\AIFeatureService;
-use Illuminate\Support\Facades\Http;
+use App\Http\Controllers\TestController;
 use App\Models\AdminSetting;
+use App\Models\AllProduct;
+use App\Models\AllProduct as Product;
+use App\Models\Category;
+use App\Models\ProductAttribute;
+use App\Models\ProductMarketplaceMapping;
+use App\Models\ProductSchema;
+use App\Models\ProductSyncLog;
+use App\Models\Shop;
+use App\Models\ShopSubscription;
+use App\Services\AI\AIAutoFillService;
+use App\Services\Amazon\SchemaParser;
+use App\Services\Amazon\SchemaRendererService;
+use App\Services\AIFeatureService;
 use App\Services\AmazonSuccessfulListingService;
+use App\Services\ProductLimitService;
+use App\Services\TransformsAmazonAttributes;
 use App\Services\UserNotificationService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ProductSchemaController extends Controller
 {
@@ -37,6 +37,7 @@ class ProductSchemaController extends Controller
     private readonly AIAutoFillService $aiAutoFillService;
     private readonly AIFeatureService $aiFeatureService;
     private AmazonSuccessfulListingService $amazonSuccessfulListingService;
+
     public function __construct()
     {
         $this->aiAutoFillService = app(AIAutoFillService::class);
@@ -80,15 +81,18 @@ class ProductSchemaController extends Controller
         }
         return $path . '?shop=' . urlencode($shopDomain);
     }
+
     public function index()
     {
         $schemas = ProductSchema::latest()->paginate(20);
         return view('schema.index', compact('schemas'));
     }
+
     public function create()
     {
         return view('schema.create');
     }
+
     public function addProductCategory(Request $request)
     {
         $categories = ProductSchema::WithRequiredColumns()->where('is_active', 1)->get();
@@ -104,6 +108,7 @@ class ProductSchemaController extends Controller
         }
         return view('schema.products.selectcategory', compact('categories'));
     }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -119,7 +124,7 @@ class ProductSchemaController extends Controller
             return back()->withErrors(['schema_file' => 'Invalid JSON']);
         }
         $productType = basename($schemaJson['$id'] ?? uniqid());
-        $renderer =  new SchemaRendererService($schemaJson);
+        $renderer = new SchemaRendererService($schemaJson);
         $fields = $renderer->render();
         ProductSchema::updateOrCreate(
             [
@@ -139,6 +144,7 @@ class ProductSchemaController extends Controller
             'Schema imported successfully.'
         );
     }
+
     public function productcreate(Request $request, $schemaId)
     {
         $activeShop = $this->getActiveShopModel($request);
@@ -187,8 +193,7 @@ class ProductSchemaController extends Controller
                     continue;
                 }
 
-                if ( $value === null || $value === '' ||  is_array($value)
-                ) {
+                if ($value === null || $value === '' || is_array($value)) {
                     continue;
                 }
 
@@ -236,16 +241,13 @@ class ProductSchemaController extends Controller
                 'merchant_release_date',
                 'title_differentiation',
             ])) {
-
                 $tabs['product'][] = $field;
             } elseif (str_contains($name, 'image')) {
-
                 $tabs['images'][] = $field;
             } elseif (
                 str_contains($name, 'variation') ||
                 str_contains($name, 'parent')
             ) {
-
                 $tabs['variations'][] = $field;
             } elseif (in_array($name, [
                 'color',
@@ -261,7 +263,6 @@ class ProductSchemaController extends Controller
                 'item_package_weight',
                 'item_display_weight',
             ])) {
-
                 $tabs['attributes'][] = $field;
             } elseif (in_array($name, [
                 'list_price',
@@ -295,30 +296,27 @@ class ProductSchemaController extends Controller
                 'baa_taa_compliance_acknowledgement',
                 'taa_compliant_country',
             ])) {
-
                 $tabs['product_rules'][] = $field;
             } elseif (in_array($name, [
-                "batteries_required",
-                "batteries_included",
-                "battery",
-                "num_batteries",
-                "number_of_lithium_metal_cells",
-                "number_of_lithium_ion_cells",
-                "lithium_battery",
-                "has_multiple_battery_powered_components",
-                "contains_battery_or_cell",
-                "battery_contains_free_unabsorbed_liquid",
-                "is_battery_non_spillable",
-                "non_lithium_battery_packaging",
-                "has_replaceable_battery",
-                "non_lithium_battery_energy_content",
-                "has_less_than_30_percent_state_of_charge",
-                "battery_installation_device_type"
+                'batteries_required',
+                'batteries_included',
+                'battery',
+                'num_batteries',
+                'number_of_lithium_metal_cells',
+                'number_of_lithium_ion_cells',
+                'lithium_battery',
+                'has_multiple_battery_powered_components',
+                'contains_battery_or_cell',
+                'battery_contains_free_unabsorbed_liquid',
+                'is_battery_non_spillable',
+                'non_lithium_battery_packaging',
+                'has_replaceable_battery',
+                'non_lithium_battery_energy_content',
+                'has_less_than_30_percent_state_of_charge',
+                'battery_installation_device_type'
             ])) {
-
                 $tabs['battery_specs'][] = $field;
             } else {
-
                 $tabs['other'][] = $field;
             }
         }
@@ -339,6 +337,7 @@ class ProductSchemaController extends Controller
             )
         );
     }
+
     public function productEdit($productid)
     {
         $activeShop = $this->getActiveShopModel();
@@ -367,10 +366,9 @@ class ProductSchemaController extends Controller
         $autofilledFields = [];
 
         foreach ($amazonDbAutofill as $fieldName => $value) {
-
             $attribute = $prodAttri->firstWhere('attribute_name', $fieldName);
-            $previousValue = $attribute ? trim((string)$attribute->attribute_value) : '';
-            $newValue = is_array($value) ? json_encode($value) : trim((string)$value);
+            $previousValue = $attribute ? trim((string) $attribute->attribute_value) : '';
+            $newValue = is_array($value) ? json_encode($value) : trim((string) $value);
 
             if ($newValue !== '' && $previousValue !== $newValue) {
                 $autofilledFields[] = strtolower($fieldName);
@@ -405,7 +403,6 @@ class ProductSchemaController extends Controller
             'other' => [],
         ];
         foreach ($fields as $field) {
-
             $name = strtolower($field['name']);
 
             if (in_array($name, [
@@ -429,13 +426,10 @@ class ProductSchemaController extends Controller
                 'merchant_release_date',
                 'title_differentiation',
             ])) {
-
                 $tabs['product'][] = $field;
             } elseif (str_contains($name, 'image')) {
-
                 $tabs['images'][] = $field;
             } elseif (str_contains($name, 'variation') || str_contains($name, 'parent')) {
-
                 $tabs['variations'][] = $field;
             } elseif (in_array($name, [
                 'color',
@@ -451,7 +445,6 @@ class ProductSchemaController extends Controller
                 'item_package_weight',
                 'item_display_weight',
             ])) {
-
                 $tabs['attributes'][] = $field;
             } elseif (in_array($name, [
                 'list_price',
@@ -485,30 +478,27 @@ class ProductSchemaController extends Controller
                 'baa_taa_compliance_acknowledgement',
                 'taa_compliant_country',
             ])) {
-
                 $tabs['product_rules'][] = $field;
             } elseif (in_array($name, [
-                "batteries_required",
-                "batteries_included",
-                "battery",
-                "num_batteries",
-                "number_of_lithium_metal_cells",
-                "number_of_lithium_ion_cells",
-                "lithium_battery",
-                "has_multiple_battery_powered_components",
-                "contains_battery_or_cell",
-                "battery_contains_free_unabsorbed_liquid",
-                "is_battery_non_spillable",
-                "non_lithium_battery_packaging",
-                "has_replaceable_battery",
-                "non_lithium_battery_energy_content",
-                "has_less_than_30_percent_state_of_charge",
-                "battery_installation_device_type"
+                'batteries_required',
+                'batteries_included',
+                'battery',
+                'num_batteries',
+                'number_of_lithium_metal_cells',
+                'number_of_lithium_ion_cells',
+                'lithium_battery',
+                'has_multiple_battery_powered_components',
+                'contains_battery_or_cell',
+                'battery_contains_free_unabsorbed_liquid',
+                'is_battery_non_spillable',
+                'non_lithium_battery_packaging',
+                'has_replaceable_battery',
+                'non_lithium_battery_energy_content',
+                'has_less_than_30_percent_state_of_charge',
+                'battery_installation_device_type'
             ])) {
-
                 $tabs['battery_specs'][] = $field;
             } else {
-
                 $tabs['other'][] = $field;
             }
         }
@@ -522,17 +512,15 @@ class ProductSchemaController extends Controller
                 'external_product_id',
                 'external_product_identifier',
             ],
-
             'material' => [
                 'fabric_type',
             ],
-
             'apparel_size_class' => [
                 'apparel_size',
             ],
         ];
 
-        $isAttributeAutofilled = function(string $attr) use ($autofilledFields, $fieldAlias): bool {
+        $isAttributeAutofilled = function (string $attr) use ($autofilledFields, $fieldAlias): bool {
             $attr = strtolower($attr);
             if (in_array($attr, $autofilledFields, true)) {
                 return true;
@@ -557,9 +545,7 @@ class ProductSchemaController extends Controller
         $visibleAmazonErrors = [];
 
         if (is_array($amazonErrors)) {
-
             foreach ($amazonErrors as $error) {
-
                 if (!is_array($error)) {
                     $visibleAmazonErrors[] = $error;
                     continue;
@@ -570,7 +556,7 @@ class ProductSchemaController extends Controller
                     $error['attributeNames'] ?? []
                 );
 
-                $rawPath = strtolower(trim((string)($error['path'] ?? '')));
+                $rawPath = strtolower(trim((string) ($error['path'] ?? '')));
                 $normalizedPath = preg_replace('#^/?(attributes[/.]?)?#i', '', $rawPath);
 
                 $isResolved = false;
@@ -599,9 +585,7 @@ class ProductSchemaController extends Controller
         }
 
         if (is_array($visibleAmazonErrors)) {
-
             foreach ($visibleAmazonErrors as $error) {
-
                 if (!is_array($error)) {
                     continue;
                 }
@@ -612,7 +596,7 @@ class ProductSchemaController extends Controller
                     continue;
                 }
 
-                $path = strtolower(preg_replace('#^/?(attributes[/.]?)?#i', '', trim((string)($error['path'] ?? ''))));
+                $path = strtolower(preg_replace('#^/?(attributes[/.]?)?#i', '', trim((string) ($error['path'] ?? ''))));
 
                 $attributeNames = array_map(
                     'strtolower',
@@ -620,9 +604,7 @@ class ProductSchemaController extends Controller
                 );
 
                 foreach ($tabs as $tabName => $tabFields) {
-
                     foreach ($tabFields as $field) {
-
                         $fieldName = strtolower($field['name'] ?? '');
                         if (!$fieldName) {
                             continue;
@@ -632,15 +614,13 @@ class ProductSchemaController extends Controller
                         $matched = false;
 
                         foreach ($attributeNames as $attribute) {
-
-                            if ( $attribute === $fieldName || in_array($attribute, $aliases, true)
-                            ) {
+                            if ($attribute === $fieldName || in_array($attribute, $aliases, true)) {
                                 $matched = true;
                                 break;
                             }
                         }
 
-                        if ( $matched || ($path !== '' && $path === $fieldName) ) {
+                        if ($matched || ($path !== '' && $path === $fieldName)) {
                             $tabErrorFields[$tabName][$fieldName] = true;
                             break 2;
                         }
@@ -666,14 +646,15 @@ class ProductSchemaController extends Controller
 
         return view(
             'schema.products.create',
-            compact( 'tabs', 'schema', 'fields',  'requiredFields', 'productshow',
+            compact('tabs', 'schema', 'fields', 'requiredFields', 'productshow',
                 'prodAttri', 'canUseAiAutoFill', 'canUseAiSingleField',
-                'tabErrorCounts', 'fieldSuggestions', 'autofillCount', 'visibleAmazonErrors', 'autofilledFields'  )
-            );
+                'tabErrorCounts', 'fieldSuggestions', 'autofillCount', 'visibleAmazonErrors', 'autofilledFields')
+        );
     }
 
-    public function productstore( Request $request,  ProductLimitService $productLimitService,
-        $product_id = null ) {
+    public function productstore(Request $request, ProductLimitService $productLimitService,
+        $product_id = null)
+    {
         $activeShop = $this->getActiveShopModel($request);
         if (!$activeShop) {
             abort(404, 'Active shop not found.');
@@ -706,7 +687,8 @@ class ProductSchemaController extends Controller
         if (!isset($product_id)) {
             $limitStatus = $productLimitService->canCreateProduct($shop_id);
             if (!$limitStatus['allowed']) {
-                return redirect()->back()
+                return redirect()
+                    ->back()
                     ->withInput()
                     ->withErrors([
                         'product_limit' => $limitStatus['message']
@@ -770,14 +752,15 @@ class ProductSchemaController extends Controller
         if ($request->save_draft) {
             return redirect()->route('admin.product.productEdit', [
                 'product' => $product_id,
-                'shop'    => $activeShop->shop,
+                'shop' => $activeShop->shop,
             ])->with('success', 'Product Saved as Draft');
         }
         return redirect()->route('admin.product.generatePayload', [
             'product' => $product_id,
-            'shop'    => $activeShop->shop,
+            'shop' => $activeShop->shop,
         ]);
     }
+
     public function generatePayload(Product $product, $type = 'main', $fields = []): array
     {
         $attributes = [];
@@ -790,9 +773,9 @@ class ProductSchemaController extends Controller
                 array_push($requireddata, $requiredField['name']);
             }
         }
-        
+
         foreach ($product->attributes as $attribute) {
-            $name  = $attribute->attribute_name;
+            $name = $attribute->attribute_name;
             $value = $attribute->attribute_value;
 
             if (is_string($value)) {
@@ -804,7 +787,7 @@ class ProductSchemaController extends Controller
                     }
                 }
 
-                if(is_string($value)) {
+                if (is_string($value)) {
                     $value = str_replace('"', '', $value);
                     $value = trim($value);
                 }
@@ -845,7 +828,7 @@ class ProductSchemaController extends Controller
             };
 
             if (in_array($canonicalName, ['seat_depth', 'seat_width', 'seat_height'], true)) {
-                $seatPart = $transformer->transformAttribute($canonicalName, $value,$product->attributes);
+                $seatPart = $transformer->transformAttribute($canonicalName, $value, $product->attributes);
 
                 if ($seatPart !== null) {
                     $attributes['seat'][0] = array_merge(
@@ -857,15 +840,14 @@ class ProductSchemaController extends Controller
                 continue;
             }
 
-
-            $transformed = $transformer->transformAttribute($canonicalName, $value,$product->attributes);
-            if ($transformed === null) {
+            $transformed = $transformer->transformAttribute($canonicalName, $value, $product->attributes);
+            if ($transformed === null || (is_array($transformed) && empty($transformed))) {
                 continue;
             }
             $attributes[$canonicalName] = $transformed;
         }
         if (!empty($lensData)) {
-            $lensTransformed = $transformer->transformAttribute('lens', $lensData,$product->attributes);
+            $lensTransformed = $transformer->transformAttribute('lens', $lensData, $product->attributes);
             if ($lensTransformed !== null) {
                 $attributes['lens'] = $lensTransformed;
             }
@@ -873,15 +855,16 @@ class ProductSchemaController extends Controller
 
         return [
             'requirements' => 'LISTING',
-            'attributes'   => $attributes,
+            'attributes' => $attributes,
         ];
     }
+
     public function aiAutoFill(Request $request)
     {
         $request->validate([
-            'product_name'        => ['required', 'string'],
+            'product_name' => ['required', 'string'],
             'product_description' => ['nullable', 'string'],
-            'category'            => ['required', 'string'],
+            'category' => ['required', 'string'],
         ]);
         $activeShop = Shop::where('shop', $request->input('shop'))
             ->where('is_active', 1)
@@ -907,22 +890,23 @@ class ProductSchemaController extends Controller
             return response()->json($result);
         } catch (\Throwable $e) {
             \Log::error('AI AutoFill Failed', [
-                'message'     => $e->getMessage(),
-                'product'     => $request->product_name,
-                'category'    => $request->category,
+                'message' => $e->getMessage(),
+                'product' => $request->product_name,
+                'category' => $request->category,
                 'description' => $request->product_description,
             ]);
             return response()->json([
                 'success' => false,
-                'errors'  => ['Failed to generate AI listing.'],
-                'data'    => [],
+                'errors' => ['Failed to generate AI listing.'],
+                'data' => [],
             ], 500);
         }
     }
+
     public function buildListingRequest(Product $product)
     {
         $activeShop = $this->getActiveShopModel();
-        abort_if(!$activeShop || (int)$product->user_id !== (int)$activeShop->id, 404);
+        abort_if(!$activeShop || (int) $product->user_id !== (int) $activeShop->id, 404);
 
         try {
             if ($product->parent_id) {
@@ -941,7 +925,6 @@ class ProductSchemaController extends Controller
                 $payload3 = $testcontroller->createOnlyputListing($payload2, $sku);
             }
             if (isset($payload3['status']) && ($payload3['status'] == 'INVALID')) {
-
                 $successfulListing = $this->amazonSuccessfulListingService->findFor($product);
 
                 $failedFields = collect($payload3['issues'] ?? [])
@@ -988,17 +971,18 @@ class ProductSchemaController extends Controller
                 // if (!$successfulListing) {
 
                 if (false && !$successfulListing) {
-
                     Log::info('AMAZON ERROR AI AUTOFILL FALLBACK START', [
                         'product_id' => $product->id,
                         'failed_fields' => $failedFields,
                     ]);
 
-                    $productName = $product->attributes
+                    $productName = $product
+                        ->attributes
                         ->firstWhere('attribute_name', 'item_name')
                         ?->attribute_value ?? '';
 
-                    $productDescription = $product->attributes
+                    $productDescription = $product
+                        ->attributes
                         ->firstWhere('attribute_name', 'product_description')
                         ?->attribute_value ?? '';
 
@@ -1041,15 +1025,18 @@ class ProductSchemaController extends Controller
                         : ($payload3['issues'] ?? 'Amazon listing validation failed.')
                 );
 
-                return redirect()->route('admin.product.productEdit', [
-                    'product' => $product->id,
-                    'shop' => request('shop'),
-                ])
+                return redirect()
+                    ->route('admin.product.productEdit', [
+                        'product' => $product->id,
+                        'shop' => request('shop'),
+                    ])
                     ->with('errors_amazon', $payload3['issues'])
                     ->with('amazon_db_autofill', $matchedData);
             }
             $generatejson = $this->generatejson($product->id);
             $prodAttributes['sku'] = $product->sku;
+            $prodAttributes['submission_id'] = $payload3['submissionId'] ?? null;
+            $prodAttributes['submission_status'] = $payload3['status'] ?? 'ACCEPTED';
             $this->updateSyncAmazon($product->id, $prodAttributes);
             $product->status = $payload3['status'];
             $product->submission_status = $payload3['submissionId'];
@@ -1103,26 +1090,27 @@ class ProductSchemaController extends Controller
             ], 500);
         }
     }
+
     public function addChildListing(Product $product)
     {
         $activeShop = $this->getActiveShopModel();
-        abort_if(!$activeShop || (int)$product->user_id !== (int)$activeShop->id, 404);
+        abort_if(!$activeShop || (int) $product->user_id !== (int) $activeShop->id, 404);
 
         $parentproduct = Product::where('id', $product->parent_id)
             ->where('user_id', $activeShop->id)
             ->firstOrFail();
-        $parentSku =  $parentproduct->sku;
+        $parentSku = $parentproduct->sku;
         $schema = ProductSchema::findOrFail($product->schema_id);
         $fields = $schema->parsed_json;
         $attributes = $this->generatePayload($product, 'child')['attributes'];
         $testcontroller = new TestController();
         // Override for child
-        $attributes['parentage_level']            = [['value' => 'child']];
+        $attributes['parentage_level'] = [['value' => 'child']];
         $attributes['child_parent_sku_relationship'] = [[
             'child_relationship_type' => 'variation',
-            'parent_sku'              => $parentSku,
+            'parent_sku' => $parentSku,
         ]];
-        $newsku =  $product->sku;
+        $newsku = $product->sku;
         $payload2 = $testcontroller->createOnlyListing($attributes, $schema->product_type ?? 'KEYBOARDS');
         $payload3 = $testcontroller->createOnlyputListing($payload2, $newsku);
         return ['payload' => $attributes, 'payload2' => $payload2, 'payload3' => $payload3, 'sku' => $newsku ?? ''];
@@ -1139,10 +1127,12 @@ class ProductSchemaController extends Controller
                 'attachment; filename="' . strtolower($category) . '_schema.json"'
             );
     }
+
     public function generatejson(int $productId): array
     {
         $attributes = ProductAttribute::where('product_id', $productId)
-            ->orderBy('id')->get();
+            ->orderBy('id')
+            ->get();
         $json = [];
         foreach ($attributes as $attribute) {
             $key = trim($attribute->attribute_name);
@@ -1161,6 +1151,7 @@ class ProductSchemaController extends Controller
         }
         return $json;
     }
+
     public function showProducts($product_id = null)
     {
         $activeShop = $this->getActiveShopModel();
@@ -1184,22 +1175,21 @@ class ProductSchemaController extends Controller
             }
 
             $products = app(\App\Services\AmazonProductQueryService::class)->getProductsForShop($shop_id, (int) $product_id);
-           
+
             $parent_productid = $product_id;
         }
-         
+
         return view('schema.products.index', compact('products', 'parent_productid', 'productLimitReached'));
     }
-
 
     public function generateField(Request $request)
     {
         $request->validate([
-            'product_name'      => ['required', 'string'],
-            'category'          => ['required', 'string'],
-            'field'             => ['required', 'string'],
+            'product_name' => ['required', 'string'],
+            'category' => ['required', 'string'],
+            'field' => ['required', 'string'],
             'field_description' => ['nullable', 'string'],
-            'field_hint'        => ['nullable', 'string'],
+            'field_hint' => ['nullable', 'string'],
         ]);
         $activeShop = Shop::where('shop', $request->input('shop'))
             ->where('is_active', 1)
@@ -1228,7 +1218,7 @@ class ProductSchemaController extends Controller
         } catch (\Throwable $e) {
             \Log::error('AI Field Generation Failed', [
                 'message' => $e->getMessage(),
-                'field'   => $request->field,
+                'field' => $request->field,
             ]);
             return response()->json([
                 'success' => false,
@@ -1294,10 +1284,11 @@ class ProductSchemaController extends Controller
             return response()->json(['success' => false, 'message' => 'Failed to check SKU: ' . $e->getMessage()], 500);
         }
     }
+
     public function removeDrafts(Product $product)
     {
         $activeShop = $this->getActiveShopModel();
-        abort_if(!$activeShop || (int)$product->user_id !== (int)$activeShop->id, 404);
+        abort_if(!$activeShop || (int) $product->user_id !== (int) $activeShop->id, 404);
 
         ProductAttribute::where('product_id', $product->id)->delete();
         $product->delete();
@@ -1327,7 +1318,8 @@ class ProductSchemaController extends Controller
 
             ProductMarketplaceMapping::where('shop_id', $shopId)
                 ->where(function ($q) use ($sku) {
-                    $q->where('amazon_parent_sku', $sku)
+                    $q
+                        ->where('amazon_parent_sku', $sku)
                         ->orWhere('amazon_sku', $sku);
                 })
                 ->delete();
@@ -1342,6 +1334,7 @@ class ProductSchemaController extends Controller
         }
         return $activeShop->id;
     }
+
     public function SyncAmazonProductToShopify(Request $request, $sku)
     {
         $shopId = $this->getShopIdFromSession();
@@ -1356,12 +1349,14 @@ class ProductSchemaController extends Controller
 
         if ($availability['status'] === 'NOT_FOUND') {
             self::deleteStaleAmazonProduct($sku, $shopId);
-            return redirect()->route('user.product.showProducts', ['shop' => $activeShop])
+            return redirect()
+                ->route('user.product.showProducts', ['shop' => $activeShop])
                 ->with('error', 'This action cannot be completed because this product is no longer available on Amazon. It may have been deleted or removed.');
         }
 
         if ($availability['status'] === 'API_ERROR') {
-            return redirect()->route('user.product.showProducts', ['shop' => $activeShop])
+            return redirect()
+                ->route('user.product.showProducts', ['shop' => $activeShop])
                 ->with('error', $availability['error'] ?? 'Unable to fetch product details from Amazon.');
         }
 
@@ -1369,8 +1364,10 @@ class ProductSchemaController extends Controller
         if (!$productdata) {
             return redirect()->route('user.product.showProducts', ['shop' => $activeShop])->with('error', 'Product not found.');
         }
-        $product = Product::with('attributes', 'schema')->where('sku', $sku)
-            ->where('user_id', $shopId)->first();
+        $product = Product::with('attributes', 'schema')
+            ->where('sku', $sku)
+            ->where('user_id', $shopId)
+            ->first();
 
         if (!$product) {
             $product = $this->addProductToDbNotExists($productdata);
@@ -1404,6 +1401,7 @@ class ProductSchemaController extends Controller
         );
         return $productmain;
     }
+
     public function map(array $attributes, string $sku = '', array $childSkus = []): array
     {
         $hasVariations = !empty($childSkus);
@@ -1464,6 +1462,7 @@ class ProductSchemaController extends Controller
             ]
         ];
     }
+
     private static function shopifyVariants(array $attributes, array $childSkus, array $options = [], string $mainSku = '', array $images = []): array
     {
         // No children → single variant
@@ -1504,17 +1503,19 @@ class ProductSchemaController extends Controller
         }
         return $variants;
     }
+
     private static function value(array $attributes, string $key, string $field = 'value', $default = null)
     {
         return $attributes[$key][0][$field] ?? $default;
     }
+
     private static function price(array $attributes)
     {
-        return
-            $attributes['list_price'][0]['value']
+        return $attributes['list_price'][0]['value']
             ?? $attributes['purchasable_offer'][0]['our_price'][0]['schedule'][0]['value_with_tax']
             ?? 0;
     }
+
     private static function tags(array $attributes): string
     {
         $tags = [];
@@ -1546,6 +1547,7 @@ class ProductSchemaController extends Controller
         }
         return implode(', ', array_unique($tags));
     }
+
     private static function images(array $attributes): array
     {
         $images = [];
@@ -1561,6 +1563,7 @@ class ProductSchemaController extends Controller
         }
         return array_values($images);
     }
+
     private static function variants(array $attributes): array
     {
         $map = [
@@ -1611,6 +1614,7 @@ class ProductSchemaController extends Controller
         }
         return $options;
     }
+
     private static function metafields(array $attributes): array
     {
         $skip = [
@@ -1644,11 +1648,13 @@ class ProductSchemaController extends Controller
             }
             $value = self::flatten($rows[0]);
             $meta[$field] = is_array($value)
-                ? ''  : (string) $value;
-            //json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                ? ''
+                : (string) $value;
+            // json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         }
         return $meta;
     }
+
     private static function flatten($value)
     {
         if (!is_array($value)) {
@@ -1666,6 +1672,7 @@ class ProductSchemaController extends Controller
         }
         return $value;
     }
+
     public function syncProduct($prodAttributes, $shop_id, $category = '')
     {
         $amzsku = $prodAttributes['variants'][0]['sku'] ?? $prodAttributes['sku'];
@@ -1684,7 +1691,8 @@ class ProductSchemaController extends Controller
         );
         return $productmap->id;
     }
-    /**     
+
+    /**
      * condition when product is on amzon and syncing to shopify
      */
     public function updateSyncShopify($syncid, $shopifyres)
@@ -1719,23 +1727,26 @@ class ProductSchemaController extends Controller
         $this->updatelog($data['shopify_product_id'], 'shopify', 'sync', false);
         return true;
     }
+
     public function syncProductShopify($prodAttributes, $shop_id, $product_id, $producttype)
     {
         $productmap = ProductMarketplaceMapping::updateOrCreate(
             [
                 'shop_id' => $shop_id,
-                'shopify_variant_id' => (string)$prodAttributes['shopify_variant_id'] ?? $prodAttributes['shopify_product_id'],
-                'shopify_product_id' => (string)$prodAttributes['shopify_product_id']
+                'shopify_variant_id' => (string) ($prodAttributes['shopify_variant_id'] ?? $prodAttributes['shopify_product_id']),
+                'shopify_product_id' => (string) $prodAttributes['shopify_product_id']
             ],
             [
                 'product_id' => $product_id ?? '',
                 'amazon_product_type' => $producttype,
-                'shopify_inventory_item_id' => (string)$prodAttributes['shopify_inventory_item_id'] ?? null,
+                'shopify_inventory_item_id' => (string) ($prodAttributes['shopify_inventory_item_id'] ?? null),
+                'shopify_location_id' => isset($prodAttributes['shopify_location_id']) ? (string) $prodAttributes['shopify_location_id'] : null,
                 'sync_status' => 'pending'
             ]
         );
         return $productmap->id;
     }
+
     public function updateSyncAmazon($productid, $prodAttributes)
     {
         $productmappped = \App\Models\Product::where('amazon_product_id', $productid)->first();
@@ -1744,7 +1755,7 @@ class ProductSchemaController extends Controller
             return;
         }
         $shopifyid = $productmappped->shopify_id;
-        $shopId = $this->getShopIdFromSession();
+        $shopId = $this->getShopIdFromSession() ?? $productmappped->shop_id ?? $productmappped->user_id;
         $data = [];
         if (isset($prodAttributes['variants'])) {
             $data['amazon_sku'] = $prodAttributes['variants']['sku'] ?? $prodAttributes['sku'];
@@ -1755,6 +1766,11 @@ class ProductSchemaController extends Controller
             $data['amazon_parent_sku'] = $prodAttributes['sku'];
             $data['sync_status'] = 'active';
         }
+        if (isset($prodAttributes['submission_id'])) {
+            $data['submission_id'] = $prodAttributes['submission_id'];
+            $data['submission_status'] = $prodAttributes['submission_status'] ?? 'ACCEPTED';
+        }
+        $data['last_synced_at'] = now();
         $updated = ProductMarketplaceMapping::where('shop_id', $shopId)
             ->where('shopify_product_id', $shopifyid)
             ->update($data);
@@ -1764,7 +1780,8 @@ class ProductSchemaController extends Controller
         $this->updatelog($productid, 'amazon', 'sync', false);
         return true;
     }
-    public function productstoreAmazon(array $attributes,  $schema_id = null, $product_id = null, $parent_id = null)
+
+    public function productstoreAmazon(array $attributes, $schema_id = null, $product_id = null, $parent_id = null)
     {
         return DB::transaction(function () use ($attributes, $product_id, $schema_id, $parent_id) {
             $activeShop = $this->getActiveShopModel();
@@ -1790,9 +1807,9 @@ class ProductSchemaController extends Controller
             // Create Product
             if (!$product_id) {
                 $productData = [
-                    'user_id'   => $shop_id,
+                    'user_id' => $shop_id,
                     'schema_id' => $schema_id,
-                    'sku'       => !empty($attributes['sku'])
+                    'sku' => !empty($attributes['sku'])
                         ? $attributes['sku']
                         : strtoupper(Str::random(12)),
                 ];
@@ -1820,7 +1837,7 @@ class ProductSchemaController extends Controller
                 }
                 ProductAttribute::updateOrCreate(
                     [
-                        'product_id'     => $product_id,
+                        'product_id' => $product_id,
                         'attribute_name' => $key,
                     ],
                     [
@@ -1831,6 +1848,7 @@ class ProductSchemaController extends Controller
             return $product_id;
         });
     }
+
     /**
      * Create a sync log entry and optionally remove the mapping record.
      *
@@ -1868,12 +1886,14 @@ class ProductSchemaController extends Controller
         $product_name = (string) $product_id;
         if ($platform === 'shopify') {
             $mappingQuery->where(function ($query) use ($product_id) {
-                $query->where('shopify_variant_id', (string) $product_id)
+                $query
+                    ->where('shopify_variant_id', (string) $product_id)
                     ->orWhere('shopify_product_id', (string) $product_id);
             });
         } else {
             $mappingQuery->where(function ($query) use ($product_id) {
-                $query->where('amazon_sku', (string) $product_id)
+                $query
+                    ->where('amazon_sku', (string) $product_id)
                     ->orWhere('amazon_parent_sku', (string) $product_id);
             });
 
@@ -1934,7 +1954,7 @@ class ProductSchemaController extends Controller
                 ucfirst($platform),
                 $product_name,
                 $mappingDetails,
-                $error ?  '.' : ''
+                $error ? '.' : ''
             );
         } else {
             switch ($normalizedType) {
@@ -1984,14 +2004,15 @@ class ProductSchemaController extends Controller
         }
         ProductSyncLog::create([
             'product_id' => $product_id,
-            'shop_id'    => $shop_id,
-            'platform'   => $platform,
-            'status'     => $status,
-            'message'    => $message,
-            'type'       => $normalizedType,
+            'shop_id' => $shop_id,
+            'platform' => $platform,
+            'status' => $status,
+            'message' => $message,
+            'type' => $normalizedType,
         ]);
         return true;
     }
+
     public function importSchema($category)
     {
         try {
@@ -2067,6 +2088,7 @@ class ProductSchemaController extends Controller
             return back()->withErrors(['schema_file' => 'An unexpected internal error occurred while processing the schema.']);
         }
     }
+
     public function deactivateSchema($category)
     {
         $categoryModel = Category::where('slug', $category)->first();
@@ -2111,9 +2133,9 @@ class ProductSchemaController extends Controller
             }
 
             $response = Http::asJson()->post("https://{$shopModel->shop}/admin/oauth/access_token", [
-                'client_id'     => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
+                'client_id' => AdminSetting::get('SHOPIFY_API_KEY', config('services.shopify.api_key')),
                 'client_secret' => AdminSetting::get('SHOPIFY_API_SECRET', config('services.shopify.api_secret')),
-                'grant_type'    => 'refresh_token',
+                'grant_type' => 'refresh_token',
                 'refresh_token' => $shopModel->refresh_token,
             ]);
 

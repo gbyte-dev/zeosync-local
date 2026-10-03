@@ -3880,6 +3880,7 @@ class ShopifyController extends Controller
             $mapper = new ShopifyAmazonMapper();
             $mappedproduct = $mapper->map($product);
             $mappedproduct['shopify_inventory_item_id'] = $product['variants'][0]['inventory_item_id'] ?? '';
+            $mappedproduct['shopify_location_id'] = $locationId ?? null;
             if (isset($dbProduct) && ($dbProduct->sub_category_id != null)) {
                 $category = Category::where('id', $dbProduct->sub_category_id)->first();
 
@@ -3900,8 +3901,25 @@ class ShopifyController extends Controller
 
             $updatesync = new ProductSchemaController();
             $mapped_id = $updatesync->syncProductShopify($mappedproduct, $shopModel->id, $dbProduct->id, $producttype);
+
+            // Preserve Shopify price & quantity into Amazon standard attributes before unsetting
+            if (isset($mappedproduct['price']) && $mappedproduct['price'] !== '') {
+                $mappedproduct['purchasable_offer'] = $mappedproduct['price'];
+                $mappedproduct['list_price'] = $mappedproduct['price'];
+            }
+            if (isset($mappedproduct['quantity']) && $mappedproduct['quantity'] !== '') {
+                $mappedproduct['fulfillment_availability'] = json_encode([
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => (int) $mappedproduct['quantity'],
+                ]);
+            }
+            if (empty($mappedproduct['externally_assigned_product_identifier'])) {
+                unset($mappedproduct['externally_assigned_product_identifier']);
+            }
+
             unset($mappedproduct['shopify_product_id']);
             unset($mappedproduct['shopify_inventory_item_id']);
+            unset($mappedproduct['shopify_location_id']);
             unset($mappedproduct['shopify_variant_id']);
             unset($mappedproduct['sku']);
             unset($mappedproduct['other_product_image_locator']);
