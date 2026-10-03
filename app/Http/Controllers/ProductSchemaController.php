@@ -377,14 +377,27 @@ class ProductSchemaController extends Controller
             'attributes' => $prodAttri?->toArray(),
         ]);
 
+        $mappingId = request('mapping_id') ?? session('mapping_id_' . $productid) ?? session('current_mapping_id');
+        $mappingContext = $mappingId ? ProductMarketplaceMapping::where('shop_id', $activeShop->id)->find($mappingId) : null;
+        if ($mappingId) {
+            session(['mapping_id_' . $productid => $mappingId]);
+        }
+
+        Log::info('[MAPPING FLOW] DRAFT MAPPING CONTEXT', [
+            'product_id' => $productid,
+            'mapping_id' => $mappingContext?->id ?? $mappingId ?? null,
+            'shopify_product_id' => $mappingContext?->shopify_product_id ?? null,
+            'shopify_variant_id' => $mappingContext?->shopify_variant_id ?? null,
+        ]);
+
         Log::info('[SKU FLOW TRACE]', [
             'debug_id' => $debugId,
             'method' => 'ProductSchemaController::productEdit',
             'product_id' => $productshow->id ?? null,
-            'mapping_id' => null,
+            'mapping_id' => $mappingContext?->id ?? $mappingId ?? null,
             'shop_id' => $activeShop->id,
-            'shopify_product_id' => null,
-            'shopify_variant_id' => null,
+            'shopify_product_id' => $mappingContext?->shopify_product_id ?? null,
+            'shopify_variant_id' => $mappingContext?->shopify_variant_id ?? null,
             'sku' => $productshow->sku ?? null,
             'sku_source' => 'EXISTING_MAPPING',
             'amazon_sku' => null,
@@ -883,16 +896,23 @@ class ProductSchemaController extends Controller
             'amazon_parent_sku' => null,
         ]);
 
+        $mappingId = $request->input('mapping_id') ?? request('mapping_id') ?? session('mapping_id_' . $product_id) ?? session('current_mapping_id');
+        if ($mappingId) {
+            session(['mapping_id_' . $product_id => $mappingId, 'current_mapping_id' => $mappingId]);
+        }
+
         if ($request->save_draft) {
             return redirect()->route('admin.product.productEdit', [
                 'product' => $product_id,
                 'shop' => $activeShop->shop,
+                'mapping_id' => $mappingId,
                 'debug_id' => $debugId,
             ])->with('success', 'Product Saved as Draft');
         }
         return redirect()->route('admin.product.generatePayload', [
             'product' => $product_id,
             'shop' => $activeShop->shop,
+            'mapping_id' => $mappingId,
             'debug_id' => $debugId,
         ]);
     }
@@ -906,14 +926,25 @@ class ProductSchemaController extends Controller
             'product_id' => $product->id ?? null,
         ]);
 
+        $mappingId = request('mapping_id') ?? session('mapping_id_' . $product->id) ?? session('current_mapping_id');
+        $mappingContext = $mappingId ? ProductMarketplaceMapping::where('shop_id', $product->user_id)->find($mappingId) : null;
+
+        Log::info('[MAPPING FLOW] AMAZON SUBMIT CONTEXT', [
+            'product_id' => $product->id,
+            'mapping_id' => $mappingContext?->id ?? $mappingId ?? null,
+            'shopify_product_id' => $mappingContext?->shopify_product_id ?? null,
+            'shopify_variant_id' => $mappingContext?->shopify_variant_id ?? null,
+            'sku' => $product->sku,
+        ]);
+
         Log::info('[SKU FLOW TRACE]', [
             'debug_id' => $debugId,
             'method' => 'ProductSchemaController::generatePayload',
             'product_id' => $product->id,
-            'mapping_id' => null,
+            'mapping_id' => $mappingContext?->id ?? $mappingId ?? null,
             'shop_id' => $product->user_id,
-            'shopify_product_id' => null,
-            'shopify_variant_id' => null,
+            'shopify_product_id' => $mappingContext?->shopify_product_id ?? null,
+            'shopify_variant_id' => $mappingContext?->shopify_variant_id ?? null,
             'sku' => $product->sku,
             'sku_source' => 'EXISTING_MAPPING',
             'amazon_sku' => null,
@@ -1265,16 +1296,23 @@ class ProductSchemaController extends Controller
                 'submissionId' => $payload3['submissionId'] ?? null,
             ]);
 
+            Log::info('[MAPPING FLOW] ACCEPTED MAPPING CONTEXT', [
+                'product_id' => $product->id,
+                'mapping_id' => $mappingId,
+                'sku' => $product->sku,
+            ]);
+
             $generatejson = $this->generatejson($product->id);
             $prodAttributes['sku'] = $product->sku;
 
             Log::info('MAPPING DEBUG - BEFORE updateSyncAmazon CALL', [
                 'debug_id' => $debugId,
                 'product_id' => $product->id,
+                'mapping_id' => $mappingId,
                 'prodAttributes' => $prodAttributes,
             ]);
 
-            $this->updateSyncAmazon($product->id, $prodAttributes);
+            $this->updateSyncAmazon($product->id, $prodAttributes, $mappingId);
 
             Log::info('MAPPING DEBUG - PRODUCT STATUS UPDATE', [
                 'debug_id' => $debugId,
@@ -2015,6 +2053,13 @@ class ProductSchemaController extends Controller
             ]
         );
 
+        Log::info('[MAPPING FLOW] SOURCE MAPPING', [
+            'mapping_id' => $productmap->id,
+            'shop_id' => $productmap->shop_id,
+            'shopify_product_id' => $productmap->shopify_product_id,
+            'shopify_variant_id' => $productmap->shopify_variant_id,
+        ]);
+
         Log::info('MAPPING DEBUG - MAPPING DB STATE AFTER SYNC', [
             'debug_id' => $debugId,
             'mapping' => $productmap ? $productmap->fresh()->toArray() : null,
@@ -2023,13 +2068,14 @@ class ProductSchemaController extends Controller
         return $productmap->id;
     }
 
-    public function updateSyncAmazon($productid, $prodAttributes)
+    public function updateSyncAmazon($productid, $prodAttributes, $mappingId = null)
     {
         $debugId = request('debug_id') ?? session('mapping_debug_id') ?? (string) Str::uuid();
 
         Log::info('MAPPING DEBUG - UPDATE SYNC AMAZON START', [
             'debug_id' => $debugId,
             'product_id' => $productid,
+            'mapping_id' => $mappingId,
             'prodAttributes' => $prodAttributes,
         ]);
 
@@ -2053,29 +2099,43 @@ class ProductSchemaController extends Controller
         $shopifyid = $productmappped->shopify_id;
         $shopId = $this->getShopIdFromSession() ?? $productmappped->shop_id;
 
-        $shopifyVariantId = $prodAttributes['shopify_variant_id']
-            ?? $prodAttributes['variant_id']
-            ?? ($prodAttributes['variants']['id'] ?? ($prodAttributes['variants']['shopify_variant_id'] ?? null))
-            ?? ($productmappped->variants[0]['id'] ?? null);
+        $targetMappingId = $mappingId
+            ?? request('mapping_id')
+            ?? session('mapping_id_' . $productid)
+            ?? session('current_mapping_id');
 
         $mapping = null;
-        if (!empty($shopifyVariantId)) {
+        if (!empty($targetMappingId)) {
             $mapping = ProductMarketplaceMapping::where('shop_id', $shopId)
+                ->where('id', $targetMappingId)
                 ->where('shopify_product_id', (string) $shopifyid)
-                ->where('shopify_variant_id', (string) $shopifyVariantId)
                 ->first();
+        }
+
+        if (!$mapping) {
+            $shopifyVariantId = $prodAttributes['shopify_variant_id']
+                ?? $prodAttributes['variant_id']
+                ?? ($prodAttributes['variants']['id'] ?? ($prodAttributes['variants']['shopify_variant_id'] ?? null))
+                ?? ($productmappped->variants[0]['id'] ?? null);
+
+            if (!empty($shopifyVariantId)) {
+                $mapping = ProductMarketplaceMapping::where('shop_id', $shopId)
+                    ->where('shopify_product_id', (string) $shopifyid)
+                    ->where('shopify_variant_id', (string) $shopifyVariantId)
+                    ->first();
+            }
         }
 
         if (!$mapping) {
             Log::warning('[MAPPING UPDATE TRACE] MAPPING RECORD NOT FOUND', [
                 'debug_id' => $debugId,
                 'product_id' => $productid,
+                'mapping_id' => $targetMappingId,
                 'shopify_product_id' => $shopifyid,
-                'shopify_variant_id' => $shopifyVariantId,
                 'shop_id' => $shopId,
                 'prodAttributes' => $prodAttributes,
             ]);
-            $this->updatelog($productid, 'amazon', 'sync_failed', false, 'No matching ProductMarketplaceMapping found for variant: ' . ($shopifyVariantId ?? 'null'));
+            $this->updatelog($productid, 'amazon', 'sync_failed', false, 'No matching ProductMarketplaceMapping found for mapping_id: ' . ($targetMappingId ?? 'null'));
             return;
         }
 

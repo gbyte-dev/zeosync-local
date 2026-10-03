@@ -3952,11 +3952,17 @@ class ShopifyController extends Controller
                 ->where('shop_id', $shopModel->id)
                 ->update(['amazon_product_id' => $product_id]);
 
+            session([
+                'mapping_id_' . $product_id => $mapped_id,
+                'current_mapping_id' => $mapped_id,
+            ]);
+
             return redirect()->route(
                 'admin.product.productEdit',
                 [
                     'product' => $product_id,
                     'shop' => $shopModel->shop,
+                    'mapping_id' => $mapped_id,
                 ]
             )->with('success', 'Product all information to update');
         } catch (\Throwable $e) {

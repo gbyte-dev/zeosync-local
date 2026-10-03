@@ -213,6 +213,12 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                     @endif
                     @csrf
                     <input type="hidden" name="shop" value="{{ request('shop') }}">
+                    @php
+                        $activeMappingId = request('mapping_id') ?? session('mapping_id_' . ($productshow->id ?? '')) ?? session('current_mapping_id');
+                    @endphp
+                    @if(!empty($activeMappingId))
+                    <input type="hidden" name="mapping_id" value="{{ $activeMappingId }}">
+                    @endif
                     @if(isset($productshow) && ($productshow->status != 'draft' && $productshow->status != 'failed'))
                     <input type="hidden" name="parent_id" value="{{ $productshow->id }}">
                     @endif
