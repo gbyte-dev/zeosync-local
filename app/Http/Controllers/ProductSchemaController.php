@@ -2049,8 +2049,36 @@ class ProductSchemaController extends Controller
             $this->updatelog($productid, 'amazon', 'sync_failed', false, 'No matching product found for amazon_product_id.');
             return;
         }
+
         $shopifyid = $productmappped->shopify_id;
-        $shopId = $this->getShopIdFromSession();
+        $shopId = $this->getShopIdFromSession() ?? $productmappped->shop_id;
+
+        $shopifyVariantId = $prodAttributes['shopify_variant_id']
+            ?? $prodAttributes['variant_id']
+            ?? ($prodAttributes['variants']['id'] ?? ($prodAttributes['variants']['shopify_variant_id'] ?? null))
+            ?? ($productmappped->variants[0]['id'] ?? null);
+
+        $mapping = null;
+        if (!empty($shopifyVariantId)) {
+            $mapping = ProductMarketplaceMapping::where('shop_id', $shopId)
+                ->where('shopify_product_id', (string) $shopifyid)
+                ->where('shopify_variant_id', (string) $shopifyVariantId)
+                ->first();
+        }
+
+        if (!$mapping) {
+            Log::warning('[MAPPING UPDATE TRACE] MAPPING RECORD NOT FOUND', [
+                'debug_id' => $debugId,
+                'product_id' => $productid,
+                'shopify_product_id' => $shopifyid,
+                'shopify_variant_id' => $shopifyVariantId,
+                'shop_id' => $shopId,
+                'prodAttributes' => $prodAttributes,
+            ]);
+            $this->updatelog($productid, 'amazon', 'sync_failed', false, 'No matching ProductMarketplaceMapping found for variant: ' . ($shopifyVariantId ?? 'null'));
+            return;
+        }
+
         $data = [];
         if (isset($prodAttributes['variants'])) {
             $data['amazon_sku'] = $prodAttributes['variants']['sku'] ?? $prodAttributes['sku'];
@@ -2062,228 +2090,41 @@ class ProductSchemaController extends Controller
             $data['sync_status'] = 'active';
         }
 
-        $existingMapping = ProductMarketplaceMapping::where('shop_id', $shopId)
-            ->where('shopify_product_id', $shopifyid)
-            ->first();
-
-        $targetSku = $data['amazon_sku'] ?? null;
-
-        Log::info('[SKU FLOW TRACE]', [
-            'debug_id' => $debugId,
-            'method' => 'ProductSchemaController::updateSyncAmazon',
-            'product_id' => $productid,
-            'mapping_id' => $existingMapping?->id,
-            'shop_id' => $shopId,
-            'shopify_product_id' => $shopifyid,
-            'shopify_variant_id' => $existingMapping?->shopify_variant_id,
-            'sku' => $prodAttributes['sku'] ?? null,
-            'sku_source' => 'FORM',
-            'amazon_sku' => $data['amazon_sku'] ?? null,
-            'amazon_parent_sku' => $data['amazon_parent_sku'] ?? null,
-        ]);
-
-        Log::info('[MAPPING UPDATE TRACE] BEFORE UPDATE', [
-            'debug_id' => $debugId,
-            'mapping_id' => $existingMapping?->id,
-            'shop_id' => $shopId,
-            'product_id' => $productid,
-            'shopify_product_id' => $shopifyid,
-            'shopify_variant_id' => $existingMapping?->shopify_variant_id,
-            'shopify_inventory_item_id' => $existingMapping?->shopify_inventory_item_id,
-            'shopify_location_id' => $existingMapping?->shopify_location_id,
-            'current_amazon_sku' => $existingMapping?->amazon_sku,
-            'current_amazon_parent_sku' => $existingMapping?->amazon_parent_sku,
-            'current_sync_status' => $existingMapping?->sync_status,
-            'current_submission_status' => $existingMapping?->submission_status,
-            'current_submission_id' => $existingMapping?->submission_id,
-        ]);
-
-        Log::info('[MAPPING UPDATE TRACE] UPDATE DATA', [
-            'debug_id' => $debugId,
-            'target_sku' => $targetSku,
-            'update_data' => $data,
-        ]);
-
-        // [MAPPING COLLISION DEBUG] 1. TARGET
-        Log::info('[MAPPING COLLISION DEBUG] TARGET', [
-            'debug_id' => $debugId,
-            'shop_id' => $shopId,
-            'target_sku' => $targetSku,
-            'current_mapping_id' => $existingMapping?->id,
-            'current_mapping_amazon_sku' => $existingMapping?->amazon_sku,
-            'current_mapping_amazon_parent_sku' => $existingMapping?->amazon_parent_sku,
-            'current_mapping_product_id' => $existingMapping?->product_id,
-            'current_mapping_shopify_product_id' => $existingMapping?->shopify_product_id,
-            'current_mapping_shopify_variant_id' => $existingMapping?->shopify_variant_id,
-        ]);
-
-        // [MAPPING COLLISION DEBUG] 2 & 3. READ-ONLY OWNERSHIP QUERY & COMPLETE OWNER RESULT
-        $existingSkuOwners = ProductMarketplaceMapping::where('shop_id', $shopId)
-            ->where('amazon_sku', $targetSku)
-            ->get();
-
-        Log::info('[MAPPING COLLISION DEBUG] EXISTING SKU OWNER', [
-            'debug_id' => $debugId,
-            'shop_id' => $shopId,
-            'target_sku' => $targetSku,
-            'matching_count' => $existingSkuOwners->count(),
-            'matching_rows' => $existingSkuOwners->map(function ($row) {
-                return [
-                    'id' => $row->id,
-                    'shop_id' => $row->shop_id,
-                    'product_id' => $row->product_id,
-                    'shopify_product_id' => $row->shopify_product_id,
-                    'shopify_variant_id' => $row->shopify_variant_id,
-                    'shopify_inventory_item_id' => $row->shopify_inventory_item_id,
-                    'shopify_location_id' => $row->shopify_location_id,
-                    'amazon_sku' => $row->amazon_sku,
-                    'amazon_parent_sku' => $row->amazon_parent_sku,
-                    'sync_status' => $row->sync_status,
-                    'submission_status' => $row->submission_status,
-                    'submission_id' => $row->submission_id,
-                    'created_at' => (string) $row->created_at,
-                    'updated_at' => (string) $row->updated_at,
-                ];
-            })->toArray(),
-        ]);
-
-        // [MAPPING COLLISION DEBUG] 4. COMPARE CURRENT MAPPING
-        $ownerMappingIds = $existingSkuOwners->pluck('id')->toArray();
-        $ownerProductIds = $existingSkuOwners->pluck('product_id')->toArray();
-        $ownerShopifyProductIds = $existingSkuOwners->pluck('shopify_product_id')->toArray();
-        $sameMappingOwner = $existingMapping && in_array($existingMapping->id, $ownerMappingIds);
-
-        Log::info('[MAPPING COLLISION DEBUG] SKU COMPARISON', [
-            'debug_id' => $debugId,
-            'target_sku' => $targetSku,
-            'current_mapping_id' => $existingMapping?->id,
-            'current_mapping_amazon_sku' => $existingMapping?->amazon_sku,
-            'owner_mapping_ids' => $ownerMappingIds,
-            'owner_product_ids' => $ownerProductIds,
-            'owner_shopify_product_ids' => $ownerShopifyProductIds,
-            'same_mapping_owner' => $sameMappingOwner,
-        ]);
-
-        // [MAPPING COLLISION DEBUG] 5. CHECK ALL_PRODUCTS SEPARATELY
-        $allProductRows = Product::where('user_id', $shopId)
-            ->where('sku', $targetSku)
-            ->get();
-
-        Log::info('[MAPPING COLLISION DEBUG] ALL PRODUCT SKU', [
-            'debug_id' => $debugId,
-            'target_sku' => $targetSku,
-            'matching_count' => $allProductRows->count(),
-            'matching_rows' => $allProductRows->map(function ($p) {
-                return [
-                    'id' => $p->id,
-                    'user_id' => $p->user_id,
-                    'sku' => $p->sku,
-                    'schema_id' => $p->schema_id,
-                    'status' => $p->status,
-                    'created_at' => (string) $p->created_at,
-                    'updated_at' => (string) $p->updated_at,
-                ];
-            })->toArray(),
-        ]);
-
-        // [MAPPING COLLISION DEBUG] 6. LOG IMMEDIATELY BEFORE UPDATE
-        Log::info('[MAPPING COLLISION DEBUG] UPDATE ABOUT TO EXECUTE', [
-            'debug_id' => $debugId,
-            'mapping_id' => $existingMapping?->id,
-            'shop_id' => $shopId,
-            'shopify_product_id' => $shopifyid,
-            'old_amazon_sku' => $existingMapping?->amazon_sku,
-            'new_amazon_sku' => $data['amazon_sku'] ?? null,
-            'old_amazon_parent_sku' => $existingMapping?->amazon_parent_sku,
-            'new_amazon_parent_sku' => $data['amazon_parent_sku'] ?? null,
-            'new_sync_status' => $data['sync_status'] ?? null,
-        ]);
-
-        Log::info('[MAPPING UPDATE TRACE] QUERY START', [
-            'debug_id' => $debugId,
-            'target_sku' => $targetSku,
-            'shop_id' => $shopId,
-            'shopify_product_id' => $shopifyid,
-            'query' => 'UPDATE product_marketplace_mappings WHERE shop_id = ? AND shopify_product_id = ?',
-            'bindings' => [$shopId, $shopifyid, $data],
+        Log::info('[MAPPING UPDATE TRACE] TARGET MAPPING', [
+            'mapping_id' => $mapping->id ?? null,
+            'shop_id' => $mapping->shop_id ?? null,
+            'shopify_product_id' => $mapping->shopify_product_id ?? null,
+            'shopify_variant_id' => $mapping->shopify_variant_id ?? null,
+            'old_amazon_sku' => $mapping->amazon_sku ?? null,
+            'new_amazon_sku' => $prodAttributes['sku'] ?? null,
         ]);
 
         try {
-            $updated = ProductMarketplaceMapping::where('shop_id', $shopId)
-                ->where('shopify_product_id', $shopifyid)
-                ->update($data);
+            $mapping->update($data);
+            $mapping->refresh();
 
-            $freshMapping = ProductMarketplaceMapping::where('shop_id', $shopId)
-                ->where('shopify_product_id', $shopifyid)
-                ->first();
-
-            Log::info('[MAPPING UPDATE TRACE] QUERY SUCCESS', [
-                'debug_id' => $debugId,
-                'mapping_id' => $freshMapping?->id,
-                'affected_rows' => $updated,
-                'final_mapping_state' => $freshMapping ? $freshMapping->toArray() : null,
+            Log::info('[MAPPING UPDATE TRACE] TARGET MAPPING UPDATED', [
+                'mapping_id' => $mapping->id ?? null,
+                'amazon_sku' => $mapping->amazon_sku ?? null,
+                'amazon_parent_sku' => $mapping->amazon_parent_sku ?? null,
+                'sync_status' => $mapping->sync_status ?? null,
             ]);
         } catch (\Throwable $e) {
-            // [MAPPING COLLISION DEBUG] 7. DUPLICATE EXCEPTION
             Log::error('[MAPPING COLLISION DEBUG] DUPLICATE EXCEPTION', [
                 'debug_id' => $debugId,
                 'exception_class' => get_class($e),
                 'sqlstate' => method_exists($e, 'getCode') ? $e->getCode() : null,
                 'error_code' => $e->getCode(),
                 'exact_exception_message' => $e->getMessage(),
-                'target_sku' => $targetSku,
-                'mapping_id' => $existingMapping?->id,
+                'target_sku' => $data['amazon_sku'] ?? null,
+                'mapping_id' => $mapping->id ?? null,
                 'shop_id' => $shopId,
-                'current_amazon_sku' => $existingMapping?->amazon_sku,
+                'current_amazon_sku' => $mapping->amazon_sku ?? null,
                 'attempted_amazon_sku' => $data['amazon_sku'] ?? null,
             ]);
-
-            Log::error('[MAPPING UPDATE TRACE] QUERY EXCEPTION', [
-                'debug_id' => $debugId,
-                'exception_class' => get_class($e),
-                'sqlstate' => method_exists($e, 'getCode') ? $e->getCode() : null,
-                'error_code' => $e->getCode(),
-                'exact_exception_message' => $e->getMessage(),
-                'target_sku' => $targetSku,
-                'mapping_id' => $existingMapping?->id,
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            // [MAPPING COLLISION DEBUG] 8. AFTER EXCEPTION OWNERSHIP CHECK
-            $postExceptionMatches = ProductMarketplaceMapping::where('shop_id', $shopId)
-                ->where('amazon_sku', $targetSku)
-                ->get();
-
-            Log::info('[MAPPING COLLISION DEBUG] OWNER AFTER EXCEPTION', [
-                'debug_id' => $debugId,
-                'target_sku' => $targetSku,
-                'matching_count' => $postExceptionMatches->count(),
-                'matching_rows' => $postExceptionMatches->map(function ($row) {
-                    return [
-                        'id' => $row->id,
-                        'shop_id' => $row->shop_id,
-                        'product_id' => $row->product_id,
-                        'shopify_product_id' => $row->shopify_product_id,
-                        'shopify_variant_id' => $row->shopify_variant_id,
-                        'shopify_inventory_item_id' => $row->shopify_inventory_item_id,
-                        'shopify_location_id' => $row->shopify_location_id,
-                        'amazon_sku' => $row->amazon_sku,
-                        'amazon_parent_sku' => $row->amazon_parent_sku,
-                        'sync_status' => $row->sync_status,
-                        'submission_status' => $row->submission_status,
-                        'submission_id' => $row->submission_id,
-                        'created_at' => (string) $row->created_at,
-                        'updated_at' => (string) $row->updated_at,
-                    ];
-                })->toArray(),
-            ]);
-
             throw $e;
         }
 
-        if (!$updated) {
-            return;
-        }
         $this->updatelog($productid, 'amazon', 'sync', false);
         return true;
     }
