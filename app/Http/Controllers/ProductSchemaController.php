@@ -2104,41 +2104,99 @@ class ProductSchemaController extends Controller
             'update_data' => $data,
         ]);
 
-        // READ-ONLY: Check if target SKU already exists in product_marketplace_mappings
-        $matchingMappings = ProductMarketplaceMapping::where('shop_id', $shopId)
+        // [MAPPING COLLISION DEBUG] 1. TARGET
+        Log::info('[MAPPING COLLISION DEBUG] TARGET', [
+            'debug_id' => $debugId,
+            'shop_id' => $shopId,
+            'target_sku' => $targetSku,
+            'current_mapping_id' => $existingMapping?->id,
+            'current_mapping_amazon_sku' => $existingMapping?->amazon_sku,
+            'current_mapping_amazon_parent_sku' => $existingMapping?->amazon_parent_sku,
+            'current_mapping_product_id' => $existingMapping?->product_id,
+            'current_mapping_shopify_product_id' => $existingMapping?->shopify_product_id,
+            'current_mapping_shopify_variant_id' => $existingMapping?->shopify_variant_id,
+        ]);
+
+        // [MAPPING COLLISION DEBUG] 2 & 3. READ-ONLY OWNERSHIP QUERY & COMPLETE OWNER RESULT
+        $existingSkuOwners = ProductMarketplaceMapping::where('shop_id', $shopId)
             ->where('amazon_sku', $targetSku)
             ->get();
 
-        Log::info('[MAPPING SKU OWNERSHIP TRACE]', [
+        Log::info('[MAPPING COLLISION DEBUG] EXISTING SKU OWNER', [
             'debug_id' => $debugId,
-            'target_shop_id' => $shopId,
+            'shop_id' => $shopId,
             'target_sku' => $targetSku,
-            'matching_count' => $matchingMappings->count(),
-            'matching_mapping_ids' => $matchingMappings->pluck('id')->toArray(),
-            'matching_product_ids' => $matchingMappings->pluck('product_id')->toArray(),
-            'matching_shopify_product_ids' => $matchingMappings->pluck('shopify_product_id')->toArray(),
-            'matching_shopify_variant_ids' => $matchingMappings->pluck('shopify_variant_id')->toArray(),
-            'matching_amazon_skus' => $matchingMappings->pluck('amazon_sku')->toArray(),
-            'matching_sync_statuses' => $matchingMappings->pluck('sync_status')->toArray(),
-            'all_matching_rows' => $matchingMappings->toArray(),
+            'matching_count' => $existingSkuOwners->count(),
+            'matching_rows' => $existingSkuOwners->map(function ($row) {
+                return [
+                    'id' => $row->id,
+                    'shop_id' => $row->shop_id,
+                    'product_id' => $row->product_id,
+                    'shopify_product_id' => $row->shopify_product_id,
+                    'shopify_variant_id' => $row->shopify_variant_id,
+                    'shopify_inventory_item_id' => $row->shopify_inventory_item_id,
+                    'shopify_location_id' => $row->shopify_location_id,
+                    'amazon_sku' => $row->amazon_sku,
+                    'amazon_parent_sku' => $row->amazon_parent_sku,
+                    'sync_status' => $row->sync_status,
+                    'submission_status' => $row->submission_status,
+                    'submission_id' => $row->submission_id,
+                    'created_at' => (string) $row->created_at,
+                    'updated_at' => (string) $row->updated_at,
+                ];
+            })->toArray(),
         ]);
 
-        // READ-ONLY: Trace AllProduct table state for target SKU
-        $matchingProducts = Product::where('sku', $targetSku)->get();
-        Log::info('[PRODUCT SKU TRACE]', [
+        // [MAPPING COLLISION DEBUG] 4. COMPARE CURRENT MAPPING
+        $ownerMappingIds = $existingSkuOwners->pluck('id')->toArray();
+        $ownerProductIds = $existingSkuOwners->pluck('product_id')->toArray();
+        $ownerShopifyProductIds = $existingSkuOwners->pluck('shopify_product_id')->toArray();
+        $sameMappingOwner = $existingMapping && in_array($existingMapping->id, $ownerMappingIds);
+
+        Log::info('[MAPPING COLLISION DEBUG] SKU COMPARISON', [
             'debug_id' => $debugId,
             'target_sku' => $targetSku,
-            'matching_product_count' => $matchingProducts->count(),
-            'matching_products' => $matchingProducts->map(function ($p) {
+            'current_mapping_id' => $existingMapping?->id,
+            'current_mapping_amazon_sku' => $existingMapping?->amazon_sku,
+            'owner_mapping_ids' => $ownerMappingIds,
+            'owner_product_ids' => $ownerProductIds,
+            'owner_shopify_product_ids' => $ownerShopifyProductIds,
+            'same_mapping_owner' => $sameMappingOwner,
+        ]);
+
+        // [MAPPING COLLISION DEBUG] 5. CHECK ALL_PRODUCTS SEPARATELY
+        $allProductRows = Product::where('user_id', $shopId)
+            ->where('sku', $targetSku)
+            ->get();
+
+        Log::info('[MAPPING COLLISION DEBUG] ALL PRODUCT SKU', [
+            'debug_id' => $debugId,
+            'target_sku' => $targetSku,
+            'matching_count' => $allProductRows->count(),
+            'matching_rows' => $allProductRows->map(function ($p) {
                 return [
-                    'product_id' => $p->id,
-                    'sku' => $p->sku,
+                    'id' => $p->id,
                     'user_id' => $p->user_id,
+                    'sku' => $p->sku,
                     'schema_id' => $p->schema_id,
+                    'status' => $p->status,
                     'created_at' => (string) $p->created_at,
                     'updated_at' => (string) $p->updated_at,
                 ];
             })->toArray(),
+        ]);
+
+        // [MAPPING COLLISION DEBUG] 6. LOG IMMEDIATELY BEFORE UPDATE
+        Log::info('[MAPPING COLLISION DEBUG] UPDATE ABOUT TO EXECUTE', [
+            'debug_id' => $debugId,
+            'mapping_id' => $existingMapping?->id,
+            'shop_id' => $shopId,
+            'shopify_product_id' => $shopifyid,
+            'old_amazon_sku' => $existingMapping?->amazon_sku,
+            'new_amazon_sku' => $data['amazon_sku'] ?? null,
+            'old_amazon_parent_sku' => $existingMapping?->amazon_parent_sku,
+            'new_amazon_parent_sku' => $data['amazon_parent_sku'] ?? null,
+            'new_sync_status' => $data['sync_status'] ?? null,
         ]);
 
         Log::info('[MAPPING UPDATE TRACE] QUERY START', [
@@ -2166,6 +2224,20 @@ class ProductSchemaController extends Controller
                 'final_mapping_state' => $freshMapping ? $freshMapping->toArray() : null,
             ]);
         } catch (\Throwable $e) {
+            // [MAPPING COLLISION DEBUG] 7. DUPLICATE EXCEPTION
+            Log::error('[MAPPING COLLISION DEBUG] DUPLICATE EXCEPTION', [
+                'debug_id' => $debugId,
+                'exception_class' => get_class($e),
+                'sqlstate' => method_exists($e, 'getCode') ? $e->getCode() : null,
+                'error_code' => $e->getCode(),
+                'exact_exception_message' => $e->getMessage(),
+                'target_sku' => $targetSku,
+                'mapping_id' => $existingMapping?->id,
+                'shop_id' => $shopId,
+                'current_amazon_sku' => $existingMapping?->amazon_sku,
+                'attempted_amazon_sku' => $data['amazon_sku'] ?? null,
+            ]);
+
             Log::error('[MAPPING UPDATE TRACE] QUERY EXCEPTION', [
                 'debug_id' => $debugId,
                 'exception_class' => get_class($e),
@@ -2177,15 +2249,33 @@ class ProductSchemaController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Query ownership again after exception
+            // [MAPPING COLLISION DEBUG] 8. AFTER EXCEPTION OWNERSHIP CHECK
             $postExceptionMatches = ProductMarketplaceMapping::where('shop_id', $shopId)
                 ->where('amazon_sku', $targetSku)
                 ->get();
 
-            Log::info('[MAPPING SKU OWNERSHIP TRACE] AFTER EXCEPTION', [
+            Log::info('[MAPPING COLLISION DEBUG] OWNER AFTER EXCEPTION', [
                 'debug_id' => $debugId,
                 'target_sku' => $targetSku,
-                'all_rows_currently_owning_sku' => $postExceptionMatches->toArray(),
+                'matching_count' => $postExceptionMatches->count(),
+                'matching_rows' => $postExceptionMatches->map(function ($row) {
+                    return [
+                        'id' => $row->id,
+                        'shop_id' => $row->shop_id,
+                        'product_id' => $row->product_id,
+                        'shopify_product_id' => $row->shopify_product_id,
+                        'shopify_variant_id' => $row->shopify_variant_id,
+                        'shopify_inventory_item_id' => $row->shopify_inventory_item_id,
+                        'shopify_location_id' => $row->shopify_location_id,
+                        'amazon_sku' => $row->amazon_sku,
+                        'amazon_parent_sku' => $row->amazon_parent_sku,
+                        'sync_status' => $row->sync_status,
+                        'submission_status' => $row->submission_status,
+                        'submission_id' => $row->submission_id,
+                        'created_at' => (string) $row->created_at,
+                        'updated_at' => (string) $row->updated_at,
+                    ];
+                })->toArray(),
             ]);
 
             throw $e;
