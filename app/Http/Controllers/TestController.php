@@ -643,7 +643,7 @@ class TestController extends Controller
         }
         $listingsApi = $connector->listingsItemsV20210801();
 
-        $debugId = session('mapping_debug_id');
+        $debugId = request('debug_id') ?? session('mapping_debug_id') ?? (string) Str::uuid();
 
         Log::info('MAPPING DEBUG - AMAZON LISTING REQUEST', [
             'debug_id' => $debugId,
@@ -680,7 +680,6 @@ class TestController extends Controller
                 'issues' => data_get($response->json(), 'issues', []),
             ]);
 
-            dd(json_decode(json_encode($response->json() ?? $response), true));
             return  $response->json();
         } catch (\Throwable $e) {
             Log::error('MAPPING DEBUG - EXCEPTION', [

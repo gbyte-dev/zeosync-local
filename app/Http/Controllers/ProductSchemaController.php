@@ -806,17 +806,19 @@ class ProductSchemaController extends Controller
             return redirect()->route('admin.product.productEdit', [
                 'product' => $product_id,
                 'shop' => $activeShop->shop,
+                'debug_id' => $debugId,
             ])->with('success', 'Product Saved as Draft');
         }
         return redirect()->route('admin.product.generatePayload', [
             'product' => $product_id,
             'shop' => $activeShop->shop,
+            'debug_id' => $debugId,
         ]);
     }
 
     public function generatePayload(Product $product, $type = 'main', $fields = []): array
     {
-        $debugId = session('mapping_debug_id');
+        $debugId = request('debug_id') ?? session('mapping_debug_id') ?? (string) Str::uuid();
 
         Log::info('MAPPING DEBUG - GENERATE PAYLOAD START', [
             'debug_id' => $debugId,
@@ -900,7 +902,23 @@ class ProductSchemaController extends Controller
                 continue;
             }
 
+            if ($canonicalName === 'fulfillment_availability') {
+                Log::info('MAPPING DEBUG - FULFILLMENT_AVAILABILITY SOURCE VALUE', [
+                    'debug_id' => $debugId,
+                    'raw_attribute_value' => $attribute->attribute_value,
+                    'sanitized_value_before_transform' => $value,
+                ]);
+            }
+
             $transformed = $transformer->transformAttribute($canonicalName, $value, $product->attributes);
+
+            if ($canonicalName === 'fulfillment_availability') {
+                Log::info('MAPPING DEBUG - FULFILLMENT_AVAILABILITY TRANSFORMED RESULT', [
+                    'debug_id' => $debugId,
+                    'transformed' => $transformed,
+                ]);
+            }
+
             if ($transformed === null) {
                 continue;
             }
@@ -986,7 +1004,8 @@ class ProductSchemaController extends Controller
 
     public function buildListingRequest(Product $product)
     {
-        $debugId = session('mapping_debug_id');
+        $debugId = request('debug_id') ?? session('mapping_debug_id') ?? (string) Str::uuid();
+        session(['mapping_debug_id' => $debugId]);
         $activeShop = $this->getActiveShopModel();
         abort_if(!$activeShop || (int) $product->user_id !== (int) $activeShop->id, 404);
 
@@ -1014,6 +1033,18 @@ class ProductSchemaController extends Controller
 
                 $payload3 = $testcontroller->createOnlyputListing($payload2, $sku);
             }
+
+            $amazonStatus = $payload3['status'] ?? null;
+
+            Log::info('MAPPING DEBUG - AMAZON STATUS EVALUATION', [
+                'debug_id' => $debugId,
+                'product_id' => $product->id,
+                'raw_status' => $amazonStatus,
+                'is_invalid' => ($amazonStatus === 'INVALID'),
+                'is_accepted' => ($amazonStatus === 'ACCEPTED'),
+                'issues' => $payload3['issues'] ?? [],
+            ]);
+
             if (isset($payload3['status']) && ($payload3['status'] == 'INVALID')) {
                 Log::info('MAPPING DEBUG - FINAL DECISION', [
                     'debug_id' => $debugId,
@@ -1131,9 +1162,33 @@ class ProductSchemaController extends Controller
                     ->with('errors_amazon', $payload3['issues'])
                     ->with('amazon_db_autofill', $matchedData);
             }
+
+            Log::info('MAPPING DEBUG - EXECUTING ACCEPTED BRANCH', [
+                'debug_id' => $debugId,
+                'product_id' => $product->id,
+                'status' => $amazonStatus,
+                'submissionId' => $payload3['submissionId'] ?? null,
+            ]);
+
             $generatejson = $this->generatejson($product->id);
             $prodAttributes['sku'] = $product->sku;
+
+            Log::info('MAPPING DEBUG - BEFORE updateSyncAmazon CALL', [
+                'debug_id' => $debugId,
+                'product_id' => $product->id,
+                'prodAttributes' => $prodAttributes,
+            ]);
+
             $this->updateSyncAmazon($product->id, $prodAttributes);
+
+            Log::info('MAPPING DEBUG - PRODUCT STATUS UPDATE', [
+                'debug_id' => $debugId,
+                'product_id' => $product->id,
+                'old_status' => $product->status,
+                'new_status' => $payload3['status'] ?? null,
+                'submission_status' => $payload3['submissionId'] ?? null,
+            ]);
+
             $product->status = $payload3['status'];
             $product->submission_status = $payload3['submissionId'];
             $product->submitted_on = now();
@@ -1875,8 +1930,27 @@ class ProductSchemaController extends Controller
 
     public function updateSyncAmazon($productid, $prodAttributes)
     {
+        $debugId = request('debug_id') ?? session('mapping_debug_id') ?? (string) Str::uuid();
+
+        Log::info('MAPPING DEBUG - UPDATE SYNC AMAZON START', [
+            'debug_id' => $debugId,
+            'product_id' => $productid,
+            'prodAttributes' => $prodAttributes,
+        ]);
+
         $productmappped = \App\Models\Product::where('amazon_product_id', $productid)->first();
+
+        Log::info('MAPPING DEBUG - PRODUCT MAPPING LOOKUP', [
+            'debug_id' => $debugId,
+            'product_id' => $productid,
+            'found_shopify_product' => $productmappped ? $productmappped->toArray() : null,
+        ]);
+
         if (!$productmappped) {
+            Log::warning('MAPPING DEBUG - PRODUCT MAPPING NOT FOUND', [
+                'debug_id' => $debugId,
+                'product_id' => $productid,
+            ]);
             $this->updatelog($productid, 'amazon', 'sync_failed', false, 'No matching product found for amazon_product_id.');
             return;
         }
@@ -1892,9 +1966,33 @@ class ProductSchemaController extends Controller
             $data['amazon_parent_sku'] = $prodAttributes['sku'];
             $data['sync_status'] = 'active';
         }
+
+        $existingMapping = ProductMarketplaceMapping::where('shop_id', $shopId)
+            ->where('shopify_product_id', $shopifyid)
+            ->first();
+
+        Log::info('MAPPING DEBUG - PRODUCT MARKETPLACE MAPPING BEFORE UPDATE', [
+            'debug_id' => $debugId,
+            'shop_id' => $shopId,
+            'shopify_product_id' => $shopifyid,
+            'existing_mapping' => $existingMapping ? $existingMapping->toArray() : null,
+            'update_data' => $data,
+        ]);
+
         $updated = ProductMarketplaceMapping::where('shop_id', $shopId)
             ->where('shopify_product_id', $shopifyid)
             ->update($data);
+
+        $freshMapping = ProductMarketplaceMapping::where('shop_id', $shopId)
+            ->where('shopify_product_id', $shopifyid)
+            ->first();
+
+        Log::info('MAPPING DEBUG - PRODUCT MARKETPLACE MAPPING AFTER UPDATE', [
+            'debug_id' => $debugId,
+            'updated_count' => $updated,
+            'fresh_mapping' => $freshMapping ? $freshMapping->toArray() : null,
+        ]);
+
         if (!$updated) {
             return;
         }
