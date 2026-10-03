@@ -714,7 +714,7 @@ class ProductSchemaController extends Controller
             'schema.products.create',
             compact('tabs', 'schema', 'fields', 'requiredFields', 'productshow',
                 'prodAttri', 'canUseAiAutoFill', 'canUseAiSingleField',
-                'tabErrorCounts', 'fieldSuggestions', 'autofillCount', 'visibleAmazonErrors', 'autofilledFields')
+                'tabErrorCounts', 'fieldSuggestions', 'autofillCount', 'visibleAmazonErrors', 'autofilledFields', 'mappingId')
         );
     }
 
@@ -1135,6 +1135,12 @@ class ProductSchemaController extends Controller
         $activeShop = $this->getActiveShopModel();
         abort_if(!$activeShop || (int) $product->user_id !== (int) $activeShop->id, 404);
 
+        $mappingId = request('mapping_id') ?? session('mapping_id_' . $product->id) ?? session('current_mapping_id');
+        $mappingContext = $mappingId ? ProductMarketplaceMapping::where('shop_id', $activeShop->id)->find($mappingId) : null;
+        if ($mappingId) {
+            session(['mapping_id_' . $product->id => $mappingId, 'current_mapping_id' => $mappingId]);
+        }
+
         try {
             if ($product->parent_id) {
                 $all = $this->addChildListing($product);
@@ -1155,6 +1161,13 @@ class ProductSchemaController extends Controller
                     'product_id' => $product->id ?? null,
                     'sku' => $sku ?? null,
                     'request' => json_decode(json_encode($payload2), true),
+                ]);
+
+                Log::info('[MAPPING FLOW] BEFORE AMAZON SUBMIT', [
+                    'mapping_id' => $mappingContext?->id ?? $mappingId,
+                    'product_id' => $product->id,
+                    'shopify_variant_id' => $mappingContext?->shopify_variant_id ?? null,
+                    'sku' => $sku,
                 ]);
 
                 $payload3 = $testcontroller->createOnlyputListing($payload2, $sku);
@@ -1296,10 +1309,11 @@ class ProductSchemaController extends Controller
                 'submissionId' => $payload3['submissionId'] ?? null,
             ]);
 
-            Log::info('[MAPPING FLOW] ACCEPTED MAPPING CONTEXT', [
+            Log::info('[MAPPING FLOW] ACCEPTED', [
+                'mapping_id' => $mappingContext?->id ?? $mappingId,
                 'product_id' => $product->id,
-                'mapping_id' => $mappingId,
                 'sku' => $product->sku,
+                'submission_id' => $payload3['submissionId'] ?? null,
             ]);
 
             $generatejson = $this->generatejson($product->id);
@@ -1312,7 +1326,7 @@ class ProductSchemaController extends Controller
                 'prodAttributes' => $prodAttributes,
             ]);
 
-            $this->updateSyncAmazon($product->id, $prodAttributes, $mappingId);
+            $this->updateSyncAmazon($product->id, $prodAttributes, $mappingId, $payload3['submissionId'] ?? null);
 
             Log::info('MAPPING DEBUG - PRODUCT STATUS UPDATE', [
                 'debug_id' => $debugId,
@@ -2053,11 +2067,12 @@ class ProductSchemaController extends Controller
             ]
         );
 
-        Log::info('[MAPPING FLOW] SOURCE MAPPING', [
+        Log::info('[MAPPING FLOW] SOURCE', [
             'mapping_id' => $productmap->id,
             'shop_id' => $productmap->shop_id,
             'shopify_product_id' => $productmap->shopify_product_id,
             'shopify_variant_id' => $productmap->shopify_variant_id,
+            'product_id' => $productmap->product_id,
         ]);
 
         Log::info('MAPPING DEBUG - MAPPING DB STATE AFTER SYNC', [
@@ -2068,7 +2083,7 @@ class ProductSchemaController extends Controller
         return $productmap->id;
     }
 
-    public function updateSyncAmazon($productid, $prodAttributes, $mappingId = null)
+    public function updateSyncAmazon($productid, $prodAttributes, $mappingId = null, $submissionId = null)
     {
         $debugId = request('debug_id') ?? session('mapping_debug_id') ?? (string) Str::uuid();
 
@@ -2076,6 +2091,7 @@ class ProductSchemaController extends Controller
             'debug_id' => $debugId,
             'product_id' => $productid,
             'mapping_id' => $mappingId,
+            'submission_id' => $submissionId,
             'prodAttributes' => $prodAttributes,
         ]);
 
@@ -2106,25 +2122,13 @@ class ProductSchemaController extends Controller
 
         $mapping = null;
         if (!empty($targetMappingId)) {
-            $mapping = ProductMarketplaceMapping::where('shop_id', $shopId)
-                ->where('id', $targetMappingId)
-                ->where('shopify_product_id', (string) $shopifyid)
-                ->first();
-        }
-
-        if (!$mapping) {
-            $shopifyVariantId = $prodAttributes['shopify_variant_id']
-                ?? $prodAttributes['variant_id']
-                ?? ($prodAttributes['variants']['id'] ?? ($prodAttributes['variants']['shopify_variant_id'] ?? null))
-                ?? ($productmappped->variants[0]['id'] ?? null);
-
-            if (!empty($shopifyVariantId)) {
-                $mapping = ProductMarketplaceMapping::where('shop_id', $shopId)
-                    ->where('shopify_product_id', (string) $shopifyid)
-                    ->where('shopify_variant_id', (string) $shopifyVariantId)
-                    ->first();
+            $candidate = ProductMarketplaceMapping::find($targetMappingId);
+            if ($candidate && (int) $candidate->shop_id === (int) $shopId && (string) $candidate->shopify_product_id === (string) $shopifyid) {
+                $mapping = $candidate;
             }
         }
+
+
 
         if (!$mapping) {
             Log::warning('[MAPPING UPDATE TRACE] MAPPING RECORD NOT FOUND', [
@@ -2139,16 +2143,16 @@ class ProductSchemaController extends Controller
             return;
         }
 
-        $data = [];
-        if (isset($prodAttributes['variants'])) {
-            $data['amazon_sku'] = $prodAttributes['variants']['sku'] ?? $prodAttributes['sku'];
-            $data['amazon_parent_sku'] = $prodAttributes['sku'];
-            $data['sync_status'] = 'active';
-        } else {
-            $data['amazon_sku'] = $prodAttributes['sku'];
-            $data['amazon_parent_sku'] = $prodAttributes['sku'];
-            $data['sync_status'] = 'active';
-        }
+        $targetSku = $prodAttributes['sku'] ?? ($prodAttributes['variants']['sku'] ?? null);
+
+        $updateData = [
+            'amazon_sku' => $targetSku,
+            'amazon_parent_sku' => $targetSku,
+            'submission_id' => $submissionId,
+            'submission_status' => 'ACCEPTED',
+            'sync_status' => 'active',
+            'last_synced_at' => now(),
+        ];
 
         Log::info('[MAPPING UPDATE TRACE] TARGET MAPPING', [
             'mapping_id' => $mapping->id ?? null,
@@ -2156,18 +2160,18 @@ class ProductSchemaController extends Controller
             'shopify_product_id' => $mapping->shopify_product_id ?? null,
             'shopify_variant_id' => $mapping->shopify_variant_id ?? null,
             'old_amazon_sku' => $mapping->amazon_sku ?? null,
-            'new_amazon_sku' => $prodAttributes['sku'] ?? null,
+            'new_amazon_sku' => $targetSku,
         ]);
 
         try {
-            $mapping->update($data);
+            $mapping->update($updateData);
             $mapping->refresh();
 
-            Log::info('[MAPPING UPDATE TRACE] TARGET MAPPING UPDATED', [
-                'mapping_id' => $mapping->id ?? null,
-                'amazon_sku' => $mapping->amazon_sku ?? null,
-                'amazon_parent_sku' => $mapping->amazon_parent_sku ?? null,
-                'sync_status' => $mapping->sync_status ?? null,
+            Log::info('[MAPPING UPDATE TRACE] UPDATED', [
+                'mapping_id' => $mapping->id,
+                'shopify_variant_id' => $mapping->shopify_variant_id,
+                'amazon_sku' => $mapping->amazon_sku,
+                'sync_status' => $mapping->sync_status,
             ]);
         } catch (\Throwable $e) {
             Log::error('[MAPPING COLLISION DEBUG] DUPLICATE EXCEPTION', [
@@ -2176,11 +2180,11 @@ class ProductSchemaController extends Controller
                 'sqlstate' => method_exists($e, 'getCode') ? $e->getCode() : null,
                 'error_code' => $e->getCode(),
                 'exact_exception_message' => $e->getMessage(),
-                'target_sku' => $data['amazon_sku'] ?? null,
+                'target_sku' => $targetSku,
                 'mapping_id' => $mapping->id ?? null,
                 'shop_id' => $shopId,
                 'current_amazon_sku' => $mapping->amazon_sku ?? null,
-                'attempted_amazon_sku' => $data['amazon_sku'] ?? null,
+                'attempted_amazon_sku' => $targetSku,
             ]);
             throw $e;
         }
