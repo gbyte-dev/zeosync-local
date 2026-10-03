@@ -3855,17 +3855,8 @@ class ShopifyController extends Controller
 
     public function syncShopifyToAmazon(Request $request, $id)
     {
-        $debugId = (string) Str::uuid();
-        session(['mapping_debug_id' => $debugId]);
-
         $shopModel = $this->getActiveShop($request);
         $activeShop = $shopModel?->shop;
-
-        Log::info('MAPPING DEBUG - SHOPIFY SYNC START', [
-            'debug_id' => $debugId,
-            'shop' => $activeShop ?? null,
-            'shopify_product_id' => $id ?? null,
-        ]);
 
         if (!$shopModel) {
             return redirect('/products')->with('error', 'No shop connected.');
@@ -3882,11 +3873,6 @@ class ShopifyController extends Controller
 
             $product = $syncResult['product'];
             $product_type = $product['product_type'] ?? '';
-
-            Log::info('MAPPING DEBUG - SHOPIFY PRODUCT FETCHED', [
-                'debug_id' => $debugId,
-                'product' => json_decode(json_encode($product), true),
-            ]);
 
             $dbProduct = \App\Models\Product::where('shopify_id', $id)
                 ->where('shop_id', $shopModel->id)
@@ -3910,32 +3896,6 @@ class ShopifyController extends Controller
             if (!$selectedVariant) {
                 $selectedVariant = $product['variants'][0] ?? [];
             }
-
-            Log::info('[MAPPING IDENTITY]', [
-                'shop_id' => $shopModel->id,
-                'shopify_product_id' => $id,
-                'shopify_variant_id' => $selectedVariant['id'] ?? null,
-                'mapping_id' => null,
-            ]);
-
-            Log::info('[SKU FLOW TRACE]', [
-                'debug_id' => $debugId,
-                'method' => 'ShopifyController::syncShopifyToAmazon',
-                'product_id' => $dbProduct->id ?? null,
-                'mapping_id' => null,
-                'shop_id' => $shopModel->id,
-                'shopify_product_id' => $id,
-                'shopify_variant_id' => $selectedVariant['id'] ?? null,
-                'sku' => $selectedVariant['sku'] ?? null,
-                'sku_source' => 'SHOPIFY',
-                'amazon_sku' => null,
-                'amazon_parent_sku' => null,
-            ]);
-
-            Log::info('MAPPING DEBUG - MAPPER INPUT', [
-                'debug_id' => $debugId,
-                'product' => json_decode(json_encode($product), true),
-            ]);
 
             $mapper = new ShopifyAmazonMapper();
             $mappedproduct = $mapper->map($product, $selectedVariant);
@@ -3991,13 +3951,10 @@ class ShopifyController extends Controller
                 ]
             )->with('success', 'Product all information to update');
         } catch (\Throwable $e) {
-            Log::error('MAPPING DEBUG - EXCEPTION', [
-                'debug_id' => $debugId,
-                'message' => $e->getMessage(),
-                'class' => get_class($e),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
+            Log::error('Shopify to Amazon sync failed', [
+                'shop' => $shopModel->shop ?? null,
+                'shopify_product_id' => $id,
+                'error' => $e->getMessage(),
             ]);
             return back()->with('error', $e->getMessage());
         }

@@ -643,16 +643,6 @@ class TestController extends Controller
         }
         $listingsApi = $connector->listingsItemsV20210801();
 
-        $debugId = request('debug_id') ?? session('mapping_debug_id') ?? (string) Str::uuid();
-
-        Log::info('MAPPING DEBUG - AMAZON LISTING REQUEST', [
-            'debug_id' => $debugId,
-            'sku' => $sku,
-            'seller_id' => $this->credentials['seller_id'] ?? null,
-            'marketplace_id' => $this->credentials['marketplace_id'] ?? null,
-            'request' => json_decode(json_encode($putRequest), true),
-        ]);
-
         try {
             $response = $listingsApi->putListingsItem(
                 sellerId: $this->credentials['seller_id'],
@@ -661,34 +651,11 @@ class TestController extends Controller
                 listingsItemPutRequest: $putRequest
             );
 
-            Log::info('MAPPING DEBUG - AMAZON RESPONSE', [
-                'debug_id' => $debugId,
-                'sku' => $sku ?? null,
-                'status_code' => method_exists($response, 'getStatusCode')
-                    ? $response->getStatusCode()
-                    : null,
-                'response' => json_decode(
-                    json_encode($response->json() ?? $response),
-                    true
-                ),
-            ]);
-
-            Log::info('MAPPING DEBUG - AMAZON ISSUES', [
-                'debug_id' => $debugId,
-                'status' => data_get($response->json(), 'status'),
-                'submissionId' => data_get($response->json(), 'submissionId'),
-                'issues' => data_get($response->json(), 'issues', []),
-            ]);
-
             return  $response->json();
         } catch (\Throwable $e) {
-            Log::error('MAPPING DEBUG - EXCEPTION', [
-                'debug_id' => $debugId,
-                'message' => $e->getMessage(),
-                'class' => get_class($e),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
+            Log::error('Amazon putListingsItem API failed', [
+                'sku' => $sku,
+                'error' => $e->getMessage(),
             ]);
 
             throw $e;
