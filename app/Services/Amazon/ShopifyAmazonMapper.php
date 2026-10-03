@@ -90,6 +90,20 @@ class ShopifyAmazonMapper
             'product_type' => $product['product_type'] ?? null,
         ]);
 
+        Log::info('[SKU FLOW TRACE]', [
+            'debug_id' => $debugId,
+            'method' => 'ShopifyAmazonMapper::map',
+            'product_id' => null,
+            'mapping_id' => null,
+            'shop_id' => session('active_shop_id') ?? null,
+            'shopify_product_id' => $product['id'] ?? null,
+            'shopify_variant_id' => $variant['id'] ?? null,
+            'sku' => $mappedData['sku'] ?? null,
+            'sku_source' => 'SHOPIFY',
+            'amazon_sku' => null,
+            'amazon_parent_sku' => null,
+        ]);
+
         return $mappedData;
     }
 

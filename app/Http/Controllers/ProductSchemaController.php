@@ -377,9 +377,35 @@ class ProductSchemaController extends Controller
             'attributes' => $prodAttri?->toArray(),
         ]);
 
+        Log::info('[SKU FLOW TRACE]', [
+            'debug_id' => $debugId,
+            'method' => 'ProductSchemaController::productEdit',
+            'product_id' => $productshow->id ?? null,
+            'mapping_id' => null,
+            'shop_id' => $activeShop->id,
+            'shopify_product_id' => null,
+            'shopify_variant_id' => null,
+            'sku' => $productshow->sku ?? null,
+            'sku_source' => 'EXISTING_MAPPING',
+            'amazon_sku' => null,
+            'amazon_parent_sku' => null,
+        ]);
+
         $amazonDbAutofill = session('amazon_db_autofill', []);
         $fieldSuggestions = [];
         $autofilledFields = [];
+
+        Log::info('[AUTO DB FILL TRACE] START', [
+            'debug_id' => $debugId,
+            'product_id' => $productid,
+            'shop_id' => $activeShop->id,
+            'schema_id' => $productshow->schema_id ?? null,
+            'source_product_id' => $productshow->id ?? null,
+            'source_mapping_id' => null,
+            'request_route' => request()->route()?->getName(),
+            'autofill_count' => count($amazonDbAutofill),
+            'autofill_fields' => array_keys($amazonDbAutofill),
+        ]);
 
         foreach ($amazonDbAutofill as $fieldName => $value) {
             $attribute = $prodAttri->firstWhere('attribute_name', $fieldName);
@@ -389,6 +415,17 @@ class ProductSchemaController extends Controller
             if ($newValue !== '' && $previousValue !== $newValue) {
                 $autofilledFields[] = strtolower($fieldName);
             }
+
+            Log::info('[AUTO DB FILL TRACE] FIELD POPULATED', [
+                'debug_id' => $debugId,
+                'table_model' => 'ProductAttribute',
+                'record_id' => $attribute?->id ?? 'new',
+                'field_name' => $fieldName,
+                'old_value' => $previousValue,
+                'new_value' => $newValue,
+                'source_reason' => 'session(amazon_db_autofill)',
+                'caller_method' => 'productEdit',
+            ]);
 
             if ($attribute) {
                 // Replace existing value because this field had an Amazon error.
@@ -738,6 +775,21 @@ class ProductSchemaController extends Controller
             ]);
 
             if (!isset($product_id)) {
+                $incomingSku = $request->input('sku');
+                $skuSource = !empty($incomingSku) ? 'FORM' : 'GENERATED_FALLBACK';
+
+                Log::info('[MAPPING SKU TRACE] BEFORE SKU GENERATION', [
+                    'debug_id' => $debugId,
+                    'method' => 'productstore',
+                    'shop_id' => $shop_id,
+                    'schema_id' => $request->schema_id,
+                    'incoming_attributes_sku' => $incomingSku,
+                    'shopify_sku' => null,
+                    'product_id' => null,
+                    'request_route' => request()->route()?->getName(),
+                    'request_method' => request()->method(),
+                ]);
+
                 if ($request->parent_id) {
                     $product = Product::create([
                         'parent_id' => $request->parent_id,
@@ -753,6 +805,21 @@ class ProductSchemaController extends Controller
                     ]);
                 }
                 $product_id = $product->id;
+
+                Log::info('[MAPPING SKU TRACE] AFTER SKU GENERATION', [
+                    'debug_id' => $debugId,
+                    'method' => 'productstore',
+                    'generated_sku' => $product->sku,
+                    'product_id' => $product_id,
+                    'table_id' => $product->id,
+                    'sku_source' => $skuSource,
+                    'creation_payload' => [
+                        'user_id' => $product->user_id,
+                        'schema_id' => $product->schema_id,
+                        'sku' => $product->sku,
+                        'parent_id' => $product->parent_id,
+                    ],
+                ]);
             }
             foreach ($request['attributes'] as $key => $value) {
                 if (($key == 'country_of_origin') && $value == '') {
@@ -802,6 +869,20 @@ class ProductSchemaController extends Controller
             )->get()->toArray(),
         ]);
 
+        Log::info('[SKU FLOW TRACE]', [
+            'debug_id' => $debugId,
+            'method' => 'ProductSchemaController::productstore',
+            'product_id' => $product_id,
+            'mapping_id' => null,
+            'shop_id' => $shop_id,
+            'shopify_product_id' => null,
+            'shopify_variant_id' => null,
+            'sku' => $savedProduct?->sku,
+            'sku_source' => isset($existingProduct) ? 'EXISTING_MAPPING' : 'GENERATED_FALLBACK',
+            'amazon_sku' => null,
+            'amazon_parent_sku' => null,
+        ]);
+
         if ($request->save_draft) {
             return redirect()->route('admin.product.productEdit', [
                 'product' => $product_id,
@@ -823,6 +904,20 @@ class ProductSchemaController extends Controller
         Log::info('MAPPING DEBUG - GENERATE PAYLOAD START', [
             'debug_id' => $debugId,
             'product_id' => $product->id ?? null,
+        ]);
+
+        Log::info('[SKU FLOW TRACE]', [
+            'debug_id' => $debugId,
+            'method' => 'ProductSchemaController::generatePayload',
+            'product_id' => $product->id,
+            'mapping_id' => null,
+            'shop_id' => $product->user_id,
+            'shopify_product_id' => null,
+            'shopify_variant_id' => null,
+            'sku' => $product->sku,
+            'sku_source' => 'EXISTING_MAPPING',
+            'amazon_sku' => null,
+            'amazon_parent_sku' => null,
         ]);
 
         $attributes = [];
@@ -1971,27 +2066,130 @@ class ProductSchemaController extends Controller
             ->where('shopify_product_id', $shopifyid)
             ->first();
 
-        Log::info('MAPPING DEBUG - PRODUCT MARKETPLACE MAPPING BEFORE UPDATE', [
+        $targetSku = $data['amazon_sku'] ?? null;
+
+        Log::info('[SKU FLOW TRACE]', [
             'debug_id' => $debugId,
+            'method' => 'ProductSchemaController::updateSyncAmazon',
+            'product_id' => $productid,
+            'mapping_id' => $existingMapping?->id,
             'shop_id' => $shopId,
             'shopify_product_id' => $shopifyid,
-            'existing_mapping' => $existingMapping ? $existingMapping->toArray() : null,
+            'shopify_variant_id' => $existingMapping?->shopify_variant_id,
+            'sku' => $prodAttributes['sku'] ?? null,
+            'sku_source' => 'FORM',
+            'amazon_sku' => $data['amazon_sku'] ?? null,
+            'amazon_parent_sku' => $data['amazon_parent_sku'] ?? null,
+        ]);
+
+        Log::info('[MAPPING UPDATE TRACE] BEFORE UPDATE', [
+            'debug_id' => $debugId,
+            'mapping_id' => $existingMapping?->id,
+            'shop_id' => $shopId,
+            'product_id' => $productid,
+            'shopify_product_id' => $shopifyid,
+            'shopify_variant_id' => $existingMapping?->shopify_variant_id,
+            'shopify_inventory_item_id' => $existingMapping?->shopify_inventory_item_id,
+            'shopify_location_id' => $existingMapping?->shopify_location_id,
+            'current_amazon_sku' => $existingMapping?->amazon_sku,
+            'current_amazon_parent_sku' => $existingMapping?->amazon_parent_sku,
+            'current_sync_status' => $existingMapping?->sync_status,
+            'current_submission_status' => $existingMapping?->submission_status,
+            'current_submission_id' => $existingMapping?->submission_id,
+        ]);
+
+        Log::info('[MAPPING UPDATE TRACE] UPDATE DATA', [
+            'debug_id' => $debugId,
+            'target_sku' => $targetSku,
             'update_data' => $data,
         ]);
 
-        $updated = ProductMarketplaceMapping::where('shop_id', $shopId)
-            ->where('shopify_product_id', $shopifyid)
-            ->update($data);
+        // READ-ONLY: Check if target SKU already exists in product_marketplace_mappings
+        $matchingMappings = ProductMarketplaceMapping::where('shop_id', $shopId)
+            ->where('amazon_sku', $targetSku)
+            ->get();
 
-        $freshMapping = ProductMarketplaceMapping::where('shop_id', $shopId)
-            ->where('shopify_product_id', $shopifyid)
-            ->first();
-
-        Log::info('MAPPING DEBUG - PRODUCT MARKETPLACE MAPPING AFTER UPDATE', [
+        Log::info('[MAPPING SKU OWNERSHIP TRACE]', [
             'debug_id' => $debugId,
-            'updated_count' => $updated,
-            'fresh_mapping' => $freshMapping ? $freshMapping->toArray() : null,
+            'target_shop_id' => $shopId,
+            'target_sku' => $targetSku,
+            'matching_count' => $matchingMappings->count(),
+            'matching_mapping_ids' => $matchingMappings->pluck('id')->toArray(),
+            'matching_product_ids' => $matchingMappings->pluck('product_id')->toArray(),
+            'matching_shopify_product_ids' => $matchingMappings->pluck('shopify_product_id')->toArray(),
+            'matching_shopify_variant_ids' => $matchingMappings->pluck('shopify_variant_id')->toArray(),
+            'matching_amazon_skus' => $matchingMappings->pluck('amazon_sku')->toArray(),
+            'matching_sync_statuses' => $matchingMappings->pluck('sync_status')->toArray(),
+            'all_matching_rows' => $matchingMappings->toArray(),
         ]);
+
+        // READ-ONLY: Trace AllProduct table state for target SKU
+        $matchingProducts = Product::where('sku', $targetSku)->get();
+        Log::info('[PRODUCT SKU TRACE]', [
+            'debug_id' => $debugId,
+            'target_sku' => $targetSku,
+            'matching_product_count' => $matchingProducts->count(),
+            'matching_products' => $matchingProducts->map(function ($p) {
+                return [
+                    'product_id' => $p->id,
+                    'sku' => $p->sku,
+                    'user_id' => $p->user_id,
+                    'schema_id' => $p->schema_id,
+                    'created_at' => (string) $p->created_at,
+                    'updated_at' => (string) $p->updated_at,
+                ];
+            })->toArray(),
+        ]);
+
+        Log::info('[MAPPING UPDATE TRACE] QUERY START', [
+            'debug_id' => $debugId,
+            'target_sku' => $targetSku,
+            'shop_id' => $shopId,
+            'shopify_product_id' => $shopifyid,
+            'query' => 'UPDATE product_marketplace_mappings WHERE shop_id = ? AND shopify_product_id = ?',
+            'bindings' => [$shopId, $shopifyid, $data],
+        ]);
+
+        try {
+            $updated = ProductMarketplaceMapping::where('shop_id', $shopId)
+                ->where('shopify_product_id', $shopifyid)
+                ->update($data);
+
+            $freshMapping = ProductMarketplaceMapping::where('shop_id', $shopId)
+                ->where('shopify_product_id', $shopifyid)
+                ->first();
+
+            Log::info('[MAPPING UPDATE TRACE] QUERY SUCCESS', [
+                'debug_id' => $debugId,
+                'mapping_id' => $freshMapping?->id,
+                'affected_rows' => $updated,
+                'final_mapping_state' => $freshMapping ? $freshMapping->toArray() : null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('[MAPPING UPDATE TRACE] QUERY EXCEPTION', [
+                'debug_id' => $debugId,
+                'exception_class' => get_class($e),
+                'sqlstate' => method_exists($e, 'getCode') ? $e->getCode() : null,
+                'error_code' => $e->getCode(),
+                'exact_exception_message' => $e->getMessage(),
+                'target_sku' => $targetSku,
+                'mapping_id' => $existingMapping?->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Query ownership again after exception
+            $postExceptionMatches = ProductMarketplaceMapping::where('shop_id', $shopId)
+                ->where('amazon_sku', $targetSku)
+                ->get();
+
+            Log::info('[MAPPING SKU OWNERSHIP TRACE] AFTER EXCEPTION', [
+                'debug_id' => $debugId,
+                'target_sku' => $targetSku,
+                'all_rows_currently_owning_sku' => $postExceptionMatches->toArray(),
+            ]);
+
+            throw $e;
+        }
 
         if (!$updated) {
             return;
@@ -2027,12 +2225,29 @@ class ProductSchemaController extends Controller
 
             // Create Product
             if (!$product_id) {
+                $skuSource = !empty($attributes['sku']) ? 'FORM' : 'GENERATED_FALLBACK';
+                $incomingSku = $attributes['sku'] ?? null;
+
+                Log::info('[MAPPING SKU TRACE] BEFORE SKU GENERATION', [
+                    'debug_id' => $debugId,
+                    'method' => 'productstoreAmazon',
+                    'shop_id' => $shop_id,
+                    'schema_id' => $schema_id,
+                    'incoming_attributes_sku' => $incomingSku,
+                    'shopify_sku' => $attributes['shopify_sku'] ?? null,
+                    'product_id' => $product_id,
+                    'request_route' => request()->route()?->getName(),
+                    'request_method' => request()->method(),
+                ]);
+
+                $finalSku = !empty($attributes['sku'])
+                    ? $attributes['sku']
+                    : strtoupper(Str::random(12));
+
                 $productData = [
                     'user_id' => $shop_id,
                     'schema_id' => $schema_id,
-                    'sku' => !empty($attributes['sku'])
-                        ? $attributes['sku']
-                        : strtoupper(Str::random(12)),
+                    'sku' => $finalSku,
                 ];
                 if (!empty($parent_id)) {
                     $productData['parent_id'] = $parent_id;
@@ -2040,10 +2255,33 @@ class ProductSchemaController extends Controller
                 $product = Product::create($productData);
                 $product_id = $product->id;
 
-                Log::info('MAPPING DEBUG - ALL PRODUCT CREATED', [
+                Log::info('[MAPPING SKU TRACE] AFTER SKU GENERATION', [
                     'debug_id' => $debugId,
-                    'product_id' => $product->id ?? null,
-                    'product' => $product?->fresh()?->toArray(),
+                    'method' => 'productstoreAmazon',
+                    'generated_sku' => $product->sku,
+                    'product_id' => $product_id,
+                    'table_id' => $product->id,
+                    'sku_source' => $skuSource,
+                    'creation_payload' => [
+                        'user_id' => $product->user_id,
+                        'schema_id' => $product->schema_id,
+                        'sku' => $product->sku,
+                        'parent_id' => $product->parent_id,
+                    ],
+                ]);
+
+                Log::info('[SKU FLOW TRACE]', [
+                    'debug_id' => $debugId,
+                    'method' => 'ProductSchemaController::productstoreAmazon',
+                    'product_id' => $product_id,
+                    'mapping_id' => null,
+                    'shop_id' => $shop_id,
+                    'shopify_product_id' => $attributes['shopify_product_id'] ?? null,
+                    'shopify_variant_id' => $attributes['shopify_variant_id'] ?? null,
+                    'sku' => $product->sku,
+                    'sku_source' => $skuSource,
+                    'amazon_sku' => null,
+                    'amazon_parent_sku' => null,
                 ]);
             }
             // Save Attributes

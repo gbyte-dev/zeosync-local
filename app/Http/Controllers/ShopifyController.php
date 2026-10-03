@@ -3893,6 +3893,20 @@ class ShopifyController extends Controller
                 ->first();
             $amazonData = null;
 
+            Log::info('[SKU FLOW TRACE]', [
+                'debug_id' => $debugId,
+                'method' => 'ShopifyController::syncShopifyToAmazon',
+                'product_id' => $dbProduct->id ?? null,
+                'mapping_id' => null,
+                'shop_id' => $shopModel->id,
+                'shopify_product_id' => $id,
+                'shopify_variant_id' => $product['variants'][0]['id'] ?? null,
+                'sku' => $product['variants'][0]['sku'] ?? null,
+                'sku_source' => 'SHOPIFY',
+                'amazon_sku' => null,
+                'amazon_parent_sku' => null,
+            ]);
+
             Log::info('MAPPING DEBUG - MAPPER INPUT', [
                 'debug_id' => $debugId,
                 'product' => json_decode(json_encode($product), true),
