@@ -48,7 +48,6 @@ $colorSizeMap[$color] = [];
 <style nonce="{{ $cspNonce }}">
     /* Shopify Admin Inspired UI - Ultra Tight & Compact */
     .sp-page {
-        background-color: #F6F6F7;
         padding: 16px 20px;
         min-height: 100vh;
         font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Inter", "Segoe UI", Roboto, sans-serif;
