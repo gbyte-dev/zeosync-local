@@ -38,7 +38,7 @@
 
                         @foreach($shops as $shop)
                         <tr>
-                            <td class="ps-4 text-muted fw-semibold">#{{ ++$i }}</td>
+                            <td class="ps-4 text-muted fw-semibold">{{ ++$i }}</td>
                             <td>
                                 <a href="{{ route('admin.shops.show', $shop->id) }}" class="text-dark text-decoration-none fw-bold d-flex align-items-center">
                                 
