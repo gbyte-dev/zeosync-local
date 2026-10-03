@@ -27,8 +27,22 @@ beforeEach(function () {
             $table->text('refresh_token')->nullable();
             $table->timestamp('refresh_token_expires_at')->nullable();
             $table->string('shopify_connection_status')->nullable();
+            $table->string('store_status')->nullable();
+            $table->json('previous_activation_details')->nullable();
             $table->boolean('is_active')->default(1);
             $table->softDeletes();
+            $table->timestamps();
+        });
+    }
+
+    if (!Schema::hasTable('mail_templates')) {
+        Schema::create('mail_templates', function (Blueprint $table) {
+            $table->id();
+            $table->string('slug')->nullable();
+            $table->string('name')->nullable();
+            $table->string('subject')->nullable();
+            $table->text('body')->nullable();
+            $table->boolean('is_active')->default(1);
             $table->timestamps();
         });
     }
@@ -890,5 +904,195 @@ test('25. TEST 8: existing future current_period_end + Shopify CANCELLED/null pr
     expect($synced->current_period_end)->not->toBeNull();
     expect($synced->current_period_end->toIso8601String())->toBe($futurePeriodEnd->toIso8601String());
 });
+
+test('26. APP_UNINSTALLED webhook transitions active subscription to cancelled and preserves current_period_end', function () {
+    $shop = Shop::create([
+        'shop' => 'uninstall-active.myshopify.com',
+        'is_active' => 1,
+        'access_token' => 'shpat_uninstall_token',
+    ]);
+    $plan = Plan::create([
+        'name' => 'Growth Plan',
+        'price' => 29.00,
+    ]);
+
+    $futurePeriodEnd = now()->addDays(20)->startOfSecond();
+
+    $sub = ShopSubscription::create([
+        'shop_id' => $shop->id,
+        'plan_id' => $plan->id,
+        'shopify_subscription_gid' => 'gid://shopify/AppSubscription/999',
+        'status' => 'active',
+        'current_period_end' => $futurePeriodEnd,
+        'is_trial' => 0,
+    ]);
+
+    $webhookMock = Mockery::mock(\App\Services\ShopifyWebhookService::class);
+    $webhookMock->shouldReceive('isValidWebhook')->andReturn(true);
+    app()->instance(\App\Services\ShopifyWebhookService::class, $webhookMock);
+
+    $request = Request::create('/webhooks/app-uninstalled', 'POST', [], [], [], [
+        'HTTP_X_SHOPIFY_SHOP_DOMAIN' => 'uninstall-active.myshopify.com',
+        'HTTP_X_SHOPIFY_HMAC_SHA256' => 'valid_hmac',
+    ], json_encode(['id' => 12345]));
+
+    $controller = app(\App\Http\Controllers\ShopifyController::class);
+    $response = $controller->handleAppUninstalledWebhook($request);
+
+    expect($response->getStatusCode())->toBe(200);
+
+    $sub->refresh();
+    expect($sub->status)->toBe('cancelled');
+    expect($sub->cancelled_at)->not->toBeNull();
+    expect($sub->current_period_end->toIso8601String())->toBe($futurePeriodEnd->toIso8601String());
+    expect($sub->plan_id)->toBe($plan->id);
+
+    // Subscription entitlement is still valid before current_period_end
+    $subscriptionService = app(\App\Services\SubscriptionService::class);
+    expect($subscriptionService->hasActiveEntitlement($shop->id))->toBeTrue();
+});
+
+test('27. APP_UNINSTALLED webhook without active subscription leaves subscriptions empty', function () {
+    $shop = Shop::create([
+        'shop' => 'uninstall-nosub.myshopify.com',
+        'is_active' => 1,
+        'access_token' => 'shpat_uninstall_token',
+    ]);
+
+    $webhookMock = Mockery::mock(\App\Services\ShopifyWebhookService::class);
+    $webhookMock->shouldReceive('isValidWebhook')->andReturn(true);
+    app()->instance(\App\Services\ShopifyWebhookService::class, $webhookMock);
+
+    $request = Request::create('/webhooks/app-uninstalled', 'POST', [], [], [], [
+        'HTTP_X_SHOPIFY_SHOP_DOMAIN' => 'uninstall-nosub.myshopify.com',
+        'HTTP_X_SHOPIFY_HMAC_SHA256' => 'valid_hmac',
+    ], json_encode(['id' => 12345]));
+
+    $controller = app(\App\Http\Controllers\ShopifyController::class);
+    $response = $controller->handleAppUninstalledWebhook($request);
+
+    expect($response->getStatusCode())->toBe(200);
+    expect(ShopSubscription::where('shop_id', $shop->id)->count())->toBe(0);
+});
+
+test('28. Reinstall with active Shopify subscription synchronizes local DB back to active', function () {
+    $shop = Shop::create([
+        'shop' => 'reinstall-active.myshopify.com',
+        'is_active' => 1,
+        'access_token' => 'shpat_reinstall_token',
+    ]);
+    $plan = Plan::create([
+        'name' => 'Growth Plan',
+        'price' => 29.00,
+    ]);
+
+    // Local DB previously in cancelled state from uninstall
+    $localSub = ShopSubscription::create([
+        'shop_id' => $shop->id,
+        'plan_id' => $plan->id,
+        'shopify_subscription_gid' => 'gid://shopify/AppSubscription/555',
+        'status' => 'cancelled',
+        'cancelled_at' => now()->subDays(5),
+        'current_period_end' => now()->addDays(10)->startOfSecond(),
+        'is_trial' => 0,
+    ]);
+
+    $newShopifyPeriodEnd = now()->addDays(25)->startOfSecond();
+
+    \Illuminate\Support\Facades\Http::fake([
+        '*/admin/api/*/graphql.json' => \Illuminate\Support\Facades\Http::response([
+            'data' => [
+                'currentAppInstallation' => [
+                    'allSubscriptions' => [
+                        'edges' => [
+                            [
+                                'node' => [
+                                    'id' => 'gid://shopify/AppSubscription/555',
+                                    'name' => 'Growth Plan',
+                                    'status' => 'ACTIVE',
+                                    'test' => false,
+                                    'createdAt' => now()->subDays(1)->toIso8601String(),
+                                    'currentPeriodEnd' => $newShopifyPeriodEnd->toIso8601String(),
+                                    'lineItems' => [
+                                        [
+                                            'id' => 'gid://shopify/AppSubscriptionLineItem/555',
+                                            'plan' => [
+                                                'pricingDetails' => [
+                                                    '__typename' => 'AppRecurringPricing',
+                                                    'interval' => 'EVERY_30_DAYS',
+                                                    'price' => [
+                                                        'amount' => 29.00,
+                                                        'currencyCode' => 'USD',
+                                                    ],
+                                                ],
+                                            ],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $billingService = app(\App\Services\ShopifyBillingService::class);
+    $synced = $billingService->syncSubscription($shop);
+
+    expect($synced->status)->toBe('active');
+    expect($synced->cancelled_at)->toBeNull();
+    expect($synced->current_period_end->toIso8601String())->toBe($newShopifyPeriodEnd->toIso8601String());
+
+    $subscriptionService = app(\App\Services\SubscriptionService::class);
+    expect($subscriptionService->hasActiveEntitlement($shop->id))->toBeTrue();
+});
+
+test('29. Reinstall when Shopify has no active subscription does NOT reactivate old scheduled subscription', function () {
+    $shop = Shop::create([
+        'shop' => 'reinstall-nosub.myshopify.com',
+        'is_active' => 1,
+        'access_token' => 'shpat_reinstall_token',
+    ]);
+    $plan = Plan::create([
+        'name' => 'Growth Plan',
+        'price' => 29.00,
+    ]);
+
+    // Local DB previously cancelled from uninstall
+    $localSub = ShopSubscription::create([
+        'shop_id' => $shop->id,
+        'plan_id' => $plan->id,
+        'shopify_subscription_gid' => 'gid://shopify/AppSubscription/666',
+        'status' => 'cancelled',
+        'cancelled_at' => now()->subDays(30),
+        'current_period_end' => now()->subDay(), // already ended
+        'is_trial' => 0,
+    ]);
+
+    // Shopify returns no subscriptions
+    \Illuminate\Support\Facades\Http::fake([
+        '*/admin/api/*/graphql.json' => \Illuminate\Support\Facades\Http::response([
+            'data' => [
+                'currentAppInstallation' => [
+                    'allSubscriptions' => [
+                        'edges' => [],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $billingService = app(\App\Services\ShopifyBillingService::class);
+    $synced = $billingService->syncSubscription($shop);
+
+    // Old subscription status should not become active
+    $localSub->refresh();
+    expect($localSub->status)->not->toBe('active');
+
+    $subscriptionService = app(\App\Services\SubscriptionService::class);
+    expect($subscriptionService->hasActiveEntitlement($shop->id))->toBeFalse();
+});
+
 
 

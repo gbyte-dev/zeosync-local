@@ -649,6 +649,17 @@ class ShopifyController extends Controller
             'active_shop_id' => $shopModel->id,
             '_shopify_verified_shop' => $shop,
         ]);
+
+        // Sync subscription details from Shopify to ensure local DB reflects actual state on install/reinstall
+        try {
+            app(\App\Services\ShopifyBillingService::class)->syncSubscription($shopModel);
+        } catch (\Throwable $e) {
+            Log::error('SHOPIFY_SUBSCRIPTION_SYNC_ON_INSTALL_FAILED', [
+                'shop_id' => $shopModel->id,
+                'shop' => $shopModel->shop,
+                'error' => $e->getMessage(),
+            ]);
+        }
         // =========================
         // STEP 6: WEBHOOK
         // =========================
@@ -3653,6 +3664,26 @@ class ShopifyController extends Controller
                     'shopify_connection_status' => 'uninstalled',
                     'store_status' => 'uninstalled',
                 ]);
+
+                // Transition any active/accepted subscription to scheduled cancellation state (cancelled)
+                // strictly preserving current_period_end, plan_id, and subscription history.
+                $activeSubscription = \App\Models\ShopSubscription::where('shop_id', $shop->id)
+                    ->whereIn('status', ['active', 'accepted'])
+                    ->latest('id')
+                    ->first();
+
+                if ($activeSubscription) {
+                    $activeSubscription->update([
+                        'status' => 'cancelled',
+                        'cancelled_at' => now(),
+                    ]);
+
+                    Log::info('APP_UNINSTALLED: Active subscription transitioned to scheduled cancellation', [
+                        'shop_id' => $shop->id,
+                        'subscription_id' => $activeSubscription->id,
+                        'current_period_end' => $activeSubscription->current_period_end,
+                    ]);
+                }
             });
 
             Log::info('App uninstalled handled', [
