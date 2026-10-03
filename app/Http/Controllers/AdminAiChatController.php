@@ -63,6 +63,49 @@ class AdminAiChatController extends Controller
     }
 
     /**
+     * Fetch lightweight conversation summary list for admin polling and live sorting.
+     */
+    public function conversations(Request $request)
+    {
+        $shopsWithMessages = Shop::query()
+            ->whereHas('aiChatMessages')
+            ->withCount('aiChatMessages')
+            ->with(['aiChatMessages' => function ($q) {
+                $q->latest('id')->limit(1);
+            }])
+            ->get()
+            ->sortByDesc(function ($shop) {
+                return $shop->aiChatMessages->first()?->created_at?->timestamp ?? 0;
+            })
+            ->values();
+
+        $data = $shopsWithMessages->map(function ($shop) {
+            $latest = $shop->aiChatMessages->first();
+            return [
+                'id' => $shop->id,
+                'shop' => $shop->shop,
+                'shop_name' => $shop->shop_name ?: $shop->shop,
+                'email' => $shop->email,
+                'is_active' => (int) $shop->is_active,
+                'messages_count' => (int) $shop->ai_chat_messages_count,
+                'latest_message' => $latest ? [
+                    'id' => $latest->id,
+                    'role' => $latest->role,
+                    'message' => $latest->message,
+                    'created_at' => $latest->created_at?->toIso8601String(),
+                    'formatted_time' => $latest->created_at ? $latest->created_at->diffForHumans(null, true, true) : '',
+                    'timestamp' => $latest->created_at?->timestamp ?? 0,
+                ] : null,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'shops' => $data,
+        ]);
+    }
+
+    /**
      * Fetch messages for a specific shop (supporting polling with after_id).
      */
     public function messages(Request $request, Shop $shop)

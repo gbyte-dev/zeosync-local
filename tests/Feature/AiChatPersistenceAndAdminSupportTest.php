@@ -129,26 +129,30 @@ beforeEach(function () {
     DB::table('admins')->truncate();
 });
 
-function createTestShop(string $domain, string $name = 'Test Store', array $extra = []): Shop
-{
-    return Shop::create(array_merge([
-        'shop'         => $domain,
-        'shop_name'    => $name,
-        'email'        => 'merchant@' . $domain,
-        'is_active'    => 1,
-        'access_token' => 'shpat_test_' . md5($domain),
-    ], $extra));
+if (!function_exists('createTestShop')) {
+    function createTestShop(string $domain, string $name = 'Test Store', array $extra = []): Shop
+    {
+        return Shop::create(array_merge([
+            'shop'         => $domain,
+            'shop_name'    => $name,
+            'email'        => 'merchant@' . $domain,
+            'is_active'    => 1,
+            'access_token' => 'shpat_test_' . md5($domain),
+        ], $extra));
+    }
 }
 
-function testAuthSession(Shop $shop): array
-{
-    return [
-        '_shopify_verified_shop' => $shop->shop,
-        '_shopify_verified_at'   => time(),
-        'active_shop'            => $shop->shop,
-        'active_shop_id'         => $shop->id,
-        'shopify_installed'      => true,
-    ];
+if (!function_exists('testAuthSession')) {
+    function testAuthSession(Shop $shop): array
+    {
+        return [
+            '_shopify_verified_shop' => $shop->shop,
+            '_shopify_verified_at'   => time(),
+            'active_shop'            => $shop->shop,
+            'active_shop_id'         => $shop->id,
+            'shopify_installed'      => true,
+        ];
+    }
 }
 
 test('user ask persists exactly one user prompt and one ai assistant response in ai_chat_messages table', function () {
@@ -488,4 +492,121 @@ test('5-day retention purge command deletes only messages older than 5 days', fu
     expect(AiChatMessage::where('id', $oldMsg2->id)->exists())->toBeFalse();
     expect(AiChatMessage::where('id', $freshMsg1->id)->exists())->toBeTrue();
     expect(AiChatMessage::where('id', $freshMsg2->id)->exists())->toBeTrue();
+});
+
+test('admin conversations endpoint requires admin auth and returns live sorted shop list', function () {
+    $admin = Admin::create([
+        'name'     => 'Support Admin',
+        'email'    => 'admin2@zeosync.com',
+        'password' => bcrypt('secret123'),
+        'role'     => 'super_admin',
+    ]);
+
+    $shop1 = createTestShop('store-1.myshopify.com', 'Store 1');
+    $shop2 = createTestShop('store-2.myshopify.com', 'Store 2');
+    $shop3 = createTestShop('store-3.myshopify.com', 'Store 3');
+
+    // Unauthenticated request is redirected
+    $this->get(route('admin.aichats.conversations'))->assertRedirect(route('admin.login'));
+
+    // Shop 1 has oldest message (10 min ago)
+    AiChatMessage::create([
+        'shop_id'    => $shop1->id,
+        'role'       => 'user',
+        'message'    => 'Old inquiry from store 1',
+        'created_at' => now()->subMinutes(10),
+    ]);
+
+    // Shop 2 has intermediate message (5 min ago)
+    AiChatMessage::create([
+        'shop_id'    => $shop2->id,
+        'role'       => 'user',
+        'message'    => 'Middle inquiry from store 2',
+        'created_at' => now()->subMinutes(5),
+    ]);
+
+    // Authenticated admin fetches conversations
+    $res = $this->actingAs($admin, 'admin')->getJson(route('admin.aichats.conversations'));
+    $res->assertOk();
+    $res->assertJsonStructure([
+        'success',
+        'shops' => [
+            '*' => ['id', 'shop', 'shop_name', 'email', 'is_active', 'messages_count', 'latest_message'],
+        ],
+    ]);
+
+    $shops = $res->json('shops');
+    expect($shops)->toHaveCount(2);
+    // Shop 2 (5 min ago) should be first, Shop 1 (10 min ago) second
+    expect($shops[0]['id'])->toBe($shop2->id);
+    expect($shops[0]['latest_message']['message'])->toBe('Middle inquiry from store 2');
+    expect($shops[1]['id'])->toBe($shop1->id);
+
+    // New message arrives for Shop 1 (just now)
+    AiChatMessage::create([
+        'shop_id'    => $shop1->id,
+        'role'       => 'user',
+        'message'    => 'New message from store 1!',
+        'created_at' => now(),
+    ]);
+
+    // Next poll cycle: Shop 1 is now first!
+    $res2 = $this->actingAs($admin, 'admin')->getJson(route('admin.aichats.conversations'));
+    $res2->assertOk();
+    $shops2 = $res2->json('shops');
+    expect($shops2[0]['id'])->toBe($shop1->id);
+    expect($shops2[0]['latest_message']['message'])->toBe('New message from store 1!');
+    expect($shops2[1]['id'])->toBe($shop2->id);
+});
+
+test('admin messages polling endpoint returns only selected shop messages chronologically after given cursor', function () {
+    $admin = Admin::create([
+        'name'     => 'Support Admin',
+        'email'    => 'admin3@zeosync.com',
+        'password' => bcrypt('secret123'),
+        'role'     => 'super_admin',
+    ]);
+
+    $shopA = createTestShop('alpha.myshopify.com', 'Alpha Store');
+    $shopB = createTestShop('beta.myshopify.com', 'Beta Store');
+
+    $msgA1 = AiChatMessage::create([
+        'shop_id'    => $shopA->id,
+        'role'       => 'user',
+        'message'    => 'Alpha 1',
+        'created_at' => now()->subMinutes(3),
+    ]);
+
+    $msgB = AiChatMessage::create([
+        'shop_id'    => $shopB->id,
+        'role'       => 'user',
+        'message'    => 'Beta private message',
+        'created_at' => now()->subMinutes(2),
+    ]);
+
+    $msgA2 = AiChatMessage::create([
+        'shop_id'    => $shopA->id,
+        'role'       => 'assistant',
+        'message'    => 'Alpha 2 assistant reply',
+        'created_at' => now()->subMinute(),
+    ]);
+
+    // Poll without cursor returns all shop A messages
+    $res = $this->actingAs($admin, 'admin')->getJson(route('admin.aichats.messages', $shopA->id));
+    $res->assertOk();
+    $res->assertJsonCount(2, 'messages');
+    expect($res->json('messages.0.id'))->toBe($msgA1->id);
+    expect($res->json('messages.1.id'))->toBe($msgA2->id);
+    // Does not leak shop B
+    $res->assertJsonMissing(['message' => 'Beta private message']);
+
+    // Poll with after_id cursor returns only subsequent messages
+    $pollRes = $this->actingAs($admin, 'admin')->getJson(route('admin.aichats.messages', [
+        'shop'     => $shopA->id,
+        'after_id' => $msgA1->id,
+    ]));
+    $pollRes->assertOk();
+    $pollRes->assertJsonCount(1, 'messages');
+    expect($pollRes->json('messages.0.id'))->toBe($msgA2->id);
+    expect($pollRes->json('messages.0.message'))->toBe('Alpha 2 assistant reply');
 });

@@ -122,6 +122,7 @@ Route::prefix('admin')->middleware(\App\Http\Middleware\VerifyAdminRequest::clas
         Route::get('/schema-create', [ProductSchemaController::class, 'create'])->name('admin.schema.create');
         Route::post('/schema-store', [ProductSchemaController::class, 'store'])->name('product-schemas.store');
         Route::get('/ai-chats', [AdminAiChatController::class, 'index'])->name('admin.aichats.index');
+        Route::get('/ai-chats/conversations', [AdminAiChatController::class, 'conversations'])->name('admin.aichats.conversations');
         Route::get('/ai-chats/{shop}/messages', [AdminAiChatController::class, 'messages'])->name('admin.aichats.messages');
         Route::post('/ai-chats/{shop}/message', [AdminAiChatController::class, 'sendMessage'])->name('admin.aichats.send');
         Route::delete('/ai-chats/{shop}', [AdminAiChatController::class, 'clearChat'])->name('admin.aichats.clear');

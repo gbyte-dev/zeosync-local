@@ -345,7 +345,7 @@
             <div class="chat-sidebar__header">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                     <h6 class="m-0 fw-bold"><i class="bi bi-chat-dots me-1 text-primary"></i> Support Chats</h6>
-                    <span class="badge bg-primary rounded-pill">{{ $shopsWithMessages->count() }}</span>
+                    <span class="badge bg-primary rounded-pill" id="supportChatsBadge">{{ $shopsWithMessages->count() }}</span>
                 </div>
                 <div class="chat-sidebar__search">
                     <i class="bi bi-search"></i>
@@ -354,64 +354,72 @@
             </div>
 
             <div class="chat-sidebar__list" id="shopListContainer">
-                @forelse($shopsWithMessages as $s)
-                    @php
-                        $latestMsg = $s->aiChatMessages->first();
-                        $isSelected = $selectedShop && $selectedShop->id === $s->id;
-                    @endphp
-                    <a href="{{ route('admin.aichats.index', ['shop_id' => $s->id]) }}"
-                       class="chat-shop-item {{ $isSelected ? 'active' : '' }}"
-                       data-shop-name="{{ strtolower($s->shop_name ?? '') }}"
-                       data-shop-domain="{{ strtolower($s->shop) }}">
-                        <div class="chat-shop-item__avatar">
-                            {{ strtoupper(substr($s->shop_name ?: $s->shop, 0, 2)) }}
-                        </div>
-                        <div class="chat-shop-item__info">
-                            <div class="chat-shop-item__name">{{ $s->shop_name ?: $s->shop }}</div>
-                            <div class="chat-shop-item__domain">{{ $s->shop }}</div>
-                            @if($latestMsg)
-                                <div class="chat-shop-item__preview">
-                                    <strong class="text-capitalize">{{ $latestMsg->role }}:</strong> {{ \Illuminate\Support\Str::limit($latestMsg->message, 30) }}
-                                </div>
-                            @endif
-                        </div>
-                        <div class="chat-shop-item__meta">
-                            @if($latestMsg && $latestMsg->created_at)
-                                <div class="chat-shop-item__time">{{ $latestMsg->created_at->diffForHumans(null, true, true) }}</div>
-                            @endif
-                            <span class="badge {{ (int)$s->is_active === 1 ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary' }} chat-shop-item__badge">
-                                {{ (int)$s->is_active === 1 ? 'Active' : 'Offline' }}
-                            </span>
-                        </div>
-                    </a>
-                @empty
-                    <div class="text-center py-4 text-muted small">
-                        <i class="bi bi-chat-left text-secondary fs-3 d-block mb-2"></i>
-                        No conversations yet
-                    </div>
-                @endforelse
-
-                @if($allShops->whereNotIn('id', $shopsWithMessages->pluck('id'))->isNotEmpty())
-                    <div class="px-2 pt-3 pb-1 text-muted text-uppercase fw-bold" style="font-size: 11px;">
-                        Other Stores
-                    </div>
-                    @foreach($allShops->whereNotIn('id', $shopsWithMessages->pluck('id')) as $otherShop)
+                <div id="activeShopsList">
+                    @forelse($shopsWithMessages as $s)
                         @php
-                            $isSelected = $selectedShop && $selectedShop->id === $otherShop->id;
+                            $latestMsg = $s->aiChatMessages->first();
+                            $isSelected = $selectedShop && $selectedShop->id === $s->id;
                         @endphp
-                        <a href="{{ route('admin.aichats.index', ['shop_id' => $otherShop->id]) }}"
+                        <a href="{{ route('admin.aichats.index', ['shop_id' => $s->id]) }}"
                            class="chat-shop-item {{ $isSelected ? 'active' : '' }}"
-                           data-shop-name="{{ strtolower($otherShop->shop_name ?? '') }}"
-                           data-shop-domain="{{ strtolower($otherShop->shop) }}">
-                            <div class="chat-shop-item__avatar" style="background:#f1f5f9; color:#94a3b8;">
-                                {{ strtoupper(substr($otherShop->shop_name ?: $otherShop->shop, 0, 2)) }}
+                           data-shop-id="{{ $s->id }}"
+                           data-shop-name="{{ strtolower($s->shop_name ?? '') }}"
+                           data-shop-domain="{{ strtolower($s->shop) }}">
+                            <div class="chat-shop-item__avatar">
+                                {{ strtoupper(substr($s->shop_name ?: $s->shop, 0, 2)) }}
                             </div>
                             <div class="chat-shop-item__info">
-                                <div class="chat-shop-item__name">{{ $otherShop->shop_name ?: $otherShop->shop }}</div>
-                                <div class="chat-shop-item__domain">{{ $otherShop->shop }}</div>
+                                <div class="chat-shop-item__name">{{ $s->shop_name ?: $s->shop }}</div>
+                                <div class="chat-shop-item__domain">{{ $s->shop }}</div>
+                                @if($latestMsg)
+                                    <div class="chat-shop-item__preview">
+                                        <strong class="text-capitalize">{{ $latestMsg->role }}:</strong> {{ \Illuminate\Support\Str::limit($latestMsg->message, 30) }}
+                                    </div>
+                                @else
+                                    <div class="chat-shop-item__preview" style="display:none;"></div>
+                                @endif
+                            </div>
+                            <div class="chat-shop-item__meta">
+                                <div class="chat-shop-item__time">
+                                    {{ $latestMsg && $latestMsg->created_at ? $latestMsg->created_at->diffForHumans(null, true, true) : '' }}
+                                </div>
+                                <span class="badge {{ (int)$s->is_active === 1 ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary' }} chat-shop-item__badge">
+                                    {{ (int)$s->is_active === 1 ? 'Active' : 'Offline' }}
+                                </span>
                             </div>
                         </a>
-                    @endforeach
+                    @empty
+                        <div class="text-center py-4 text-muted small" id="noConversationsEmpty">
+                            <i class="bi bi-chat-left text-secondary fs-3 d-block mb-2"></i>
+                            No conversations yet
+                        </div>
+                    @endforelse
+                </div>
+
+                @if($allShops->whereNotIn('id', $shopsWithMessages->pluck('id'))->isNotEmpty())
+                    <div id="otherShopsSection">
+                        <div class="px-2 pt-3 pb-1 text-muted text-uppercase fw-bold" style="font-size: 11px;">
+                            Other Stores
+                        </div>
+                        @foreach($allShops->whereNotIn('id', $shopsWithMessages->pluck('id')) as $otherShop)
+                            @php
+                                $isSelected = $selectedShop && $selectedShop->id === $otherShop->id;
+                            @endphp
+                            <a href="{{ route('admin.aichats.index', ['shop_id' => $otherShop->id]) }}"
+                               class="chat-shop-item {{ $isSelected ? 'active' : '' }}"
+                               data-shop-id="{{ $otherShop->id }}"
+                               data-shop-name="{{ strtolower($otherShop->shop_name ?? '') }}"
+                               data-shop-domain="{{ strtolower($otherShop->shop) }}">
+                                <div class="chat-shop-item__avatar" style="background:#f1f5f9; color:#94a3b8;">
+                                    {{ strtoupper(substr($otherShop->shop_name ?: $otherShop->shop, 0, 2)) }}
+                                </div>
+                                <div class="chat-shop-item__info">
+                                    <div class="chat-shop-item__name">{{ $otherShop->shop_name ?: $otherShop->shop }}</div>
+                                    <div class="chat-shop-item__domain">{{ $otherShop->shop }}</div>
+                                </div>
+                            </a>
+                        @endforeach
+                    </div>
                 @endif
             </div>
         </aside>
@@ -464,7 +472,7 @@
                                     <span class="fw-bold">
                                         @if($msg->role === 'admin')
                                             Admin Support
-                                        @elseif($msg->role === 'assistant')
+                                         @elseif($msg->role === 'assistant')
                                             ZeoSync AI
                                         @else
                                             Merchant ({{ $selectedShop->shop_name ?: 'Store' }})
@@ -519,29 +527,56 @@
 @push('js')
 <script nonce="{{ $cspNonce }}">
 document.addEventListener('DOMContentLoaded', function() {
+    // Escape HTML helper
+    function escapeHtml(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+
+    function truncateText(str, length) {
+        if (!str) return '';
+        return str.length > length ? str.substring(0, length) + '...' : str;
+    }
+
     // 1. Search filter for shops sidebar
     const searchInput = document.getElementById('shopSearchInput');
     const shopList = document.getElementById('shopListContainer');
 
-    if (searchInput && shopList) {
-        searchInput.addEventListener('input', function() {
-            const query = this.value.toLowerCase().trim();
-            const items = shopList.querySelectorAll('.chat-shop-item');
+    function applySearchFilter() {
+        if (!searchInput || !shopList) return;
+        const query = searchInput.value.toLowerCase().trim();
+        const items = shopList.querySelectorAll('.chat-shop-item');
 
-            items.forEach(item => {
-                const name = item.dataset.shopName || '';
-                const domain = item.dataset.shopDomain || '';
-                if (name.includes(query) || domain.includes(query)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
+        items.forEach(item => {
+            const name = item.dataset.shopName || '';
+            const domain = item.dataset.shopDomain || '';
+            if (!query || name.includes(query) || domain.includes(query)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
         });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', applySearchFilter);
     }
 
     // 2. Active conversation management & auto-scroll
     const messagesContainer = document.getElementById('chatMessagesContainer');
+    const isUserNearBottom = () => {
+        if (!messagesContainer) return true;
+        const threshold = 100;
+        return (messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight) <= threshold;
+    };
+
     const scrollToBottom = () => {
         if (messagesContainer) {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -569,31 +604,39 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 4. AJAX send message
-    @if($selectedShop)
-    const selectedShopId = {{ $selectedShop->id }};
-    const messagesPollUrl = "{{ route('admin.aichats.messages', $selectedShop->id) }}";
+    // 4. Message tracking & rendering
+    const renderedMessageIds = new Set();
     let lastRenderedId = 0;
 
-    // Track highest rendered ID
     document.querySelectorAll('.chat-msg[data-msg-id]').forEach(el => {
         const id = parseInt(el.getAttribute('data-msg-id'), 10);
-        if (id > lastRenderedId) lastRenderedId = id;
+        if (!isNaN(id) && id > 0) {
+            renderedMessageIds.add(id);
+            if (id > lastRenderedId) lastRenderedId = id;
+        }
     });
 
-    const appendAdminMessageToUI = (msg) => {
+    const selectedShopId = {{ $selectedShop ? (int)$selectedShop->id : 'null' }};
+    const selectedShopName = "{{ $selectedShop ? addslashes($selectedShop->shop_name ?: 'Store') : 'Store' }}";
+
+    function appendMessageToUI(msg, forceScroll = false) {
         if (!messagesContainer) return;
+        if (!msg || !msg.id || renderedMessageIds.has(msg.id)) return;
+
+        renderedMessageIds.add(msg.id);
+        if (msg.id > lastRenderedId) lastRenderedId = msg.id;
+
         const emptyState = document.getElementById('chatEmptyState');
         if (emptyState) emptyState.remove();
 
-        if (document.querySelector(`.chat-msg[data-msg-id="${msg.id}"]`)) return;
+        const shouldScroll = forceScroll || isUserNearBottom();
 
         const msgDiv = document.createElement('div');
         msgDiv.className = `chat-msg chat-msg--${msg.role}`;
         msgDiv.setAttribute('data-msg-id', msg.id);
 
         let icon = 'bi-person-fill';
-        let roleName = 'Merchant';
+        let roleName = `Merchant (${selectedShopName})`;
         if (msg.role === 'admin') {
             icon = 'bi-person-check-fill';
             roleName = 'Admin Support';
@@ -602,9 +645,8 @@ document.addEventListener('DOMContentLoaded', function() {
             roleName = 'ZeoSync AI';
         }
 
-        const div = document.createElement('div');
-        div.textContent = msg.message;
-        const safeText = div.innerHTML.replace(/\n/g, '<br>');
+        const safeText = escapeHtml(msg.message).replace(/\n/g, '<br>');
+        const timeStr = escapeHtml(msg.formatted_time || 'Just now');
 
         msgDiv.innerHTML = `
             <div class="chat-msg__avatar">
@@ -614,7 +656,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="chat-msg__header">
                     <span class="fw-bold">${roleName}</span>
                     <span>&bull;</span>
-                    <span>${msg.formatted_time || 'Just now'}</span>
+                    <span>${timeStr}</span>
                 </div>
                 <div class="chat-msg__bubble">
                     ${safeText}
@@ -623,11 +665,94 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         messagesContainer.appendChild(msgDiv);
-        if (msg.id > lastRenderedId) lastRenderedId = msg.id;
-        scrollToBottom();
-    };
 
-    if (adminForm) {
+        if (shouldScroll) {
+            scrollToBottom();
+        }
+    }
+
+    // 5. Update Shop List dynamically
+    const conversationsUrl = "{{ route('admin.aichats.conversations') }}";
+    const activeShopsList = document.getElementById('activeShopsList');
+    const supportChatsBadge = document.getElementById('supportChatsBadge');
+
+    function updateShopList(shops) {
+        if (!activeShopsList || !Array.isArray(shops)) return;
+
+        if (supportChatsBadge) {
+            supportChatsBadge.textContent = shops.length;
+        }
+
+        const noConversationsEmpty = document.getElementById('noConversationsEmpty');
+        if (shops.length > 0 && noConversationsEmpty) {
+            noConversationsEmpty.remove();
+        }
+
+        // Build or update elements in order
+        shops.forEach(shop => {
+            let item = activeShopsList.querySelector(`.chat-shop-item[data-shop-id="${shop.id}"]`);
+            const isSelected = selectedShopId && selectedShopId === shop.id;
+
+            if (!item) {
+                // If it was in "other stores", remove it from there
+                const otherItem = document.querySelector(`#otherShopsSection .chat-shop-item[data-shop-id="${shop.id}"]`);
+                if (otherItem) otherItem.remove();
+
+                item = document.createElement('a');
+                item.className = `chat-shop-item ${isSelected ? 'active' : ''}`;
+                item.setAttribute('data-shop-id', shop.id);
+                item.href = `{{ url('/admin/ai-chats') }}?shop_id=${shop.id}`;
+            }
+
+            item.setAttribute('data-shop-name', (shop.shop_name || '').toLowerCase());
+            item.setAttribute('data-shop-domain', (shop.shop || '').toLowerCase());
+            if (isSelected) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+
+            const avatarText = escapeHtml(((shop.shop_name || shop.shop || 'ST').substring(0, 2)).toUpperCase());
+            const shopName = escapeHtml(shop.shop_name || shop.shop);
+            const shopDomain = escapeHtml(shop.shop);
+            const isActive = Number(shop.is_active) === 1;
+
+            let previewHtml = '';
+            let timeHtml = '';
+
+            if (shop.latest_message) {
+                const role = escapeHtml(shop.latest_message.role || '');
+                const textPreview = escapeHtml(truncateText(shop.latest_message.message || '', 30));
+                previewHtml = `<div class="chat-shop-item__preview"><strong class="text-capitalize">${role}:</strong> ${textPreview}</div>`;
+                timeHtml = escapeHtml(shop.latest_message.formatted_time || '');
+            }
+
+            item.innerHTML = `
+                <div class="chat-shop-item__avatar">
+                    ${avatarText}
+                </div>
+                <div class="chat-shop-item__info">
+                    <div class="chat-shop-item__name">${shopName}</div>
+                    <div class="chat-shop-item__domain">${shopDomain}</div>
+                    ${previewHtml}
+                </div>
+                <div class="chat-shop-item__meta">
+                    <div class="chat-shop-item__time">${timeHtml}</div>
+                    <span class="badge ${isActive ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'} chat-shop-item__badge">
+                        ${isActive ? 'Active' : 'Offline'}
+                    </span>
+                </div>
+            `;
+
+            // Append in sorted order to activeShopsList
+            activeShopsList.appendChild(item);
+        });
+
+        applySearchFilter();
+    }
+
+    // 6. Admin message send handler
+    if (adminForm && selectedShopId) {
         adminForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             const text = textarea ? textarea.value.trim() : '';
@@ -653,11 +778,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (res.ok) {
                     const data = await res.json();
                     if (data.success && data.message) {
-                        appendAdminMessageToUI(data.message);
+                        appendMessageToUI(data.message, true);
                         if (textarea) {
                             textarea.value = '';
                             textarea.style.height = 'auto';
                         }
+                        // Trigger immediate conversations update to reflect latest activity
+                        pollConversations();
                     }
                 }
             } catch (err) {
@@ -669,22 +796,83 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 5. Polling for live updates (merchant replies or AI responses)
-    setInterval(async () => {
+    // 7. Polling logic & Page Visibility Management
+    let pollingTimer = null;
+    let isPolling = false;
+
+    async function pollConversations() {
         try {
-            const url = `${messagesPollUrl}?after_id=${lastRenderedId}`;
+            const res = await fetch(conversationsUrl, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && Array.isArray(data.shops)) {
+                    updateShopList(data.shops);
+                }
+            }
+        } catch (_) {}
+    }
+
+    async function pollActiveMessages() {
+        if (!selectedShopId) return;
+        try {
+            const url = `{{ url('/admin/ai-chats') }}/${selectedShopId}/messages?after_id=${lastRenderedId}`;
             const res = await fetch(url, {
                 headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
             });
             if (res.ok) {
                 const data = await res.json();
                 if (data.success && Array.isArray(data.messages) && data.messages.length > 0) {
-                    data.messages.forEach(m => appendAdminMessageToUI(m));
+                    data.messages.forEach(m => appendMessageToUI(m, false));
                 }
             }
         } catch (_) {}
-    }, 4000);
-    @endif
+    }
+
+    async function executePollCycle() {
+        if (isPolling) return;
+        isPolling = true;
+        try {
+            await Promise.all([
+                pollConversations(),
+                pollActiveMessages()
+            ]);
+        } finally {
+            isPolling = false;
+        }
+    }
+
+    function scheduleNextPoll(delayMs) {
+        if (pollingTimer) {
+            clearTimeout(pollingTimer);
+            pollingTimer = null;
+        }
+        pollingTimer = setTimeout(async () => {
+            await executePollCycle();
+            const nextDelay = document.visibilityState === 'visible' ? 5000 : 600000;
+            scheduleNextPoll(nextDelay);
+        }, delayMs);
+    }
+
+    // Handle Tab Visibility
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            // Immediate single refresh on becoming visible, then resume 5s interval
+            if (pollingTimer) {
+                clearTimeout(pollingTimer);
+                pollingTimer = null;
+            }
+            executePollCycle();
+            scheduleNextPoll(5000);
+        } else {
+            // Tab hidden -> switch to 10-minute background interval
+            scheduleNextPoll(600000);
+        }
+    });
+
+    // Start 5s polling cycle
+    scheduleNextPoll(5000);
 });
 </script>
 @endpush
