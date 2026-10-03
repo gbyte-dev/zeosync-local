@@ -3399,6 +3399,9 @@
     $(document).on('click', '#newAmazonProductBtn', function() {
         const shop = new URLSearchParams(window.location.search).get('shop');
         let url = "{{ route('user.product.syncShopifyToAmazon', ['id' => '__ID__']) }}".replace('__ID__', selectedShopifyProductId) + '?shop=' + encodeURIComponent(shop);
+        if (selectedShopifyVariantId) {
+            url += '&variant_id=' + encodeURIComponent(selectedShopifyVariantId);
+        }
         window.location.href = url;
     });
 

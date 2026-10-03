@@ -9,17 +9,9 @@ class ShopifyAmazonMapper
     /**
      * Convert Shopify Product to Amazon Attribute Array
      */
-    public function map(array $product): array
+    public function map(array $product, ?array $selectedVariant = null): array
     {
-        $debugId = session('mapping_debug_id');
-
-        Log::info('MAPPING DEBUG - MAPPER START', [
-            'debug_id' => $debugId,
-            'shop_id' => session('active_shop_id') ?? null,
-            'shopify_product_id' => $product['id'] ?? null,
-        ]);
-
-        $variant = $product['variants'][0] ?? [];
+        $variant = $selectedVariant ?? ($product['variants'][0] ?? []);
 
         $mappedData = [
 
@@ -74,35 +66,6 @@ class ShopifyAmazonMapper
             'shopify_handle'     => $product['handle'] ?? '',
             'shopify_status'     => $product['status'] ?? '',
         ];
-
-        Log::info('MAPPING DEBUG - MAPPER OUTPUT', [
-            'debug_id' => $debugId,
-            'mapped_data' => json_decode(json_encode($mappedData), true),
-        ]);
-
-        Log::info('MAPPING DEBUG - IMPORTANT MAPPED FIELDS', [
-            'debug_id' => $debugId,
-            'sku' => $mappedData['sku'] ?? null,
-            'barcode' => $mappedData['externally_assigned_product_identifier'] ?? null,
-            'price' => $mappedData['price'] ?? null,
-            'quantity' => $mappedData['quantity'] ?? null,
-            'fulfillment_availability' => $mappedData['fulfillment_availability'] ?? null,
-            'product_type' => $product['product_type'] ?? null,
-        ]);
-
-        Log::info('[SKU FLOW TRACE]', [
-            'debug_id' => $debugId,
-            'method' => 'ShopifyAmazonMapper::map',
-            'product_id' => null,
-            'mapping_id' => null,
-            'shop_id' => session('active_shop_id') ?? null,
-            'shopify_product_id' => $product['id'] ?? null,
-            'shopify_variant_id' => $variant['id'] ?? null,
-            'sku' => $mappedData['sku'] ?? null,
-            'sku_source' => 'SHOPIFY',
-            'amazon_sku' => null,
-            'amazon_parent_sku' => null,
-        ]);
 
         return $mappedData;
     }
