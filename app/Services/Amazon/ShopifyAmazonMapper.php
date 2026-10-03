@@ -9,17 +9,25 @@ class ShopifyAmazonMapper
     /**
      * Convert Shopify Product to Amazon Attribute Array
      */
-    public function map(array $product): array
+    public function map(array $product, ?array $selectedVariant = null): array
     {
         $debugId = session('mapping_debug_id');
+
+        $variant = $selectedVariant ?? ($product['variants'][0] ?? []);
+
+        Log::info('[MAPPING IDENTITY]', [
+            'shop_id' => session('active_shop_id') ?? null,
+            'shopify_product_id' => $product['id'] ?? null,
+            'shopify_variant_id' => $variant['id'] ?? null,
+            'mapping_id' => null,
+        ]);
 
         Log::info('MAPPING DEBUG - MAPPER START', [
             'debug_id' => $debugId,
             'shop_id' => session('active_shop_id') ?? null,
             'shopify_product_id' => $product['id'] ?? null,
+            'shopify_variant_id' => $variant['id'] ?? null,
         ]);
-
-        $variant = $product['variants'][0] ?? [];
 
         $mappedData = [
 

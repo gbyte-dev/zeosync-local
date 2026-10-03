@@ -380,7 +380,20 @@ class ProductSchemaController extends Controller
         $mappingId = request('mapping_id') ?? session('mapping_id_' . $productid) ?? session('current_mapping_id');
         $mappingContext = $mappingId ? ProductMarketplaceMapping::where('shop_id', $activeShop->id)->find($mappingId) : null;
         if ($mappingId) {
-            session(['mapping_id_' . $productid => $mappingId]);
+            session(['mapping_id_' . $productid => $mappingId, 'current_mapping_id' => $mappingId]);
+        }
+
+        if ($mappingContext) {
+            Log::info('[MAPPING IDENTITY]', [
+                'shop_id' => $mappingContext->shop_id,
+                'shopify_product_id' => $mappingContext->shopify_product_id,
+                'shopify_variant_id' => $mappingContext->shopify_variant_id,
+                'mapping_id' => $mappingContext->id,
+            ]);
+            Log::info('[MAPPING LOOKUP]', [
+                'found_mapping_id' => $mappingContext->id,
+                'found_variant_id' => $mappingContext->shopify_variant_id,
+            ]);
         }
 
         Log::info('[MAPPING FLOW] DRAFT MAPPING CONTEXT', [
@@ -1139,6 +1152,15 @@ class ProductSchemaController extends Controller
         $mappingContext = $mappingId ? ProductMarketplaceMapping::where('shop_id', $activeShop->id)->find($mappingId) : null;
         if ($mappingId) {
             session(['mapping_id_' . $product->id => $mappingId, 'current_mapping_id' => $mappingId]);
+        }
+
+        if ($mappingContext) {
+            Log::info('[MAPPING IDENTITY]', [
+                'shop_id' => $mappingContext->shop_id,
+                'shopify_product_id' => $mappingContext->shopify_product_id,
+                'shopify_variant_id' => $mappingContext->shopify_variant_id,
+                'mapping_id' => $mappingContext->id,
+            ]);
         }
 
         try {
@@ -2047,25 +2069,56 @@ class ProductSchemaController extends Controller
     {
         $debugId = session('mapping_debug_id');
 
+        $shopifyProductId = (string) ($prodAttributes['shopify_product_id'] ?? '');
+        $shopifyVariantId = (string) (!empty($prodAttributes['shopify_variant_id']) ? $prodAttributes['shopify_variant_id'] : $shopifyProductId);
+
+        Log::info('[MAPPING IDENTITY]', [
+            'shop_id' => $shop_id,
+            'shopify_product_id' => $shopifyProductId,
+            'shopify_variant_id' => $shopifyVariantId,
+            'mapping_id' => null,
+        ]);
+
         Log::info('MAPPING DEBUG - SYNC PRODUCT SHOPIFY START', [
             'debug_id' => $debugId,
             'shop_id' => $shop_id ?? null,
-            'shopify_product_id' => $prodAttributes['shopify_product_id'] ?? null,
+            'shopify_product_id' => $shopifyProductId,
+            'shopify_variant_id' => $shopifyVariantId,
         ]);
 
-        $productmap = ProductMarketplaceMapping::updateOrCreate(
-            [
-                'shop_id' => $shop_id,
-                'shopify_variant_id' => (string) $prodAttributes['shopify_variant_id'] ?? $prodAttributes['shopify_product_id'],
-                'shopify_product_id' => (string) $prodAttributes['shopify_product_id']
-            ],
-            [
+        $existing = ProductMarketplaceMapping::where('shop_id', $shop_id)
+            ->where('shopify_product_id', $shopifyProductId)
+            ->where('shopify_variant_id', $shopifyVariantId)
+            ->first();
+
+        if ($existing) {
+            Log::info('[MAPPING LOOKUP]', [
+                'found_mapping_id' => $existing->id,
+                'found_variant_id' => $existing->shopify_variant_id,
+            ]);
+
+            $existing->update([
                 'product_id' => $product_id ?? '',
                 'amazon_product_type' => $producttype,
-                'shopify_inventory_item_id' => (string) $prodAttributes['shopify_inventory_item_id'] ?? null,
-                'sync_status' => 'pending'
-            ]
-        );
+                'shopify_inventory_item_id' => (string) ($prodAttributes['shopify_inventory_item_id'] ?? $existing->shopify_inventory_item_id),
+            ]);
+
+            $productmap = $existing;
+        } else {
+            $productmap = ProductMarketplaceMapping::create([
+                'shop_id' => $shop_id,
+                'shopify_product_id' => $shopifyProductId,
+                'shopify_variant_id' => $shopifyVariantId,
+                'product_id' => $product_id ?? '',
+                'amazon_product_type' => $producttype,
+                'shopify_inventory_item_id' => (string) ($prodAttributes['shopify_inventory_item_id'] ?? null),
+                'sync_status' => 'pending',
+            ]);
+
+            Log::info('[MAPPING CREATE]', [
+                'created_mapping_id' => $productmap->id,
+            ]);
+        }
 
         Log::info('[MAPPING FLOW] SOURCE', [
             'mapping_id' => $productmap->id,
@@ -2143,6 +2196,18 @@ class ProductSchemaController extends Controller
             return;
         }
 
+        Log::info('[MAPPING IDENTITY]', [
+            'shop_id' => $mapping->shop_id,
+            'shopify_product_id' => $mapping->shopify_product_id,
+            'shopify_variant_id' => $mapping->shopify_variant_id,
+            'mapping_id' => $mapping->id,
+        ]);
+
+        Log::info('[MAPPING LOOKUP]', [
+            'found_mapping_id' => $mapping->id,
+            'found_variant_id' => $mapping->shopify_variant_id,
+        ]);
+
         $targetSku = $prodAttributes['sku'] ?? ($prodAttributes['variants']['sku'] ?? null);
 
         $updateData = [
@@ -2166,6 +2231,11 @@ class ProductSchemaController extends Controller
         try {
             $mapping->update($updateData);
             $mapping->refresh();
+
+            Log::info('[MAPPING UPDATE]', [
+                'updated_mapping_id' => $mapping->id,
+                'updated_variant_id' => $mapping->shopify_variant_id,
+            ]);
 
             Log::info('[MAPPING UPDATE TRACE] UPDATED', [
                 'mapping_id' => $mapping->id,

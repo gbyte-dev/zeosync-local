@@ -3893,6 +3893,31 @@ class ShopifyController extends Controller
                 ->first();
             $amazonData = null;
 
+            $targetVariantId = $request->input('variant_id')
+                ?? $request->input('shopify_variant_id')
+                ?? $request->query('variant_id')
+                ?? $request->query('shopify_variant_id');
+
+            $selectedVariant = null;
+            if (!empty($targetVariantId) && !empty($product['variants'])) {
+                foreach ($product['variants'] as $v) {
+                    if ((string) ($v['id'] ?? '') === (string) $targetVariantId) {
+                        $selectedVariant = $v;
+                        break;
+                    }
+                }
+            }
+            if (!$selectedVariant) {
+                $selectedVariant = $product['variants'][0] ?? [];
+            }
+
+            Log::info('[MAPPING IDENTITY]', [
+                'shop_id' => $shopModel->id,
+                'shopify_product_id' => $id,
+                'shopify_variant_id' => $selectedVariant['id'] ?? null,
+                'mapping_id' => null,
+            ]);
+
             Log::info('[SKU FLOW TRACE]', [
                 'debug_id' => $debugId,
                 'method' => 'ShopifyController::syncShopifyToAmazon',
@@ -3900,8 +3925,8 @@ class ShopifyController extends Controller
                 'mapping_id' => null,
                 'shop_id' => $shopModel->id,
                 'shopify_product_id' => $id,
-                'shopify_variant_id' => $product['variants'][0]['id'] ?? null,
-                'sku' => $product['variants'][0]['sku'] ?? null,
+                'shopify_variant_id' => $selectedVariant['id'] ?? null,
+                'sku' => $selectedVariant['sku'] ?? null,
                 'sku_source' => 'SHOPIFY',
                 'amazon_sku' => null,
                 'amazon_parent_sku' => null,
@@ -3913,8 +3938,8 @@ class ShopifyController extends Controller
             ]);
 
             $mapper = new ShopifyAmazonMapper();
-            $mappedproduct = $mapper->map($product);
-            $mappedproduct['shopify_inventory_item_id'] = $product['variants'][0]['inventory_item_id'] ?? '';
+            $mappedproduct = $mapper->map($product, $selectedVariant);
+            $mappedproduct['shopify_inventory_item_id'] = $selectedVariant['inventory_item_id'] ?? '';
             if (isset($dbProduct) && ($dbProduct->sub_category_id != null)) {
                 $category = Category::where('id', $dbProduct->sub_category_id)->first();
 
