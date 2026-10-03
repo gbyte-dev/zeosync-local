@@ -47,7 +47,7 @@ class ShopifyAmazonMapper
 
             // Barcode
             'externally_assigned_product_identifier'
-                => $this->text($variant['barcode'] ?? ''),
+                => $this->barcode($variant['barcode'] ?? ''),
 
             // Images
             'main_product_image_locator'  => $this->mainImage($product),
@@ -181,6 +181,35 @@ class ShopifyAmazonMapper
         }
 
         return implode(',',$images);
+    }
+
+    /**
+     * Map barcode to externally assigned product identifier format expected by Amazon
+     */
+    private function barcode($barcode): string
+    {
+        if (empty($barcode)) {
+            return '';
+        }
+
+        $barcode = trim(strip_tags((string)$barcode));
+
+        if ($barcode === '') {
+            return '';
+        }
+
+        // If already prefixed with standard identifier types (UPC:, EAN:, GTIN:), preserve unchanged
+        if (preg_match('/^(EAN|GTIN|UPC)\s*:\s*(\d+)$/i', $barcode, $m)) {
+            return strtoupper($m[1]) . ':' . $m[2];
+        }
+
+        // If it is a valid 12-digit numeric barcode, convert to UPC:<barcode>
+        if (preg_match('/^\d{12}$/', $barcode)) {
+            return 'UPC:' . $barcode;
+        }
+
+        // If barcode is invalid or unhandled format, return empty string so it is not fabricated
+        return '';
     }
 
     /**
