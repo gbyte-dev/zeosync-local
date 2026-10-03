@@ -390,9 +390,6 @@
                 <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#amazonTestingAccessModal" style="border-radius: 6px; font-size: 12px; padding: 5px 12px;">
                     <i class="bi bi-shield-lock me-1"></i>Testing Access
                 </button>
-                <div class="text-muted mt-1" style="font-size: 11px; max-width: 320px; line-height: 1.35;">
-                    Testing access is provided temporarily for app review and testing purposes. This option will be removed after the app review process is completed.
-                </div>
             </div>
             @endif
         </div>
