@@ -117,5 +117,18 @@ abstract class TestCase extends BaseTestCase
                 $table->unsignedInteger('created_at');
             });
         }
+
+        if (!Schema::hasTable('ai_chat_messages')) {
+            Schema::create('ai_chat_messages', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('shop_id');
+                $table->string('role', 20);
+                $table->text('message');
+                $table->timestamps();
+
+                $table->index(['shop_id', 'created_at']);
+                $table->index(['shop_id', 'id']);
+            });
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AiChatMessage;
 use App\Models\Product;
 use App\Models\Shop;
 use App\Models\ShopifyOrder;
@@ -27,7 +28,12 @@ class AIController extends Controller
 
     public function index(Request $request)
     {
+        $shop = $this->resolveShop();
+
         if ($request->query('reset')) {
+            if ($shop) {
+                AiChatMessage::where('shop_id', $shop->id)->delete();
+            }
             $request->session()->forget('ai_chat_history');
             return redirect()->route('shopify.ai.chat', ['shop' => $request->query('shop')]);
         }
@@ -38,6 +44,60 @@ class AIController extends Controller
             'chatHistory' => $chatHistory,
             'currentShop' => $request->query('shop') ?? session('active_shop'),
         ]);
+    }
+
+    public function messages(Request $request)
+    {
+        $shop = $this->resolveShop();
+        if (!$shop) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'Unauthenticated Shopify request.',
+            ], 401);
+        }
+
+        $afterId = $request->query('after_id');
+        $query = AiChatMessage::where('shop_id', $shop->id);
+
+        if ($afterId && is_numeric($afterId)) {
+            $query->where('id', '>', (int) $afterId);
+        }
+
+        $messages = $query->orderBy('id', 'asc')->get();
+
+        return response()->json([
+            'success' => true,
+            'messages' => $messages->map(fn($m) => [
+                'id' => $m->id,
+                'role' => $m->role,
+                'message' => $m->message,
+                'created_at' => $m->created_at?->toIso8601String(),
+                'formatted_time' => $m->created_at?->format('h:i A'),
+            ]),
+        ]);
+    }
+
+    public function clear(Request $request)
+    {
+        $shop = $this->resolveShop();
+        if (!$shop) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['error' => 'Unauthorized'], 401);
+            }
+            return redirect()->route('crm.entry');
+        }
+
+        AiChatMessage::where('shop_id', $shop->id)->delete();
+        $request->session()->forget('ai_chat_history');
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Conversation cleared successfully.',
+            ]);
+        }
+
+        return redirect()->route('shopify.ai.chat', ['shop' => $shop->shop]);
     }
 
     public function ask(Request $request)
@@ -103,8 +163,16 @@ class AIController extends Controller
             }
         }
 
-        $context = $this->buildShopContext($shop);
         $prompt = $request->input('prompt');
+
+        // Persist user message to ai_chat_messages
+        AiChatMessage::create([
+            'shop_id' => $shop->id,
+            'role' => 'user',
+            'message' => $prompt,
+        ]);
+
+        $context = $this->buildShopContext($shop);
 
         $systemPrompt = 'You are Zeosync AI. Answer user questions about the current Shopify store, product performance, Amazon order cache, and marketplace pricing based on the data provided below. Be concise and factual. If exact data is unavailable, say so clearly. If the user asks for product details, provide the exact product detail link from the store context.';
         $userPrompt = "Store context:\n{$context}\n\nUser question: {$prompt}";
@@ -118,6 +186,13 @@ class AIController extends Controller
         ];
 
         if ($response['success']) {
+            // Persist AI assistant response to ai_chat_messages
+            AiChatMessage::create([
+                'shop_id' => $shop->id,
+                'role' => 'assistant',
+                'message' => $response['message'],
+            ]);
+
             $history[] = [
                 'role' => 'assistant',
                 'message' => $response['message'],

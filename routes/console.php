@@ -38,3 +38,7 @@ Schedule::command('compliance:purge-expired-results')->dailyAt('03:30')
 Schedule::command('inventory:recover-operations')->everyMinute()
     ->withoutOverlapping()
     ->runInBackground();
+
+Schedule::command('ai-chat:purge-old')->dailyAt('03:45')
+    ->withoutOverlapping()
+    ->runInBackground();

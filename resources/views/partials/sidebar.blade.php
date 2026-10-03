@@ -205,7 +205,7 @@ $amazonOrdersUrl = url('/orders?') . http_build_query(array_filter([
 
 </nav>
 
-<script nonce="{{ $cspNonce }}" >
+<script nonce="{{ $cspNonce ?? '' }}" >
     document.addEventListener('DOMContentLoaded', function() {
         if (window.self !== window.top) {
             document.getElementById('logout-button').style.display = 'none';

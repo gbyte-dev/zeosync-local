@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<style nonce="{{ $cspNonce }}">
+<style nonce="{{ $cspNonce ?? '' }}">
     .ai-chat-header {
         display: flex;
         flex-wrap: wrap;
@@ -568,7 +568,7 @@
     </div>
 </div>
 
-<script nonce="{{ $cspNonce }}">
+<script nonce="{{ $cspNonce ?? '' }}">
     document.addEventListener('DOMContentLoaded', function () {
         const form = document.getElementById('ai-chat-form');
         const log = document.getElementById('ai-chat-log');

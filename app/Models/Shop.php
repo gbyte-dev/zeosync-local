@@ -98,6 +98,11 @@ class Shop extends Model
         return $this->hasMany(ShopifySubscription::class);
     }
 
+    public function aiChatMessages(): HasMany
+    {
+        return $this->hasMany(AiChatMessage::class, 'shop_id');
+    }
+
     public function getidByshop($shop)
     {
         return $this->where('shop', $shop)->value('id');

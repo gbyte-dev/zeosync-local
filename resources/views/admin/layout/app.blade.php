@@ -318,6 +318,10 @@
                     class="sidebar-link {{ request()->routeIs('admin.notification*') ? 'active' : '' }}">
                     <i class="bi bi-bell"></i> Notification <span class="badge bg-danger rounded-pill ms-auto">{{ getAdminNotificationUnread()->count() }}</span>
                 </a>
+                <a href="{{ route('admin.aichats.index') }}"
+                    class="sidebar-link {{ request()->routeIs('admin.aichats*') ? 'active' : '' }}">
+                    <i class="bi bi-chat-dots"></i> Support Chat
+                </a>
                 <a href="{{ route('admin.settings') }}"
                     class="sidebar-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
                     <i class="bi bi-gear"></i> Settings
@@ -441,6 +445,9 @@
             </a>
             <a href="{{ route('admin.notification') }}" class="sidebar-link">
                 <i class="bi bi-bell"></i> Notification @if(getAdminNotificationUnread()->count() > 0) <span class="badge bg-danger rounded-pill ms-auto">{{ getAdminNotificationUnread()->count() }}</span> @endif
+            </a>
+            <a href="{{ route('admin.aichats.index') }}" class="sidebar-link">
+                <i class="bi bi-chat-dots"></i> Support Chat
             </a>
             <a href="{{ route('admin.settings') }}" class="sidebar-link">
                 <i class="bi bi-gear"></i> Settings

@@ -2,6 +2,8 @@
 $currentShop = $activeShop ?? session('active_shop') ?? request('shop') ?? '';
 $contactUrl = route('contact', array_filter(['shop' => $currentShop]));
 $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
+$messagesUrl = route('shopify.ai.chat.messages', array_filter(['shop' => $currentShop]));
+$clearUrl = route('shopify.ai.chat.clear', array_filter(['shop' => $currentShop]));
 @endphp
 
 <!-- ======================================================== -->
@@ -640,6 +642,23 @@ $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
         box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
     }
 
+    .zeosync-ai-support__msg--admin {
+        align-self: flex-start;
+    }
+
+    .zeosync-ai-support__msg--admin .zeosync-ai-support__msg-avatar {
+        background: #059669;
+        color: #FFFFFF;
+    }
+
+    .zeosync-ai-support__msg--admin .zeosync-ai-support__msg-bubble {
+        background: #ECFDF5;
+        color: #064E3B;
+        border: 1px solid #A7F3D0;
+        border-top-left-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
     .zeosync-ai-support__msg-text {
         margin: 0 0 6px 0;
     }
@@ -937,9 +956,15 @@ $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
 
         // State
         const askUrl = @json($askUrl);
+        const messagesUrl = @json($messagesUrl);
+        const clearUrl = @json($clearUrl);
         let isOpen = false;
         let isSubmitting = false;
         let lastFailedPrompt = null;
+        let lastFetchedId = 0;
+        let pollInterval = null;
+        let hasLoadedInitialHistory = false;
+        const renderedMessageIds = new Set();
 
         // Rotating Speech Messages
         const speechMessages = [
@@ -988,6 +1013,31 @@ $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
             });
         }
 
+        // Fetch / Poll Messages Helper
+        const loadMessages = async () => {
+            if (!messagesUrl) return;
+            try {
+                const url = `${messagesUrl}?after_id=${lastFetchedId}`;
+                const res = await fetch(url, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.success && Array.isArray(data.messages) && data.messages.length > 0) {
+                    if (!hasLoadedInitialHistory && lastFetchedId === 0) {
+                        if (messagesContainer) messagesContainer.innerHTML = '';
+                    }
+                    data.messages.forEach(m => {
+                        appendMessage(m.role, m.message, false, m.id);
+                    });
+                    hasLoadedInitialHistory = true;
+                }
+            } catch (_) {}
+        };
+
         // Open / Close Panel Handlers
         const openChat = () => {
             isOpen = true;
@@ -1001,11 +1051,19 @@ $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
             if (textarea) {
                 setTimeout(() => textarea.focus(), 150);
             }
+            loadMessages();
+            if (!pollInterval) {
+                pollInterval = setInterval(loadMessages, 5000);
+            }
             scrollToBottom();
         };
 
         const closeChat = () => {
             isOpen = false;
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
             if (chatPanel) {
                 chatPanel.style.display = 'none';
                 if (robotBtn) robotBtn.setAttribute('aria-expanded', 'false');
@@ -1225,8 +1283,30 @@ $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
 
         // New Conversation (Reset)
         if (newChatBtn) {
-            newChatBtn.addEventListener('click', () => {
+            newChatBtn.addEventListener('click', async () => {
                 if (dropdownMenu) dropdownMenu.style.display = 'none';
+
+                const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '{{ csrf_token() }}';
+
+                try {
+                    if (clearUrl) {
+                        await fetch(clearUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        });
+                    }
+                } catch (_) {}
+
+                renderedMessageIds.clear();
+                lastFetchedId = 0;
+                hasLoadedInitialHistory = false;
+
                 if (messagesContainer) {
                     // Reset to initial greeting
                     messagesContainer.innerHTML = `
@@ -1375,11 +1455,17 @@ $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
         };
 
         // Append Message Helper
-        const appendMessage = (role, content, isError = false) => {
+        const appendMessage = (role, content, isError = false, msgId = null) => {
             if (!messagesContainer) return;
+            if (msgId && renderedMessageIds.has(msgId)) return;
+            if (msgId) {
+                renderedMessageIds.add(msgId);
+                if (msgId > lastFetchedId) lastFetchedId = msgId;
+            }
 
             const msgDiv = document.createElement('div');
             msgDiv.className = `zeosync-ai-support__msg zeosync-ai-support__msg--${role} ${isError ? 'zeosync-ai-support__msg--error' : ''}`;
+            if (msgId) msgDiv.setAttribute('data-msg-id', msgId);
 
             if (role === 'assistant') {
                 const avatar = document.createElement('div');
@@ -1391,6 +1477,15 @@ $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
                         <rect x="19" y="21" width="34" height="23" rx="7" fill="#0F172A"/>
                         <circle cx="28" cy="31" r="3.5" fill="#38BDF8"/>
                         <circle cx="44" cy="31" r="3.5" fill="#38BDF8"/>
+                    </svg>
+                `;
+                msgDiv.appendChild(avatar);
+            } else if (role === 'admin') {
+                const avatar = document.createElement('div');
+                avatar.className = 'zeosync-ai-support__msg-avatar';
+                avatar.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
                 `;
                 msgDiv.appendChild(avatar);
@@ -1413,6 +1508,13 @@ $askUrl = route('shopify.ai.chat.ask', array_filter(['shop' => $currentShop]));
                         </svg>
                         <span>Try Again</span>
                     </button>
+                `;
+            } else if (role === 'admin') {
+                bubble.innerHTML = `
+                    <div style="font-size: 10.5px; font-weight: 700; color: #059669; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Support Team
+                    </div>
+                    ${formatMarkdown(content)}
                 `;
             } else {
                 bubble.innerHTML = formatMarkdown(content);

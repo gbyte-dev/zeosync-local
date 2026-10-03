@@ -59,6 +59,8 @@ Route::middleware([ResolveActiveShop::class, \App\Http\Middleware\CheckSubscript
     Route::get('/inventory', [InventoryController::class, 'index'])->name('shopify.inventory.index');
     Route::get('/ai-chat', [AIController::class, 'index'])->name('shopify.ai.chat');
     Route::post('/ai-chat', [AIController::class, 'ask'])->name('shopify.ai.chat.ask');
+    Route::get('/ai-chat/messages', [AIController::class, 'messages'])->name('shopify.ai.chat.messages');
+    Route::post('/ai-chat/clear', [AIController::class, 'clear'])->name('shopify.ai.chat.clear');
     Route::get('logs', [SettingsController::class, 'logs'])->name('shopify.logs');
     Route::post('logs/remove-all', [SettingsController::class, 'removeAllLogs'])->name('shopify.logs.remove.all');
     Route::delete('logs/{id}', [SettingsController::class, 'removeLog'])->name('shopify.logs.remove');
