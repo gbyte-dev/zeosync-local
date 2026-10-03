@@ -1,13 +1,16 @@
 <?php
 
+use App\Jobs\SyncAmazonInventoryJob;
 use App\Models\Admin;
 use App\Models\AdminSetting;
 use App\Models\AiChatMessage;
 use App\Models\Shop;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 
 beforeEach(function () {
@@ -126,15 +129,15 @@ beforeEach(function () {
     DB::table('admins')->truncate();
 });
 
-function createTestShop(string $domain, string $name = 'Test Store'): Shop
+function createTestShop(string $domain, string $name = 'Test Store', array $extra = []): Shop
 {
-    return Shop::create([
+    return Shop::create(array_merge([
         'shop'         => $domain,
         'shop_name'    => $name,
         'email'        => 'merchant@' . $domain,
         'is_active'    => 1,
         'access_token' => 'shpat_test_' . md5($domain),
-    ]);
+    ], $extra));
 }
 
 function testAuthSession(Shop $shop): array
@@ -148,7 +151,7 @@ function testAuthSession(Shop $shop): array
     ];
 }
 
-test('user ask persists both user prompt and ai assistant response in ai_chat_messages table', function () {
+test('user ask persists exactly one user prompt and one ai assistant response in ai_chat_messages table', function () {
     $shop = createTestShop('test-shop.myshopify.com', 'Test Store');
 
     Http::fake([
@@ -165,36 +168,44 @@ test('user ask persists both user prompt and ai assistant response in ai_chat_me
     ]);
 
     $response = $this->withSession(testAuthSession($shop))->postJson(route('shopify.ai.chat.ask'), [
-        'prompt' => 'How do I sync my inventory?',
+        'prompt' => 'How do I add a product?',
     ]);
 
     $response->assertOk();
+    $response->assertJsonStructure([
+        'success',
+        'message',
+        'user_message_id',
+        'message_id',
+    ]);
     $response->assertJson([
         'success' => true,
         'message' => 'Hello! I can help you with your Shopify and Amazon inventory.',
     ]);
 
-    // Verify 2 messages persisted
+    // Verify EXACTLY 2 rows in DB (1 user, 1 assistant)
     $messages = AiChatMessage::where('shop_id', $shop->id)->orderBy('id')->get();
     expect($messages)->toHaveCount(2);
 
     expect($messages[0]->role)->toBe('user');
-    expect($messages[0]->message)->toBe('How do I sync my inventory?');
+    expect($messages[0]->message)->toBe('How do I add a product?');
+    expect($messages[0]->id)->toBe($response->json('user_message_id'));
 
     expect($messages[1]->role)->toBe('assistant');
     expect($messages[1]->message)->toBe('Hello! I can help you with your Shopify and Amazon inventory.');
+    expect($messages[1]->id)->toBe($response->json('message_id'));
 });
 
-test('user can fetch chat messages with multi-shop isolation', function () {
+test('user can fetch chat messages with multi-shop isolation and polling after_id', function () {
     $shopA = createTestShop('shop-a.myshopify.com', 'Store A');
     $shopB = createTestShop('shop-b.myshopify.com', 'Store B');
 
-    AiChatMessage::create([
+    $msg1 = AiChatMessage::create([
         'shop_id' => $shopA->id,
         'role'    => 'user',
         'message' => 'Shop A question',
     ]);
-    AiChatMessage::create([
+    $msg2 = AiChatMessage::create([
         'shop_id' => $shopA->id,
         'role'    => 'assistant',
         'message' => 'Shop A response',
@@ -213,13 +224,17 @@ test('user can fetch chat messages with multi-shop isolation', function () {
     $responseA->assertJsonFragment(['message' => 'Shop A question']);
     $responseA->assertJsonMissing(['message' => 'Shop B private data']);
 
-    // Polling with after_id
-    $firstMsg = AiChatMessage::where('shop_id', $shopA->id)->first();
-    $responsePoll = $this->withSession(testAuthSession($shopA))->getJson(route('shopify.ai.chat.messages', ['after_id' => $firstMsg->id]));
+    // Polling with after_id returns only messages after msg1
+    $responsePoll = $this->withSession(testAuthSession($shopA))->getJson(route('shopify.ai.chat.messages', ['after_id' => $msg1->id]));
 
     $responsePoll->assertOk();
     $responsePoll->assertJsonCount(1, 'messages');
     $responsePoll->assertJsonFragment(['message' => 'Shop A response']);
+
+    // Polling after last message returns empty array
+    $responseEmpty = $this->withSession(testAuthSession($shopA))->getJson(route('shopify.ai.chat.messages', ['after_id' => $msg2->id]));
+    $responseEmpty->assertOk();
+    $responseEmpty->assertJsonCount(0, 'messages');
 });
 
 test('clear conversation deletes persisted messages for the active shop only', function () {
@@ -310,6 +325,122 @@ test('admin can view conversation list, shop messages, and send admin messages',
         'role'    => 'admin',
         'message' => 'Hello! Support team here to help.',
     ]);
+});
+
+test('unrelated user questions do NOT trigger Amazon inventory synchronization', function () {
+    Queue::fake();
+
+    // Shop has Amazon connected, but NO inventory cache is primed
+    $shop = createTestShop('unrelated-prompt.myshopify.com', 'Unrelated Store', [
+        'amazon_seller_id'     => 'SELLER_123',
+        'amazon_refresh_token' => 'at-refresh-token',
+        'amazon_marketplace_id'=> 'ATVPDKIKX0DER',
+    ]);
+
+    Http::fake([
+        'https://api.openai.com/v1/chat/completions' => Http::response([
+            'choices' => [
+                [
+                    'message' => [
+                        'content' => 'To connect your Amazon account, please navigate to the Account Connected menu.',
+                    ],
+                ],
+            ],
+            'usage' => ['total_tokens' => 30],
+        ], 200),
+    ]);
+
+    // Questions unrelated to checking inventory
+    $prompts = [
+        'How do I connect my Amazon account?',
+        'How do I change my billing plan?',
+        'What is Shopify?',
+        'How do I add a product?',
+        'Hello',
+    ];
+
+    foreach ($prompts as $prompt) {
+        $response = $this->withSession(testAuthSession($shop))->postJson(route('shopify.ai.chat.ask'), [
+            'prompt' => $prompt,
+        ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'message' => 'To connect your Amazon account, please navigate to the Account Connected menu.',
+        ]);
+        $response->assertJsonMissing(['status' => 'inventory_syncing']);
+    }
+
+    // Zero sync jobs were pushed for unrelated questions
+    Queue::assertNothingPushed();
+});
+
+test('inventory question with fresh cache answers immediately without dispatching sync', function () {
+    Queue::fake();
+
+    $shop = createTestShop('cached-inventory.myshopify.com', 'Cached Store', [
+        'amazon_seller_id'     => 'SELLER_123',
+        'amazon_refresh_token' => 'at-refresh-token',
+        'amazon_marketplace_id'=> 'ATVPDKIKX0DER',
+    ]);
+
+    Cache::forever("amazon_inventory_{$shop->id}_SELLER_123", [
+        ['sku' => 'SKU-A', 'quantity' => 10],
+    ]);
+    Cache::forever("amazon_inventory_status_{$shop->id}_SELLER_123", [
+        'refreshing'     => false,
+        'sync_completed' => true,
+        'last_synced_at' => now()->toDateTimeString(),
+    ]);
+
+    Http::fake([
+        'https://api.openai.com/v1/chat/completions' => Http::response([
+            'choices' => [
+                [
+                    'message' => [
+                        'content' => 'You have 10 units in Amazon inventory.',
+                    ],
+                ],
+            ],
+            'usage' => ['total_tokens' => 30],
+        ], 200),
+    ]);
+
+    $response = $this->withSession(testAuthSession($shop))->postJson(route('shopify.ai.chat.ask'), [
+        'prompt' => 'Tell me about my Amazon inventory',
+    ]);
+
+    $response->assertOk();
+    $response->assertJson([
+        'success' => true,
+        'message' => 'You have 10 units in Amazon inventory.',
+    ]);
+
+    Queue::assertNothingPushed();
+});
+
+test('inventory question with missing cache triggers inventory sync response and dispatches job', function () {
+    Queue::fake();
+
+    $shop = createTestShop('missing-inventory.myshopify.com', 'Missing Cache Store', [
+        'amazon_seller_id'     => 'SELLER_123',
+        'amazon_refresh_token' => 'at-refresh-token',
+        'amazon_marketplace_id'=> 'ATVPDKIKX0DER',
+    ]);
+
+    $response = $this->withSession(testAuthSession($shop))->postJson(route('shopify.ai.chat.ask'), [
+        'prompt' => 'How many inventory items do I have on Amazon?',
+    ]);
+
+    $response->assertOk();
+    $response->assertJson([
+        'success' => true,
+        'status'  => 'inventory_syncing',
+        'message' => 'Synchronizing Amazon inventory...',
+    ]);
+
+    Queue::assertPushed(SyncAmazonInventoryJob::class);
 });
 
 test('5-day retention purge command deletes only messages older than 5 days', function () {

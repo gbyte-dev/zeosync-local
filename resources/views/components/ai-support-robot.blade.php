@@ -1456,9 +1456,31 @@ $clearUrl = route('shopify.ai.chat.clear', array_filter(['shop' => $currentShop]
 
         // Append Message Helper
         const appendMessage = (role, content, isError = false, msgId = null) => {
-            if (!messagesContainer) return;
-            if (msgId && renderedMessageIds.has(msgId)) return;
+            if (!messagesContainer) return null;
             if (msgId) {
+                msgId = Number(msgId);
+                if (renderedMessageIds.has(msgId)) return null;
+                if (messagesContainer.querySelector(`[data-msg-id="${msgId}"]`)) {
+                    renderedMessageIds.add(msgId);
+                    if (msgId > lastFetchedId) lastFetchedId = msgId;
+                    return null;
+                }
+
+                // If this is a user message being rendered from polling/history,
+                // check if there is an existing un-tagged user bubble with matching text
+                if (role === 'user') {
+                    const unTaggedUserMsgs = messagesContainer.querySelectorAll('.zeosync-ai-support__msg--user:not([data-msg-id])');
+                    for (const unTagged of unTaggedUserMsgs) {
+                        const bubble = unTagged.querySelector('.zeosync-ai-support__msg-bubble');
+                        if (bubble && bubble.textContent.trim() === (content || '').trim()) {
+                            unTagged.setAttribute('data-msg-id', msgId);
+                            renderedMessageIds.add(msgId);
+                            if (msgId > lastFetchedId) lastFetchedId = msgId;
+                            return unTagged;
+                        }
+                    }
+                }
+
                 renderedMessageIds.add(msgId);
                 if (msgId > lastFetchedId) lastFetchedId = msgId;
             }
@@ -1540,6 +1562,7 @@ $clearUrl = route('shopify.ai.chat.clear', array_filter(['shop' => $currentShop]
             }
 
             scrollToBottom();
+            return msgDiv;
         };
 
         // Main Send Message Function
@@ -1558,7 +1581,7 @@ $clearUrl = route('shopify.ai.chat.clear', array_filter(['shop' => $currentShop]
             if (sendBtn) sendBtn.disabled = true;
 
             // Display user message in chat
-            appendMessage('user', prompt);
+            const userMsgEl = appendMessage('user', prompt);
 
             // Show typing indicator
             if (typingIndicator) typingIndicator.style.display = 'flex';
@@ -1597,7 +1620,18 @@ $clearUrl = route('shopify.ai.chat.clear', array_filter(['shop' => $currentShop]
 
                 if (data.success && data.message) {
                     lastFailedPrompt = null;
-                    appendMessage('assistant', data.message);
+                    if (data.user_message_id) {
+                        const uid = Number(data.user_message_id);
+                        if (userMsgEl) userMsgEl.setAttribute('data-msg-id', uid);
+                        renderedMessageIds.add(uid);
+                        if (uid > lastFetchedId) lastFetchedId = uid;
+                    }
+                    const asstId = data.message_id ? Number(data.message_id) : null;
+                    appendMessage('assistant', data.message, false, asstId);
+                    if (asstId) {
+                        renderedMessageIds.add(asstId);
+                        if (asstId > lastFetchedId) lastFetchedId = asstId;
+                    }
                 } else {
                     const fallbackMsg = data.error || 'Sorry, I couldn\'t process that request right now.';
                     appendMessage('assistant', fallbackMsg, true);

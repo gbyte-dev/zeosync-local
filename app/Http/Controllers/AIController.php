@@ -137,7 +137,9 @@ class AIController extends Controller
 
         RateLimiter::hit($rateLimitKey, self::RATE_LIMIT_DECAY_SECONDS);
 
-        if (!empty($shop->amazon_refresh_token)) {
+        $prompt = $request->input('prompt');
+
+        if ($this->isInventoryQuery($prompt) && !empty($shop->amazon_refresh_token)) {
             $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
             $sellerId = $shop->amazon_seller_id;
 
@@ -163,10 +165,8 @@ class AIController extends Controller
             }
         }
 
-        $prompt = $request->input('prompt');
-
         // Persist user message to ai_chat_messages
-        AiChatMessage::create([
+        $userMsg = AiChatMessage::create([
             'shop_id' => $shop->id,
             'role' => 'user',
             'message' => $prompt,
@@ -187,7 +187,7 @@ class AIController extends Controller
 
         if ($response['success']) {
             // Persist AI assistant response to ai_chat_messages
-            AiChatMessage::create([
+            $assistantMsg = AiChatMessage::create([
                 'shop_id' => $shop->id,
                 'role' => 'assistant',
                 'message' => $response['message'],
@@ -204,6 +204,8 @@ class AIController extends Controller
                     'success' => true,
                     'message' => $response['message'],
                     'history' => $history,
+                    'user_message_id' => $userMsg->id,
+                    'message_id' => $assistantMsg->id,
                 ]);
             }
 
@@ -348,6 +350,40 @@ class AIController extends Controller
             "amazon_inventory_{$shop->id}_{$sellerId}",
             []
         );
+    }
+
+    private function isInventoryQuery(?string $prompt): bool
+    {
+        if (empty($prompt)) {
+            return false;
+        }
+
+        $prompt = strtolower(trim($prompt));
+
+        // Explicit inventory / stock questions
+        $inventoryPatterns = [
+            '/\b(amazon\s+)?(inventory|stock)\b/i',
+            '/\blow(\s+in)?\s+stock\b/i',
+            '/\bout\s+of\s+stock\b/i',
+            '/\b(stock|quantity|units?|inventory)\s+(on\s+amazon|available|remaining|count|levels?)\b/i',
+            '/\bhow\s+many\s+.*(items|units|products|inventory|stock)\b/i',
+        ];
+
+        // Non-inventory exclusions (e.g. account connection, plan change, etc.)
+        $excludedPatterns = '/\b(connect|authorize|link|integrate|setting|login|logout|billing|plan|pricing|subscription)\b/i';
+        $explicitStockCheck = '/\b(check|show|tell|count|level|quantity|sync|low|out\s+of)\s+.*(inventory|stock)\b/i';
+
+        if (preg_match($excludedPatterns, $prompt) && !preg_match($explicitStockCheck, $prompt)) {
+            return false;
+        }
+
+        foreach ($inventoryPatterns as $pattern) {
+            if (preg_match($pattern, $prompt)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function sendAiRequest(string $systemPrompt, string $userPrompt): array
