@@ -184,18 +184,9 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
             <ul class="mb-0 mt-2">
                 @if(is_array($displayErrors))
                 @foreach($displayErrors as $error)
-                <li class="mb-1">
-                    @if(is_array($error))
-                        @if(!empty($error['attributeNames']))
-                            <strong>Attribute:</strong> <code>{{ implode(', ', $error['attributeNames']) }}</code><br>
-                        @endif
-                        @if(!empty($error['code']))
-                            <strong>Code:</strong> <span class="badge badge-secondary" style="background:#dc3545; color:#fff;">{{ $error['code'] }}</span><br>
-                        @endif
-                        <strong>Error:</strong> {{ $error['message'] ?? 'Amazon listing validation failed.' }}
-                    @else
-                        {{ $error }}
-                    @endif
+                <li>
+                    <strong style="display:none">{{ implode(', ', $error['attributeNames'] ?? []) }} : </strong>
+                    {{ is_array($error) ? ($error['message'] ?? '') : $error }}
                 </li>
                 @endforeach
                 @else

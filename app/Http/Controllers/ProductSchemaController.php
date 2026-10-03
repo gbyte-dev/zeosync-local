@@ -841,7 +841,7 @@ class ProductSchemaController extends Controller
             }
 
             $transformed = $transformer->transformAttribute($canonicalName, $value, $product->attributes);
-            if ($transformed === null || (is_array($transformed) && empty($transformed))) {
+            if ($transformed === null) {
                 continue;
             }
             $attributes[$canonicalName] = $transformed;
@@ -1035,8 +1035,6 @@ class ProductSchemaController extends Controller
             }
             $generatejson = $this->generatejson($product->id);
             $prodAttributes['sku'] = $product->sku;
-            $prodAttributes['submission_id'] = $payload3['submissionId'] ?? null;
-            $prodAttributes['submission_status'] = $payload3['status'] ?? 'ACCEPTED';
             $this->updateSyncAmazon($product->id, $prodAttributes);
             $product->status = $payload3['status'];
             $product->submission_status = $payload3['submissionId'];
@@ -1733,14 +1731,13 @@ class ProductSchemaController extends Controller
         $productmap = ProductMarketplaceMapping::updateOrCreate(
             [
                 'shop_id' => $shop_id,
-                'shopify_variant_id' => (string) ($prodAttributes['shopify_variant_id'] ?? $prodAttributes['shopify_product_id']),
+                'shopify_variant_id' => (string) $prodAttributes['shopify_variant_id'] ?? $prodAttributes['shopify_product_id'],
                 'shopify_product_id' => (string) $prodAttributes['shopify_product_id']
             ],
             [
                 'product_id' => $product_id ?? '',
                 'amazon_product_type' => $producttype,
-                'shopify_inventory_item_id' => (string) ($prodAttributes['shopify_inventory_item_id'] ?? null),
-                'shopify_location_id' => isset($prodAttributes['shopify_location_id']) ? (string) $prodAttributes['shopify_location_id'] : null,
+                'shopify_inventory_item_id' => (string) $prodAttributes['shopify_inventory_item_id'] ?? null,
                 'sync_status' => 'pending'
             ]
         );
@@ -1755,7 +1752,7 @@ class ProductSchemaController extends Controller
             return;
         }
         $shopifyid = $productmappped->shopify_id;
-        $shopId = $this->getShopIdFromSession() ?? $productmappped->shop_id ?? $productmappped->user_id;
+        $shopId = $this->getShopIdFromSession();
         $data = [];
         if (isset($prodAttributes['variants'])) {
             $data['amazon_sku'] = $prodAttributes['variants']['sku'] ?? $prodAttributes['sku'];
@@ -1766,11 +1763,6 @@ class ProductSchemaController extends Controller
             $data['amazon_parent_sku'] = $prodAttributes['sku'];
             $data['sync_status'] = 'active';
         }
-        if (isset($prodAttributes['submission_id'])) {
-            $data['submission_id'] = $prodAttributes['submission_id'];
-            $data['submission_status'] = $prodAttributes['submission_status'] ?? 'ACCEPTED';
-        }
-        $data['last_synced_at'] = now();
         $updated = ProductMarketplaceMapping::where('shop_id', $shopId)
             ->where('shopify_product_id', $shopifyid)
             ->update($data);

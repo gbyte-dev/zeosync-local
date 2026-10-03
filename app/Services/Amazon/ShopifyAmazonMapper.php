@@ -47,7 +47,7 @@ class ShopifyAmazonMapper
 
             // Barcode
             'externally_assigned_product_identifier'
-                => $this->barcode($variant['barcode'] ?? ''),
+                => $this->text($variant['barcode'] ?? ''),
 
             // Images
             'main_product_image_locator'  => $this->mainImage($product),
@@ -267,32 +267,5 @@ class ShopifyAmazonMapper
     private function limit($text,$limit=500): string
     {
         return substr(trim(strip_tags($text)),0,$limit);
-    }
-
-    /**
-     * Normalize Shopify barcode into Amazon identifier format (UPC/EAN/GTIN)
-     */
-    private function barcode(mixed $rawBarcode): string
-    {
-        $barcode = trim((string) $rawBarcode);
-        if ($barcode === '') {
-            return '';
-        }
-
-        if (preg_match('/^(EAN|GTIN|UPC)\s*:\s*\d+$/i', $barcode)) {
-            return $barcode;
-        }
-
-        if (preg_match('/^\d+$/', $barcode)) {
-            $len = strlen($barcode);
-            return match ($len) {
-                12 => 'UPC: ' . $barcode,
-                13 => 'EAN: ' . $barcode,
-                14 => 'GTIN: ' . $barcode,
-                default => '',
-            };
-        }
-
-        return '';
     }
 }
