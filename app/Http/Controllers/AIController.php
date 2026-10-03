@@ -144,13 +144,24 @@ class AIController extends Controller
             $sellerId = $shop->amazon_seller_id;
 
             $cacheKey = !empty($sellerId) ? "amazon_inventory_{$shop->id}_{$sellerId}" : null;
+            $cachedInventory = $cacheKey ? Cache::get($cacheKey) : null;
+            $hasCache = is_array($cachedInventory);
 
             $inventoryService = app(InventoryCacheService::class);
             $status = $inventoryService->getStatus($shop, $marketplaceId);
-            $hasCache = $cacheKey ? Cache::has($cacheKey) : false;
-            $syncCompleted = (bool) ($status['sync_completed'] ?? false);
 
-            if (!$hasCache || !$syncCompleted) {
+            // Determine if existing inventory cache is stale (>25 mins TTL)
+            $isStale = false;
+            if ($hasCache && !empty($status['last_synced_at'])) {
+                try {
+                    $lastSynced = \Carbon\Carbon::parse($status['last_synced_at']);
+                    $isStale = $lastSynced->diffInMinutes(now()) >= 25;
+                } catch (\Throwable) {
+                    $isStale = false;
+                }
+            }
+
+            if (!$hasCache || $isStale) {
                 if (!($status['refreshing'] ?? false)) {
                     $inventoryService->dispatchRefresh($shop, $marketplaceId);
                 }

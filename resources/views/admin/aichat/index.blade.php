@@ -598,7 +598,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 if (this.value.trim() && adminForm) {
-                    adminForm.dispatchEvent(new Event('submit', { cancelable: true }));
+                    if (typeof adminForm.requestSubmit === 'function') {
+                        adminForm.requestSubmit();
+                    } else {
+                        adminForm.dispatchEvent(new Event('submit', { cancelable: true }));
+                    }
                 }
             }
         });

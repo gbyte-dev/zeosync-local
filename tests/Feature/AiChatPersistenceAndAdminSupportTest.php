@@ -447,6 +447,82 @@ test('inventory question with missing cache triggers inventory sync response and
     Queue::assertPushed(SyncAmazonInventoryJob::class);
 });
 
+test('existing dashboard inventory data in cache answers immediately without triggering synchronization', function () {
+    Queue::fake();
+
+    $shop = createTestShop('dashboard-parity.myshopify.com', 'Dashboard Parity Store', [
+        'amazon_seller_id'     => 'SELLER_PARITY',
+        'amazon_refresh_token' => 'at-refresh-token',
+        'amazon_marketplace_id'=> 'ATVPDKIKX0DER',
+    ]);
+
+    // Populate the exact 18 products cache key that the dashboard uses
+    $items = [];
+    for ($i = 1; $i <= 18; $i++) {
+        $items[] = ['sku' => "SKU-{$i}", 'title' => "Product {$i}", 'quantity' => $i * 2];
+    }
+    Cache::forever("amazon_inventory_{$shop->id}_SELLER_PARITY", $items);
+
+    Http::fake([
+        'https://api.openai.com/v1/chat/completions' => Http::response([
+            'choices' => [
+                [
+                    'message' => [
+                        'content' => 'You have 18 Amazon inventory items.',
+                    ],
+                ],
+            ],
+            'usage' => ['total_tokens' => 30],
+        ], 200),
+    ]);
+
+    $response = $this->withSession(testAuthSession($shop))->postJson(route('shopify.ai.chat.ask'), [
+        'prompt' => 'I want to know about my Amazon inventory',
+    ]);
+
+    $response->assertOk();
+    $response->assertJson([
+        'success' => true,
+        'message' => 'You have 18 Amazon inventory items.',
+    ]);
+    $response->assertJsonMissing(['status' => 'inventory_syncing']);
+
+    Queue::assertNothingPushed();
+});
+
+test('stale inventory cache older than TTL triggers background synchronization', function () {
+    Queue::fake();
+
+    $shop = createTestShop('stale-inventory.myshopify.com', 'Stale Store', [
+        'amazon_seller_id'     => 'SELLER_STALE',
+        'amazon_refresh_token' => 'at-refresh-token',
+        'amazon_marketplace_id'=> 'ATVPDKIKX0DER',
+    ]);
+
+    Cache::forever("amazon_inventory_{$shop->id}_SELLER_STALE", [
+        ['sku' => 'OLD-SKU', 'quantity' => 5],
+    ]);
+    // 30 minutes old (>25 min TTL)
+    Cache::forever("amazon_inventory_status_{$shop->id}_SELLER_STALE", [
+        'refreshing'     => false,
+        'sync_completed' => true,
+        'last_synced_at' => now()->subMinutes(30)->toDateTimeString(),
+    ]);
+
+    $response = $this->withSession(testAuthSession($shop))->postJson(route('shopify.ai.chat.ask'), [
+        'prompt' => 'Check my amazon stock',
+    ]);
+
+    $response->assertOk();
+    $response->assertJson([
+        'success' => true,
+        'status'  => 'inventory_syncing',
+        'message' => 'Synchronizing Amazon inventory...',
+    ]);
+
+    Queue::assertPushed(SyncAmazonInventoryJob::class);
+});
+
 test('5-day retention purge command deletes only messages older than 5 days', function () {
     $shop = createTestShop('shop-retention.myshopify.com', 'Retention Store');
 
