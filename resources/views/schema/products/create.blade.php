@@ -213,9 +213,6 @@ $prodAttrijson = json_decode($productshow->filled_json, true);
                     @endif
                     @csrf
                     <input type="hidden" name="shop" value="{{ request('shop') }}">
-                    @if(request()->has('debug_payload'))
-                    <input type="hidden" name="debug_payload" value="{{ request('debug_payload') }}">
-                    @endif
                     @if(isset($productshow) && ($productshow->status != 'draft' && $productshow->status != 'failed'))
                     <input type="hidden" name="parent_id" value="{{ $productshow->id }}">
                     @endif

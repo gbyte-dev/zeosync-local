@@ -755,14 +755,10 @@ class ProductSchemaController extends Controller
                 'shop' => $activeShop->shop,
             ])->with('success', 'Product Saved as Draft');
         }
-        $redirectParams = [
+        return redirect()->route('admin.product.generatePayload', [
             'product' => $product_id,
             'shop' => $activeShop->shop,
-        ];
-        if ($request->filled('debug_payload') || $request->has('debug_payload') || $request->query('debug_payload')) {
-            $redirectParams['debug_payload'] = 1;
-        }
-        return redirect()->route('admin.product.generatePayload', $redirectParams);
+        ]);
     }
 
     public function generatePayload(Product $product, $type = 'main', $fields = []): array
@@ -923,123 +919,41 @@ class ProductSchemaController extends Controller
                 $schema = ProductSchema::findOrFail($product->schema_id);
                 $fields = $schema->parsed_json;
                 $payload = $this->generatePayload($product, 'main', $fields);
+                $attributes = $payload['attributes'] ?? [];
                 $testcontroller = new TestController();
                 $sku = $product->sku;
                 $payload2 = $testcontroller->createOnlyListing($payload['attributes'], $schema->product_type ?? 'KEYBOARDS');
 
-                if (request()->has('debug_payload') || request('debug_payload') == '1') {
-                    $rawAttributes = $product->attributes->pluck('attribute_value', 'attribute_name')->toArray();
-                    $transformedAttributes = $payload['attributes'];
-                    $productType = $schema->product_type ?? 'KEYBOARDS';
+                dd([
+                    'product_id' => $product->id,
+                    'sku' => $product->sku ?? null,
 
-                    $finalPayload = [
-                        'header' => [
-                            'sellerId' => $this->credentials['seller_id'] ?? '',
-                            'version' => '2.0',
-                            'issueLocale' => 'en_US',
-                        ],
-                        'productType' => $productType,
-                        'requirements' => 'LISTING',
-                        'attributes' => $transformedAttributes,
-                    ];
+                    'raw_product_attributes' => $product->attributes
+                        ->map(fn ($attribute) => [
+                            'name' => $attribute->attribute_name ?? $attribute->name,
+                            'value' => $attribute->attribute_value ?? $attribute->value,
+                        ])
+                        ->toArray(),
 
-                    $debugData = [
-                        'product_id' => $product->id,
-                        'SKU' => $sku,
-                        'product_type' => $productType,
-                        'externally_assigned_product_identifier' => $transformedAttributes['externally_assigned_product_identifier'] ?? null,
-                        'fulfillment_availability' => $transformedAttributes['fulfillment_availability'] ?? null,
-                        'purchasable_offer' => $transformedAttributes['purchasable_offer'] ?? null,
-                        'list_price' => $transformedAttributes['list_price'] ?? null,
-                        'all_generated_attributes' => $transformedAttributes,
-                        'raw_product_attributes' => $rawAttributes,
-                        'final_payload' => $finalPayload,
-                    ];
+                    'final_attributes' => $attributes,
 
-                    $jsonFinalPayload = json_encode($finalPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-                    $jsonRawAttributes = json_encode($rawAttributes, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-                    $jsonTransformed = json_encode($transformedAttributes, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-                    $jsonDebugData = json_encode($debugData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-                    $editUrl = $this->shopAwareUrl(route('admin.product.productEdit', $product->id), request('shop'));
+                    'final_amazon_payload' => $payload2,
 
-                    $html = <<<HTML
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amazon SP-API Debugger</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; margin: 0; line-height: 1.5; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .header { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 20px; margin-bottom: 24px; }
-        .badge { display: inline-block; background: #0284c7; color: white; padding: 4px 10px; border-radius: 9999px; font-size: 13px; font-weight: 600; margin-right: 8px; }
-        .badge-warning { background: #d97706; }
-        .section { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 20px; margin-bottom: 24px; }
-        h1 { margin-top: 0; color: #38bdf8; font-size: 22px; }
-        h2 { color: #cbd5e1; font-size: 16px; margin-top: 0; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 8px; }
-        pre { background: #090d16; color: #4ade80; padding: 16px; border-radius: 6px; overflow-x: auto; font-family: "JetBrains Mono", Consolas, Menlo, Monaco, monospace; font-size: 13px; }
-        .btn { display: inline-block; background: #2563eb; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px; margin-top: 12px; }
-        .btn:hover { background: #1d4ed8; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🔍 Amazon SP-API Payload Debugger</h1>
-            <p style="margin: 6px 0 14px 0; color: #94a3b8;">
-                Amazon API call was <strong>SKIPPED</strong>. The exact generated payload has been printed below and logged to your <strong>Browser DevTools Console (F12)</strong>.
-            </p>
-            <div>
-                <span class="badge">Product ID: {$product->id}</span>
-                <span class="badge">SKU: {$sku}</span>
-                <span class="badge">Product Type: {$productType}</span>
-                <span class="badge badge-warning">DEBUG MODE ACTIVE</span>
-            </div>
-            <a href="{$editUrl}" class="btn">&larr; Return to Product Edit</a>
-        </div>
+                    'externally_assigned_product_identifier'
+                        => $attributes['externally_assigned_product_identifier'] ?? null,
 
-        <div class="section">
-            <h2>1. AMAZON FINAL GENERATED PAYLOAD (Sent to SP-API)</h2>
-            <pre id="payload-display">{$jsonFinalPayload}</pre>
-        </div>
+                    'fulfillment_availability'
+                        => $attributes['fulfillment_availability'] ?? null,
 
-        <div class="section">
-            <h2>2. RAW PRODUCT ATTRIBUTES (Stored in DB)</h2>
-            <pre>{$jsonRawAttributes}</pre>
-        </div>
+                    'purchasable_offer'
+                        => $attributes['purchasable_offer'] ?? null,
 
-        <div class="section">
-            <h2>3. TRANSFORMED ATTRIBUTES</h2>
-            <pre>{$jsonTransformed}</pre>
-        </div>
-    </div>
+                    'list_price'
+                        => $attributes['list_price'] ?? null,
 
-    <script>
-        const payload = {$jsonFinalPayload};
-        const rawAttributes = {$jsonRawAttributes};
-        const transformedAttributes = {$jsonTransformed};
-        const debugData = {$jsonDebugData};
-
-        console.log("%c================ AMAZON SP-API DEBUG PAYLOAD ================", "color: #38bdf8; font-size: 14px; font-weight: bold;");
-        console.log("AMAZON FINAL GENERATED PAYLOAD:", payload);
-        console.log("AMAZON PRODUCT ATTRIBUTES:", rawAttributes);
-        console.log("AMAZON TRANSFORMED ATTRIBUTES:", transformedAttributes);
-        console.log("product_id:", debugData.product_id);
-        console.log("SKU:", debugData.SKU);
-        console.log("externally_assigned_product_identifier:", debugData.externally_assigned_product_identifier);
-        console.log("fulfillment_availability:", debugData.fulfillment_availability);
-        console.log("purchasable_offer:", debugData.purchasable_offer);
-        console.log("list_price:", debugData.list_price);
-        console.log("product_type:", debugData.product_type);
-        console.log("all generated attributes:", debugData.all_generated_attributes);
-        console.log("%c=============================================================", "color: #38bdf8; font-size: 14px; font-weight: bold;");
-    </script>
-</body>
-</html>
-HTML;
-                    return response($html, 200, ['Content-Type' => 'text/html']);
-                }
+                    'product_type'
+                        => $schema->product_type ?? $product->product_type ?? null,
+                ]);
 
                 $payload3 = $testcontroller->createOnlyputListing($payload2, $sku);
             }
