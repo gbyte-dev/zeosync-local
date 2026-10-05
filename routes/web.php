@@ -13,6 +13,7 @@ use App\Http\Controllers\PlanController;
 use App\Http\Controllers\ProductSchemaController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SetupController;
 use App\Http\Controllers\ShopifyComplianceWebhookController;
 use App\Http\Controllers\ShopifyController;
 use App\Http\Controllers\SubscriptionController;
@@ -68,6 +69,8 @@ Route::middleware([ResolveActiveShop::class, \App\Http\Middleware\CheckSubscript
 });
 
 Route::middleware([ResolveActiveShop::class])->group(function () {
+    Route::get('/setup', [SetupController::class, 'form'])->name('setup.form');
+    Route::post('/setup', [SetupController::class, 'store'])->name('setup.store');
     Route::get('dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
     Route::get('/dashboard/top-selling-products', [DashboardController::class, 'topSellingProducts'])->name('dashboard.top-selling');
