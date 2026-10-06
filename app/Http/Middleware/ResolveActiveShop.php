@@ -63,7 +63,7 @@ class ResolveActiveShop
                 $request->attributes->set('active_shop', $shop->shop);
                 $request->attributes->set('active_shop_model', $shop);
 
-                session([ 'active_shop' => $shop->shop, 'active_shop_id' => $shop->id]);
+                session(['active_shop' => $shop->shop, 'active_shop_id' => $shop->id]);
 
                 View::share('activeShop', $shop->shop);
                 View::share('activeShopModel', $shop);
@@ -113,14 +113,21 @@ class ResolveActiveShop
         }
 
         // 3. Public / Setup / OAuth Entry routes allow legacy parameter-based discovery for onboarding
-        if ( $request->routeIs('crm.entry') || $request->routeIs('shopify.app.launch*') ||
-            $request->routeIs('shopify.install') || $request->routeIs('shopify.callback') ||
-            $request->routeIs('api.shop.status') || $request->routeIs('setup.form') ||
-            $request->routeIs('setup.store') || $request->routeIs('setup.activation.status') ||
-            $request->routeIs('about') || $request->routeIs('pricing') ||
-            $request->routeIs('contact') ||  $request->routeIs('contact.store') ||
-            $request->routeIs('terms') || $request->routeIs('privacy')
-        ) {
+        if ($request->routeIs('crm.entry') ||
+                $request->routeIs('shopify.app.launch*') ||
+                $request->routeIs('shopify.install') ||
+                $request->routeIs('shopify.callback') ||
+                $request->routeIs('api.shop.status') ||
+                $request->routeIs('setup.form') ||
+                $request->routeIs('setup.store') ||
+                $request->routeIs('setup.activation.status') ||
+                $request->routeIs('about') ||
+                $request->routeIs('pricing') ||
+                $request->routeIs('contact') ||
+                $request->routeIs('contact.store') ||
+                $request->routeIs('terms') ||
+                $request->routeIs('privacy') ||
+                $request->routeIs('how-it-works')) {
             $activeShop = $this->resolveShopDomain($request);
 
             if ($activeShop) {
@@ -183,12 +190,12 @@ class ResolveActiveShop
              * | New / inactive / tokenless shop
              * |--------------------------------------------------------------------------
              */
-            if ( !$existingShop ||  !$existingShop->is_active ||  empty($existingShop->access_token) ) {
+            if (!$existingShop || !$existingShop->is_active || empty($existingShop->access_token)) {
                 return redirect()->route('shopify.install', array_filter([
-                                            'shop' => $resolvedShop,
-                                            'host' => $host,
-                                            'embedded' => $request->query('embedded', '1'),
-                                        ]));
+                    'shop' => $resolvedShop,
+                    'host' => $host,
+                    'embedded' => $request->query('embedded', '1'),
+                ]));
             }
 
             /*
@@ -213,15 +220,23 @@ class ResolveActiveShop
             return true;
         }
 
-        if($request->filled('host')) {   return true;      }
-        if($request->filled('shop')) {  return true;     }
-        if($request->header('Sec-Fetch-Dest') === 'iframe') {   return true;     }
+        if ($request->filled('host')) {
+            return true;
+        }
+        if ($request->filled('shop')) {
+            return true;
+        }
+        if ($request->header('Sec-Fetch-Dest') === 'iframe') {
+            return true;
+        }
         $referer = (string) $request->header('referer');
         if ($referer !== '' && (str_contains($referer, 'admin.shopify.com') || str_contains($referer, '.myshopify.com'))) {
             return true;
         }
 
-        if ($request->has('id_token') || $request->has('session_token')) {    return true;     }
+        if ($request->has('id_token') || $request->has('session_token')) {
+            return true;
+        }
 
         return false;
     }
