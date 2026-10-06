@@ -35,6 +35,7 @@ Route::get('/store/{shop_handle}/apps/{token}', [ShopifyController::class, 'appL
 Route::get('/install', [ShopifyController::class, 'install'])->name('shopify.install');
 Route::get('/callback', [ShopifyController::class, 'callback'])->name('shopify.callback');
 
+Route::view('/how-it-works', 'how-it-works')->name('how-it-works');
 Route::middleware('shopify.session')->group(function () {
     Route::view('/about', 'about')->name('about');
     Route::get('/pricing', [PlanController::class, 'pricing'])->name('pricing');
@@ -42,7 +43,6 @@ Route::middleware('shopify.session')->group(function () {
     Route::post('/contact', [ContactController::class, 'store'])->middleware('ip.rate:5,60')->name('contact.store');
     Route::view('/terms', 'terms')->name('terms');
     Route::view('/privacy', 'privacy')->name('privacy');
-    Route::view('/how-it-works', 'how-it-works')->name('how-it-works');
 });
 
 Route::middleware([ResolveActiveShop::class, \App\Http\Middleware\CheckSubscription::class])->group(function () {
