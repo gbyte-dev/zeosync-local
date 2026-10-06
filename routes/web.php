@@ -35,7 +35,7 @@ Route::get('/store/{shop_handle}/apps/{token}', [ShopifyController::class, 'appL
 Route::get('/install', [ShopifyController::class, 'install'])->name('shopify.install');
 Route::get('/callback', [ShopifyController::class, 'callback'])->name('shopify.callback');
 
-Route::view('/how-it-works', 'how-it-works')->name('how-it-works');
+Route::view('/how-it-works', 'How-it-works')->name('how-it-works');
 Route::middleware('shopify.session')->group(function () {
     Route::view('/about', 'about')->name('about');
     Route::get('/pricing', [PlanController::class, 'pricing'])->name('pricing');
