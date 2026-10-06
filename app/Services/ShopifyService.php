@@ -38,10 +38,10 @@ class ShopifyService
             ])->post("https://{$this->shop}/admin/api/{$this->version}/graphql.json", $payload);
 
             if (!$response->successful()) {
-                \Log::error('Shopify GraphQL Error', [
-                    'status' => $response->status(),
-                    'body' => $response->body()
-                ]);
+                // \Log::error('Shopify GraphQL Error', [
+                //     'status' => $response->status(),
+                //     'body' => $response->body()
+                // ]);
                 return [
                     'error' => true,
                     'status' => $response->status(),
@@ -128,10 +128,10 @@ class ShopifyService
 
             if (!empty($response['error']) || !empty($response['errors'])) {
                 $errorMsg = $response['message'] ?? (is_array($response['errors'] ?? null) ? json_encode($response['errors']) : 'Failed to fetch Shopify locations via GraphQL.');
-                Log::error('Shopify GraphQL getLocations Error', [
-                    'shop' => $this->shop,
-                    'response' => $response,
-                ]);
+                // Log::error('Shopify GraphQL getLocations Error', [
+                //     'shop' => $this->shop,
+                //     'response' => $response,
+                // ]);
                 return [
                     'error' => true,
                     'status' => $response['status'] ?? 500,
@@ -518,11 +518,11 @@ class ShopifyService
 
         if (!empty($response['error']) || !empty($response['errors'])) {
             $errorMsg = $response['message'] ?? (is_array($response['errors'] ?? null) ? json_encode($response['errors']) : 'Failed to fetch product via GraphQL.');
-            Log::error('Shopify GraphQL getProductForView Error', [
-                'shop' => $this->shop,
-                'product_id' => $productId,
-                'response' => $response,
-            ]);
+            // Log::error('Shopify GraphQL getProductForView Error', [
+            //     'shop' => $this->shop,
+            //     'product_id' => $productId,
+            //     'response' => $response,
+            // ]);
             return null;
         }
 
@@ -2180,12 +2180,12 @@ class ShopifyService
 
         if (!empty($response['error']) || !empty($response['errors'])) {
             $errorMsg = $response['message'] ?? (is_array($response['errors'] ?? null) ? json_encode($response['errors']) : 'Failed to fetch inventory levels via GraphQL.');
-            Log::error('Shopify GraphQL getInventoryLevel Error', [
-                'shop' => $this->shop,
-                'inventory_item_id' => $inventoryItemId,
-                'location_id' => $locationId,
-                'response' => $response,
-            ]);
+            // Log::error('Shopify GraphQL getInventoryLevel Error', [
+            //     'shop' => $this->shop,
+            //     'inventory_item_id' => $inventoryItemId,
+            //     'location_id' => $locationId,
+            //     'response' => $response,
+            // ]);
             return [
                 'error' => true,
                 'status' => $response['status'] ?? 500,
@@ -2377,13 +2377,13 @@ class ShopifyService
             if (empty($levelResponse['error']) && isset($levelResponse['available']) && $levelResponse['available'] !== null) {
                 $changeFromQuantity = (int) $levelResponse['available'];
             } else {
-                Log::error('Shopify GraphQL setInventoryQuantity Error: Unable to resolve live baseline inventory (changeFromQuantity)', [
-                    'shop' => $this->shop,
-                    'inventory_item_id' => $inventoryItemId,
-                    'location_id' => $locationId,
-                    'quantity' => $quantity,
-                    'level_response' => $levelResponse,
-                ]);
+                // Log::error('Shopify GraphQL setInventoryQuantity Error: Unable to resolve live baseline inventory (changeFromQuantity)', [
+                //     'shop' => $this->shop,
+                //     'inventory_item_id' => $inventoryItemId,
+                //     'location_id' => $locationId,
+                //     'quantity' => $quantity,
+                //     'level_response' => $levelResponse,
+                // ]);
                 return [
                     'error' => true,
                     'status' => 422,
@@ -2414,31 +2414,31 @@ class ShopifyService
             'idempotencyKey' => $resolvedIdempotencyKey,
         ];
 
-        Log::info('Shopify GraphQL inventorySetQuantities Request', [
-            'api_version' => $this->version,
-            'mutation_name' => 'InventorySetQuantities',
-            'operation_id' => $context['operation_id'] ?? null,
-            'operation_uuid' => $context['operation_uuid'] ?? $resolvedIdempotencyKey,
-            'inventory_item_id' => $inventoryItemId,
-            'location_id' => $locationId,
-            'desired_quantity' => (int) $quantity,
-            'baseline_quantity' => $changeFromQuantity,
-            'final_graphql_variables' => $variables,
-        ]);
+        // Log::info('Shopify GraphQL inventorySetQuantities Request', [
+        //     'api_version' => $this->version,
+        //     'mutation_name' => 'InventorySetQuantities',
+        //     'operation_id' => $context['operation_id'] ?? null,
+        //     'operation_uuid' => $context['operation_uuid'] ?? $resolvedIdempotencyKey,
+        //     'inventory_item_id' => $inventoryItemId,
+        //     'location_id' => $locationId,
+        //     'desired_quantity' => (int) $quantity,
+        //     'baseline_quantity' => $changeFromQuantity,
+        //     'final_graphql_variables' => $variables,
+        // ]);
 
         $response = $this->graphql($mutation, $variables);
 
         if (!empty($response['error']) || !empty($response['errors'])) {
             $errorMsg = $response['message'] ?? (is_array($response['errors'] ?? null) ? json_encode($response['errors']) : 'Failed to execute inventorySetQuantities mutation.');
-            Log::error('Shopify GraphQL setInventoryQuantity Error', [
-                'shop' => $this->shop,
-                'inventory_item_id' => $inventoryItemId,
-                'location_id' => $locationId,
-                'quantity' => $quantity,
-                'change_from_quantity' => $changeFromQuantity,
-                'idempotency_key' => $resolvedIdempotencyKey,
-                'response' => $response,
-            ]);
+            // Log::error('Shopify GraphQL setInventoryQuantity Error', [
+            //     'shop' => $this->shop,
+            //     'inventory_item_id' => $inventoryItemId,
+            //     'location_id' => $locationId,
+            //     'quantity' => $quantity,
+            //     'change_from_quantity' => $changeFromQuantity,
+            //     'idempotency_key' => $resolvedIdempotencyKey,
+            //     'response' => $response,
+            // ]);
             return [
                 'error' => true,
                 'status' => $response['status'] ?? 500,
@@ -2450,15 +2450,15 @@ class ShopifyService
         if (!empty($userErrors)) {
             $firstMsg = $userErrors[0]['message'] ?? 'Inventory update rejected by Shopify.';
             $firstCode = $userErrors[0]['code'] ?? null;
-            Log::error('Shopify GraphQL setInventoryQuantity userErrors', [
-                'shop' => $this->shop,
-                'inventory_item_id' => $inventoryItemId,
-                'location_id' => $locationId,
-                'quantity' => $quantity,
-                'change_from_quantity' => $changeFromQuantity,
-                'idempotency_key' => $resolvedIdempotencyKey,
-                'userErrors' => $userErrors,
-            ]);
+            // Log::error('Shopify GraphQL setInventoryQuantity userErrors', [
+            //     'shop' => $this->shop,
+            //     'inventory_item_id' => $inventoryItemId,
+            //     'location_id' => $locationId,
+            //     'quantity' => $quantity,
+            //     'change_from_quantity' => $changeFromQuantity,
+            //     'idempotency_key' => $resolvedIdempotencyKey,
+            //     'userErrors' => $userErrors,
+            // ]);
             return [
                 'error' => true,
                 'status' => 422,
@@ -2513,20 +2513,20 @@ class ShopifyService
         $response = $this->graphql($query, ['id' => $variantGid]);
 
         if (!empty($response['error']) || !empty($response['errors'])) {
-            Log::warning('Shopify GraphQL getVariantInventoryItem error', [
-                'shop' => $this->shop,
-                'variant_id' => $variantId,
-                'response' => $response,
-            ]);
+            // Log::warning('Shopify GraphQL getVariantInventoryItem error', [
+            //     'shop' => $this->shop,
+            //     'variant_id' => $variantId,
+            //     'response' => $response,
+            // ]);
             return null;
         }
 
         $item = data_get($response, 'data.productVariant.inventoryItem');
         if (!$item) {
-            Log::warning('Shopify variant inventoryItem not found', [
-                'shop' => $this->shop,
-                'variant_id' => $variantId,
-            ]);
+            // Log::warning('Shopify variant inventoryItem not found', [
+            //     'shop' => $this->shop,
+            //     'variant_id' => $variantId,
+            // ]);
             return null;
         }
 
@@ -2570,10 +2570,10 @@ class ShopifyService
         $response = $this->graphql($query, [
             'cursor' => $cursor
         ]);
-        Log::info('SHOPIFY PRODUCTS GRAPHQL RESPONSE', [
-            'shop' => $this->shop,
-            'response' => $response,
-        ]);
+        // Log::info('SHOPIFY PRODUCTS GRAPHQL RESPONSE', [
+        //     'shop' => $this->shop,
+        //     'response' => $response,
+        // ]);
 
         if (!$response || !isset($response['data']['products'])) {
             return [

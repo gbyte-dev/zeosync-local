@@ -1,14 +1,12 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace App\Services;
 
 use App\DTOs\AmazonTransformerConfig;
+use App\Services\Transformers\SchemaWalker;
 use App\Services\Transformers\TransformerResolver;
 use App\Services\Validators\SchemaValidator;
 use Illuminate\Support\Facades\Log;
-use App\Services\Transformers\SchemaWalker;
 use RuntimeException;
 
 /**
@@ -36,8 +34,6 @@ readonly class AmazonPayloadTransformerV2
      * @return array
      * @throws RuntimeException
      */
-
-    
     public function build(
         object $shop,
         string $productType,
@@ -60,30 +56,29 @@ readonly class AmazonPayloadTransformerV2
             $schemaData['real_schema']
         );
 
-        Log::info('RAW SCHEMA', [
-            'property_count' => count($schemaData['real_schema']['properties'] ?? [])
-        ]);
+        // Log::info('RAW SCHEMA', [
+        //     'property_count' => count($schemaData['real_schema']['properties'] ?? [])
+        // ]);
 
-        Log::info('RESOLVED SCHEMA', [
-            'property_count' => count($resolvedSchema['properties'] ?? [])
-        ]);
+        // Log::info('RESOLVED SCHEMA', [
+        //     'property_count' => count($resolvedSchema['properties'] ?? [])
+        // ]);
 
-        Log::info('Schema Resolution Summary', [
-            'raw_has_properties' => isset($schemaData['real_schema']['properties']),
-            'resolved_has_properties' => isset($resolvedSchema['properties']),
-            'raw_keys' => array_keys($schemaData['real_schema']),
-            'resolved_keys' => array_keys($resolvedSchema),
-        ]);
+        // Log::info('Schema Resolution Summary', [
+        //     'raw_has_properties' => isset($schemaData['real_schema']['properties']),
+        //     'resolved_has_properties' => isset($resolvedSchema['properties']),
+        //     'raw_keys' => array_keys($schemaData['real_schema']),
+        //     'resolved_keys' => array_keys($resolvedSchema),
+        // ]);
         // $schemaProperties = $realSchema['properties'];
 
         // $schemaProperties = $resolvedSchema['properties'];
 
-        Log::info('Payload validation started', [
-            'product_type' => $productType
-        ]);
+        // Log::info('Payload validation started', [
+        //     'product_type' => $productType
+        // ]);
 
         try {
-
             $this->schemaValidator->validate(
                 $resolvedSchema,
                 $payload
@@ -91,10 +86,9 @@ readonly class AmazonPayloadTransformerV2
 
             Log::info('Payload validation passed');
         } catch (\Throwable $e) {
-
-            Log::warning('V2 validation skipped', [
-                'message' => $e->getMessage(),
-            ]);
+            // Log::warning('V2 validation skipped', [
+            //     'message' => $e->getMessage(),
+            // ]);
         }
 
         Log::info('SCHEMA WALKER START', [
@@ -103,9 +97,9 @@ readonly class AmazonPayloadTransformerV2
 
         //     $transformedPayload = [];
 
-        Log::info('RAW PAYLOAD BEFORE SCHEMA WALKER 🔴', [
-            'payload' => $payload,
-        ]);
+        // Log::info('RAW PAYLOAD BEFORE SCHEMA WALKER 🔴', [
+        //     'payload' => $payload,
+        // ]);
 
         $walkerPayload = $this->schemaWalker->walk(
             $resolvedSchema,
@@ -157,11 +151,12 @@ readonly class AmazonPayloadTransformerV2
 
         //     return $transformedPayload;
 
-        Log::info('SCHEMA WALKER FINAL PAYLOAD', [
-            'payload' => $walkerPayload,
-        ]);
+        // Log::info('SCHEMA WALKER FINAL PAYLOAD', [
+        //     'payload' => $walkerPayload,
+        // ]);
         return $walkerPayload;
     }
+
     // }
 
     /**

@@ -53,13 +53,13 @@ class SettingsController extends ShopifyController
             $locationResponse = $shopifyService->getLocations($shop);
 
             if (!empty($locationResponse['error'])) {
-                Log::error('Shopify locations refresh API returned error', [
-                    'shop_id' => $shop->id,
-                    'shop' => $shop->shop,
-                    'locations_count' => 0,
-                    'error' => $locationResponse['message'] ?? 'Unknown Shopify API error',
-                    'success' => false,
-                ]);
+                // Log::error('Shopify locations refresh API returned error', [
+                //     'shop_id' => $shop->id,
+                //     'shop' => $shop->shop,
+                //     'locations_count' => 0,
+                //     'error' => $locationResponse['message'] ?? 'Unknown Shopify API error',
+                //     'success' => false,
+                // ]);
 
                 return response()->json([
                     'success' => false,
@@ -70,12 +70,12 @@ class SettingsController extends ShopifyController
             $newLocations = $locationResponse['locations'] ?? [];
 
             if (empty($newLocations)) {
-                Log::warning('Shopify locations refresh returned 0 locations', [
-                    'shop_id' => $shop->id,
-                    'shop' => $shop->shop,
-                    'locations_count' => 0,
-                    'success' => false,
-                ]);
+                // Log::warning('Shopify locations refresh returned 0 locations', [
+                //     'shop_id' => $shop->id,
+                //     'shop' => $shop->shop,
+                //     'locations_count' => 0,
+                //     'success' => false,
+                // ]);
 
                 return response()->json([
                     'success' => false,
@@ -113,13 +113,13 @@ class SettingsController extends ShopifyController
                 Cache::forget("shopify_inventory_{$shop->shop}_location_{$newSelectedIndex}");
             }
 
-            Log::info('Shopify locations refreshed successfully', [
-                'shop_id' => $shop->id,
-                'shop' => $shop->shop,
-                'locations_count' => count($newLocations),
-                'selected_location_index' => $newSelectedIndex,
-                'success' => true,
-            ]);
+            // Log::info('Shopify locations refreshed successfully', [
+            //     'shop_id' => $shop->id,
+            //     'shop' => $shop->shop,
+            //     'locations_count' => count($newLocations),
+            //     'selected_location_index' => $newSelectedIndex,
+            //     'success' => true,
+            // ]);
 
             return response()->json([
                 'success' => true,
@@ -128,12 +128,12 @@ class SettingsController extends ShopifyController
                 'selected_location_index' => $newSelectedIndex,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Shopify locations refresh failed with exception', [
-                'shop_id' => $shop->id,
-                'shop' => $shop->shop,
-                'error' => $e->getMessage(),
-                'success' => false,
-            ]);
+            // Log::error('Shopify locations refresh failed with exception', [
+            //     'shop_id' => $shop->id,
+            //     'shop' => $shop->shop,
+            //     'error' => $e->getMessage(),
+            //     'success' => false,
+            // ]);
 
             return response()->json([
                 'success' => false,
@@ -141,6 +141,7 @@ class SettingsController extends ShopifyController
             ], 500);
         }
     }
+
     public function index(Request $request)
     {
         $notifications = UserNotificationSetting::all();
@@ -199,7 +200,7 @@ class SettingsController extends ShopifyController
             $newIndex = $request->input('selected_location_index');
             $locationIndex = ($newIndex !== '' && $newIndex !== null) ? (int) $newIndex : null;
 
-            $shop->update([  'selected_location_index' => $locationIndex ]);
+            $shop->update(['selected_location_index' => $locationIndex]);
 
             if ($oldIndex !== null) {
                 Cache::forget("shopify_inventory_{$shop->shop}_location_{$oldIndex}");
@@ -207,7 +208,6 @@ class SettingsController extends ShopifyController
             if ($locationIndex !== null) {
                 Cache::forget("shopify_inventory_{$shop->shop}_location_{$locationIndex}");
             }
-
         }
 
         if ($request->ajax() || $request->wantsJson()) {

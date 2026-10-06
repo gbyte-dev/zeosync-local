@@ -89,10 +89,10 @@ class ShopifySessionTokenValidator
         }
 
         if (($payload['aud'] ?? null) !== $apiKey) {
-            Log::warning('ShopifySessionTokenValidator: Audience mismatch.', [
-                'expected' => $apiKey,
-                'actual'   => $payload['aud'] ?? null,
-            ]);
+            // Log::warning('ShopifySessionTokenValidator: Audience mismatch.', [
+            //     'expected' => $apiKey,
+            //     'actual'   => $payload['aud'] ?? null,
+            // ]);
             return null;
         }
 
@@ -105,10 +105,10 @@ class ShopifySessionTokenValidator
         }
 
         if (($payload['exp'] + self::CLOCK_TOLERANCE_SECONDS) < $currentTime) {
-            Log::warning('ShopifySessionTokenValidator: Token is expired.', [
-                'exp' => $payload['exp'],
-                'now' => $currentTime,
-            ]);
+            // Log::warning('ShopifySessionTokenValidator: Token is expired.', [
+            //     'exp' => $payload['exp'],
+            //     'now' => $currentTime,
+            // ]);
             return null;
         }
 
@@ -138,7 +138,7 @@ class ShopifySessionTokenValidator
         if (!$destHost || !$issHost) {
             Log::warning('ShopifySessionTokenValidator: Malformed URLs in dest or iss.', [
                 'dest' => $dest,
-                'iss'  => $iss,
+                'iss' => $iss,
             ]);
             return null;
         }
@@ -164,14 +164,14 @@ class ShopifySessionTokenValidator
 
         if (!$destShop || !$issShop || $destShop !== $issShop) {
             Log::warning('ShopifySessionTokenValidator: Shop domain mismatch between dest and iss.', [
-                'dest'     => $dest,
-                'iss'      => $iss,
+                'dest' => $dest,
+                'iss' => $iss,
                 'destShop' => $destShop,
-                'issShop'  => $issShop,
+                'issShop' => $issShop,
             ]);
             Log::warning('SHOPIFY_DEBUG: session_token_dest_iss_mismatch', [
                 'dest_shop' => $destShop,
-                'iss_shop'  => $issShop,
+                'iss_shop' => $issShop,
             ]);
             return null;
         }
@@ -184,18 +184,18 @@ class ShopifySessionTokenValidator
         } catch (\Throwable $e) {
             Log::error('ShopifySessionTokenValidator: Database error looking up shop.', [
                 'error' => $e->getMessage(),
-                'shop'  => $destShop,
+                'shop' => $destShop,
             ]);
             return null;
         }
 
         Log::info('SHOPIFY_DEBUG: session_token_validator_claims', [
-            'dest_shop'            => $destShop,
-            'iss_shop'             => $issShop,
+            'dest_shop' => $destShop,
+            'iss_shop' => $issShop,
             'database_shop_exists' => (bool) $shopModel,
             'database_shop_active' => $shopModel ? (int) $shopModel->is_active : null,
             'access_token_present' => !empty($shopModel?->access_token),
-            'database_shop_id'     => $shopModel?->id,
+            'database_shop_id' => $shopModel?->id,
         ]);
 
         if (!$shopModel) {
@@ -214,15 +214,15 @@ class ShopifySessionTokenValidator
             ]);
             Log::warning('SHOPIFY_DEBUG: session_token_validator_access_token_empty', [
                 'dest_shop' => $destShop,
-                'shop_id'   => $shopModel->id,
+                'shop_id' => $shopModel->id,
             ]);
             return null;
         }
 
         return [
-            'shop'       => $destShop,
+            'shop' => $destShop,
             'shop_model' => $shopModel,
-            'payload'    => $payload,
+            'payload' => $payload,
         ];
     }
 

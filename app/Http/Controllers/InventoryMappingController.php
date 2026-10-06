@@ -111,10 +111,10 @@ class InventoryMappingController extends Controller
                 foreach ($rawVariants as $variant) {
                     $variantId = (string) ($variant['id'] ?? '');
                     if ($variantId !== '' && !isset($occupiedVariantIds[$variantId])) {
-                        return true; // Found at least one available variant
+                        return true;  // Found at least one available variant
                     }
                 }
-                return false; // All variants are occupied
+                return false;  // All variants are occupied
             }
 
             // Standalone product without variants: target ID is shopify_id or product table ID
@@ -216,10 +216,10 @@ class InventoryMappingController extends Controller
                     $locationId = $selectedLocation['id'] ?? null;
                 }
             } catch (\Throwable $e) {
-                Log::warning('Shopify locations resolution failed during mapping', [
-                    'shop_id' => $shop->id,
-                    'error' => $e->getMessage(),
-                ]);
+                // Log::warning('Shopify locations resolution failed during mapping', [
+                //     'shop_id' => $shop->id,
+                //     'error' => $e->getMessage(),
+                // ]);
             }
         }
 
@@ -405,14 +405,14 @@ class InventoryMappingController extends Controller
             throw $e;
         }
 
-        Log::info('Shopify product mapping saved', [
-            'shop_id'             => $shop->id,
-            'mapping_id'          => $mapping->id,
-            'amazon_sku'          => $mapping->amazon_sku,
-            'shopify_product_id'  => $mapping->shopify_product_id,
-            'shopify_variant_id'  => $mapping->shopify_variant_id,
-            'shopify_location_id' => $mapping->shopify_location_id,
-        ]);
+        // Log::info('Shopify product mapping saved', [
+        //     'shop_id'             => $shop->id,
+        //     'mapping_id'          => $mapping->id,
+        //     'amazon_sku'          => $mapping->amazon_sku,
+        //     'shopify_product_id'  => $mapping->shopify_product_id,
+        //     'shopify_variant_id'  => $mapping->shopify_variant_id,
+        //     'shopify_location_id' => $mapping->shopify_location_id,
+        // ]);
 
         $latestSyncLimit = app(SyncLimitService::class)->canMap($shop);
 
@@ -674,14 +674,14 @@ class InventoryMappingController extends Controller
             throw $e;
         }
 
-        Log::info('Amazon mapping saved', [
-            'shop_id'             => $shop->id,
-            'mapping_id'          => $mapping->id,
-            'amazon_sku'          => $mapping->amazon_sku,
-            'shopify_product_id'  => $mapping->shopify_product_id,
-            'shopify_variant_id'  => $mapping->shopify_variant_id,
-            'shopify_location_id' => $mapping->shopify_location_id,
-        ]);
+        // Log::info('Amazon mapping saved', [
+        //     'shop_id'             => $shop->id,
+        //     'mapping_id'          => $mapping->id,
+        //     'amazon_sku'          => $mapping->amazon_sku,
+        //     'shopify_product_id'  => $mapping->shopify_product_id,
+        //     'shopify_variant_id'  => $mapping->shopify_variant_id,
+        //     'shopify_location_id' => $mapping->shopify_location_id,
+        // ]);
 
         $latestSyncLimit = app(SyncLimitService::class)->canMap($shop);
 
@@ -702,24 +702,24 @@ class InventoryMappingController extends Controller
         $queueDbName = method_exists($qConn, 'getDatabase') ? $qConn->getDatabase()->getDatabaseName() : 'faked_or_default';
         $appQueueDefault = config('queue.default');
 
-        Log::info('INV_TRACE_01_REQUEST', [
-            'app_db'              => $dbName,
-            'queue_db'            => $queueDbName,
-            'queue_default'       => $appQueueDefault,
-            'php_version'         => PHP_VERSION,
-            'php_ini'             => php_ini_loaded_file(),
-            'hostname'            => gethostname(),
-            'shop_param'          => $request->shop ?? $request->query('shop'),
-            'inventory_item_id'   => $request->inventory_item_id,
-            'quantity'            => $request->quantity,
-            'baseline_quantity'   => $request->baseline_quantity,
-            'mapping_id'          => $request->mapping_id,
-            'shopify_variant_id'  => $request->shopify_variant_id,
-            'all_params'          => $request->all(),
-            'bearer_token'        => $request->bearerToken() ? 'PRESENT' : 'NONE',
-            'session_verified_shop' => session('_shopify_verified_shop'),
-            'session_active_shop' => session('active_shop'),
-        ]);
+        // Log::info('INV_TRACE_01_REQUEST', [
+        //     'app_db'              => $dbName,
+        //     'queue_db'            => $queueDbName,
+        //     'queue_default'       => $appQueueDefault,
+        //     'php_version'         => PHP_VERSION,
+        //     'php_ini'             => php_ini_loaded_file(),
+        //     'hostname'            => gethostname(),
+        //     'shop_param'          => $request->shop ?? $request->query('shop'),
+        //     'inventory_item_id'   => $request->inventory_item_id,
+        //     'quantity'            => $request->quantity,
+        //     'baseline_quantity'   => $request->baseline_quantity,
+        //     'mapping_id'          => $request->mapping_id,
+        //     'shopify_variant_id'  => $request->shopify_variant_id,
+        //     'all_params'          => $request->all(),
+        //     'bearer_token'        => $request->bearerToken() ? 'PRESENT' : 'NONE',
+        //     'session_verified_shop' => session('_shopify_verified_shop'),
+        //     'session_active_shop' => session('active_shop'),
+        // ]);
 
         try {
             $request->validate([
@@ -731,16 +731,16 @@ class InventoryMappingController extends Controller
                 'baseline_quantity' => 'nullable|integer',
             ]);
 
-            Log::info('INV_TRACE_02_VALIDATED', [
-                'inventory_item_id' => $request->inventory_item_id,
-                'quantity' => $request->quantity,
-            ]);
+            // Log::info('INV_TRACE_02_VALIDATED', [
+            //     'inventory_item_id' => $request->inventory_item_id,
+            //     'quantity' => $request->quantity,
+            // ]);
 
             $shop = $this->getActiveShopModel($request);
             if (!$shop) {
-                Log::warning('INV_TRACE_03_SHOP_FAILED', [
-                    'shop_param' => $request->shop ?? $request->query('shop'),
-                ]);
+                // Log::warning('INV_TRACE_03_SHOP_FAILED', [
+                //     'shop_param' => $request->shop ?? $request->query('shop'),
+                // ]);
 
                 return response()->json([
                     'success' => false,
@@ -748,10 +748,10 @@ class InventoryMappingController extends Controller
                 ], 401);
             }
 
-            Log::info('INV_TRACE_03_SHOP', [
-                'shop_id' => $shop->id,
-                'shop' => $shop->shop,
-            ]);
+            // Log::info('INV_TRACE_03_SHOP', [
+            //     'shop_id' => $shop->id,
+            //     'shop' => $shop->shop,
+            // ]);
 
             // Use currently selected Shopify Location
             $locations = $shop->shopify_locations ?? [];
@@ -782,19 +782,19 @@ class InventoryMappingController extends Controller
                         $locationId = $selectedLocation['id'] ?? null;
                     }
                 } catch (\Throwable $e) {
-                    Log::warning('SHOPIFY LOCATIONS SELF-HEAL FAILED', [
-                        'shop_id' => $shop->id,
-                        'error' => $e->getMessage(),
-                    ]);
+                    // Log::warning('SHOPIFY LOCATIONS SELF-HEAL FAILED', [
+                    //     'shop_id' => $shop->id,
+                    //     'error' => $e->getMessage(),
+                    // ]);
                 }
             }
 
             if (!$locationId) {
-                Log::warning('INV_TRACE_04_LOCATION_FAILED', [
-                    'shop_id' => $shop->id,
-                    'selected_location_index' => $shop->selected_location_index,
-                    'effective_index' => $selectedIndex,
-                ]);
+                // Log::warning('INV_TRACE_04_LOCATION_FAILED', [
+                //     'shop_id' => $shop->id,
+                //     'selected_location_index' => $shop->selected_location_index,
+                //     'effective_index' => $selectedIndex,
+                // ]);
 
                 return response()->json([
                     'success' => false,
@@ -802,11 +802,11 @@ class InventoryMappingController extends Controller
                 ], 422);
             }
 
-            Log::info('INV_TRACE_04_LOCATION', [
-                'shop_id' => $shop->id,
-                'location_id' => $locationId,
-                'index' => $selectedIndex,
-            ]);
+            // Log::info('INV_TRACE_04_LOCATION', [
+            //     'shop_id' => $shop->id,
+            //     'location_id' => $locationId,
+            //     'index' => $selectedIndex,
+            // ]);
 
             // Check existing mapping scoped strictly to active shop
             $mapping = null;
@@ -822,11 +822,11 @@ class InventoryMappingController extends Controller
                     ->first();
             }
 
-            Log::info('INV_TRACE_05_MAPPING', [
-                'shop_id' => $shop->id,
-                'mapping_id' => $mapping?->id,
-                'amazon_sku' => $mapping?->amazon_sku,
-            ]);
+            // Log::info('INV_TRACE_05_MAPPING', [
+            //     'shop_id' => $shop->id,
+            //     'mapping_id' => $mapping?->id,
+            //     'amazon_sku' => $mapping?->amazon_sku,
+            // ]);
 
             $expectedVersion = (int) ($mapping?->inventory_version ?? 1);
 
@@ -859,10 +859,10 @@ class InventoryMappingController extends Controller
                         $baselineQuantity = (int) $liveLevel['available'];
                     }
                 } catch (\Throwable $e) {
-                    Log::warning('Shopify inventory update: Failed to fetch live baseline', [
-                        'shop_id' => $shop->id,
-                        'error' => $e->getMessage(),
-                    ]);
+                    // Log::warning('Shopify inventory update: Failed to fetch live baseline', [
+                    //     'shop_id' => $shop->id,
+                    //     'error' => $e->getMessage(),
+                    // ]);
                 }
 
                 if ($baselineQuantity === null && $mapping && $mapping->quantity !== null && $mapping->quantity !== '') {
@@ -870,12 +870,12 @@ class InventoryMappingController extends Controller
                 }
             }
 
-            Log::info('INV_TRACE_06_BASELINE', [
-                'shop_id' => $shop->id,
-                'inventory_item_id' => $request->inventory_item_id,
-                'baseline_quantity' => $baselineQuantity,
-                'desired_quantity' => (int) $request->quantity,
-            ]);
+            // Log::info('INV_TRACE_06_BASELINE', [
+            //     'shop_id' => $shop->id,
+            //     'inventory_item_id' => $request->inventory_item_id,
+            //     'baseline_quantity' => $baselineQuantity,
+            //     'desired_quantity' => (int) $request->quantity,
+            // ]);
 
             // -------------------------------------------------------------
             // TRANSACTIONAL OUTBOX: Persist desired final quantity in DB
@@ -909,27 +909,27 @@ class InventoryMappingController extends Controller
                     'last_dispatched_at' => now(),
                 ]);
 
-                Log::info('INV_TRACE_07_OPERATION_CREATED', [
-                    'shop_id'        => $shop->id,
-                    'operation_id'   => $op->id,
-                    'operation_uuid' => $op->operation_uuid,
-                ]);
+                // Log::info('INV_TRACE_07_OPERATION_CREATED', [
+                //     'shop_id'        => $shop->id,
+                //     'operation_id'   => $op->id,
+                //     'operation_uuid' => $op->operation_uuid,
+                // ]);
 
                 return $op;
             });
 
-            Log::info('INV_TRACE_08_TRANSACTION_COMMITTED', [
-                'shop_id'        => $shop->id,
-                'operation_id'   => $operation->id,
-                'operation_uuid' => $operation->operation_uuid,
-            ]);
+            // Log::info('INV_TRACE_08_TRANSACTION_COMMITTED', [
+            //     'shop_id'        => $shop->id,
+            //     'operation_id'   => $operation->id,
+            //     'operation_uuid' => $operation->operation_uuid,
+            // ]);
 
-            Log::info('INV_TRACE_09_BEFORE_DISPATCH', [
-                'shop_id'      => $shop->id,
-                'operation_id' => $operation->id,
-                'target_conn'  => 'database',
-                'target_queue' => 'default',
-            ]);
+            // Log::info('INV_TRACE_09_BEFORE_DISPATCH', [
+            //     'shop_id'      => $shop->id,
+            //     'operation_id' => $operation->id,
+            //     'target_conn'  => 'database',
+            //     'target_queue' => 'default',
+            // ]);
 
             // Dispatch background processing job after DB transaction has committed
             $pendingJob = ProcessInventoryUpdateJob::dispatch($operation->id)
@@ -938,14 +938,14 @@ class InventoryMappingController extends Controller
 
             $latestJob = DB::table('jobs')->orderByDesc('id')->first();
 
-            Log::info('INV_TRACE_10_AFTER_DISPATCH', [
-                'shop_id'      => $shop->id,
-                'operation_id' => $operation->id,
-                'pending_job_class' => get_debug_type($pendingJob),
-                'latest_job_id' => $latestJob?->id,
-                'latest_job_queue' => $latestJob?->queue,
-                'latest_job_payload' => $latestJob ? substr($latestJob->payload, 0, 200) : null,
-            ]);
+            // Log::info('INV_TRACE_10_AFTER_DISPATCH', [
+            //     'shop_id'      => $shop->id,
+            //     'operation_id' => $operation->id,
+            //     'pending_job_class' => get_debug_type($pendingJob),
+            //     'latest_job_id' => $latestJob?->id,
+            //     'latest_job_queue' => $latestJob?->queue,
+            //     'latest_job_payload' => $latestJob ? substr($latestJob->payload, 0, 200) : null,
+            // ]);
 
             // Invalidate cache
             Cache::forget("shopify_inventory_{$shop->shop}_location_{$selectedIndex}");
@@ -957,7 +957,7 @@ class InventoryMappingController extends Controller
                 'message' => 'Inventory update queued successfully.',
             ];
 
-            Log::info('INV_TRACE_11_RESPONSE', $responsePayload);
+            // Log::info('INV_TRACE_11_RESPONSE', $responsePayload);
 
             return response()->json($responsePayload);
         } catch (\Illuminate\Validation\ValidationException $e) {

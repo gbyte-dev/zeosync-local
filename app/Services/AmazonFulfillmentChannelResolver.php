@@ -32,19 +32,19 @@ class AmazonFulfillmentChannelResolver
             $persistedChannel = (string) $mapping->fulfillment_channel_code;
             $available = $this->extractChannelsSummary($listing);
 
-            Log::info('[AMAZON_CHANNEL_RESOLUTION]', [
-                'amazon_sku'        => $sku,
-                'expected_quantity' => $expectedQuantity,
-                'persisted_channel' => $persistedChannel,
-                'resolved_channel'  => $persistedChannel,
-                'source'            => 'persisted_mapping',
-                'available_channels'=> $available,
-            ]);
+            // Log::info('[AMAZON_CHANNEL_RESOLUTION]', [
+            //     'amazon_sku'        => $sku,
+            //     'expected_quantity' => $expectedQuantity,
+            //     'persisted_channel' => $persistedChannel,
+            //     'resolved_channel'  => $persistedChannel,
+            //     'source'            => 'persisted_mapping',
+            //     'available_channels'=> $available,
+            // ]);
 
             return [
-                'channel'            => $persistedChannel,
-                'source'             => 'persisted_mapping',
-                'matching_channels'  => [$persistedChannel],
+                'channel' => $persistedChannel,
+                'source' => 'persisted_mapping',
+                'matching_channels' => [$persistedChannel],
                 'available_channels' => $available,
             ];
         }
@@ -57,36 +57,36 @@ class AmazonFulfillmentChannelResolver
             $uniqueCodes = array_values(array_unique(array_filter(array_column($normalizedChannels, 'fulfillment_channel_code'))));
             if (count($uniqueCodes) === 1) {
                 $singleChannel = (string) $uniqueCodes[0];
-                Log::info('[AMAZON_CHANNEL_RESOLUTION]', [
-                    'amazon_sku'        => $sku,
-                    'expected_quantity' => $expectedQuantity,
-                    'persisted_channel' => null,
-                    'resolved_channel'  => $singleChannel,
-                    'source'            => 'quantity_match',
-                    'available_channels'=> $availableSummary,
-                ]);
+                // Log::info('[AMAZON_CHANNEL_RESOLUTION]', [
+                //     'amazon_sku'        => $sku,
+                //     'expected_quantity' => $expectedQuantity,
+                //     'persisted_channel' => null,
+                //     'resolved_channel'  => $singleChannel,
+                //     'source'            => 'quantity_match',
+                //     'available_channels'=> $availableSummary,
+                // ]);
 
                 return [
-                    'channel'            => $singleChannel,
-                    'source'             => 'quantity_match',
-                    'matching_channels'  => [$singleChannel],
+                    'channel' => $singleChannel,
+                    'source' => 'quantity_match',
+                    'matching_channels' => [$singleChannel],
                     'available_channels' => $availableSummary,
                 ];
             }
 
-            Log::warning('[AMAZON_CHANNEL_RESOLUTION]', [
-                'amazon_sku'        => $sku,
-                'expected_quantity' => $expectedQuantity,
-                'persisted_channel' => null,
-                'resolved_channel'  => null,
-                'source'            => 'unresolved',
-                'available_channels'=> $availableSummary,
-            ]);
+            // Log::warning('[AMAZON_CHANNEL_RESOLUTION]', [
+            //     'amazon_sku'        => $sku,
+            //     'expected_quantity' => $expectedQuantity,
+            //     'persisted_channel' => null,
+            //     'resolved_channel'  => null,
+            //     'source'            => 'unresolved',
+            //     'available_channels'=> $availableSummary,
+            // ]);
 
             return [
-                'channel'            => null,
-                'source'             => 'unresolved',
-                'matching_channels'  => [],
+                'channel' => null,
+                'source' => 'unresolved',
+                'matching_channels' => [],
                 'available_channels' => $availableSummary,
             ];
         }
@@ -106,14 +106,14 @@ class AmazonFulfillmentChannelResolver
         if (count($matching) === 1) {
             $resolvedChannel = $matching[0];
 
-            Log::info('[AMAZON_CHANNEL_RESOLUTION]', [
-                'amazon_sku'        => $sku,
-                'expected_quantity' => $expectedQuantity,
-                'persisted_channel' => null,
-                'resolved_channel'  => $resolvedChannel,
-                'source'            => 'quantity_match',
-                'available_channels'=> $availableSummary,
-            ]);
+            // Log::info('[AMAZON_CHANNEL_RESOLUTION]', [
+            //     'amazon_sku'        => $sku,
+            //     'expected_quantity' => $expectedQuantity,
+            //     'persisted_channel' => null,
+            //     'resolved_channel'  => $resolvedChannel,
+            //     'source'            => 'quantity_match',
+            //     'available_channels'=> $availableSummary,
+            // ]);
 
             // Safely backfill mapping if available
             if ($mapping && empty($mapping->fulfillment_channel_code)) {
@@ -125,9 +125,9 @@ class AmazonFulfillmentChannelResolver
             }
 
             return [
-                'channel'            => $resolvedChannel,
-                'source'             => 'quantity_match',
-                'matching_channels'  => $matching,
+                'channel' => $resolvedChannel,
+                'source' => 'quantity_match',
+                'matching_channels' => $matching,
                 'available_channels' => $availableSummary,
             ];
         }
@@ -137,38 +137,38 @@ class AmazonFulfillmentChannelResolver
             $distinct = array_values(array_unique(array_filter(array_column($normalizedChannels, 'fulfillment_channel_code'))));
             $reportingChannel = count($distinct) === 1 ? $distinct[0] : null;
 
-            Log::info('[AMAZON_CHANNEL_RESOLUTION]', [
-                'amazon_sku'        => $sku,
-                'expected_quantity' => $expectedQuantity,
-                'persisted_channel' => null,
-                'resolved_channel'  => $reportingChannel,
-                'source'            => 'unresolved',
-                'available_channels'=> $availableSummary,
-            ]);
+            // Log::info('[AMAZON_CHANNEL_RESOLUTION]', [
+            //     'amazon_sku'        => $sku,
+            //     'expected_quantity' => $expectedQuantity,
+            //     'persisted_channel' => null,
+            //     'resolved_channel'  => $reportingChannel,
+            //     'source'            => 'unresolved',
+            //     'available_channels'=> $availableSummary,
+            // ]);
 
             return [
-                'channel'            => $reportingChannel,
-                'source'             => 'unresolved',
-                'matching_channels'  => [],
+                'channel' => $reportingChannel,
+                'source' => 'unresolved',
+                'matching_channels' => [],
                 'available_channels' => $availableSummary,
             ];
         }
 
         // 5. MORE THAN ONE channel matches -> AMBIGUOUS (Do NOT guess, Do NOT use [0], Do NOT default)
-        Log::warning('[AMAZON_CHANNEL_RESOLUTION]', [
-            'amazon_sku'        => $sku,
-            'expected_quantity' => $expectedQuantity,
-            'persisted_channel' => null,
-            'resolved_channel'  => null,
-            'source'            => 'ambiguous',
-            'matching_channels' => $matching,
-            'available_channels'=> $availableSummary,
-        ]);
+        // Log::warning('[AMAZON_CHANNEL_RESOLUTION]', [
+        //     'amazon_sku'        => $sku,
+        //     'expected_quantity' => $expectedQuantity,
+        //     'persisted_channel' => null,
+        //     'resolved_channel'  => null,
+        //     'source'            => 'ambiguous',
+        //     'matching_channels' => $matching,
+        //     'available_channels'=> $availableSummary,
+        // ]);
 
         return [
-            'channel'            => null,
-            'source'             => 'ambiguous',
-            'matching_channels'  => $matching,
+            'channel' => null,
+            'source' => 'ambiguous',
+            'matching_channels' => $matching,
             'available_channels' => $availableSummary,
         ];
     }
@@ -190,7 +190,7 @@ class AmazonFulfillmentChannelResolver
                 $qty = $entry['quantity'] ?? null;
                 $channels[] = [
                     'fulfillment_channel_code' => (string) $code,
-                    'quantity'                 => $qty !== null ? (int) $qty : null,
+                    'quantity' => $qty !== null ? (int) $qty : null,
                 ];
             }
         }
@@ -205,7 +205,7 @@ class AmazonFulfillmentChannelResolver
                 $qty = $entry['quantity'] ?? null;
                 $channels[] = [
                     'fulfillment_channel_code' => (string) $code,
-                    'quantity'                 => $qty !== null ? (int) $qty : null,
+                    'quantity' => $qty !== null ? (int) $qty : null,
                 ];
             }
         }
@@ -219,7 +219,7 @@ class AmazonFulfillmentChannelResolver
     public function extractChannelsSummary(array $listing): array
     {
         return array_map(
-            fn ($c) => ($c['fulfillment_channel_code'] ?? 'null') . '=' . ($c['quantity'] ?? 'null'),
+            fn($c) => ($c['fulfillment_channel_code'] ?? 'null') . '=' . ($c['quantity'] ?? 'null'),
             $this->extractNormalizedChannels($listing)
         );
     }

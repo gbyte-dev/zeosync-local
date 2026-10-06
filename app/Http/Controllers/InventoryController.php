@@ -8,6 +8,7 @@ use App\Models\AllProduct;
 use App\Models\AmazonProduct;
 use App\Models\InventorySyncOperation;
 use App\Models\Product;
+use App\Models\ProductMapping;
 use App\Models\ProductMarketplaceMapping;
 use App\Models\Shop;
 use App\Services\AmazonInventoryReportService;
@@ -22,7 +23,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Models\ProductMapping;
 
 class InventoryController extends ShopifyController
 {
@@ -64,8 +64,8 @@ class InventoryController extends ShopifyController
             return redirect()->route('dashboard')->with('error', 'Shop not found.');
         }
 
-        session([ 'shop' => $shop->shop, 'access_token' => $shop->access_token,
-            'region' => $shop->amazon_mws_region   ]);
+        session(['shop' => $shop->shop, 'access_token' => $shop->access_token,
+            'region' => $shop->amazon_mws_region]);
 
         $inventories = [];
         $mappedproducts = ProductMarketplaceMapping::mappedForShop($shop->id)->with('product')->orderBy('id', 'desc')->get();
@@ -82,8 +82,8 @@ class InventoryController extends ShopifyController
         $amazonPageLength = in_array($rawAmazonLength, $allowedLengths, true) ? $rawAmazonLength : 10;
         $amazonProductsPageLength = in_array($rawAmazonProductsLength, $allowedLengths, true) ? $rawAmazonProductsLength : 10;
 
-        return view('inventory.index', compact( 'inventories', 'shop', 'syncUsage',
-         'shopifyPageLength',  'amazonPageLength', 'amazonProductsPageLength', 'mappedproducts'  ));
+        return view('inventory.index', compact('inventories', 'shop', 'syncUsage',
+            'shopifyPageLength', 'amazonPageLength', 'amazonProductsPageLength', 'mappedproducts'));
     }
 
     public function updatePageLength(Request $request)
@@ -115,8 +115,8 @@ class InventoryController extends ShopifyController
         ]);
     }
 
-    public function shopify( Request $request,  ShopifyInventoryService $shopifyInventoryService
-    ) {
+    public function shopify(Request $request, ShopifyInventoryService $shopifyInventoryService)
+    {
         $shopModel = $this->getActiveShopModel($request);
         if (!$shopModel) {
             return response()->json([
@@ -155,7 +155,7 @@ class InventoryController extends ShopifyController
             : [];
 
         app(AutoSkuMappingService::class)->handle(
-            $shopModel,   $data,  $amazonInventory
+            $shopModel, $data, $amazonInventory
         );
 
         return response()->json($data);
@@ -193,7 +193,7 @@ class InventoryController extends ShopifyController
         $inventoryCacheService = app(InventoryCacheService::class);
 
         $response = $inventoryCacheService->getAmazonInventory(
-            $shop,   $shop->amazon_marketplace_id
+            $shop, $shop->amazon_marketplace_id
         );
 
         $products = $response['products'] ?? [];
@@ -244,8 +244,8 @@ class InventoryController extends ShopifyController
 
                 $isVerifying = false;
                 if ($mapping) {
-                    $isVerifying = ($mapping->submission_status === 'accepted')
-                        || isset($activeVerifications[$mapping->id]);
+                    $isVerifying = ($mapping->submission_status === 'accepted') ||
+                        isset($activeVerifications[$mapping->id]);
                 }
 
                 $item['is_mapped'] = $isMapped;
@@ -374,7 +374,8 @@ class InventoryController extends ShopifyController
         $mappings = ProductMarketplaceMapping::where('shop_id', $shop->id)
             ->get(['id', 'amazon_sku', 'shopify_variant_id', 'shopify_product_id', 'shopify_location_id', 'quantity', 'submission_status', 'sync_status']);
 
-        $mappingsByAmazonSku = $mappings->filter(fn($m) => !empty($m->amazon_sku))
+        $mappingsByAmazonSku = $mappings
+            ->filter(fn($m) => !empty($m->amazon_sku))
             ->keyBy(fn($m) => strtolower(trim((string) $m->amazon_sku)));
 
         $activeVerifications = InventorySyncOperation::where('shop_id', $shop->id)
@@ -474,8 +475,8 @@ class InventoryController extends ShopifyController
 
             $isVerifying = false;
             if ($mapping) {
-                $isVerifying = ($mapping->submission_status === 'accepted')
-                    || isset($activeVerifications[$mapping->id]);
+                $isVerifying = ($mapping->submission_status === 'accepted') ||
+                    isset($activeVerifications[$mapping->id]);
             }
 
             // Enriched mapping fields
@@ -582,9 +583,9 @@ class InventoryController extends ShopifyController
         ]);
     }
 
-    public function syncAmazonInventory( Request $request,
-        AmazonInventoryReportService $reportService
-    ) {
+    public function syncAmazonInventory(Request $request,
+        AmazonInventoryReportService $reportService)
+    {
         $shop = $this->getActiveShopModel($request);
         if (!$shop) {
             return response()->json([
@@ -597,9 +598,8 @@ class InventoryController extends ShopifyController
         $marketplaceId = $shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER';
 
         try {
-            $result = $reportService->syncInventory(  shop: $shop,
-                marketplaceId: $marketplaceId
-            );
+            $result = $reportService->syncInventory(shop: $shop,
+                marketplaceId: $marketplaceId);
 
             return response()->json([
                 'success' => true,
@@ -782,12 +782,12 @@ class InventoryController extends ShopifyController
 
             return response()->json($response);
         } catch (\Throwable $e) {
-            Log::error('Amazon manual quantity update failed', [
-                'shop_id' => $shop->id,
-                'child_sku' => $childSku,
-                'quantity' => $request->quantity,
-                'error' => $e->getMessage(),
-            ]);
+            // Log::error('Amazon manual quantity update failed', [
+            //     'shop_id' => $shop->id,
+            //     'child_sku' => $childSku,
+            //     'quantity' => $request->quantity,
+            //     'error' => $e->getMessage(),
+            // ]);
 
             return response()->json([
                 'error' => true,
@@ -814,7 +814,7 @@ class InventoryController extends ShopifyController
 
             // refresh token expired — merchant must relaunch the app to re-auth
             if (!$shopModel->refresh_token_expires_at || $shopModel->refresh_token_expires_at->isPast()) {
-                Log::warning('REFRESH TOKEN EXPIRED', ['shop' => $shopModel->shop]);
+                // Log::warning('REFRESH TOKEN EXPIRED', ['shop' => $shopModel->shop]);
 
                 $shopModel->update(['is_active' => 0]);
 
@@ -874,7 +874,7 @@ class InventoryController extends ShopifyController
                 'refresh_token_expires_at' => now()->addSeconds($data['refresh_token_expires_in'] ?? 90 * 86400),
             ]);
 
-            Log::info('TOKEN REFRESHED', ['shop' => $shopModel->shop]);
+            // Log::info('TOKEN REFRESHED', ['shop' => $shopModel->shop]);
 
             return [
                 'success' => true,
@@ -882,10 +882,10 @@ class InventoryController extends ShopifyController
                 'message' => 'Token refreshed successfully.',
             ];
         } catch (\Throwable $e) {
-            Log::error('TOKEN REFRESH EXCEPTION', [
-                'shop' => $shopModel->shop ?? null,
-                'error' => $e->getMessage(),
-            ]);
+            // Log::error('TOKEN REFRESH EXCEPTION', [
+            //     'shop' => $shopModel->shop ?? null,
+            //     'error' => $e->getMessage(),
+            // ]);
 
             return [
                 'success' => false,

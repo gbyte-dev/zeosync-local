@@ -31,7 +31,8 @@ class RecoverInventorySyncOperationsCommand extends Command
         $abandonedPending = InventorySyncOperation::where('status', 'pending')
             ->where(function ($query) use ($pendingCutoff) {
                 $query->where(function ($q) use ($pendingCutoff) {
-                    $q->whereNull('last_dispatched_at')
+                    $q
+                        ->whereNull('last_dispatched_at')
                         ->where('created_at', '<=', $pendingCutoff);
                 })->orWhere('last_dispatched_at', '<=', $pendingCutoff);
             })
@@ -45,7 +46,8 @@ class RecoverInventorySyncOperationsCommand extends Command
                 ->where('status', 'pending')
                 ->where(function ($query) use ($pendingCutoff) {
                     $query->where(function ($q) use ($pendingCutoff) {
-                        $q->whereNull('last_dispatched_at')
+                        $q
+                            ->whereNull('last_dispatched_at')
                             ->where('created_at', '<=', $pendingCutoff);
                     })->orWhere('last_dispatched_at', '<=', $pendingCutoff);
                 })
@@ -59,11 +61,11 @@ class RecoverInventorySyncOperationsCommand extends Command
                     ->onQueue('default');
                 $recoveredPendingCount++;
 
-                Log::info('RecoverInventorySyncOperationsCommand: Recovered abandoned pending operation.', [
-                    'operation_id' => $operation->id,
-                    'shop_id'      => $operation->shop_id,
-                    'created_at'   => $operation->created_at?->toDateTimeString(),
-                ]);
+                // Log::info('RecoverInventorySyncOperationsCommand: Recovered abandoned pending operation.', [
+                //     'operation_id' => $operation->id,
+                //     'shop_id'      => $operation->shop_id,
+                //     'created_at'   => $operation->created_at?->toDateTimeString(),
+                // ]);
             }
         }
 
@@ -85,32 +87,32 @@ class RecoverInventorySyncOperationsCommand extends Command
             // Attempt non-blocking lock acquisition:
             // If active worker is currently running inside critical section, get() returns false -> DO NOT STEAL!
             if (!$lock->get()) {
-                Log::info('RecoverInventorySyncOperationsCommand: Active worker currently holds SKU lock, skipping.', [
-                    'operation_id' => $operation->id,
-                    'shop_id'      => $operation->shop_id,
-                ]);
+                // Log::info('RecoverInventorySyncOperationsCommand: Active worker currently holds SKU lock, skipping.', [
+                //     'operation_id' => $operation->id,
+                //     'shop_id'      => $operation->shop_id,
+                // ]);
                 continue;
             }
 
             try {
                 if ($operation->attempts >= $operation->max_attempts) {
                     $operation->update([
-                        'status'     => 'failed',
+                        'status' => 'failed',
                         'last_error' => 'Max recovery attempts reached for abandoned processing operation.',
                     ]);
-                    Log::warning('RecoverInventorySyncOperationsCommand: Marked abandoned operation as failed (retry limit).', [
-                        'operation_id' => $operation->id,
-                        'attempts'     => $operation->attempts,
-                    ]);
+                    // Log::warning('RecoverInventorySyncOperationsCommand: Marked abandoned operation as failed (retry limit).', [
+                    //     'operation_id' => $operation->id,
+                    //     'attempts'     => $operation->attempts,
+                    // ]);
                 } else {
                     // Atomic DB state transition inside lock
                     $updated = InventorySyncOperation::where('id', $operation->id)
                         ->where('status', 'processing')
                         ->where('processing_started_at', '<=', $processingCutoff)
                         ->update([
-                            'status'                => 'pending',
+                            'status' => 'pending',
                             'processing_started_at' => null,
-                            'last_dispatched_at'    => $nowStr,
+                            'last_dispatched_at' => $nowStr,
                         ]);
 
                     if ($updated) {
@@ -119,11 +121,11 @@ class RecoverInventorySyncOperationsCommand extends Command
                             ->onQueue('default');
                         $recoveredProcessingCount++;
 
-                        Log::info('RecoverInventorySyncOperationsCommand: Recovered stuck processing operation.', [
-                            'operation_id'          => $operation->id,
-                            'shop_id'               => $operation->shop_id,
-                            'processing_started_at' => $operation->processing_started_at?->toDateTimeString(),
-                        ]);
+                        // Log::info('RecoverInventorySyncOperationsCommand: Recovered stuck processing operation.', [
+                        //     'operation_id'          => $operation->id,
+                        //     'shop_id'               => $operation->shop_id,
+                        //     'processing_started_at' => $operation->processing_started_at?->toDateTimeString(),
+                        // ]);
                     }
                 }
             } finally {

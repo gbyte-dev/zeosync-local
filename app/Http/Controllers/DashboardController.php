@@ -147,10 +147,10 @@ class DashboardController extends ShopifyController
             })
             ->filter(function ($item) {
                 $avail = $item['available'] ?? $item['qty'] ?? null;
-                return $avail !== null && (int)$avail < 10;
+                return $avail !== null && (int) $avail < 10;
             })
             ->sortBy(function ($item) {
-                return (int)($item['available'] ?? $item['qty'] ?? 0);
+                return (int) ($item['available'] ?? $item['qty'] ?? 0);
             })
             ->take(7)
             ->values();
@@ -163,20 +163,20 @@ class DashboardController extends ShopifyController
             ->take(7)
             ->values();
 
-        Log::info('Dashboard index loaded', [
-            'shop_id'                     => $shopId,
-            'shop_domain'                 => $shop->shop,
-            'is_amazon_connected'         => $isAmazonConnected,
-            'amazon_cache_exists'         => $amazonInventoryCacheExists,
-            'is_amazon_inventory_loading' => $isAmazonInventoryLoading,
-            'status_cache'                => !empty($shop->amazon_seller_id) ? Cache::get("amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}", []) : null,
-            'progress_cache'              => Cache::get("amazon_progress_{$shop->shop}", null),
-            'mapped_count'                => $totalMappedProducts,
-            'total_amazon_products'       => $totalAmazonProducts,
-            'total_shopify_products'      => $totalShopifyProducts,
-            'total_shopify_orders'        => $totalShopifyOrders,
-            'total_amazon_orders'         => $totalAmazonOrders,
-        ]);
+        // Log::info('Dashboard index loaded', [
+        //     'shop_id'                     => $shopId,
+        //     'shop_domain'                 => $shop->shop,
+        //     'is_amazon_connected'         => $isAmazonConnected,
+        //     'amazon_cache_exists'         => $amazonInventoryCacheExists,
+        //     'is_amazon_inventory_loading' => $isAmazonInventoryLoading,
+        //     'status_cache'                => !empty($shop->amazon_seller_id) ? Cache::get("amazon_inventory_status_{$shop->id}_{$shop->amazon_seller_id}", []) : null,
+        //     'progress_cache'              => Cache::get("amazon_progress_{$shop->shop}", null),
+        //     'mapped_count'                => $totalMappedProducts,
+        //     'total_amazon_products'       => $totalAmazonProducts,
+        //     'total_shopify_products'      => $totalShopifyProducts,
+        //     'total_shopify_orders'        => $totalShopifyOrders,
+        //     'total_amazon_orders'         => $totalAmazonOrders,
+        // ]);
 
         // Return only the exact variables required by the frontend
         return view('dashboard', compact(
@@ -236,12 +236,14 @@ class DashboardController extends ShopifyController
 
         $orders = ShopifyOrder::where('shop_id', $shopId)
             ->where(function ($q) use ($sinceDate) {
-                $q->where('order_created_at', '>=', $sinceDate)
-                  ->orWhere('created_at', '>=', $sinceDate);
+                $q
+                    ->where('order_created_at', '>=', $sinceDate)
+                    ->orWhere('created_at', '>=', $sinceDate);
             })
             ->get();
 
-        return $orders->flatMap(function ($order) {
+        return $orders
+            ->flatMap(function ($order) {
                 $items = is_array($order->line_items)
                     ? $order->line_items
                     : json_decode($order->line_items, true);
@@ -258,9 +260,9 @@ class DashboardController extends ShopifyController
                 $first = $items->first();
                 return [
                     'title' => $first['title'] ?? $first['name'] ?? 'Unknown Product',
-                    'quantity' => collect($items)->sum(fn($item) => (int)($item['quantity'] ?? 1)),
+                    'quantity' => collect($items)->sum(fn($item) => (int) ($item['quantity'] ?? 1)),
                     'amount' => collect($items)->sum(function ($item) {
-                        return (float)($item['price'] ?? 0) * (int)($item['quantity'] ?? 1);
+                        return (float) ($item['price'] ?? 0) * (int) ($item['quantity'] ?? 1);
                     }),
                 ];
             })

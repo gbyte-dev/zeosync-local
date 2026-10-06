@@ -50,22 +50,22 @@ class ProductLimitService
             ])
             ->count();
 
-        Log::info('PRODUCT LIMIT CHECK', [
-            'shop_id'            => $shopId,
-            'plan_id'            => $subscription->plan_id,
-            'product_limit'      => $limit,
-            'product_used'       => $used,
-            'remaining'          => max(0, $limit - $used),
-            'activated_at'       => $subscription->activated_at,
-            'current_period_end' => $subscription->current_period_end,
-        ]);
+        // Log::info('PRODUCT LIMIT CHECK', [
+        //     'shop_id'            => $shopId,
+        //     'plan_id'            => $subscription->plan_id,
+        //     'product_limit'      => $limit,
+        //     'product_used'       => $used,
+        //     'remaining'          => max(0, $limit - $used),
+        //     'activated_at'       => $subscription->activated_at,
+        //     'current_period_end' => $subscription->current_period_end,
+        // ]);
 
         return [
-            'allowed'   => $used < $limit,
-            'used'      => $used,
-            'limit'     => $limit,
+            'allowed' => $used < $limit,
+            'used' => $used,
+            'limit' => $limit,
             'remaining' => max(0, $limit - $used),
-            'message'   => $used >= $limit
+            'message' => $used >= $limit
                 ? "Product limit reached. You have already used {$used} of {$limit} products for the current billing cycle."
                 : 'OK',
         ];

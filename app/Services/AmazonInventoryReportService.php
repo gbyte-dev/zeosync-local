@@ -191,14 +191,14 @@ class AmazonInventoryReportService
                     $lastSynced = \Carbon\Carbon::parse($mapping->last_synced_at);
                     if ($lastSynced->greaterThan($reportSnapshotTime) && $mapping->quantity !== null && $mapping->quantity !== '') {
                         $finalQty = (int) $mapping->quantity;
-                        Log::info('Stale Amazon report quantity overridden by more recent manual DB sync', [
-                            'shop_id' => $shop->id,
-                            'sku' => $row['seller-sku'] ?? null,
-                            'report_quantity' => $reportQty,
-                            'mapping_quantity' => $finalQty,
-                            'last_synced_at' => $mapping->last_synced_at,
-                            'report_snapshot_time' => $reportSnapshotTime->toDateTimeString(),
-                        ]);
+                        // Log::info('Stale Amazon report quantity overridden by more recent manual DB sync', [
+                        //     'shop_id' => $shop->id,
+                        //     'sku' => $row['seller-sku'] ?? null,
+                        //     'report_quantity' => $reportQty,
+                        //     'mapping_quantity' => $finalQty,
+                        //     'last_synced_at' => $mapping->last_synced_at,
+                        //     'report_snapshot_time' => $reportSnapshotTime->toDateTimeString(),
+                        // ]);
                     }
                 } catch (\Throwable $e) {
                     Log::warning('Failed to compare last_synced_at timestamp during report parsing', [

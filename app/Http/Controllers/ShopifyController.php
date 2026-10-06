@@ -237,7 +237,7 @@ class ShopifyController extends Controller
                     'Content-Type' => 'application/json',
                 ])
                 ->post(
-                    "https://{$shop->shop}/admin/api/" . config('shopify.api_version', config('services.shopify.api_version', '2026-07')) . "/graphql.json",
+                    "https://{$shop->shop}/admin/api/" . config('shopify.api_version', config('services.shopify.api_version', '2026-07')) . '/graphql.json',
                     [
                         'query' => '
                         query {
@@ -1247,10 +1247,10 @@ class ShopifyController extends Controller
             $searchTerms = json_decode($amazon->search_terms, true) ?? [];
             $images = is_array($product->images) ? $product->images : json_decode($product->images, true) ?? [];
             $mainImage = $images[0]['src'] ?? 'https://via.placeholder.com/500';
-            Log::info('🟢 STEP 6 IMAGES', [
-                'images_count' => count($images),
-                'main_image' => $mainImage
-            ]);
+            // Log::info('🟢 STEP 6 IMAGES', [
+            //     'images_count' => count($images),
+            //     'main_image' => $mainImage
+            // ]);
             $otherImages = [];
             foreach ($images as $index => $img) {
                 if ($index == 0)
@@ -1280,21 +1280,21 @@ class ShopifyController extends Controller
             $price = $variants[0]['price'] ?? $product->price;
             $qty = $variants[0]['inventory_quantity'] ?? 0;
             $sku = $variants[0]['sku'] ?? ('SKU-' . $product->id);
-            Log::info('🟢 STEP 7 VARIANTS', [
-                'variants_count' => count($variants),
-                'price' => $price,
-                'qty' => $qty,
-                'sku' => $sku
-            ]);
+            // Log::info('🟢 STEP 7 VARIANTS', [
+            //     'variants_count' => count($variants),
+            //     'price' => $price,
+            //     'qty' => $qty,
+            //     'sku' => $sku
+            // ]);
             $mergedKeywords = array_values(array_filter(array_merge($keywords, $searchTerms)));
             if (empty($mergedKeywords)) {
                 $mergedKeywords = ['default keyword'];
             }
-            Log::info('🟢 STEP 8 KEYWORDS', [
-                'keywords' => $keywords,
-                'search_terms' => $searchTerms,
-                'merged' => $mergedKeywords
-            ]);
+            // Log::info('🟢 STEP 8 KEYWORDS', [
+            //     'keywords' => $keywords,
+            //     'search_terms' => $searchTerms,
+            //     'merged' => $mergedKeywords
+            // ]);
             $amazonService = new \App\Services\AmazonService();
             $attributes = $amazonService->buildPayload(
                 $shopModel,
@@ -1322,10 +1322,10 @@ class ShopifyController extends Controller
             // ]);
             // ✅ FIXED: no inner try
             if (!is_object($response)) {
-                Log::error('AMAZON RESPONSE INVALID', [
-                    'response' => $response,
-                    'sku' => $sku
-                ]);
+                // Log::error('AMAZON RESPONSE INVALID', [
+                //     'response' => $response,
+                //     'sku' => $sku
+                // ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Amazon API request failed',
@@ -1474,10 +1474,10 @@ class ShopifyController extends Controller
         $data = json_decode($payload, true);
 
         if (!is_array($data) || empty($data['id'])) {
-            Log::warning('Invalid Shopify order delete payload.', [
-                'shop_domain' => $shopDomain,
-                'payload' => $data,
-            ]);
+            // Log::warning('Invalid Shopify order delete payload.', [
+            //     'shop_domain' => $shopDomain,
+            //     'payload' => $data,
+            // ]);
 
             return response('Invalid order payload', 400);
         }

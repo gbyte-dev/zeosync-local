@@ -2,23 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\CheckStoreStatusJob;
+use App\Models\AdminSetting;
+use App\Models\Category;
+use App\Models\Plan;
+use App\Models\Shop;
+use App\Models\ShopifySubscription;
+use App\Services\CategoryService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
-use SellingPartnerApi\SellingPartnerApi;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use SellingPartnerApi\Enums\Endpoint;
 use SellingPartnerApi\Seller\ListingsItemsV20210801\Api\ListingsApi;
-use SellingPartnerApi\Seller\ProductTypeDefinitionsV20200901\Requests\GetDefinitionsProductType;
 use SellingPartnerApi\Seller\ListingsItemsV20210801\Dto\ListingsItemPutRequest;
-use Illuminate\Support\Facades\DB;
-use App\Services\CategoryService;
-use App\Jobs\CheckStoreStatusJob;
-use Illuminate\Support\Facades\Log;
-use App\Services\NotificationService;
+use SellingPartnerApi\Seller\ProductTypeDefinitionsV20200901\Requests\GetDefinitionsProductType;
+use SellingPartnerApi\SellingPartnerApi;
 use DateTime;
-use App\Models\Category;
-use App\Models\Shop;
-use App\Models\Plan;
-use App\Models\ShopifySubscription;
-use App\Models\AdminSetting;
 
 class TestController extends Controller
 {
@@ -39,8 +39,8 @@ class TestController extends Controller
                 if ($shop) {
                     $usertoken = Shop::where('shop', $shop)->first();
                     $refreshToken = $usertoken?->amazon_refresh_token;
-                    $sellerid =  $usertoken?->amazon_seller_id;
-                    $amazon_marketplace_id =  $usertoken?->amazon_marketplace_id;
+                    $sellerid = $usertoken?->amazon_seller_id;
+                    $amazon_marketplace_id = $usertoken?->amazon_marketplace_id;
                 } else {
                     $refreshToken = AdminSetting::get('amazon_refresh_token');
                 }
@@ -54,9 +54,9 @@ class TestController extends Controller
         }
 
         $this->credentials = [
-            'seller_id'      => $sellerid ?? '',
+            'seller_id' => $sellerid ?? '',
             'marketplace_id' => $amazon_marketplace_id ?? 'ATVPDKIKX0DER',
-            'refresh_token'  => $refreshToken
+            'refresh_token' => $refreshToken
         ];
     }
 
@@ -80,11 +80,11 @@ class TestController extends Controller
                         }
                         if ($usertoken) {
                             $this->credentials = [
-                                'seller_id'      => $usertoken->amazon_seller_id,
+                                'seller_id' => $usertoken->amazon_seller_id,
                                 'marketplace_id' => $usertoken->amazon_marketplace_id,
-                                'refresh_token'  => $usertoken->amazon_refresh_token,
-                                'region'         => $usertoken->amazon_mws_region,
-                                'endpoint'       => $usertoken->amazon_endpoint,
+                                'refresh_token' => $usertoken->amazon_refresh_token,
+                                'region' => $usertoken->amazon_mws_region,
+                                'endpoint' => $usertoken->amazon_endpoint,
                             ];
                         }
                     } else {
@@ -112,12 +112,11 @@ class TestController extends Controller
         return $this->connector;
     }
 
-
     public function test($type = 'RING')
     {
         $connector = $this->getAmazonConnector();
         if (!$connector) {
-            return response()->json(['status' => false, 'message' => "No Active Shop"]);
+            return response()->json(['status' => false, 'message' => 'No Active Shop']);
         }
         // get market place participations
         // $data = $connector->sellersV1()->getMarketplaceParticipations();
@@ -132,14 +131,15 @@ class TestController extends Controller
         // $data = $this->getShirtDefinitions();
         // $data = $this->addProductWithoutVariation();
         // $data = $this->updateProductWithoutVariation();
-         $data = $this->getUnitCountSchema($type);
+        $data = $this->getUnitCountSchema($type);
         //    $data = $this->testdata();
         //  $data = $this->getAllProductTypes();
         // $data = $this->getListingStatus('GQR1FGUVQIYB');
-        // $data = $this->testBeautyData(); 
+        // $data = $this->testBeautyData();
         return response()->json($data);
         return view('allproducts/toy');
     }
+
     public function testCategoryMapping()
     {
         $service = new CategoryService();
@@ -150,24 +150,25 @@ class TestController extends Controller
                 'spanner', 'adhesive', 'sealant', 'abrasive', 'metal parts',
                 'building material', 'computer hardware', 'motherboard',
                 'processor', 'cpu', 'ram', 'ssd', 'hard disk', 'graphics card',
-                'gpu', 'power supply',  'smps', 'electrical hardware',
-                'switch', 'socket', 'circuit breaker', 'wire',  'cable',
-                'fuse',  'electrical panel', 'distribution board',
-                'plumbing hardware',  'pipe', 'pipe fitting', 'tap',
+                'gpu', 'power supply', 'smps', 'electrical hardware',
+                'switch', 'socket', 'circuit breaker', 'wire', 'cable',
+                'fuse', 'electrical panel', 'distribution board',
+                'plumbing hardware', 'pipe', 'pipe fitting', 'tap',
                 'valve', 'faucet', 'water connector', 'hand tools',
                 'power tools', 'tool kit', 'wrench', 'screwdriver',
-                'cutting tool',  'measuring tool'
-            ],   40,  false  );
+                'cutting tool', 'measuring tool'
+            ], 40, false
+        );
 
         return response()->json($result);
     }
-    
+
     public function createSandboxProduct()
     {
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return response()->json(['status' => false, 'message' => "No Active Shop"]);
+                return response()->json(['status' => false, 'message' => 'No Active Shop']);
             }
             $listingsApi = $connector->listingsItemsV20210801();
             $variations = [
@@ -283,7 +284,7 @@ class TestController extends Controller
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return response()->json(['status' => false, 'message' => "No Active Shop"]);
+                return response()->json(['status' => false, 'message' => 'No Active Shop']);
             }
             $listingsApi = $connector->listingsItemsV20210801();
             $response = $listingsApi->getListingsItem(
@@ -291,20 +292,20 @@ class TestController extends Controller
                 sku: 'TEST-SKU-1001',
                 marketplaceIds: [$this->credentials['marketplace_id']]
             );
-            \Log::info('Amazon Get Listing Item Response:', [
-                'status' => $response->status(),
-                'body' => $response->json()
-            ]);
+            // \Log::info('Amazon Get Listing Item Response:', [
+            //     'status' => $response->status(),
+            //     'body' => $response->json()
+            // ]);
             return response()->json([
                 'success' => true,
                 'message' => 'Listing item retrieved successfully',
                 'data' => $response->json()
             ]);
         } catch (\Exception $e) {
-            \Log::error('Amazon Get Listing Item Error:', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // \Log::error('Amazon Get Listing Item Error:', [
+            //     'message' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -317,7 +318,7 @@ class TestController extends Controller
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return response()->json(['status' => false, 'message' => "No Active Shop"]);
+                return response()->json(['status' => false, 'message' => 'No Active Shop']);
             }
             // Use Inventory API to get inventory
             $inventoryApi = $connector->fbaInventoryV1();
@@ -328,32 +329,33 @@ class TestController extends Controller
                 marketplaceIds: [$this->credentials['marketplace_id']],
                 details: true
             );
-            \Log::info('Amazon Inventory Products Response:', [
-                'status' => $response->status(),
-                'body' => $response->json()
-            ]);
+            // \Log::info('Amazon Inventory Products Response:', [
+            //     'status' => $response->status(),
+            //     'body' => $response->json()
+            // ]);
             return response()->json([
                 'success' => true,
                 'message' => 'Inventory products retrieved successfully',
                 'data' => $response->json()
             ]);
         } catch (\Exception $e) {
-            \Log::error('Amazon Inventory Products Error:', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // \Log::error('Amazon Inventory Products Error:', [
+            //     'message' => $e->getMessage(),
+            //     'trace' => $e->getTraceAsString()
+            // ]);
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
             ], 500);
         }
     }
+
     public function getAllSellerProducts()
     {
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return response()->json(['status' => false, 'message' => "No Active Shop"]);
+                return response()->json(['status' => false, 'message' => 'No Active Shop']);
             }
             $allProducts = [];
             // Method 1: Try to get listings using search with date filter
@@ -368,7 +370,7 @@ class TestController extends Controller
                 if ($response->status() === 200) {
                     $listings = $response->json();
                     $allProducts['listings'] = $listings;
-                    \Log::info('Listings found:', ['count' => count($listings['items'] ?? [])]);
+                    // \Log::info('Listings found:', ['count' => count($listings['items'] ?? [])]);
                 }
             } catch (\Exception $e) {
                 \Log::warning('Listings API failed:', ['error' => $e->getMessage()]);
@@ -409,7 +411,7 @@ class TestController extends Controller
                 if ($response->status() === 200) {
                     $inventory = $response->json();
                     $allProducts['inventory'] = $inventory;
-                    \Log::info('Inventory items found:', ['count' => count($inventory['payload']['inventorySummaries'] ?? [])]);
+                    // \Log::info('Inventory items found:', ['count' => count($inventory['payload']['inventorySummaries'] ?? [])]);
                 }
             } catch (\Exception $e) {
                 \Log::warning('Inventory API failed:', ['error' => $e->getMessage()]);
@@ -455,7 +457,7 @@ class TestController extends Controller
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return response()->json(['status' => false, 'message' => "No Active Shop"]);
+                return response()->json(['status' => false, 'message' => 'No Active Shop']);
             }
             $listingsApi = $connector->listingsItemsV20210801();
             $sku = 'TEST-SKU-SINGLE-' . time();
@@ -614,7 +616,7 @@ class TestController extends Controller
 
     public function createOnlyListing($attributes, $type)
     {
-        return  $putRequest = new ListingsItemPutRequest(
+        return $putRequest = new ListingsItemPutRequest(
             productType: $type,
             attributes: $attributes,
             requirements: 'LISTING'
@@ -639,7 +641,7 @@ class TestController extends Controller
     {
         $connector = $this->getAmazonConnector();
         if (!$connector) {
-            return response()->json(['status' => false, 'message' => "No Active Shop"]);
+            return response()->json(['status' => false, 'message' => 'No Active Shop']);
         }
         $listingsApi = $connector->listingsItemsV20210801();
 
@@ -651,7 +653,7 @@ class TestController extends Controller
                 listingsItemPutRequest: $putRequest
             );
 
-            return  $response->json();
+            return $response->json();
         } catch (\Throwable $e) {
             Log::error('Amazon putListingsItem API failed', [
                 'sku' => $sku,
@@ -662,13 +664,12 @@ class TestController extends Controller
         }
     }
 
-
     public function addProductVariation()
     {
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return response()->json(['status' => false, 'message' => "No Active Shop"]);
+                return response()->json(['status' => false, 'message' => 'No Active Shop']);
             }
             $listingsApi = $connector->listingsItemsV20210801();
             $parentSku = 'PARENT-SKU-' . time();
@@ -852,7 +853,7 @@ class TestController extends Controller
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return response()->json(['status' => false, 'message' => "No Active Shop"]);
+                return response()->json(['status' => false, 'message' => 'No Active Shop']);
             }
             $definitions = $connector->productTypeDefinitionsV20200901();
             $marketplaceId = $this->credentials['marketplace_id'];
@@ -901,7 +902,7 @@ class TestController extends Controller
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return response()->json(['status' => false, 'message' => "No Active Shop"]);
+                return response()->json(['status' => false, 'message' => 'No Active Shop']);
             }
             $definitions = $connector->productTypeDefinitionsV20200901();
             // Fetch SHIRT schema
@@ -910,7 +911,7 @@ class TestController extends Controller
                 [$this->credentials['marketplace_id']]
             );
             $schema = $response->json();
-            $scemaurl  = $schema['schema']['link']['resource'] ?? null;
+            $scemaurl = $schema['schema']['link']['resource'] ?? null;
             $unitCount = $schema['properties']['unit_count'] ?? 'NOT FOUND';
             if ($scemaurl) {
                 $mainSchema = file_get_contents($scemaurl);
@@ -927,12 +928,13 @@ class TestController extends Controller
             ], 500);
         }
     }
+
     public function testdata()
     {
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return response()->json(['status' => false, 'message' => "No Active Shop"]);
+                return response()->json(['status' => false, 'message' => 'No Active Shop']);
             }
             $listingsApi = $connector->listingsItemsV20210801();
             $sku = 'TEST-SKU-TOYGUN-' . time();
@@ -1091,6 +1093,7 @@ class TestController extends Controller
             ], 500);
         }
     }
+
     public function testBeautyData()
     {
         try {
@@ -1249,12 +1252,13 @@ class TestController extends Controller
             ], 500);
         }
     }
+
     public function getListingData($sku)
     {
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return response()->json(['status' => false, 'message' => "No Active Shop"]);
+                return response()->json(['status' => false, 'message' => 'No Active Shop']);
             }
             $listingsApi = $connector->listingsItemsV20210801();
             $response = $listingsApi->getListingsItem(
@@ -1274,12 +1278,13 @@ class TestController extends Controller
             ], 500);
         }
     }
+
     public function getListingStatus($sku)
     {
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return response()->json(['status' => false, 'message' => "No Active Shop"]);
+                return response()->json(['status' => false, 'message' => 'No Active Shop']);
             }
             $listingsApi = $connector->listingsItemsV20210801();
             $response = $listingsApi->getListingsItem(
@@ -1305,6 +1310,7 @@ class TestController extends Controller
             ], 500);
         }
     }
+
     public function getDownloadSchema($type = 'SHIRT')
     {
         try {
@@ -1317,10 +1323,10 @@ class TestController extends Controller
                 [$this->credentials['marketplace_id']]
             );
             $schema = $response->json();
-            $scemaurl  = $schema['schema']['link']['resource'] ?? null;
+            $scemaurl = $schema['schema']['link']['resource'] ?? null;
             $unitCount = $schema['properties']['unit_count'] ?? 'NOT FOUND';
             if ($scemaurl) {
-                return  $mainSchema = file_get_contents($scemaurl);
+                return $mainSchema = file_get_contents($scemaurl);
             }
             return false;
         } catch (\Exception $e) {
@@ -1330,12 +1336,13 @@ class TestController extends Controller
             ], 500);
         }
     }
+
     public function getProductVariants($parentSku)
     {
         try {
             $connector = $this->getAmazonConnector();
             if (!$connector) {
-                return response()->json(['status' => false, 'message' => "No Active Shop"]);
+                return response()->json(['status' => false, 'message' => 'No Active Shop']);
             }
             $listingsApi = $connector->listingsItemsV20210801();
             $catalogApi = $connector->catalogItemsV20220401();
@@ -1348,7 +1355,7 @@ class TestController extends Controller
                     marketplaceIds: [$this->credentials['marketplace_id']],
                     includedData: ['summaries', 'attributes', 'issues', 'offers', 'fulfillmentAvailability', 'relationships', 'productTypes']
                 );
-                return  $parentData = $parentResponse->json();
+                return $parentData = $parentResponse->json();
                 $variantData['parent'] = [
                     'sku' => $parentSku,
                     'data' => $parentData
@@ -1424,9 +1431,9 @@ class TestController extends Controller
                     $details = $amazonError['details'] ?? '';
                     $errorMessage = trim($message . (!empty($details) ? ' ' . $details : ''));
 
-                    if (in_array($errCode, ['NOT_FOUND', 'RESOURCE_NOT_FOUND', 'INVALID_SKU'], true)
-                        || stripos($message, 'not found') !== false
-                        || stripos($details, 'not found') !== false) {
+                    if (in_array($errCode, ['NOT_FOUND', 'RESOURCE_NOT_FOUND', 'INVALID_SKU'], true) ||
+                            stripos($message, 'not found') !== false ||
+                            stripos($details, 'not found') !== false) {
                         $isNotFound = true;
                     }
                 }
@@ -1465,16 +1472,17 @@ class TestController extends Controller
             if ($shopId) {
                 ProductSchemaController::deleteStaleAmazonProduct($sku, $shopId);
             }
-            return redirect()->route('user.product.showProducts', ['shop' => $activeShop])
+            return redirect()
+                ->route('user.product.showProducts', ['shop' => $activeShop])
                 ->with('error', 'This action cannot be completed because this product is no longer available on Amazon. It may have been deleted or removed.');
         }
 
         if ($availability['status'] === 'API_ERROR') {
             $errorMessage = $availability['error'] ?? 'Unable to fetch product details from Amazon.';
-            $adminMessage = "Shop: " . ($activeShop ?? 'Unknown') . PHP_EOL;
+            $adminMessage = 'Shop: ' . ($activeShop ?? 'Unknown') . PHP_EOL;
             $adminMessage .= "SKU: {$sku}" . PHP_EOL;
-            $adminMessage .= "Issue: Unable to fetch product details from Amazon." . PHP_EOL;
-            $adminMessage .= "Details: " . $errorMessage;
+            $adminMessage .= 'Issue: Unable to fetch product details from Amazon.' . PHP_EOL;
+            $adminMessage .= 'Details: ' . $errorMessage;
 
             \Log::error('Amazon Product Fetch Failed', [
                 'shop' => $activeShop,
@@ -1689,11 +1697,10 @@ class TestController extends Controller
                 'childSkus'
             ));
         } catch (\Exception $e) {
-
             $errorMessage = 'Unable to fetch product details from Amazon.';
-            $adminMessage = "Shop: " . (request()->shop ?? session('active_shop') ?? 'Unknown') . PHP_EOL;
+            $adminMessage = 'Shop: ' . (request()->shop ?? session('active_shop') ?? 'Unknown') . PHP_EOL;
             $adminMessage .= "SKU: {$sku}" . PHP_EOL;
-            $adminMessage .= "Issue: Unable to fetch product details from Amazon." . PHP_EOL;
+            $adminMessage .= 'Issue: Unable to fetch product details from Amazon.' . PHP_EOL;
 
             if (preg_match('/Response:\s*(\{.*\})/s', $e->getMessage(), $matches)) {
                 $response = json_decode($matches[1], true);
@@ -1712,7 +1719,7 @@ class TestController extends Controller
                     }
                 }
             } else {
-                $adminMessage .= "Details: " . $e->getMessage();
+                $adminMessage .= 'Details: ' . $e->getMessage();
             }
 
             \Log::error('Amazon Product Fetch Failed', [
@@ -1735,7 +1742,6 @@ class TestController extends Controller
 
     public function checkMailTest()
     {
-
         try {
             $title = 'Mail Test from Amazon API';
             $messageText = 'This is a test email to verify the mail configuration in Laravel.';
@@ -1749,24 +1755,25 @@ class TestController extends Controller
         }
     }
 
-    public function amazonSchemaTest(){
+    public function amazonSchemaTest()
+    {
         $shop = \App\Models\Shop::find(6);
         return (new \App\Services\AmazonService())->getProductTypeDefinition($shop);
     }
 
-    public function amazonSchemaTestSku(Request $request, $sku){
-           $shop = getActiveShopModel($request);
+    public function amazonSchemaTestSku(Request $request, $sku)
+    {
+        $shop = getActiveShopModel($request);
 
-            if (!$shop) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Shop not found'
-                ], 404);
-            }
+        if (!$shop) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Shop not found'
+            ], 404);
+        }
 
-            $service = app(AmazonService::class);
+        $service = app(AmazonService::class);
 
-            return response()->json($service->checkAmazonListing($shop, $sku)   );
+        return response()->json($service->checkAmazonListing($shop, $sku));
     }
-
 }

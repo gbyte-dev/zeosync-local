@@ -96,9 +96,9 @@ class AmazonSchemaController extends Controller
             if ($storedSchema &&
                     $storedSchema->last_synced_at &&
                     $storedSchema->last_synced_at->gt(now()->subDays(7))) {
-                Log::info('SCHEMA LOADED FROM DB', [
-                    'slug' => $slug
-                ]);
+                // Log::info('SCHEMA LOADED FROM DB', [
+                //     'slug' => $slug
+                // ]);
                 $schema = json_decode($storedSchema->schema_json, true);
                 $rules = json_decode($storedSchema->rules_json, true) ?? [];
 
@@ -211,9 +211,9 @@ class AmazonSchemaController extends Controller
             $evaluator = app(\App\Services\Amazon\AmazonRuleEvaluator::class);
             $result = $evaluator->validate($rules, []);
 
-            Log::info('VALIDATOR ERRORS', [
-                'errors' => $result['errors'] ?? []
-            ]);
+            // Log::info('VALIDATOR ERRORS', [
+            //     'errors' => $result['errors'] ?? []
+            // ]);
             if (strtoupper($slug) === 'SHIRT') {
                 $exists = collect($fields)->contains('key', 'standardized_values');
                 if (!$exists) {
@@ -237,18 +237,18 @@ class AmazonSchemaController extends Controller
                 'rules' => $rules
             ]);
         } catch (\Throwable $e) {
-            Log::error(
-                'AMAZON SCHEMA CONTROLLER ERROR',
-                [
-                    'slug' => $slug,
-                    'error' =>
-                        $e->getMessage(),
-                    'line' =>
-                        $e->getLine(),
-                    'file' =>
-                        $e->getFile()
-                ]
-            );
+            // Log::error(
+            //     'AMAZON SCHEMA CONTROLLER ERROR',
+            //     [
+            //         'slug' => $slug,
+            //         'error' =>
+            //             $e->getMessage(),
+            //         'line' =>
+            //             $e->getLine(),
+            //         'file' =>
+            //             $e->getFile()
+            //     ]
+            // );
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -330,12 +330,12 @@ class AmazonSchemaController extends Controller
                     ? $images
                     : (json_decode($images, true) ?? []);
                 $firstVariant = $variants[0] ?? [];
-                Log::info('FIRST VARIANT', [
-                    'variant' => $firstVariant
-                ]);
-                Log::info('IMAGES', [
-                    'images' => $images
-                ]);
+                // Log::info('FIRST VARIANT', [
+                //     'variant' => $firstVariant
+                // ]);
+                // Log::info('IMAGES', [
+                //     'images' => $images
+                // ]);
                 $prefillData['item_name'] =
                     $product->title ?? '';
                 $prefillData['brand'] =
@@ -439,10 +439,10 @@ class AmazonSchemaController extends Controller
                 }
             }
         }
-        Log::info(
-            'PREFILL DATA',
-            $prefillData
-        );
+        // Log::info(
+        //     'PREFILL DATA',
+        //     $prefillData
+        // );
         return view(
             'amazon-test',
             compact(
@@ -457,10 +457,10 @@ class AmazonSchemaController extends Controller
 
     public function manualSync(Request $request)
     {
-        Log::info('ENV DEBUG', [
-            'env' => env('AMAZON_PAYLOAD_TRANSFORMER'),
-            'config' => config('amazon.payload_transformer'),
-        ]);
+        // Log::info('ENV DEBUG', [
+        //     'env' => env('AMAZON_PAYLOAD_TRANSFORMER'),
+        //     'config' => config('amazon.payload_transformer'),
+        // ]);
         try {
             $request->validate([
                 'product_id' => 'required',
@@ -547,7 +547,7 @@ class AmazonSchemaController extends Controller
 
             try {
                 if (config('amazon.payload_transformer') === 'v2') {
-                    Log::info('USING AMAZON PAYLOAD TRANSFORMER V2');
+                    // Log::info('USING AMAZON PAYLOAD TRANSFORMER V2');
 
                     $payload = $this->payloadTransformerV2->build(
                         $shop,
@@ -556,7 +556,7 @@ class AmazonSchemaController extends Controller
                         $config
                     );
                 } else {
-                    Log::info('USING AMAZON PAYLOAD TRANSFORMER V1');
+                    // Log::info('USING AMAZON PAYLOAD TRANSFORMER V1');
 
                     $transformer = new AmazonPayloadTransformer();
 
@@ -660,7 +660,7 @@ class AmazonSchemaController extends Controller
                 ['product_id' => $product->id],
                 [
                     'smart_payload' => json_encode($request->payload, JSON_UNESCAPED_SLASHES),
-                    'sku'           => $sku,
+                    'sku' => $sku,
                 ]
             );
 

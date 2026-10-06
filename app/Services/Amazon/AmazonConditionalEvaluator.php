@@ -1,17 +1,17 @@
 <?php
 
 /*
-|--------------------------------------------------------------------------
-| NOTE
-|--------------------------------------------------------------------------
-| Currently, visibility is inferred from matched conditional property
-| traversal because SmartForm initially renders only a subset of fields.
-|
-| If future Amazon PTD categories distinguish between "active schema"
-| and "renderable UI fields", this visibility logic should be moved
-| into a dedicated visibility resolver.
-|--------------------------------------------------------------------------
-*/
+ * |--------------------------------------------------------------------------
+ * | NOTE
+ * |--------------------------------------------------------------------------
+ * | Currently, visibility is inferred from matched conditional property
+ * | traversal because SmartForm initially renders only a subset of fields.
+ * |
+ * | If future Amazon PTD categories distinguish between "active schema"
+ * | and "renderable UI fields", this visibility logic should be moved
+ * | into a dedicated visibility resolver.
+ * |--------------------------------------------------------------------------
+ */
 
 declare(strict_types=1);
 
@@ -67,7 +67,7 @@ class AmazonConditionalEvaluator
     }
 
     /**
-     * Strictly processes logic gating. 
+     * Strictly processes logic gating.
      * The parent schema must never reach applySchema() if it is a routing node.
      */
     private function evaluateRule(?array $schema, mixed $data, string $pathContext, array &$state): void
@@ -91,13 +91,12 @@ class AmazonConditionalEvaluator
         ]);
 
         /*
-    |--------------------------------------------------------------------------
-    | IF / THEN / ELSE
-    |--------------------------------------------------------------------------
-    */
+         * |--------------------------------------------------------------------------
+         * | IF / THEN / ELSE
+         * |--------------------------------------------------------------------------
+         */
 
         if (array_key_exists('if', $schema)) {
-
             \Log::info('IF SCHEMA', [
                 'path' => $pathContext,
                 'if' => $schema['if'],
@@ -119,15 +118,12 @@ class AmazonConditionalEvaluator
             ]);
 
             if ($matched) {
-
                 \Log::info('ENTER THEN', [
                     'path' => $pathContext,
                 ]);
 
                 if (isset($schema['then'])) {
-
                     if (isset($schema['then']['properties'])) {
-
                         \Log::info('THEN PROPERTIES', [
                             'path' => $pathContext,
                             'properties' => array_keys(
@@ -137,7 +133,6 @@ class AmazonConditionalEvaluator
                     }
 
                     if (isset($schema['then']['required'])) {
-
                         \Log::info('THEN REQUIRED', [
                             'path' => $pathContext,
                             'required' => $schema['then']['required'],
@@ -145,7 +140,6 @@ class AmazonConditionalEvaluator
                     }
 
                     if (isset($schema['then']['enum'])) {
-
                         \Log::info('THEN ENUM', [
                             'path' => $pathContext,
                             'count' => count($schema['then']['enum']),
@@ -165,15 +159,12 @@ class AmazonConditionalEvaluator
                     );
                 }
             } else {
-
                 \Log::info('ENTER ELSE', [
                     'path' => $pathContext,
                 ]);
 
                 if (isset($schema['else'])) {
-
                     if (isset($schema['else']['properties'])) {
-
                         \Log::info('ELSE PROPERTIES', [
                             'path' => $pathContext,
                             'properties' => array_keys(
@@ -183,7 +174,6 @@ class AmazonConditionalEvaluator
                     }
 
                     if (isset($schema['else']['required'])) {
-
                         \Log::info('ELSE REQUIRED', [
                             'path' => $pathContext,
                             'required' => $schema['else']['required'],
@@ -191,7 +181,6 @@ class AmazonConditionalEvaluator
                     }
 
                     if (isset($schema['else']['enum'])) {
-
                         \Log::info('ELSE ENUM', [
                             'path' => $pathContext,
                             'count' => count($schema['else']['enum']),
@@ -220,20 +209,18 @@ class AmazonConditionalEvaluator
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | allOf
-    |--------------------------------------------------------------------------
-    */
+         * |--------------------------------------------------------------------------
+         * | allOf
+         * |--------------------------------------------------------------------------
+         */
 
         if (isset($schema['allOf'])) {
-
             \Log::info('ENTER allOf', [
                 'path' => $pathContext,
                 'count' => count($schema['allOf']),
             ]);
 
             foreach ($schema['allOf'] as $index => $subSchema) {
-
                 \Log::info('PROCESS allOf CHILD', [
                     'path' => $pathContext,
                     'index' => $index,
@@ -251,20 +238,18 @@ class AmazonConditionalEvaluator
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | anyOf
-    |--------------------------------------------------------------------------
-    */
+         * |--------------------------------------------------------------------------
+         * | anyOf
+         * |--------------------------------------------------------------------------
+         */
 
         if (isset($schema['anyOf'])) {
-
             \Log::info('ENTER anyOf', [
                 'path' => $pathContext,
                 'count' => count($schema['anyOf']),
             ]);
 
             foreach ($schema['anyOf'] as $index => $subSchema) {
-
                 $match = $this->support->isMatch(
                     $subSchema,
                     $data
@@ -276,7 +261,6 @@ class AmazonConditionalEvaluator
                 ]);
 
                 if ($match) {
-
                     $this->evaluateRule(
                         $subSchema,
                         $data,
@@ -292,20 +276,18 @@ class AmazonConditionalEvaluator
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | oneOf
-    |--------------------------------------------------------------------------
-    */
+         * |--------------------------------------------------------------------------
+         * | oneOf
+         * |--------------------------------------------------------------------------
+         */
 
         if (isset($schema['oneOf'])) {
-
             \Log::info('ENTER oneOf', [
                 'path' => $pathContext,
                 'count' => count($schema['oneOf']),
             ]);
 
             foreach ($schema['oneOf'] as $index => $subSchema) {
-
                 $match = $this->support->isMatch(
                     $subSchema,
                     $data
@@ -317,7 +299,6 @@ class AmazonConditionalEvaluator
                 ]);
 
                 if ($match) {
-
                     $this->evaluateRule(
                         $subSchema,
                         $data,
@@ -333,10 +314,10 @@ class AmazonConditionalEvaluator
         }
 
         /*
-    |--------------------------------------------------------------------------
-    | APPLY SCHEMA
-    |--------------------------------------------------------------------------
-    */
+         * |--------------------------------------------------------------------------
+         * | APPLY SCHEMA
+         * |--------------------------------------------------------------------------
+         */
 
         \Log::info('APPLY SCHEMA', [
             'path' => $pathContext,

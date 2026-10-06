@@ -96,11 +96,11 @@ class SetupController extends Controller
             ]);
         });
 
-        Log::info('SHOPIFY_MANUAL_EMAIL_SAVED', [
-            'shop_id' => $shop->id,
-            'shop' => $shop->shop,
-            'email_present' => true,
-        ]);
+        // Log::info('SHOPIFY_MANUAL_EMAIL_SAVED', [
+        //     'shop_id' => $shop->id,
+        //     'shop' => $shop->shop,
+        //     'email_present' => true,
+        // ]);
 
         $redirectParams = ['shop' => $shop->shop];
         if ($request->filled('host')) {

@@ -61,19 +61,19 @@ class InventoryCacheService
         $hasCache = Cache::has($cacheKey);
         $syncCompleted = $status['sync_completed'] ?? false;
 
-        Log::info('[AMAZON_DEBUG] Initial state calculated', [
-            'shop_id' => $shop->id,
-            'shop_domain' => $shop->shop,
-            'seller_id' => $shop->amazon_seller_id,
-            'marketplace_id' => $marketplaceId,
-            'cache_key' => $cacheKey,
-            'has_cache' => $hasCache,
-            'sync_completed' => $syncCompleted,
-            'status' => $status,
-            'cache_count' => is_array(Cache::get($cacheKey, [])) ? count(Cache::get($cacheKey, [])) : 0,
-            'request_url' => request()->fullUrl(),
-            'request_query' => request()->all(),
-        ]);
+        // Log::info('[AMAZON_DEBUG] Initial state calculated', [
+        //     'shop_id' => $shop->id,
+        //     'shop_domain' => $shop->shop,
+        //     'seller_id' => $shop->amazon_seller_id,
+        //     'marketplace_id' => $marketplaceId,
+        //     'cache_key' => $cacheKey,
+        //     'has_cache' => $hasCache,
+        //     'sync_completed' => $syncCompleted,
+        //     'status' => $status,
+        //     'cache_count' => is_array(Cache::get($cacheKey, [])) ? count(Cache::get($cacheKey, [])) : 0,
+        //     'request_url' => request()->fullUrl(),
+        //     'request_query' => request()->all(),
+        // ]);
 
         // State 1: No usable cache exists at all
         if (!$hasCache) {
@@ -106,18 +106,18 @@ class InventoryCacheService
         // State 2 & 3: Cache exists — return cached products immediately
         $inventory = Cache::get($cacheKey, []);
 
-        Log::info('Inventory cache loaded', [
-            'count' => is_array($inventory) ? count($inventory) : 0,
-            'status' => $status,
-            'cache_key' => $cacheKey,
-        ]);
+        // Log::info('Inventory cache loaded', [
+        //     'count' => is_array($inventory) ? count($inventory) : 0,
+        //     'status' => $status,
+        //     'cache_key' => $cacheKey,
+        // ]);
 
         $expired = $this->isExpired($shop, $marketplaceId);
 
-        Log::info('Cache expiry check', [
-            'expired' => $expired,
-            'status' => $status,
-        ]);
+        // Log::info('Cache expiry check', [
+        //     'expired' => $expired,
+        //     'status' => $status,
+        // ]);
 
         if ($expired && !($status['refreshing'] ?? false)) {
             Log::info('Triggering background Amazon refresh after response');
@@ -140,13 +140,13 @@ class InventoryCacheService
 
         $currentStatus = $this->getStatus($shop, $marketplaceId);
 
-        Log::info('[AMAZON_DEBUG] Returning cache-hit response', [
-            'products_count' => is_array($inventory) ? count($inventory) : 0,
-            'status' => $currentStatus,
-            'cache_key' => $cacheKey,
-            'has_cache' => $hasCache,
-            'sync_completed' => $syncCompleted,
-        ]);
+        // Log::info('[AMAZON_DEBUG] Returning cache-hit response', [
+        //     'products_count' => is_array($inventory) ? count($inventory) : 0,
+        //     'status' => $currentStatus,
+        //     'cache_key' => $cacheKey,
+        //     'has_cache' => $hasCache,
+        //     'sync_completed' => $syncCompleted,
+        // ]);
 
         return [
             'products' => is_array($inventory) ? $inventory : [],
@@ -164,10 +164,10 @@ class InventoryCacheService
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
 
         if (empty($shop->amazon_seller_id)) {
-            Log::warning('Amazon inventory refresh skipped: seller ID missing', [
-                'shop_id' => $shop->id,
-                'marketplace' => $marketplaceId,
-            ]);
+            // Log::warning('Amazon inventory refresh skipped: seller ID missing', [
+            //     'shop_id' => $shop->id,
+            //     'marketplace' => $marketplaceId,
+            // ]);
 
             return [];
         }
@@ -178,10 +178,10 @@ class InventoryCacheService
         );
 
         if (!$lock->get()) {
-            Log::info('Amazon inventory refresh already running.', [
-                'shop_id' => $shop->id,
-                'seller_id' => $shop->amazon_seller_id,
-            ]);
+            // Log::info('Amazon inventory refresh already running.', [
+            //     'shop_id' => $shop->id,
+            //     'seller_id' => $shop->amazon_seller_id,
+            // ]);
 
             return Cache::get(
                 $this->getInventoryCacheKey($shop, $marketplaceId),
@@ -209,11 +209,11 @@ class InventoryCacheService
 
             return $inventory;
         } catch (\Throwable $exception) {
-            Log::error('Amazon inventory refresh failed.', [
-                'shop_id' => $shop->id,
-                'seller_id' => $shop->amazon_seller_id,
-                'message' => $exception->getMessage(),
-            ]);
+            // Log::error('Amazon inventory refresh failed.', [
+            //     'shop_id' => $shop->id,
+            //     'seller_id' => $shop->amazon_seller_id,
+            //     'message' => $exception->getMessage(),
+            // ]);
 
             $hasCache = Cache::has($this->getInventoryCacheKey($shop, $marketplaceId));
 
@@ -239,19 +239,19 @@ class InventoryCacheService
         $marketplaceId = $marketplaceId ?: ($shop->amazon_marketplace_id ?: 'ATVPDKIKX0DER');
 
         if (empty($shop->amazon_seller_id)) {
-            Log::warning('Amazon inventory dispatchRefresh skipped: seller ID missing', [
-                'shop_id' => $shop->id,
-                'marketplace' => $marketplaceId,
-            ]);
+            // Log::warning('Amazon inventory dispatchRefresh skipped: seller ID missing', [
+            //     'shop_id' => $shop->id,
+            //     'marketplace' => $marketplaceId,
+            // ]);
 
             return;
         }
 
-        Log::info('dispatchRefresh ENTERED', [
-            'shop_id' => $shop->id,
-            'seller_id' => $shop->amazon_seller_id,
-            'marketplace' => $marketplaceId,
-        ]);
+        // Log::info('dispatchRefresh ENTERED', [
+        //     'shop_id' => $shop->id,
+        //     'seller_id' => $shop->amazon_seller_id,
+        //     'marketplace' => $marketplaceId,
+        // ]);
 
         $status = $this->getStatus($shop, $marketplaceId);
 

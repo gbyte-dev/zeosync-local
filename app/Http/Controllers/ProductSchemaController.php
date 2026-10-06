@@ -906,12 +906,12 @@ class ProductSchemaController extends Controller
             );
             return response()->json($result);
         } catch (\Throwable $e) {
-            \Log::error('AI AutoFill Failed', [
-                'message' => $e->getMessage(),
-                'product' => $request->product_name,
-                'category' => $request->category,
-                'description' => $request->product_description,
-            ]);
+            // \Log::error('AI AutoFill Failed', [
+            //     'message' => $e->getMessage(),
+            //     'product' => $request->product_name,
+            //     'category' => $request->category,
+            //     'description' => $request->product_description,
+            // ]);
             return response()->json([
                 'success' => false,
                 'errors' => ['Failed to generate AI listing.'],
@@ -1230,10 +1230,10 @@ class ProductSchemaController extends Controller
             );
             return response()->json($result);
         } catch (\Throwable $e) {
-            \Log::error('AI Field Generation Failed', [
-                'message' => $e->getMessage(),
-                'field' => $request->field,
-            ]);
+            // \Log::error('AI Field Generation Failed', [
+            //     'message' => $e->getMessage(),
+            //     'field' => $request->field,
+            // ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to generate field.',
@@ -1294,7 +1294,7 @@ class ProductSchemaController extends Controller
                 'message' => 'Checked status for SKU ' . $sku
             ]);
         } catch (\Throwable $e) {
-            \Log::error('checkSkuStatus failed', ['sku' => $sku, 'error' => $e->getMessage()]);
+            // \Log::error('checkSkuStatus failed', ['sku' => $sku, 'error' => $e->getMessage()]);
             return response()->json(['success' => false, 'message' => 'Failed to check SKU: ' . $e->getMessage()], 500);
         }
     }
@@ -1780,9 +1780,9 @@ class ProductSchemaController extends Controller
         $productmappped = \App\Models\Product::where('amazon_product_id', $productid)->first();
 
         if (!$productmappped) {
-            Log::warning('Product mapping not found for Amazon product', [
-                'product_id' => $productid,
-            ]);
+            // Log::warning('Product mapping not found for Amazon product', [
+            //     'product_id' => $productid,
+            // ]);
             $this->updatelog($productid, 'amazon', 'sync_failed', false, 'No matching product found for amazon_product_id.');
             return;
         }
@@ -1804,11 +1804,11 @@ class ProductSchemaController extends Controller
         }
 
         if (!$mapping) {
-            Log::warning('ProductMarketplaceMapping record not found for update', [
-                'product_id' => $productid,
-                'mapping_id' => $targetMappingId,
-                'shopify_product_id' => $shopifyid,
-            ]);
+            // Log::warning('ProductMarketplaceMapping record not found for update', [
+            //     'product_id' => $productid,
+            //     'mapping_id' => $targetMappingId,
+            //     'shopify_product_id' => $shopifyid,
+            // ]);
             $this->updatelog($productid, 'amazon', 'sync_failed', false, 'No matching ProductMarketplaceMapping found for mapping_id: ' . ($targetMappingId ?? 'null'));
             return;
         }
@@ -1828,11 +1828,11 @@ class ProductSchemaController extends Controller
             $mapping->update($updateData);
             $mapping->refresh();
         } catch (\Throwable $e) {
-            Log::error('ProductMarketplaceMapping update failed', [
-                'mapping_id' => $mapping->id ?? null,
-                'sku' => $targetSku,
-                'error' => $e->getMessage(),
-            ]);
+            // Log::error('ProductMarketplaceMapping update failed', [
+            //     'mapping_id' => $mapping->id ?? null,
+            //     'sku' => $targetSku,
+            //     'error' => $e->getMessage(),
+            // ]);
             throw $e;
         }
 
@@ -2090,7 +2090,7 @@ class ProductSchemaController extends Controller
                 if (!$response->isSuccessful()) {
                     $responseData = $response->getData(true);
                     // Log the exact payload causing the failure
-                    Log::error("Schema Fetch Failure for category '{$category}': ", $responseData ?? []);
+                    // Log::error("Schema Fetch Failure for category '{$category}': ", $responseData ?? []);
                     return back()->withErrors(['schema_file' => 'Failed to fetch a valid schema. Please check the system logs.']);
                 }
                 // If it's a successful JSON response, normalize it to an array
@@ -2107,7 +2107,7 @@ class ProductSchemaController extends Controller
 
             // 2. Validate the extracted data
             if (empty($schemaJson) || !is_array($schemaJson)) {
-                Log::warning("Unusable schema data retrieved for category: {$category}");
+                // Log::warning("Unusable schema data retrieved for category: {$category}");
                 return back()->withErrors(['schema_file' => 'Invalid or empty schema generated for "' . $category . '"']);
             }
 
@@ -2130,7 +2130,7 @@ class ProductSchemaController extends Controller
             // 4. Activate the category
             $categoryModel = Category::where('slug', $productType)->first();
             if (!$categoryModel) {
-                Log::error("Schema import succeeded, but category model is missing for slug: {$productType}");
+                // Log::error("Schema import succeeded, but category model is missing for slug: {$productType}");
                 return back()->withErrors(['schema_file' => 'No category found matching schema product type "' . $productType . '"']);
             }
 
@@ -2202,11 +2202,11 @@ class ProductSchemaController extends Controller
             ]);
 
             if (!$response->successful()) {
-                Log::error('TOKEN REFRESH FAILED', [
-                    'shop' => $shopModel->shop,
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
+                // Log::error('TOKEN REFRESH FAILED', [
+                //     'shop' => $shopModel->shop,
+                //     'status' => $response->status(),
+                //     'body' => $response->body(),
+                // ]);
 
                 // Shopify signals a dead refresh token with 401 invalid_request
                 if ($response->status() === 401) {

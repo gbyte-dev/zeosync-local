@@ -3,25 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\Plan;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use App\Mail\SubscriptionCancelledMail;
-use Illuminate\Support\Facades\Mail;
-use App\Models\ShopSubscription;
-use App\Models\ShopifySubscription;
-use Illuminate\Support\Facades\Log;
-use App\Services\StripeService;
+use App\Models\Plan;
 use App\Models\Shop;
+use App\Models\ShopifySubscription;
+use App\Models\ShopSubscription;
 use App\Services\ShopifyBillingService;
+use App\Services\StripeService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class PlanController extends Controller
 {
-
-
     public function index()
     {
-
         $plans = Plan::whereNull('shop_id')
             ->orderBy('sort_order')
             ->get();
@@ -41,8 +38,6 @@ class PlanController extends Controller
 
         return view('pricing', compact('plans'));
     }
-
-
 
     public function create()
     {
@@ -80,17 +75,14 @@ class PlanController extends Controller
         $data['contact_button_text'] = $request->input('contact_button_text');
 
         if ($request->boolean('is_enterprise')) {
-
             $data['prices'] = [];
             $data['stripe_price_ids'] = [];
             $data['is_trial'] = 0;
         } elseif ($request->boolean('is_trial')) {
-
             $data['prices'] = [];
             $data['stripe_price_ids'] = [];
             $data['is_trial'] = 1;
         } else {
-
             $data['prices'] = array_filter($request->prices ?? [], function ($value) {
                 return $value !== null && $value !== '';
             });
@@ -193,40 +185,40 @@ class PlanController extends Controller
             return back()->with('error', 'No active Shopify subscription found.');
         }
 
-        Log::info('SHOPIFY PLAN CANCELLATION REQUEST', [
-            'shop_id' => $shop->id,
-            'shop' => $shop->shop,
-            'subscription_id' => $subscription->id,
-            'subscription_gid' => $subscription->shopify_subscription_gid,
-            'status_before' => $subscription->status,
-            'current_period_end_before' => $subscription->current_period_end,
-        ]);
+        // Log::info('SHOPIFY PLAN CANCELLATION REQUEST', [
+        //     'shop_id' => $shop->id,
+        //     'shop' => $shop->shop,
+        //     'subscription_id' => $subscription->id,
+        //     'subscription_gid' => $subscription->shopify_subscription_gid,
+        //     'status_before' => $subscription->status,
+        //     'current_period_end_before' => $subscription->current_period_end,
+        // ]);
 
         $billingService = app(ShopifyBillingService::class);
 
         $result = $billingService->cancelSubscription(
-            $shop,  $subscription->shopify_subscription_gid
+            $shop, $subscription->shopify_subscription_gid
         );
 
         if (!$result) {
-            Log::error('SHOPIFY PLAN CANCELLATION FAILED', [
-                'shop_id' => $shop->id,
-                'subscription_gid' => $subscription->shopify_subscription_gid,
-            ]);
+            // Log::error('SHOPIFY PLAN CANCELLATION FAILED', [
+            //     'shop_id' => $shop->id,
+            //     'subscription_gid' => $subscription->shopify_subscription_gid,
+            // ]);
 
             return back()->with('error', 'Unable to cancel Shopify subscription.');
         }
 
         $subscription->update(['status' => 'cancelled', 'cancelled_at' => now()]);
 
-        Log::info('SHOPIFY PLAN CANCELLED', [
-            'shop_id' => $shop->id,
-            'subscription_id' => $subscription->id,
-            'subscription_gid' => $subscription->shopify_subscription_gid,
-            'status_after' => $subscription->status,
-            'current_period_end_after' => $subscription->current_period_end,
-            'cancelled_at' => $subscription->cancelled_at,
-        ]);
+        // Log::info('SHOPIFY PLAN CANCELLED', [
+        //     'shop_id' => $shop->id,
+        //     'subscription_id' => $subscription->id,
+        //     'subscription_gid' => $subscription->shopify_subscription_gid,
+        //     'status_after' => $subscription->status,
+        //     'current_period_end_after' => $subscription->current_period_end,
+        //     'cancelled_at' => $subscription->cancelled_at,
+        // ]);
 
         return back()->with('success', 'Subscription cancelled successfully.');
     }
@@ -234,10 +226,10 @@ class PlanController extends Controller
     public function destroy(Plan $plan)
     {
         $activeSubscriptionExists = ShopSubscription::where('plan_id', $plan->id)
-            ->where('status', 'active')->exists();
+            ->where('status', 'active')
+            ->exists();
 
         if ($activeSubscriptionExists) {
-
             return back()->with(
                 'error', 'This plan cannot be deleted because it is currently active for a customer.'
             );

@@ -1,6 +1,4 @@
-<?php
-
-declare(strict_types=1);
+<?php declare(strict_types=1);
 
 namespace App\Services;
 
@@ -10,9 +8,9 @@ use Illuminate\Support\Facades\Log;
 use SellingPartnerApi\Enums\Endpoint;
 use SellingPartnerApi\Seller\ProductTypeDefinitionsV20200901\Requests\GetDefinitionsProductType;
 use SellingPartnerApi\SellingPartnerApi;
+use JsonException;
 use RuntimeException;
 use Throwable;
-use JsonException;
 
 readonly class AmazonSchemaServiceV2
 {
@@ -50,11 +48,11 @@ readonly class AmazonSchemaServiceV2
                     $locale,
                     $cacheKey
                 ) {
-                    Log::info('Schema cache miss - Fetching from Amazon API', [
-                        'cache_key' => $cacheKey,
-                        'product_type' => $productType,
-                        'marketplace_ids' => $marketplaceIds,
-                    ]);
+                    // Log::info('Schema cache miss - Fetching from Amazon API', [
+                    //     'cache_key' => $cacheKey,
+                    //     'product_type' => $productType,
+                    //     'marketplace_ids' => $marketplaceIds,
+                    // ]);
 
                     $schemaData = $this->fetchProductTypeDefinition(
                         $shop,
@@ -72,26 +70,26 @@ readonly class AmazonSchemaServiceV2
                         );
                     }
 
-                    Log::info('Schema downloaded and stored in cache', [
-                        'cache_key' => $cacheKey,
-                        'product_type' => $productType,
-                        'marketplace_ids' => $marketplaceIds,
-                        'property_count' => isset($schemaData['real_schema']['properties'])
-                            ? count($schemaData['real_schema']['properties'])
-                            : null,
-                    ]);
+                    // Log::info('Schema downloaded and stored in cache', [
+                    //     'cache_key' => $cacheKey,
+                    //     'product_type' => $productType,
+                    //     'marketplace_ids' => $marketplaceIds,
+                    //     'property_count' => isset($schemaData['real_schema']['properties'])
+                    //         ? count($schemaData['real_schema']['properties'])
+                    //         : null,
+                    // ]);
 
                     return $schemaData;
                 }
             );
         } catch (Throwable $e) {
-            Log::error('Amazon API failed', [
-                'product_type' => $productType,
-                'marketplace_ids' => $marketplaceIds,
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
-            ]);
+            // Log::error('Amazon API failed', [
+            //     'product_type' => $productType,
+            //     'marketplace_ids' => $marketplaceIds,
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile()
+            // ]);
 
             return [
                 'success' => false,
@@ -145,7 +143,7 @@ readonly class AmazonSchemaServiceV2
             : [$marketplaceIds];
 
         $request = new GetDefinitionsProductType(
-            productType: $productType, // Send the original casing to Amazon
+            productType: $productType,  // Send the original casing to Amazon
             marketplaceIds: $marketplacesArray,
             requirements: $requirements,
             requirementsEnforced: $requirementsEnforced,

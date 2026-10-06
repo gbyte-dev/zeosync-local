@@ -2,24 +2,24 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
+use App\Jobs\VerifyAmazonInventoryQuantityJob;
+use App\Models\AdminSetting;
+use App\Models\ProductMarketplaceMapping;
+use App\Models\ProductSyncLog;
+use App\Models\Shop;
+use App\Services\AmazonPayloadTransformerV2;
+use App\Services\ShopifyService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use SellingPartnerApi\Seller\SellerConnector;
-use SellingPartnerApi\Enums\Endpoint;
-use SellingPartnerApi\SellingPartnerApi;
-use App\Services\AmazonPayloadTransformerV2;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Services\ShopifyService;
+use SellingPartnerApi\Enums\Endpoint;
 use SellingPartnerApi\Seller\ListingsItemsV20210801\Dto\ListingsItemPatchRequest;
-use SellingPartnerApi\Seller\ListingsItemsV20210801\Dto\PatchOperation;
-use App\Models\ProductSyncLog;
-use App\Models\AdminSetting;
 use SellingPartnerApi\Seller\ListingsItemsV20210801\Dto\ListingsItemPutRequest;
+use SellingPartnerApi\Seller\ListingsItemsV20210801\Dto\PatchOperation;
 use SellingPartnerApi\Seller\ProductTypeDefinitionsV20200901\Requests\GetDefinitionsProductType;
-use App\Models\Shop;
-use App\Models\ProductMarketplaceMapping;
-use App\Jobs\VerifyAmazonInventoryQuantityJob;
+use SellingPartnerApi\Seller\SellerConnector;
+use SellingPartnerApi\SellingPartnerApi;
 
 class AmazonService
 {
@@ -56,12 +56,12 @@ class AmazonService
 
         return $this;
     }
+
     /**
-     *  Get Access Token (cached per region)
+     * Get Access Token (cached per region)
      */
     public function getAccessToken()
     {
-
         $cacheKey = "amazon_access_token_{$this->region}";
         return Cache::remember($cacheKey, 3000, function () {
             $response = Http::asForm()->post('https://api.amazon.com/auth/o2/token', [
@@ -71,70 +71,72 @@ class AmazonService
                 'client_secret' => env('AMAZON_CLIENT_SECRET'),
             ]);
             if (!$response->successful()) {
-                LOG::error('Amazon Auth Failed', [
-                    'body' => $response->body()
-                ]);
+                // LOG::error('Amazon Auth Failed', [
+                //     'body' => $response->body()
+                // ]);
                 return null;
             }
             return $response->json()['access_token'] ?? null;
         });
     }
+
     /**
-     *  Generic GET Request
+     * Generic GET Request
      */
     public function get($endpoint, $params = [])
     {
         $token = $this->getAccessToken();
-        if (!$token) return null;
+        if (!$token)
+            return null;
         $response = Http::withHeaders([
             'x-amz-access-token' => $token,
             'Content-Type' => 'application/json'
         ])->get($this->baseUrl . $endpoint, $params);
         if (!$response->successful()) {
-            LOG::error('Amazon API failed', [
-                'region' => $this->region,
-                'url' => $endpoint,
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
+            // LOG::error('Amazon API failed', [
+            //     'region' => $this->region,
+            //     'url' => $endpoint,
+            //     'status' => $response->status(),
+            //     'body' => $response->body(),
+            // ]);
             return null;
         }
         return $response->json();
     }
+
     /**
-     *  Get Inventory
+     * Get Inventory
      */
     public function fetchInventory($amazonSellerId, $marketplaceId)
     {
         \Log::info('========== FETCH INVENTORY START ==========');
 
         \Log::info('Fetch Inventory Input', [
-            'region'         => $this->region,
-            'base_url'       => $this->baseUrl,
-            'seller_id'      => $amazonSellerId,
+            'region' => $this->region,
+            'base_url' => $this->baseUrl,
+            'seller_id' => $amazonSellerId,
             'marketplace_id' => $marketplaceId,
         ]);
 
         $data = $this->get('/listings/2021-08-01/items', [
-            'sellerId'       => $amazonSellerId,
+            'sellerId' => $amazonSellerId,
             'marketplaceIds' => $marketplaceId,
-            'includedData'   => 'summaries,attributes',
+            'includedData' => 'summaries,attributes',
         ]);
 
-        \Log::info('Amazon Raw Response', [
-            'response' => $data,
-        ]);
+        // \Log::info('Amazon Raw Response', [
+        //     'response' => $data,
+        // ]);
 
         if (!$data) {
-
             \Log::warning('Amazon response is NULL or FALSE');
 
             return [];
         }
 
-        \Log::info('Amazon Response Keys', [
-            'keys' => array_keys($data),
-        ]);
+        // \Log::info('Amazon Response Keys', [
+        //     'keys' => array_keys($data),
+        // ]);
 
         $items = $data['items'] ?? [];
 
@@ -145,7 +147,6 @@ class AmazonService
         $result = [];
 
         foreach ($items as $index => $item) {
-
             \Log::info("Amazon Item {$index}", [
                 'item' => $item,
             ]);
@@ -153,13 +154,13 @@ class AmazonService
             $summary = $item['summaries'][0] ?? [];
 
             $mapped = [
-                'sku'          => $item['sku'] ?? '',
-                'asin'         => $item['asin'] ?? '',
-                'title'        => $summary['itemName'] ?? '',
+                'sku' => $item['sku'] ?? '',
+                'asin' => $item['asin'] ?? '',
+                'title' => $summary['itemName'] ?? '',
                 'product_type' => $summary['productType'] ?? '',
-                'status'       => $summary['status'][0] ?? 'UNKNOWN',
-                'qty'          => 0,
-                'image'        => null,
+                'status' => $summary['status'][0] ?? 'UNKNOWN',
+                'qty' => 0,
+                'image' => null,
             ];
 
             \Log::info("Mapped Item {$index}", $mapped);
@@ -167,15 +168,16 @@ class AmazonService
             $result[] = $mapped;
         }
 
-        \Log::info('Final Inventory Result', [
-            'count' => count($result),
-            'data'  => $result,
-        ]);
+        // \Log::info('Final Inventory Result', [
+        //     'count' => count($result),
+        //     'data'  => $result,
+        // ]);
 
         \Log::info('========== FETCH INVENTORY END ==========');
 
         return $result;
     }
+
     public function createReturnsReport($marketplace_id)
     {
         $accessToken = $this->getAccessToken();
@@ -190,6 +192,7 @@ class AmazonService
         ]);
         return $response->json()['reportId'] ?? null;
     }
+
     public function getReport($reportId)
     {
         sleep(5);
@@ -203,6 +206,7 @@ class AmazonService
         ])->get($this->baseUrl . "/reports/2021-06-30/documents/{$docId}");
         return file_get_contents($doc->json()['url']);
     }
+
     public function parseReport($content)
     {
         $lines = explode("\n", $content);
@@ -257,6 +261,7 @@ class AmazonService
             endpoint: Endpoint::NA
         )->listingsItemsV20210801();
     }
+
     public function getSellerConnector($shop)
     {
         $creds = $this->getDbCredentials($shop);
@@ -302,8 +307,9 @@ class AmazonService
         $execute = function () use ($shop, $sku, $quantity, $syncToShopify, $shopifyMappingQuantity) {
             $mapping = ProductMarketplaceMapping::where('shop_id', $shop->id)
                 ->where(function ($q) use ($sku) {
-                    $q->where('amazon_sku', $sku)
-                      ->orWhere('amazon_parent_sku', $sku);
+                    $q
+                        ->where('amazon_sku', $sku)
+                        ->orWhere('amazon_parent_sku', $sku);
                 })
                 ->first();
 
@@ -317,10 +323,10 @@ class AmazonService
 
                 if ($isLookupFailure) {
                     Log::warning('Amazon Listing Lookup Failed', [
-                        'shop_id'        => $shop->id,
-                        'sku'            => $sku,
+                        'shop_id' => $shop->id,
+                        'sku' => $sku,
                         'marketplace_id' => $shop->amazon_marketplace_id,
-                        'error'          => $actualError,
+                        'error' => $actualError,
                     ]);
                 }
 
@@ -343,12 +349,12 @@ class AmazonService
                 $productType = $liveProductType ?: ($mappingProductType ?: $relatedProductType);
 
                 Log::info('Amazon Product Type Resolution', [
-                    'shop_id'               => $shop->id,
-                    'sku'                   => $sku,
-                    'marketplace_id'        => $shop->amazon_marketplace_id,
-                    'sp_api_product_type'   => $liveProductType,
-                    'mapping_product_type'  => $mappingProductType,
-                    'related_product_type'  => $relatedProductType,
+                    'shop_id' => $shop->id,
+                    'sku' => $sku,
+                    'marketplace_id' => $shop->amazon_marketplace_id,
+                    'sp_api_product_type' => $liveProductType,
+                    'mapping_product_type' => $mappingProductType,
+                    'related_product_type' => $relatedProductType,
                     'resolved_product_type' => $productType,
                 ]);
 
@@ -397,14 +403,14 @@ class AmazonService
                     ]
                 );
 
-                Log::info('Amazon Inventory PATCH Request', [
-                    'seller_id'      => $shop->amazon_seller_id,
-                    'marketplace_id' => $shop->amazon_marketplace_id,
-                    'sku'            => $sku,
-                    'product_type'   => $productType,
-                    'quantity'       => $quantity,
-                    'payload'        => $patchRequest->toArray(),
-                ]);
+                // Log::info('Amazon Inventory PATCH Request', [
+                //     'seller_id'      => $shop->amazon_seller_id,
+                //     'marketplace_id' => $shop->amazon_marketplace_id,
+                //     'sku'            => $sku,
+                //     'product_type'   => $productType,
+                //     'quantity'       => $quantity,
+                //     'payload'        => $patchRequest->toArray(),
+                // ]);
 
                 $requestSubmitted = true;
 
@@ -422,11 +428,11 @@ class AmazonService
 
                 $responseBody = $response->json() ?? [];
 
-                Log::info('Amazon Inventory PATCH Response', [
-                    'sku'    => $sku,
-                    'status' => $response->status(),
-                    'body'   => $responseBody,
-                ]);
+                // Log::info('Amazon Inventory PATCH Response', [
+                //     'sku'    => $sku,
+                //     'status' => $response->status(),
+                //     'body'   => $responseBody,
+                // ]);
 
                 $httpStatus = $response->status();
                 $amazonStatus = strtoupper((string) ($responseBody['status'] ?? ''));
@@ -448,10 +454,10 @@ class AmazonService
 
                     if ($mapping) {
                         $mapping->update([
-                            'sync_status'       => 'failed',
+                            'sync_status' => 'failed',
                             'submission_status' => 'rejected',
-                            'submission_id'     => $submissionId ?? $mapping->submission_id,
-                            'error_message'     => $errorMessage,
+                            'submission_id' => $submissionId ?? $mapping->submission_id,
+                            'error_message' => $errorMessage,
                         ]);
                     }
 
@@ -473,22 +479,22 @@ class AmazonService
                         $syncedAt = now();
 
                         $mapping->update([
-                            'quantity'          => $mappingQuantityToSave,
+                            'quantity' => $mappingQuantityToSave,
                             'inventory_version' => ($mapping->inventory_version ?? 1) + 1,
-                            'sync_status'       => 'success',
+                            'sync_status' => 'success',
                             'submission_status' => 'accepted',
-                            'submission_id'     => $submissionId ?? $mapping->submission_id,
-                            'last_synced_at'    => $syncedAt,
-                            'error_message'     => null,
+                            'submission_id' => $submissionId ?? $mapping->submission_id,
+                            'last_synced_at' => $syncedAt,
+                            'error_message' => null,
                         ]);
 
                         Log::info('Marketplace mapping quantity updated.', [
-                            'mapping_id'        => $mapping->id,
-                            'sku'               => $sku,
-                            'quantity'          => $mappingQuantityToSave,
-                            'amazon_quantity'   => $quantity,
+                            'mapping_id' => $mapping->id,
+                            'sku' => $sku,
+                            'quantity' => $mappingQuantityToSave,
+                            'amazon_quantity' => $quantity,
                             'submission_status' => 'accepted',
-                            'submission_id'     => $submissionId,
+                            'submission_id' => $submissionId,
                         ]);
 
                         if ($syncToShopify) {
@@ -510,9 +516,9 @@ class AmazonService
 
                             if (!$locationId) {
                                 Log::warning('MAPPING SHOPIFY LOCATION NOT FOUND', [
-                                    'shop_id'            => $shop->id,
-                                    'mapping_id'         => $mapping->id,
-                                    'amazon_sku'         => $sku,
+                                    'shop_id' => $shop->id,
+                                    'mapping_id' => $mapping->id,
+                                    'amazon_sku' => $sku,
                                     'shopify_product_id' => $mapping->shopify_product_id,
                                     'shopify_variant_id' => $mapping->shopify_variant_id,
                                 ]);
@@ -527,10 +533,10 @@ class AmazonService
 
                             if (blank($inventoryItemId) && !blank($mapping->shopify_variant_id)) {
                                 Log::info('Resolving missing shopify_inventory_item_id from Shopify variant', [
-                                    'shop_id'            => $shop->id,
-                                    'mapping_id'         => $mapping->id,
+                                    'shop_id' => $shop->id,
+                                    'mapping_id' => $mapping->id,
                                     'shopify_variant_id' => $mapping->shopify_variant_id,
-                                    'amazon_sku'         => $sku,
+                                    'amazon_sku' => $sku,
                                 ]);
 
                                 $resolvedItemId = $shopify->getInventoryItemIdByVariantId($shop, $mapping->shopify_variant_id);
@@ -540,14 +546,14 @@ class AmazonService
                                     $mapping->update(['shopify_inventory_item_id' => $inventoryItemId]);
 
                                     Log::info('Successfully resolved and persisted shopify_inventory_item_id', [
-                                        'shop_id'                   => $shop->id,
-                                        'mapping_id'                => $mapping->id,
+                                        'shop_id' => $shop->id,
+                                        'mapping_id' => $mapping->id,
                                         'shopify_inventory_item_id' => $inventoryItemId,
                                     ]);
                                 } else {
                                     Log::error('Failed to resolve shopify_inventory_item_id for Shopify variant', [
-                                        'shop_id'            => $shop->id,
-                                        'mapping_id'         => $mapping->id,
+                                        'shop_id' => $shop->id,
+                                        'mapping_id' => $mapping->id,
                                         'shopify_variant_id' => $mapping->shopify_variant_id,
                                     ]);
                                 }
@@ -555,9 +561,9 @@ class AmazonService
 
                             if (blank($inventoryItemId)) {
                                 Log::error('Shopify inventory update skipped: Missing shopify_inventory_item_id', [
-                                    'shop_id'            => $shop->id,
-                                    'mapping_id'         => $mapping->id,
-                                    'amazon_sku'         => $sku,
+                                    'shop_id' => $shop->id,
+                                    'mapping_id' => $mapping->id,
+                                    'amazon_sku' => $sku,
                                     'shopify_variant_id' => $mapping->shopify_variant_id,
                                 ]);
                             } else {
@@ -566,31 +572,31 @@ class AmazonService
                                     ? null
                                     : (int) $liveLevelResponse['available'];
 
-                                Log::info('Updating Shopify inventory from AmazonService', [
-                                    'shop_id'                   => $shop->id,
-                                    'amazon_sku'                => $sku,
-                                    'mapping_id'                => $mapping->id,
-                                    'shopify_product_id'        => $mapping->shopify_product_id,
-                                    'shopify_variant_id'        => $mapping->shopify_variant_id,
-                                    'shopify_inventory_item_id' => $inventoryItemId,
-                                    'shopify_location_id'       => $locationId,
-                                    'old_quantity'              => $mapping->quantity,
-                                    'live_available'            => $liveAvailable,
-                                    'desired_quantity'          => $quantity,
-                                    'new_quantity'              => $quantity,
-                                    'change_from_quantity'      => $liveAvailable,
-                                ]);
+                                // Log::info('Updating Shopify inventory from AmazonService', [
+                                //     'shop_id'                   => $shop->id,
+                                //     'amazon_sku'                => $sku,
+                                //     'mapping_id'                => $mapping->id,
+                                //     'shopify_product_id'        => $mapping->shopify_product_id,
+                                //     'shopify_variant_id'        => $mapping->shopify_variant_id,
+                                //     'shopify_inventory_item_id' => $inventoryItemId,
+                                //     'shopify_location_id'       => $locationId,
+                                //     'old_quantity'              => $mapping->quantity,
+                                //     'live_available'            => $liveAvailable,
+                                //     'desired_quantity'          => $quantity,
+                                //     'new_quantity'              => $quantity,
+                                //     'change_from_quantity'      => $liveAvailable,
+                                // ]);
 
                                 if ($liveAvailable === null) {
-                                    Log::error('Shopify inventory update aborted in AmazonService: Failed to resolve live baseline inventory', [
-                                        'shop_id'                   => $shop->id,
-                                        'amazon_sku'                => $sku,
-                                        'mapping_id'                => $mapping->id,
-                                        'shopify_inventory_item_id' => $inventoryItemId,
-                                        'shopify_location_id'       => $locationId,
-                                        'desired_quantity'          => $quantity,
-                                        'level_response'            => $liveLevelResponse,
-                                    ]);
+                                    // Log::error('Shopify inventory update aborted in AmazonService: Failed to resolve live baseline inventory', [
+                                    //     'shop_id'                   => $shop->id,
+                                    //     'amazon_sku'                => $sku,
+                                    //     'mapping_id'                => $mapping->id,
+                                    //     'shopify_inventory_item_id' => $inventoryItemId,
+                                    //     'shopify_location_id'       => $locationId,
+                                    //     'desired_quantity'          => $quantity,
+                                    //     'level_response'            => $liveLevelResponse,
+                                    // ]);
                                 } else {
                                     $shopifyResponse = $shopify->setInventoryQuantity(
                                         $shop,
@@ -606,41 +612,41 @@ class AmazonService
                                         $selectedIndex = $shop->selected_location_index ?? 0;
                                         Cache::forget("shopify_inventory_{$shop->shop}_location_{$selectedIndex}");
 
-                                        Log::info('Shopify inventory updated and cache invalidated from AmazonService', [
-                                            'shop_id'                   => $shop->id,
-                                            'amazon_sku'                => $sku,
-                                            'mapping_id'                => $mapping->id,
-                                            'shopify_inventory_item_id' => $inventoryItemId,
-                                            'shopify_location_id'       => $locationId,
-                                            'quantity'                  => $quantity,
-                                            'change_from_quantity'      => $liveAvailable,
-                                            'cleared_cache_index'       => $selectedIndex,
-                                        ]);
+                                        // Log::info('Shopify inventory updated and cache invalidated from AmazonService', [
+                                        //     'shop_id'                   => $shop->id,
+                                        //     'amazon_sku'                => $sku,
+                                        //     'mapping_id'                => $mapping->id,
+                                        //     'shopify_inventory_item_id' => $inventoryItemId,
+                                        //     'shopify_location_id'       => $locationId,
+                                        //     'quantity'                  => $quantity,
+                                        //     'change_from_quantity'      => $liveAvailable,
+                                        //     'cleared_cache_index'       => $selectedIndex,
+                                        // ]);
                                     } else {
-                                        Log::error('Shopify inventory update failed in AmazonService', [
-                                            'shop_id'                   => $shop->id,
-                                            'amazon_sku'                => $sku,
-                                            'mapping_id'                => $mapping->id,
-                                            'shopify_product_id'        => $mapping->shopify_product_id,
-                                            'shopify_variant_id'        => $mapping->shopify_variant_id,
-                                            'shopify_inventory_item_id' => $inventoryItemId,
-                                            'shopify_location_id'       => $locationId,
-                                            'quantity'                  => $quantity,
-                                            'change_from_quantity'      => $liveAvailable,
-                                            'error'                     => $shopifyResponse['message'] ?? ($shopifyResponse['error'] ?? 'Unknown error'),
-                                            'userErrors'                => $shopifyResponse['userErrors'] ?? [],
-                                        ]);
+                                        // Log::error('Shopify inventory update failed in AmazonService', [
+                                        //     'shop_id'                   => $shop->id,
+                                        //     'amazon_sku'                => $sku,
+                                        //     'mapping_id'                => $mapping->id,
+                                        //     'shopify_product_id'        => $mapping->shopify_product_id,
+                                        //     'shopify_variant_id'        => $mapping->shopify_variant_id,
+                                        //     'shopify_inventory_item_id' => $inventoryItemId,
+                                        //     'shopify_location_id'       => $locationId,
+                                        //     'quantity'                  => $quantity,
+                                        //     'change_from_quantity'      => $liveAvailable,
+                                        //     'error'                     => $shopifyResponse['message'] ?? ($shopifyResponse['error'] ?? 'Unknown error'),
+                                        //     'userErrors'                => $shopifyResponse['userErrors'] ?? [],
+                                        // ]);
                                     }
                                 }
                             }
                         }
 
-                        Log::info('Amazon inventory update accepted, scheduling verification.', [
-                            'shop_id'       => $shop->id ?? null,
-                            'sku'           => $sku ?? null,
-                            'quantity'      => $quantity ?? null,
-                            'submission_id' => $submissionId ?? null,
-                        ]);
+                        // Log::info('Amazon inventory update accepted, scheduling verification.', [
+                        //     'shop_id'       => $shop->id ?? null,
+                        //     'sku'           => $sku ?? null,
+                        //     'quantity'      => $quantity ?? null,
+                        //     'submission_id' => $submissionId ?? null,
+                        // ]);
 
                         $jobSyncedAt = isset($syncedAt) && $syncedAt instanceof \DateTimeInterface
                             ? $syncedAt->toDateTimeString()
@@ -653,9 +659,10 @@ class AmazonService
                             $submissionId,
                             $jobSyncedAt,
                             1
-                        )->onConnection('database')
-                         ->onQueue('default')
-                         ->delay(now()->addSeconds(25));
+                        )
+                            ->onConnection('database')
+                            ->onQueue('default')
+                            ->delay(now()->addSeconds(25));
                     }
 
                     return $responseBody;
@@ -665,10 +672,10 @@ class AmazonService
                 $errorMsg = $responseBody['message'] ?? "Amazon API returned status code {$httpStatus}";
                 if ($mapping) {
                     $mapping->update([
-                        'sync_status'       => 'failed',
+                        'sync_status' => 'failed',
                         'submission_status' => 'failed',
-                        'submission_id'     => $submissionId ?? $mapping->submission_id,
-                        'error_message'     => $errorMsg,
+                        'submission_id' => $submissionId ?? $mapping->submission_id,
+                        'error_message' => $errorMsg,
                     ]);
                 }
 
@@ -680,9 +687,9 @@ class AmazonService
                     if ($currentSubmissionStatus !== 'rejected') {
                         $newSubmissionStatus = $requestSubmitted ? 'failed' : 'not_submitted';
                         $mapping->update([
-                            'sync_status'       => 'failed',
+                            'sync_status' => 'failed',
                             'submission_status' => $newSubmissionStatus,
-                            'error_message'     => $e->getMessage(),
+                            'error_message' => $e->getMessage(),
                         ]);
                     }
                 }
@@ -692,52 +699,52 @@ class AmazonService
         };
 
         if (!$acquireLock) {
-            Log::info('AmazonService: Lock skipped; caller already owns lock', [
-                'lock_key' => $lockKey,
-                'shop_id'  => $shop->id,
-                'sku'      => $sku,
-                'reason'   => 'caller_already_holds_lock',
-            ]);
+            // Log::info('AmazonService: Lock skipped; caller already owns lock', [
+            //     'lock_key' => $lockKey,
+            //     'shop_id'  => $shop->id,
+            //     'sku'      => $sku,
+            //     'reason'   => 'caller_already_holds_lock',
+            // ]);
 
             return $execute();
         }
 
         $lock = Cache::lock($lockKey, 15);
 
-        Log::info('AmazonService: Lock acquire start', [
-            'lock_key'              => $lockKey,
-            'shop_id'               => $shop->id,
-            'sku'                   => $sku,
-            'lock_ttl_seconds'      => 15,
-            'block_timeout_seconds' => 10,
-        ]);
+        // Log::info('AmazonService: Lock acquire start', [
+        //     'lock_key'              => $lockKey,
+        //     'shop_id'               => $shop->id,
+        //     'sku'                   => $sku,
+        //     'lock_ttl_seconds'      => 15,
+        //     'block_timeout_seconds' => 10,
+        // ]);
 
         try {
             return $lock->block(10, function () use ($execute, $lockKey, $shop, $sku) {
-                Log::info('AmazonService: Lock acquire success', [
-                    'lock_key' => $lockKey,
-                    'shop_id'  => $shop->id,
-                    'sku'      => $sku,
-                ]);
+                // Log::info('AmazonService: Lock acquire success', [
+                //     'lock_key' => $lockKey,
+                //     'shop_id'  => $shop->id,
+                //     'sku'      => $sku,
+                // ]);
 
                 try {
                     return $execute();
                 } finally {
-                    Log::info('AmazonService: Lock release', [
-                        'lock_key' => $lockKey,
-                        'shop_id'  => $shop->id,
-                        'sku'      => $sku,
-                    ]);
+                    // Log::info('AmazonService: Lock release', [
+                    //     'lock_key' => $lockKey,
+                    //     'shop_id'  => $shop->id,
+                    //     'sku'      => $sku,
+                    // ]);
                 }
             });
         } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
-            Log::error('AmazonService: Lock acquire failed (LockTimeoutException)', [
-                'lock_key'              => $lockKey,
-                'shop_id'               => $shop->id,
-                'sku'                   => $sku,
-                'block_timeout_seconds' => 10,
-                'error'                 => $e->getMessage(),
-            ]);
+            // Log::error('AmazonService: Lock acquire failed (LockTimeoutException)', [
+            //     'lock_key'              => $lockKey,
+            //     'shop_id'               => $shop->id,
+            //     'sku'                   => $sku,
+            //     'block_timeout_seconds' => 10,
+            //     'error'                 => $e->getMessage(),
+            // ]);
             throw $e;
         }
     }
@@ -751,7 +758,8 @@ class AmazonService
         }
         throw new \Exception("Sub category missing for product ID: {$product->id}");
     }
-    // main buildpayload  for amazon sync funcanality 
+
+    // main buildpayload  for amazon sync funcanality
     public function buildPayload($shop, $product, $amazon)
     {
         $slug = strtolower(trim($this->getFinalCategorySlug($product)));
@@ -1032,20 +1040,21 @@ class AmazonService
         }
         throw new \Exception("Unsupported category: $slug");
     }
+
     public function putListing($shop, $sku, $payload, $product)
     {
         try {
-            LOG::info('AMAZON PUT START', [
-                'seller_id' => $shop->amazon_seller_id,
-                'sku' => $sku,
-                'payload_type' => gettype($payload),
-                'is_array' => is_array($payload),
-                'payload_keys' => is_array($payload) ? array_keys($payload) : null,
-            ]);
+            // LOG::info('AMAZON PUT START', [
+            //     'seller_id' => $shop->amazon_seller_id,
+            //     'sku' => $sku,
+            //     'payload_type' => gettype($payload),
+            //     'is_array' => is_array($payload),
+            //     'payload_keys' => is_array($payload) ? array_keys($payload) : null,
+            // ]);
             $client = $this->getDbConnectorFromCredentials($shop);
-            LOG::info('CLIENT READY', [
-                'client_class' => get_class($client),
-            ]);
+            // LOG::info('CLIENT READY', [
+            //     'client_class' => get_class($client),
+            // ]);
             if ($product->sub_category_id) {
                 $type = getCategoryData($product->sub_category_id, 'slug');
             }
@@ -1058,26 +1067,26 @@ class AmazonService
             if (isset($type) && $type) {
                 $productType = strtoupper(trim($type));
             }
-            LOG::info('FINAL PRODUCT TYPE', [
-                'category' => $product->category,
-                'sub_category_id' => $product->sub_category_id,
-                'type_from_db' => $type ?? null,
-                'productType' => $productType,
-            ]);
+            // LOG::info('FINAL PRODUCT TYPE', [
+            //     'category' => $product->category,
+            //     'sub_category_id' => $product->sub_category_id,
+            //     'type_from_db' => $type ?? null,
+            //     'productType' => $productType,
+            // ]);
             $dto = new ListingsItemPutRequest(
                 productType: $productType,
                 attributes: $payload,
             );
-            LOG::info(' DTO CREATED', [
-                'is_dto' => $dto instanceof ListingsItemPutRequest,
-                'dto_class' => get_class($dto),
-            ]);
+            // LOG::info(' DTO CREATED', [
+            //     'is_dto' => $dto instanceof ListingsItemPutRequest,
+            //     'dto_class' => get_class($dto),
+            // ]);
             //  BEFORE API CALL
-            LOG::info(' CALLING AMAZON API', [
-                'seller_id' => $shop->amazon_seller_id,
-                'sku' => $sku,
-                'marketplace' => 'ATVPDKIKX0DER',
-            ]);
+            // LOG::info(' CALLING AMAZON API', [
+            //     'seller_id' => $shop->amazon_seller_id,
+            //     'sku' => $sku,
+            //     'marketplace' => 'ATVPDKIKX0DER',
+            // ]);
             $response = $client->putListingsItem(
                 $shop->amazon_seller_id,
                 $sku,
@@ -1085,66 +1094,67 @@ class AmazonService
                 ['ATVPDKIKX0DER']
             );
             //  AFTER API CALL
-            LOG::info(' AMAZON RESPONSE RECEIVED', [
-                'response_class' => is_object($response) ? get_class($response) : gettype($response),
-            ]);
+            // LOG::info('AMAZON RESPONSE RECEIVED', [
+            //     'response_class' => is_object($response) ? get_class($response) : gettype($response),
+            // ]);
             // Try extracting useful data safely
             try {
                 $responseData = method_exists($response, 'dto')
                     ? $response->dto()
                     : (method_exists($response, 'payload') ? $response->payload() : null);
-                LOG::info(' AMAZON RESPONSE DATA', [
-                    'data' => $responseData
-                ]);
+                // LOG::info('AMAZON RESPONSE DATA', [
+                //     'data' => $responseData
+                // ]);
             } catch (\Exception $inner) {
-                LOG::warning('⚠️ RESPONSE PARSE FAILED', [
-                    'error' => $inner->getMessage()
-                ]);
+                // LOG::warning('⚠️ RESPONSE PARSE FAILED', [
+                //     'error' => $inner->getMessage()
+                // ]);
             }
             return $response;
         } catch (\Exception $e) {
-            LOG::error('❌ AMAZON PUT FAILED', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-                'trace' => substr(
-                    $e->getTraceAsString(),
-                    0,
-                    1000
-                ),
-            ]);
+            // LOG::error('❌ AMAZON PUT FAILED', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            //     'trace' => substr(
+            //         $e->getTraceAsString(),
+            //         0,
+            //         1000
+            //     ),
+            // ]);
             // RAW AMAZON RESPONSE
             if (
                 method_exists($e, 'getResponse')
             ) {
                 try {
-                    LOG::error(
-                        '🔥 AMAZON RAW BODY',
-                        [
-                            'body' =>
-                            $e->getResponse()
-                                ->body(),
-                            'json' =>
-                            $e->getResponse()
-                                ->json(),
-                            'status' =>
-                            $e->getResponse()
-                                ->status(),
-                        ]
-                    );
+                    // LOG::error(
+                    //     '🔥 AMAZON RAW BODY',
+                    //     [
+                    //         'body' =>
+                    //         $e->getResponse()
+                    //             ->body(),
+                    //         'json' =>
+                    //         $e->getResponse()
+                    //             ->json(),
+                    //         'status' =>
+                    //         $e->getResponse()
+                    //             ->status(),
+                    //     ]
+                    // );
                 } catch (\Throwable $inner) {
-                    LOG::error(
-                        'RAW BODY PARSE FAILED',
-                        [
-                            'error' =>
-                            $inner->getMessage()
-                        ]
-                    );
+                    // LOG::error(
+                    //     'RAW BODY PARSE FAILED',
+                    //     [
+                    //         'error' =>
+                    //         $inner->getMessage()
+                    //     ]
+                    // );
                 }
             }
             return $e->getMessage();
         }
     }
+
     private function safeValue($value)
     {
         if (is_array($value)) {
@@ -1154,6 +1164,7 @@ class AmazonService
         }
         return (string) $value;
     }
+
     private function parseJsonField($value): array
     {
         if (is_array($value)) {
@@ -1165,7 +1176,8 @@ class AmazonService
         }
         return [];
     }
-    // category wise specific payloades for amazon 
+
+    // category wise specific payloades for amazon
     public function checkAmazonListing($shop, $sku)
     {
         try {
@@ -1185,28 +1197,29 @@ class AmazonService
                 ]
             );
             $data = $response->dto();
-            LOG::info('AMAZON LISTING CHECK', [
-                'sku' => $sku,
-                'status' => $data->status ?? null,
-                'relationships' => $data->relationships ?? [],
-                'issues' => $data->issues ?? [],
-            ]);
+            // LOG::info('AMAZON LISTING CHECK', [
+            //     'sku' => $sku,
+            //     'status' => $data->status ?? null,
+            //     'relationships' => $data->relationships ?? [],
+            //     'issues' => $data->issues ?? [],
+            // ]);
             return json_decode(
                 json_encode($data),
                 true
             );
         } catch (\Throwable $e) {
-            LOG::error('LISTING CHECK FAILED', [
-                'sku' => $sku,
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-            ]);
+            // LOG::error('LISTING CHECK FAILED', [
+            //     'sku' => $sku,
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            // ]);
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
             ];
         }
     }
+
     public function CreateToyPayload($product, $amazon)
     {
         try {
@@ -1218,10 +1231,10 @@ class AmazonService
                     'language_tag' => 'en_US'
                 ]],
                 'brand' => [[
-                    'value' =>  $product->vendor ?? "Generic"
+                    'value' => $product->vendor ?? 'Generic'
                 ]],
                 'manufacturer' => [[
-                    'value' =>  $product->vendor ?? "Generic"
+                    'value' => $product->vendor ?? 'Generic'
                 ]],
                 'part_number' => [[
                     'value' => 'TB-FB3000'
@@ -1350,6 +1363,7 @@ class AmazonService
             ], 500);
         }
     }
+
     public function createBeautyPayload($product, $amazon)
     {
         try {
@@ -1357,14 +1371,14 @@ class AmazonService
             $marketplaceId = 'ATVPDKIKX0DER';
             $attributes = [
                 'item_name' => [[
-                    'value' =>  $amazon->amazon_title ?? $product->title,
+                    'value' => $amazon->amazon_title ?? $product->title,
                     'language_tag' => 'en_US'
                 ]],
                 'brand' => [[
-                    'value' =>  $product->vendor ?? "Generic"
+                    'value' => $product->vendor ?? 'Generic'
                 ]],
                 'manufacturer' => [[
-                    'value' =>  $product->vendor ?? "Generic"
+                    'value' => $product->vendor ?? 'Generic'
                 ]],
                 'part_number' => [[
                     'value' => 'BS-VC5000'
@@ -1490,168 +1504,170 @@ class AmazonService
             ], 500);
         }
     }
+
     //    all payload section
-    private function shirtFullPayload($product, $amazon) // 1
+    private function shirtFullPayload($product, $amazon)  // 1
     {
         $variants = $this->parseJsonField($product->variants);
-        $images   = $this->parseJsonField($product->images);
+        $images = $this->parseJsonField($product->images);
         $price = $variants[0]['price'] ?? $product->price ?? 0;
-        $qty   = $variants[0]['inventory_quantity'] ?? 0;
+        $qty = $variants[0]['inventory_quantity'] ?? 0;
         $image = $images[0]['src'] ?? 'https://via.placeholder.com/500';
         $payload = [
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title ?? $product->title),
                     0,
                     80
                 ),
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value" => $product->vendor ?? "Generic",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => $product->vendor ?? 'Generic',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "manufacturer" => [[
-                "value" => $product->vendor ?? "Generic",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => $product->vendor ?? 'Generic',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "product_description" => [[
-                "value" => strip_tags($product->description ?? ''),
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'product_description' => [[
+                'value' => strip_tags($product->description ?? ''),
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "list_price" => [[
-                "value" => (float)$price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => (float) $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => (int)$qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => (int) $qty
             ]],
             // CATEGORY REQUIRED
-            "item_type_keyword" => [[
-                "value" => "polo-shirts",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'polo-shirts',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "target_gender" => [[
-                "value" => "male",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'target_gender' => [[
+                'value' => 'male',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "shirt_size" => [[
-                "size_system" => "as1",
-                "size_class" => "alpha",
-                "size" => "m"
+            'shirt_size' => [[
+                'size_system' => 'as1',
+                'size_class' => 'alpha',
+                'size' => 'm'
             ]],
-            "color" => [[
-                "value" => "black",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'black',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fabric_type" => [[
-                "value" => "cotton",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'fabric_type' => [[
+                'value' => 'cotton',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fit_type" => [[
-                "value" => "regular",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'fit_type' => [[
+                'value' => 'regular',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "care_instructions" => [[
-                "value" => "machine wash",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'care_instructions' => [[
+                'value' => 'machine wash',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "department" => [[
-                "value" => "mens",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'department' => [[
+                'value' => 'mens',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "age_range_description" => [[
-                "value" => "adult",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'age_range_description' => [[
+                'value' => 'adult',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "unit_count" => [[
-                "value" => 1,
-                "type" => [
-                    "value" => "Count",
-                    "language_tag" => "en_US"
+            'unit_count' => [[
+                'value' => 1,
+                'type' => [
+                    'value' => 'Count',
+                    'language_tag' => 'en_US'
                 ],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => $amazon->sku ?? "SHIRT-MODEL",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => $amazon->sku ?? 'SHIRT-MODEL',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "bullet_point" => collect($this->parseJsonField($amazon->bullet_points))
+            'bullet_point' => collect($this->parseJsonField($amazon->bullet_points))
                 ->map(fn($b) => [
-                    "value" => $b,
-                    "marketplace_id" => "ATVPDKIKX0DER"
-                ])->toArray(),
-            "externally_assigned_product_identifier" => [[
-                "type" => "ean",
-                "value" => "8901234567890",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $b,
+                    'marketplace_id' => 'ATVPDKIKX0DER'
+                ])
+                ->toArray(),
+            'externally_assigned_product_identifier' => [[
+                'type' => 'ean',
+                'value' => '8901234567890',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "style" => [[
-                "value" => "casual",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'style' => [[
+                'value' => 'casual',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "import_designation" => [[
-                "value" => "imported",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'import_designation' => [[
+                'value' => 'imported',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "merchant_shipping_group" => [[
-                "value" => "Migrated Template",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'merchant_shipping_group' => [[
+                'value' => 'Migrated Template',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_package_dimensions" => [[
-                "length" => [
-                    "value" => 30,
-                    "unit" => "centimeters"
+            'item_package_dimensions' => [[
+                'length' => [
+                    'value' => 30,
+                    'unit' => 'centimeters'
                 ],
-                "width" => [
-                    "value" => 25,
-                    "unit" => "centimeters"
+                'width' => [
+                    'value' => 25,
+                    'unit' => 'centimeters'
                 ],
-                "height" => [
-                    "value" => 3,
-                    "unit" => "centimeters"
+                'height' => [
+                    'value' => 3,
+                    'unit' => 'centimeters'
                 ]
             ]],
-            "item_package_weight" => [[
-                "value" => 300,
-                "unit" => "grams"
+            'item_package_weight' => [[
+                'value' => 300,
+                'unit' => 'grams'
             ]],
-            "special_size_type" => [[
-                "value" => "standard",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'special_size_type' => [[
+                'value' => 'standard',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "standardized_values" => [[
-                "value" => "m",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'standardized_values' => [[
+                'value' => 'm',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "merchant_suggested_asin" => [[
-                "value" => "B0TEST1234", // exactly 10 chars
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'merchant_suggested_asin' => [[
+                'value' => 'B0TEST1234',  // exactly 10 chars
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "sleeve" => [[
-                "type" => [[
-                    "value" => "short_sleeve",
-                    "language_tag" => "en_US"
+            'sleeve' => [[
+                'type' => [[
+                    'value' => 'short_sleeve',
+                    'language_tag' => 'en_US'
                 ]]
             ]],
-            "neck" => [[
-                "neck_style" => [[
-                    "value" => "crew_neck",
-                    "language_tag" => "en_US"
+            'neck' => [[
+                'neck_style' => [[
+                    'value' => 'crew_neck',
+                    'language_tag' => 'en_US'
                 ]]
             ]],
         ];
@@ -1669,8 +1685,8 @@ class AmazonService
             }
             $key = 'other_product_image_locator_' . $imageIndex;
             $payload[$key] = [[
-                "media_location" => $imageUrl,
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'media_location' => $imageUrl,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $imageIndex++;
             // Amazon safe limit
@@ -1680,6 +1696,7 @@ class AmazonService
         }
         return $payload;
     }
+
     public function shirtVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -1688,19 +1705,20 @@ class AmazonService
             $variants = $this->parseJsonField($product->variants);
             $images = $this->parseJsonField($product->images);
             if (empty($variants)) {
-                LOG::error('NO VARIANTS FOUND', [
-                    'product_id' => $product->id
-                ]);
+                // LOG::error('NO VARIANTS FOUND', [
+                //     'product_id' => $product->id
+                // ]);
                 return false;
             }
             $parentSku = DB::table('amazon_products')
                 ->where('product_id', $product->id)
                 ->value('sku');
+
             /*
-        ==================================================
-        PARENT PAYLOAD
-        ==================================================
-        */
+             * ==================================================
+             * PARENT PAYLOAD
+             * ==================================================
+             */
             $parentPayload = $this->shirtFullPayload(
                 $product,
                 $amazon
@@ -1711,8 +1729,8 @@ class AmazonService
             unset($parentPayload['merchant_suggested_asin']);
             if (!empty($images)) {
                 $parentPayload['main_product_image_locator'] = [[
-                    "media_location" => $images[0]['src'],
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'media_location' => $images[0]['src'],
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 foreach ($images as $index => $img) {
                     if ($index === 0) {
@@ -1720,8 +1738,8 @@ class AmazonService
                     }
                     $key = 'other_product_image_locator_' . $index;
                     $parentPayload[$key] = [[
-                        "media_location" => $img['src'],
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $img['src'],
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
             }
@@ -1733,12 +1751,12 @@ class AmazonService
             unset($parentPayload['externally_assigned_product_identifier']);
             unset($parentPayload['merchant_suggested_asin']);
             $parentPayload['variation_theme'] = [[
-                "name" => "SIZE/COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'SIZE/COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             // $parentDto = new ListingsItemPutRequest(
             //     productType: 'SHIRT',
@@ -1762,33 +1780,35 @@ class AmazonService
                 ? $parentResponse->dto()
                 : null;
             $isAccepted = ($parentBody->status ?? null) === 'ACCEPTED';
-            LOG::info('PARENT RESPONSE', [
-                'sku' => $parentSku,
-                'status' => $parentBody->status ?? null,
-                'issues' => $parentBody->issues ?? [],
-            ]);
+            // LOG::info('PARENT RESPONSE', [
+            //     'sku' => $parentSku,
+            //     'status' => $parentBody->status ?? null,
+            //     'issues' => $parentBody->issues ?? [],
+            // ]);
+
             /*
-        ==================================================
-        CHILD VARIANTS
-        ==================================================
-        */
+             * ==================================================
+             * CHILD VARIANTS
+             * ==================================================
+             */
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku'] ?? ('SKU-' . $variant['id'])
                 );
-                $price = (float)($variant['price'] ?? 0);
-                $qty = (int)($variant['inventory_quantity'] ?? 0);
+                $price = (float) ($variant['price'] ?? 0);
+                $qty = (int) ($variant['inventory_quantity'] ?? 0);
                 $color = trim(
                     strtolower($variant['option1'] ?? 'black')
                 );
                 $size = strtolower(
                     trim($variant['option2'] ?? 'm')
                 );
+
                 /*
-            ==========================================
-            CHILD PAYLOAD
-            ==========================================
-            */
+                 * ==========================================
+                 * CHILD PAYLOAD
+                 * ==========================================
+                 */
                 $childPayload = $this->shirtFullPayload(
                     $product,
                     $amazon
@@ -1832,45 +1852,45 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 $childPayload['color'] = [[
-                    "value" => $color,
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $color,
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['shirt_size'] = [[
-                    "size_system" => "as1",
-                    "size_class" => "alpha",
-                    "size" => $size,
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'size_system' => 'as1',
+                    'size_class' => 'alpha',
+                    'size' => $size,
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['size'] = [[
-                    "value" => $size,
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $size,
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['variation_theme'] = [[
-                    "name" => "SIZE/COLOR",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'SIZE/COLOR',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // $childDto = new ListingsItemPutRequest(
                 //     productType: 'SHIRT',
@@ -1900,11 +1920,11 @@ class AmazonService
                     'external' => $childPayload['externally_assigned_product_identifier'] ?? null,
                     'asin' => $childPayload['merchant_suggested_asin'] ?? null,
                 ]);
-                LOG::info('CHILD RESPONSE', [
-                    'sku' => $sku,
-                    'status' => $childBody->status ?? null,
-                    'issues' => $childBody->issues ?? [],
-                ]);
+                // LOG::info('CHILD RESPONSE', [
+                //     'sku' => $sku,
+                //     'status' => $childBody->status ?? null,
+                //     'issues' => $childBody->issues ?? [],
+                // ]);
             }
             $product->update([
                 'synced_to_amazon' => $isAccepted ? 1 : 0,
@@ -1923,11 +1943,11 @@ class AmazonService
                 'message' => 'Amazon variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error('VARIANT UPLOAD FAILED', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // LOG::error('VARIANT UPLOAD FAILED', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
             $product->update([
                 'synced_to_amazon' => $isAccepted ? 1 : 0,
                 'needs_resync' => $isAccepted ? 0 : 1
@@ -1946,216 +1966,218 @@ class AmazonService
             ]);
         }
     }
+
     private function headphonesFullPayload($product, $amazon)  // 2
     {
         $variants = $this->parseJsonField($product->variants);
-        $images   = $this->parseJsonField($product->images);
+        $images = $this->parseJsonField($product->images);
         $price = $variants[0]['price'] ?? $product->price ?? 0;
-        $qty   = $variants[0]['inventory_quantity'] ?? 0;
+        $qty = $variants[0]['inventory_quantity'] ?? 0;
         $image = $images[0]['src'] ?? 'https://via.placeholder.com/500';
         $payload = [
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title ?? $product->title),
                     0,
                     180
                 ),
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value" => $product->vendor ?? "Generic",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => $product->vendor ?? 'Generic',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "manufacturer" => [[
-                "value" => $product->vendor ?? "Generic",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => $product->vendor ?? 'Generic',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "product_description" => [[
-                "value" => strip_tags($product->description ?? ''),
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'product_description' => [[
+                'value' => strip_tags($product->description ?? ''),
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "list_price" => [[
-                "value" => (float)$price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => (float) $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => (int)$qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => (int) $qty
             ]],
             // CATEGORY REQUIRED
-            "item_type_keyword" => [[
-                "value" => "headphones",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'headphones',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "color" => [[
-                "value" => "black",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'black',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "connectivity_technology" => [[
-                "value" => "wireless",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'connectivity_technology' => [[
+                'value' => 'wireless',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "headphones_form_factor" => [[
-                "value" => "in_ear",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'headphones_form_factor' => [[
+                'value' => 'in_ear',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "headphones_ear_placement" => [[
-                "value" => "in_ear",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'headphones_ear_placement' => [[
+                'value' => 'in_ear',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_included" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_included' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "warranty_description" => [[
-                "value" => "1 year warranty",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'warranty_description' => [[
+                'value' => '1 year warranty',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "included_components" => [[
-                "value" => "Earbuds, Charging Case, Cable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Earbuds, Charging Case, Cable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "unit_count" => [[
-                "value" => 1,
-                "type" => [
-                    "value" => "Count",
-                    "language_tag" => "en_US"
+            'unit_count' => [[
+                'value' => 1,
+                'type' => [
+                    'value' => 'Count',
+                    'language_tag' => 'en_US'
                 ],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => $amazon->sku ?? "HEADPHONE-MODEL",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => $amazon->sku ?? 'HEADPHONE-MODEL',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_number" => [[
-                "value" => $amazon->sku ?? "HEADPHONE-MODEL",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => $amazon->sku ?? 'HEADPHONE-MODEL',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "bullet_point" => collect($this->parseJsonField($amazon->bullet_points))
+            'bullet_point' => collect($this->parseJsonField($amazon->bullet_points))
                 ->map(fn($b) => [
-                    "value" => $b,
-                    "marketplace_id" => "ATVPDKIKX0DER"
-                ])->toArray(),
-            "externally_assigned_product_identifier" => [[
-                "type" => "ean",
-                "value" => "8901234567890",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $b,
+                    'marketplace_id' => 'ATVPDKIKX0DER'
+                ])
+                ->toArray(),
+            'externally_assigned_product_identifier' => [[
+                'type' => 'ean',
+                'value' => '8901234567890',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "merchant_suggested_asin" => [[
-                "value" => "B0TEST12345",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'merchant_suggested_asin' => [[
+                'value' => 'B0TEST12345',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "merchant_shipping_group" => [[
-                "value" => "Default Shipping Template",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'merchant_shipping_group' => [[
+                'value' => 'Default Shipping Template',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_package_dimensions" => [[
-                "length" => [
-                    "value" => 8,
-                    "unit" => "inches"
+            'item_package_dimensions' => [[
+                'length' => [
+                    'value' => 8,
+                    'unit' => 'inches'
                 ],
-                "width" => [
-                    "value" => 6,
-                    "unit" => "inches"
+                'width' => [
+                    'value' => 6,
+                    'unit' => 'inches'
                 ],
-                "height" => [
-                    "value" => 3,
-                    "unit" => "inches"
+                'height' => [
+                    'value' => 3,
+                    'unit' => 'inches'
                 ]
             ]],
-            "item_package_weight" => [[
-                "value" => 0.75,
-                "unit" => "pounds"
+            'item_package_weight' => [[
+                'value' => 0.75,
+                'unit' => 'pounds'
             ]],
-            "battery" => [[
-                "cell_composition" => [[
-                    "value" => "lithium_ion"
+            'battery' => [[
+                'cell_composition' => [[
+                    'value' => 'lithium_ion'
                 ]]
             ]],
-            "num_batteries" => [[
-                "quantity" => 1,
-                "type" => "lithium_ion"
+            'num_batteries' => [[
+                'quantity' => 1,
+                'type' => 'lithium_ion'
             ]],
-            "has_multiple_battery_powered_components" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'has_multiple_battery_powered_components' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "includes_rechargable_battery" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'includes_rechargable_battery' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_lithium_metal_cells" => [[
-                "value" => 0,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_lithium_metal_cells' => [[
+                'value' => 0,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_lithium_ion_cells" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_lithium_ion_cells' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "lithium_battery" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'lithium_battery' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "contains_battery_or_cell" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'contains_battery_or_cell' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "is_battery_non_spillable" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'is_battery_non_spillable' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "non_lithium_battery_packaging" => [[
-                "value" => "batteries_contained_in_equipment",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'non_lithium_battery_packaging' => [[
+                'value' => 'batteries_contained_in_equipment',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "battery_contains_free_unabsorbed_liquid" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'battery_contains_free_unabsorbed_liquid' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "has_less_than_30_percent_state_of_charge" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'has_less_than_30_percent_state_of_charge' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "battery_installation_device_type" => [[
-                "value" => "battery_installed",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'battery_installation_device_type' => [[
+                'value' => 'battery_installed',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "hazmat" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'hazmat' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "ghs" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'ghs' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "safety_data_sheet_url" => [[
-                "value" => "https://example.com/sds.pdf",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'safety_data_sheet_url' => [[
+                'value' => 'https://example.com/sds.pdf',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]]
         ];
         // Dynamic Additional Images
@@ -2172,8 +2194,8 @@ class AmazonService
             }
             $key = 'other_product_image_locator_' . $imageIndex;
             $payload[$key] = [[
-                "media_location" => $imageUrl,
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'media_location' => $imageUrl,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $imageIndex++;
             // Amazon safe limit
@@ -2183,6 +2205,7 @@ class AmazonService
         }
         return $payload;
     }
+
     public function headphonesVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -2191,9 +2214,9 @@ class AmazonService
             $variants = $this->parseJsonField($product->variants);
             $images = $this->parseJsonField($product->images);
             if (empty($variants)) {
-                LOG::error('NO HEADPHONE VARIANTS FOUND', [
-                    'product_id' => $product->id
-                ]);
+                // LOG::error('NO HEADPHONE VARIANTS FOUND', [
+                //     'product_id' => $product->id
+                // ]);
                 return false;
             }
             $parentSku = DB::table('amazon_products')
@@ -2205,8 +2228,8 @@ class AmazonService
             );
             if (!empty($images)) {
                 $parentPayload['main_product_image_locator'] = [[
-                    "media_location" => $images[0]['src'],
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'media_location' => $images[0]['src'],
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 foreach ($images as $index => $img) {
                     if ($index === 0) {
@@ -2214,18 +2237,18 @@ class AmazonService
                     }
                     $key = 'other_product_image_locator_' . $index;
                     $parentPayload[$key] = [[
-                        "media_location" => $img['src'],
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $img['src'],
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
             }
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentResponse = $this->putListing(
                 $shop,
@@ -2237,17 +2260,17 @@ class AmazonService
                 ? $parentResponse->dto()
                 : null;
             $isAccepted = ($parentBody->status ?? null) === 'ACCEPTED';
-            LOG::info('HEADPHONE PARENT RESPONSE', [
-                'sku' => $parentSku,
-                'status' => $parentBody->status ?? null,
-                'issues' => $parentBody->issues ?? [],
-            ]);
+            // LOG::info('HEADPHONE PARENT RESPONSE', [
+            //     'sku' => $parentSku,
+            //     'status' => $parentBody->status ?? null,
+            //     'issues' => $parentBody->issues ?? [],
+            // ]);
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku'] ?? ('HEADPHONE-' . $variant['id'])
                 );
-                $price = (float)($variant['price'] ?? 0);
-                $qty = (int)($variant['inventory_quantity'] ?? 0);
+                $price = (float) ($variant['price'] ?? 0);
+                $qty = (int) ($variant['inventory_quantity'] ?? 0);
                 $color = trim(
                     strtolower($variant['option1'] ?? 'black')
                 );
@@ -2277,35 +2300,35 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 $childPayload['color'] = [[
-                    "value" => $color,
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $color,
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childResponse = $this->putListing(
                     $shop,
@@ -2319,11 +2342,11 @@ class AmazonService
                 if (($childBody->status ?? null) !== 'ACCEPTED') {
                     $isAccepted = false;
                 }
-                LOG::info('HEADPHONE CHILD RESPONSE', [
-                    'sku' => $sku,
-                    'status' => $childBody->status ?? null,
-                    'issues' => $childBody->issues ?? [],
-                ]);
+                // LOG::info('HEADPHONE CHILD RESPONSE', [
+                //     'sku' => $sku,
+                //     'status' => $childBody->status ?? null,
+                //     'issues' => $childBody->issues ?? [],
+                // ]);
             }
             $product->update([
                 'synced_to_amazon' => $isAccepted ? 1 : 0,
@@ -2342,11 +2365,11 @@ class AmazonService
                 'message' => 'Amazon headphone variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error('HEADPHONE VARIANT UPLOAD FAILED', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // LOG::error('HEADPHONE VARIANT UPLOAD FAILED', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
             $product->update([
                 'synced_to_amazon' => $isAccepted ? 1 : 0,
                 'needs_resync' => $isAccepted ? 0 : 1
@@ -2365,10 +2388,11 @@ class AmazonService
             ]);
         }
     }
+
     private function phoneFullPayload($product, $amazon)  // 3
     {
         $variants = $this->parseJsonField($product->variants);
-        $images   = $this->parseJsonField($product->images);
+        $images = $this->parseJsonField($product->images);
         $price = $variants[0]['price'] ?? $product->price ?? 0;
         $qty = $variants[0]['inventory_quantity'] ?? 0;
         $image = $images[0]['src']
@@ -2378,138 +2402,138 @@ class AmazonService
         );
         $payload = [
             // Basic Info
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title ?? $product->title),
                     0,
                     180
                 ),
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value" => $product->vendor ?? "Generic",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => $product->vendor ?? 'Generic',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "manufacturer" => [[
-                "value" => $product->vendor ?? "Generic",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => $product->vendor ?? 'Generic',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_number" => [[
-                "value" => $amazon->sku ?? "PHONE-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => $amazon->sku ?? 'PHONE-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "part_number" => [[
-                "value" => $amazon->sku ?? "PART-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => $amazon->sku ?? 'PART-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Description
-            "product_description" => [[
-                "value" => strip_tags($product->description ?? ''),
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'product_description' => [[
+                'value' => strip_tags($product->description ?? ''),
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "bullet_point" => collect($bulletPoints)->map(
+            'bullet_point' => collect($bulletPoints)->map(
                 fn($b) => [
-                    "value" => $b,
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $b,
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]
             )->toArray(),
             // Images
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Price & Inventory
-            "list_price" => [[
-                "value" => (float) $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => (float) $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => (int) $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => (int) $qty
             ]],
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Phone Category
-            "item_type_keyword" => [[
-                "value" => "telephones",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'telephones',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "telephone_type" => [[
-                "value" => "Dual-SIM",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'telephone_type' => [[
+                'value' => 'Dual-SIM',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "operating_system" => [[
-                "value" => "Android",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'operating_system' => [[
+                'value' => 'Android',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "memory_storage_capacity" => [[
-                "value" => 128,
-                "unit" => "GB",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'memory_storage_capacity' => [[
+                'value' => 128,
+                'unit' => 'GB',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "digital_storage_capacity" => [[
-                "value" => 128,
-                "unit" => "GB",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'digital_storage_capacity' => [[
+                'value' => 128,
+                'unit' => 'GB',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "display" => [[
-                "size" => [[
-                    "value" => 6.5,
-                    "unit" => "inches"
+            'display' => [[
+                'size' => [[
+                    'value' => 6.5,
+                    'unit' => 'inches'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "effective_still_resolution" => [[
-                "value" => 48,
-                "unit" => "megapixels",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'effective_still_resolution' => [[
+                'value' => 48,
+                'unit' => 'megapixels',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Battery
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_included" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_included' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Extra
-            "warranty_description" => [[
-                "value" => "1 year warranty",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'warranty_description' => [[
+                'value' => '1 year warranty',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "color" => [[
-                "value" => "Black",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Black',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "included_components" => [[
-                "value" => "Handset, Charger, Cable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Handset, Charger, Cable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Identifier
             // "merchant_suggested_asin" => [[
             //     "value" => "B0DUMMY1234",
             //     "marketplace_id" => "ATVPDKIKX0DER"
             // ]],
-            "externally_assigned_product_identifier" => [[
-                "type" => "ean",
-                "value" => "8901234567890",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'externally_assigned_product_identifier' => [[
+                'type' => 'ean',
+                'value' => '8901234567890',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]]
         ];
         // Dynamic Additional Images
@@ -2526,8 +2550,8 @@ class AmazonService
             }
             $key = 'other_product_image_locator_' . $imageIndex;
             $payload[$key] = [[
-                "media_location" => $imageUrl,
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'media_location' => $imageUrl,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $imageIndex++;
             // Amazon safe limit
@@ -2537,35 +2561,37 @@ class AmazonService
         }
         return $payload;
     }
+
     public function phoneVariantPayload($shop, $product, $amazon)
     {
         try {
             $isAccepted = false;
             $client = $this->getDbConnectorFromCredentials($shop);
             $variants = $this->parseJsonField($product->variants);
-            $images   = $this->parseJsonField($product->images);
+            $images = $this->parseJsonField($product->images);
             if (empty($variants)) {
-                LOG::error('NO PHONE VARIANTS FOUND', [
-                    'product_id' => $product->id
-                ]);
+                // LOG::error('NO PHONE VARIANTS FOUND', [
+                //     'product_id' => $product->id
+                // ]);
                 return false;
             }
             $parentSku = DB::table('amazon_products')
                 ->where('product_id', $product->id)
                 ->value('sku');
+
             /*
-        ==================================================
-        PARENT PAYLOAD
-        ==================================================
-        */
+             * ==================================================
+             * PARENT PAYLOAD
+             * ==================================================
+             */
             $parentPayload = $this->phoneFullPayload(
                 $product,
                 $amazon
             );
             if (!empty($images)) {
                 $parentPayload['main_product_image_locator'] = [[
-                    "media_location" => $images[0]['src'],
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'media_location' => $images[0]['src'],
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 foreach ($images as $index => $img) {
                     if ($index === 0) {
@@ -2579,8 +2605,8 @@ class AmazonService
                     }
                     $key = 'other_product_image_locator_' . $index;
                     $parentPayload[$key] = [[
-                        "media_location" => $imageUrl,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $imageUrl,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
             }
@@ -2590,12 +2616,12 @@ class AmazonService
                 $parentPayload['fulfillment_availability']
             );
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR_NAME",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR_NAME',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentResponse = $this->putListing(
                 $shop,
@@ -2607,33 +2633,35 @@ class AmazonService
                 ? $parentResponse->dto()
                 : null;
             $isAccepted = ($parentBody->status ?? null) === 'ACCEPTED';
-            LOG::info('PHONE PARENT RESPONSE', [
-                'sku' => $parentSku,
-                'status' => $parentBody->status ?? null,
-                'issues' => $parentBody->issues ?? [],
-            ]);
+            // LOG::info('PHONE PARENT RESPONSE', [
+            //     'sku' => $parentSku,
+            //     'status' => $parentBody->status ?? null,
+            //     'issues' => $parentBody->issues ?? [],
+            // ]);
+
             /*
-        ==================================================
-        CHILD VARIANTS
-        ==================================================
-        */
+             * ==================================================
+             * CHILD VARIANTS
+             * ==================================================
+             */
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku'] ?? ('PHONE-' . $variant['id'])
                 );
-                $price = (float)($variant['price'] ?? 0);
-                $qty = (int)($variant['inventory_quantity'] ?? 0);
+                $price = (float) ($variant['price'] ?? 0);
+                $qty = (int) ($variant['inventory_quantity'] ?? 0);
                 $color = trim(
                     strtolower($variant['option1'] ?? 'black')
                 );
                 $storage = trim(
                     strtolower($variant['option2'] ?? '128gb')
                 );
+
                 /*
-            ==========================================
-            CHILD PAYLOAD
-            ==========================================
-            */
+                 * ==========================================
+                 * CHILD PAYLOAD
+                 * ==========================================
+                 */
                 $childPayload = $this->phoneFullPayload(
                     $product,
                     $amazon
@@ -2649,11 +2677,12 @@ class AmazonService
                 unset(
                     $childPayload['main_product_image_locator']
                 );
+
                 /*
-            ==========================================
-            VARIANT IMAGE
-            ==========================================
-            */
+                 * ==========================================
+                 * VARIANT IMAGE
+                 * ==========================================
+                 */
                 $variantImage = null;
                 foreach ($images as $img) {
                     if (
@@ -2666,68 +2695,72 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
+
                 /*
-            ==========================================
-            OFFER DATA
-            ==========================================
-            */
+                 * ==========================================
+                 * OFFER DATA
+                 * ==========================================
+                 */
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
+
                 /*
-            ==========================================
-            VARIATION ATTRIBUTES
-            ==========================================
-            */
+                 * ==========================================
+                 * VARIATION ATTRIBUTES
+                 * ==========================================
+                 */
                 $childPayload['color'] = [[
-                    "value" => $color,
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $color,
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 preg_match('/\d+/', $storage, $matches);
                 $storageValue = $matches[0] ?? 128;
                 $childPayload['memory_storage_capacity'] = [[
-                    "value" => (int)$storageValue,
-                    "unit" => "GB",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => (int) $storageValue,
+                    'unit' => 'GB',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['digital_storage_capacity'] = [[
-                    "value" => (int)$storageValue,
-                    "unit" => "GB",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => (int) $storageValue,
+                    'unit' => 'GB',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
+
                 /*
-            ==========================================
-            RELATIONSHIP
-            ==========================================
-            */
+                 * ==========================================
+                 * RELATIONSHIP
+                 * ==========================================
+                 */
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR_NAME",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'COLOR_NAME',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
+
                 /*
-            ==========================================
-            AMAZON PUT
-            ==========================================
-            */
+                 * ==========================================
+                 * AMAZON PUT
+                 * ==========================================
+                 */
                 $childResponse = $this->putListing(
                     $shop,
                     $sku,
@@ -2740,11 +2773,11 @@ class AmazonService
                 if (($childBody->status ?? null) !== 'ACCEPTED') {
                     $isAccepted = false;
                 }
-                LOG::info('PHONE CHILD RESPONSE', [
-                    'sku' => $sku,
-                    'status' => $childBody->status ?? null,
-                    'issues' => $childBody->issues ?? [],
-                ]);
+                // LOG::info('PHONE CHILD RESPONSE', [
+                //     'sku' => $sku,
+                //     'status' => $childBody->status ?? null,
+                //     'issues' => $childBody->issues ?? [],
+                // ]);
             }
             $product->update([
                 'synced_to_amazon' => $isAccepted ? 1 : 0,
@@ -2763,11 +2796,11 @@ class AmazonService
                 'message' => 'Amazon phone variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error('PHONE VARIANT UPLOAD FAILED', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // LOG::error('PHONE VARIANT UPLOAD FAILED', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
             $product->update([
                 'synced_to_amazon' => $isAccepted ? 1 : 0,
                 'needs_resync' => $isAccepted ? 0 : 1
@@ -2786,178 +2819,183 @@ class AmazonService
             ]);
         }
     }
+
     private function pantsFullPayload($product, $amazon)  // 4
     {
         $variants = $this->parseJsonField($product->variants);
-        $images   = $this->parseJsonField($product->images);
+        $images = $this->parseJsonField($product->images);
         $price = $variants[0]['price'] ?? $product->price ?? 0;
-        $qty   = $variants[0]['inventory_quantity'] ?? 0;
+        $qty = $variants[0]['inventory_quantity'] ?? 0;
         $image = $images[0]['src'] ?? 'https://via.placeholder.com/500';
         $bulletPoints = $this->parseJsonField($amazon->bullet_points);
         // Strip "Title: " prefix from amazon_title
         $cleanTitle = preg_replace('/^Title:\s*/i', '', $amazon->amazon_title ?? $product->title ?? '');
         $payload = [
             // ── Required fields that need language_tag ─────────────────────────
-            "item_name" => [[
-                "value"          => substr(trim($cleanTitle), 0, 200),
-                "language_tag"   => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_name' => [[
+                'value' => substr(trim($cleanTitle), 0, 200),
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value"          => $product->vendor ?? "Generic",
-                "language_tag"   => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => $product->vendor ?? 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value"          => $amazon->sku ?? "PANTS-MODEL",
-                "language_tag"   => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => $amazon->sku ?? 'PANTS-MODEL',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "product_description" => [[
-                "value"          => strip_tags($product->description ?? ''),
-                "language_tag"   => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'product_description' => [[
+                'value' => strip_tags($product->description ?? ''),
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // bullet_point requires language_tag per item
-            "bullet_point" => collect($bulletPoints)->map(
+            'bullet_point' => collect($bulletPoints)->map(
                 fn($b) => [
-                    "value"          => $b,
-                    "language_tag"   => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $b,
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]
             )->values()->toArray(),
-            "fabric_type" => [[
-                "value"          => "100% Cotton",
-                "language_tag"   => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'fabric_type' => [[
+                'value' => '100% Cotton',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "style" => [[
-                "value"          => "Casual",
-                "language_tag"   => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'style' => [[
+                'value' => 'Casual',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "department" => [[
-                "value"          => "Mens",          // ✅ exact enum from schema
-                "language_tag"   => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'department' => [[
+                'value' => 'Mens',  // ✅ exact enum from schema
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "age_range_description" => [[
-                "value"          => "Adult",         // ✅ exact enum from schema
-                "language_tag"   => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'age_range_description' => [[
+                'value' => 'Adult',  // ✅ exact enum from schema
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "target_gender" => [[
-                "value"          => "male",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'target_gender' => [[
+                'value' => 'male',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // ── bottoms_size: size_system "as1" IS correct per schema ──────────
             // For Adult + male + alpha class, valid sizes: s, m, l, x_l, xx_l etc.
-            "bottoms_size" => [[
-                "size_system"    => "as1",           // ✅ correct enum value (display name is "US")
-                "size_class"     => "alpha",
-                "size"           => "m",             // ✅ valid alpha size for adult male
-                "body_type"      => "regular",       // ✅ required for adult male alpha class
-                "height_type"    => "regular",       // ✅ required for adult male alpha/numeric class
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'bottoms_size' => [[
+                'size_system' => 'as1',  // ✅ correct enum value (display name is "US")
+                'size_class' => 'alpha',
+                'size' => 'm',  // ✅ valid alpha size for adult male
+                'body_type' => 'regular',  // ✅ required for adult male alpha class
+                'height_type' => 'regular',  // ✅ required for adult male alpha/numeric class
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "special_size_type" => [[
-                "value" => "standard",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'special_size_type' => [[
+                'value' => 'standard',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // ── Images ─────────────────────────────────────────────────────────
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // ── Offer / pricing ────────────────────────────────────────────────
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity"                 => (int) $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => (int) $qty
             ]],
-            "list_price" => [[
-                "value"          => (float) $price,
-                "currency"       => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => (float) $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "condition_type" => [[
-                "value"          => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // ── Pants-specific ─────────────────────────────────────────────────
-            "item_type_keyword" => [[
-                "value"          => "casual-pants",  // ✅ valid enum: Men > Clothing > Pants > Casual
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'casual-pants',  // ✅ valid enum: Men > Clothing > Pants > Casual
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "pants_form_type" => [[
-                "value"          => "chino_pants",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'pants_form_type' => [[
+                'value' => 'chino_pants',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // closure uses nested "type" array with language_tag per schema
-            "closure" => [[
-                "type" => [[
-                    "value"        => "Zipper",      // ✅ exact enum from schema
-                    "language_tag" => "en_US"
+            'closure' => [[
+                'type' => [[
+                    'value' => 'Zipper',  // ✅ exact enum from schema
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // rise uses nested "style" array with language_tag per schema
-            "rise" => [[
-                "style" => [[
-                    "value"        => "Mid Rise",    // ✅ exact enum from schema
-                    "language_tag" => "en_US"
+            'rise' => [[
+                'style' => [[
+                    'value' => 'Mid Rise',  // ✅ exact enum from schema
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fit_type" => [[
-                "value"          => "Slim",          // ✅ valid enum from schema
-                "language_tag"   => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'fit_type' => [[
+                'value' => 'Slim',  // ✅ valid enum from schema
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "color" => [[
-                "value"            => "Black",
-                "standardized_values" => ["Black"],  // ✅ valid standardized color enum
-                "language_tag"     => "en_US",
-                "marketplace_id"   => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Black',
+                'standardized_values' => ['Black'],  // ✅ valid standardized color enum
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "care_instructions" => [[
-                "value"          => "Machine Wash",  // ✅ exact enum from schema
-                "language_tag"   => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'care_instructions' => [[
+                'value' => 'Machine Wash',  // ✅ exact enum from schema
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "import_designation" => [[
-                "value"          => "Imported",      // ✅ exact enum from schema
-                "language_tag"   => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'import_designation' => [[
+                'value' => 'Imported',  // ✅ exact enum from schema
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "country_of_origin" => [[
-                "value"          => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_items" => [[
-                "value"          => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // ── GTIN exemption — use this instead of a fake EAN ───────────────
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value"          => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
         ];
         // ── Additional product images ─────────────────────────────────────────
         $imageIndex = 1;
         foreach ($images as $index => $img) {
-            if ($index === 0) continue;
+            if ($index === 0)
+                continue;
             $imageUrl = $img['src'] ?? $img['url'] ?? null;
-            if (empty($imageUrl)) continue;
+            if (empty($imageUrl))
+                continue;
             $payload['other_product_image_locator_' . $imageIndex] = [[
-                "media_location" => $imageUrl,
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'media_location' => $imageUrl,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $imageIndex++;
-            if ($imageIndex > 8) break;
+            if ($imageIndex > 8)
+                break;
         }
         return $payload;
     }
+
     public function pantsVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -2969,9 +3007,9 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error('NO PANTS VARIANTS FOUND', [
-                    'product_id' => $product->id
-                ]);
+                // LOG::error('NO PANTS VARIANTS FOUND', [
+                //     'product_id' => $product->id
+                // ]);
                 return false;
             }
             // Parent SKU
@@ -3009,12 +3047,12 @@ class AmazonService
             }
             // Parent relationship
             $parentPayload['variation_theme'] = [[
-                "name" => "SIZE/COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'SIZE/COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             // Upload parent
             $parentResponse = $this->putListing(
@@ -3032,21 +3070,21 @@ class AmazonService
             $isAccepted = (
                 $parentBody->status ?? null
             ) === 'ACCEPTED';
-            LOG::info('PANTS PARENT RESPONSE', [
-                'sku' => $parentSku,
-                'status' => $parentBody->status ?? null,
-                'issues' => $parentBody->issues ?? [],
-            ]);
+            // LOG::info('PANTS PARENT RESPONSE', [
+            //     'sku' => $parentSku,
+            //     'status' => $parentBody->status ?? null,
+            //     'issues' => $parentBody->issues ?? [],
+            // ]);
             // Child variants
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? ('PANTS-' . $variant['id'])
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price'] ?? 0
                 );
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity'] ?? 0
                 );
                 // Shopify option1 = Color
@@ -3095,52 +3133,52 @@ class AmazonService
                 // Add variant image
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
                 // Price
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Inventory
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 // Variant color
                 $childPayload['color'] = [[
-                    "value" => ucfirst($color),
-                    "standardized_values" => [
+                    'value' => ucfirst($color),
+                    'standardized_values' => [
                         ucfirst($color)
                     ],
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Variant size
                 $childPayload['bottoms_size'] = [[
-                    "size_system" => "as1",
-                    "size_class" => "alpha",
-                    "size" => $size,
-                    "body_type" => "regular",
-                    "height_type" => "regular",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'size_system' => 'as1',
+                    'size_class' => 'alpha',
+                    'size' => $size,
+                    'body_type' => 'regular',
+                    'height_type' => 'regular',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Child relationship
                 $childPayload['variation_theme'] = [[
-                    "name" => "SIZE/COLOR",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'SIZE/COLOR',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Upload child
                 $childResponse = $this->putListing(
@@ -3156,16 +3194,16 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info('PANTS CHILD RESPONSE', [
-                    'sku' => $sku,
-                    'status' => $childBody->status ?? null,
-                    'issues' => $childBody->issues ?? [],
-                ]);
+                // LOG::info('PANTS CHILD RESPONSE', [
+                //     'sku' => $sku,
+                //     'status' => $childBody->status ?? null,
+                //     'issues' => $childBody->issues ?? [],
+                // ]);
             }
             // Update product status
             $product->update([
@@ -3185,11 +3223,11 @@ class AmazonService
                 'message' => 'Amazon pants variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error('PANTS VARIANT UPLOAD FAILED', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // LOG::error('PANTS VARIANT UPLOAD FAILED', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
             ProductSyncLog::create([
                 'product_id' => $product->id,
                 'shop_id' => $shop->id,
@@ -3204,7 +3242,8 @@ class AmazonService
             ]);
         }
     }
-    public function shoesFullPayload($product, $amazon)  // 5 
+
+    public function shoesFullPayload($product, $amazon)  // 5
     {
         $variants = $this->parseJsonField(
             $product->variants
@@ -3234,185 +3273,185 @@ class AmazonService
         );
         $payload = [
             // Title
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($cleanTitle),
                     0,
                     200
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Brand
-            "brand" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // GTIN exemption
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Manufacturer
-            "manufacturer" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Product type
-            "item_type_keyword" => [[
-                "value" => "SHOES",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'SHOES',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Description
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Comfortable running shoes'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Bullet points
-            "bullet_point" => collect(
+            'bullet_point' => collect(
                 $bulletPoints
             )->map(
                 fn($b) => [
-                    "value" => $b,
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $b,
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]
             )->values()->toArray(),
             // Search keywords
-            "generic_keyword" => [[
-                "value" => implode(
+            'generic_keyword' => [[
+                'value' => implode(
                     ' ',
                     $searchTerms
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Style
-            "style" => [[
-                "value" => "Running",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'style' => [[
+                'value' => 'Running',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Color
-            "color" => [[
-                "value" => "Black",
-                "standardized_values" => [
-                    "Black"
+            'color' => [[
+                'value' => 'Black',
+                'standardized_values' => [
+                    'Black'
                 ],
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Part number
-            "part_number" => [[
-                "value" => "SHOE-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'SHOE-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Model number
-            "model_number" => [[
-                "value" => "RUN-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'RUN-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Model name
-            "model_name" => [[
-                "value" => "Running Sneakers",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'Running Sneakers',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Gender
-            "target_gender" => [[
-                "value" => "male",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'target_gender' => [[
+                'value' => 'male',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Age range
-            "age_range_description" => [[
-                "value" => "Adult",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'age_range_description' => [[
+                'value' => 'Adult',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Outer material
-            "outer" => [[
-                "material" => [[
-                    "value" => "Mesh",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+            'outer' => [[
+                'material' => [[
+                    'value' => 'Mesh',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Sole material
-            "sole_material" => [[
-                "value" => "Rubber",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'sole_material' => [[
+                'value' => 'Rubber',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Closure
-            "closure" => [[
-                "type" => [[
-                    "value" => "Lace-Up",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+            'closure' => [[
+                'type' => [[
+                    'value' => 'Lace-Up',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Heel
-            "heel" => [[
-                "type" => [[
-                    "value" => "Flat",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+            'heel' => [[
+                'type' => [[
+                    'value' => 'Flat',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Shoe type
-            "height_map" => [[
-                "value" => "Low Top",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'height_map' => [[
+                'value' => 'Low Top',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "footwear_size" => [[
-                "size_system" => "us_footwear_size_system",
-                "size_class" => "numeric",
-                "size" => "numeric_9",
-                "gender" => "men",
-                "age_group" => "adult",
-                "width" => "medium",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'footwear_size' => [[
+                'size_system' => 'us_footwear_size_system',
+                'size_class' => 'numeric',
+                'size' => 'numeric_9',
+                'gender' => 'men',
+                'age_group' => 'adult',
+                'width' => 'medium',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Main image
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Price
-            "list_price" => [[
-                "value" => (float) $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => (float) $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Inventory
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => (int) $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => (int) $qty
             ]],
             // Condition
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Country
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Batteries
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_included" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_included' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]]
         ];
         // Extra images
@@ -3420,13 +3459,14 @@ class AmazonService
             if ($index === 0 || $index > 8) {
                 continue;
             }
-            $payload["other_product_image_locator_" . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+            $payload['other_product_image_locator_' . $index] = [[
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function shoesVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -3438,9 +3478,9 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error('NO SHOE VARIANTS FOUND', [
-                    'product_id' => $product->id
-                ]);
+                // LOG::error('NO SHOE VARIANTS FOUND', [
+                //     'product_id' => $product->id
+                // ]);
                 return false;
             }
             // Parent SKU
@@ -3478,12 +3518,12 @@ class AmazonService
             }
             // Parent relationship
             $parentPayload['variation_theme'] = [[
-                "name" => "SIZE/COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'SIZE/COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             // Upload parent
             $parentResponse = $this->putListing(
@@ -3501,21 +3541,21 @@ class AmazonService
             $isAccepted = (
                 $parentBody->status ?? null
             ) === 'ACCEPTED';
-            LOG::info('SHOE PARENT RESPONSE', [
-                'sku' => $parentSku,
-                'status' => $parentBody->status ?? null,
-                'issues' => $parentBody->issues ?? [],
-            ]);
+            // LOG::info('SHOE PARENT RESPONSE', [
+            //     'sku' => $parentSku,
+            //     'status' => $parentBody->status ?? null,
+            //     'issues' => $parentBody->issues ?? [],
+            // ]);
             // Child variants
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? ('SHOE-' . $variant['id'])
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price'] ?? 0
                 );
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity'] ?? 0
                 );
                 // Shopify option1 = Color
@@ -3564,53 +3604,53 @@ class AmazonService
                 // Add variant image
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
                 // Price
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Inventory
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 // Variant color
                 $childPayload['color'] = [[
-                    "value" => ucfirst($color),
-                    "standardized_values" => [
+                    'value' => ucfirst($color),
+                    'standardized_values' => [
                         ucfirst($color)
                     ],
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Variant footwear size
                 $childPayload['footwear_size'] = [[
-                    "size_system" => "us_footwear_size_system",
-                    "size_class" => "numeric",
-                    "size" => $amazonSize,
-                    "gender" => "men",
-                    "age_group" => "adult",
-                    "width" => "medium",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'size_system' => 'us_footwear_size_system',
+                    'size_class' => 'numeric',
+                    'size' => $amazonSize,
+                    'gender' => 'men',
+                    'age_group' => 'adult',
+                    'width' => 'medium',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Child relationship
                 $childPayload['variation_theme'] = [[
-                    "name" => "SIZE/COLOR",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'SIZE/COLOR',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Upload child
                 $childResponse = $this->putListing(
@@ -3626,16 +3666,16 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info('SHOE CHILD RESPONSE', [
-                    'sku' => $sku,
-                    'status' => $childBody->status ?? null,
-                    'issues' => $childBody->issues ?? [],
-                ]);
+                // LOG::info('SHOE CHILD RESPONSE', [
+                //     'sku' => $sku,
+                //     'status' => $childBody->status ?? null,
+                //     'issues' => $childBody->issues ?? [],
+                // ]);
             }
             // Update sync status
             $product->update([
@@ -3655,11 +3695,11 @@ class AmazonService
                 'message' => 'Amazon shoe variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error('SHOE VARIANT UPLOAD FAILED', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // LOG::error('SHOE VARIANT UPLOAD FAILED', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
             ProductSyncLog::create([
                 'product_id' => $product->id,
                 'shop_id' => $shop->id,
@@ -3674,6 +3714,7 @@ class AmazonService
             ]);
         }
     }
+
     public function backpackFullPayload($product, $amazon)  // 6
     {
         $variants = $this->parseJsonField($product->variants);
@@ -3700,233 +3741,233 @@ class AmazonService
         );
         $payload = [
             // TITLE
-            "item_name" => [[
-                "value" => substr(trim($cleanTitle), 0, 200),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_name' => [[
+                'value' => substr(trim($cleanTitle), 0, 200),
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BRAND
-            "brand" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // GTIN EXEMPTION
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PRODUCT TYPE
-            "item_type_keyword" => [[
-                "value" => "BACKPACK",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'BACKPACK',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MODEL
-            "model_number" => [[
-                "value" => "BP-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'BP-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "Casual Backpack",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'Casual Backpack',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MANUFACTURER
-            "manufacturer" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DESCRIPTION
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Durable everyday backpack'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BULLETS
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($b) => [
-                    "value" => substr($b, 0, 100),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($b, 0, 100),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
             // SEARCH TERMS
-            "generic_keyword" => [[
-                "value" => substr(
+            'generic_keyword' => [[
+                'value' => substr(
                     implode(' ', $searchTerms),
                     0,
                     250
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // STYLE
-            "style" => [[
-                "value" => "Casual",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'style' => [[
+                'value' => 'Casual',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // GENDER
-            "target_gender" => [[
-                "value" => "unisex",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'target_gender' => [[
+                'value' => 'unisex',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // AGE
-            "age_range_description" => [[
-                "value" => "Adult",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'age_range_description' => [[
+                'value' => 'Adult',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MATERIAL
-            "material" => [[
-                "value" => "Polyester",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'material' => [[
+                'value' => 'Polyester',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // LINING
-            "lining_description" => [[
-                "value" => "Polyester",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'lining_description' => [[
+                'value' => 'Polyester',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DEPARTMENT
-            "department" => [[
-                "value" => "unisex-adult",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'department' => [[
+                'value' => 'unisex-adult',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // STORAGE VOLUME
-            "storage_volume" => [[
-                "value" => 30,
-                "unit" => "liters",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'storage_volume' => [[
+                'value' => 30,
+                'unit' => 'liters',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // OUTER MATERIAL
-            "outer" => [[
-                "material" => [[
-                    "value" => "Polyester",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+            'outer' => [[
+                'material' => [[
+                    'value' => 'Polyester',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // IMPORT DESIGNATION
-            "import_designation" => [[
-                "value" => "imported",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'import_designation' => [[
+                'value' => 'imported',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // SPECIAL FEATURES
-            "special_feature" => [[
-                "value" => "Water Resistant",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'special_feature' => [[
+                'value' => 'Water Resistant',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // RECOMMENDED USES
-            "recommended_uses_for_product" => [[
-                "value" => "Travel",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'recommended_uses_for_product' => [[
+                'value' => 'Travel',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // ITEM DIMENSIONS
-            "item_depth_width_height" => [[
-                "depth" => [
-                    "value" => 20,
-                    "unit" => "centimeters"
+            'item_depth_width_height' => [[
+                'depth' => [
+                    'value' => 20,
+                    'unit' => 'centimeters'
                 ],
-                "width" => [
-                    "value" => 32,
-                    "unit" => "centimeters"
+                'width' => [
+                    'value' => 32,
+                    'unit' => 'centimeters'
                 ],
-                "height" => [
-                    "value" => 48,
-                    "unit" => "centimeters"
+                'height' => [
+                    'value' => 48,
+                    'unit' => 'centimeters'
                 ],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // STRAP
-            "strap_type" => [[
-                "value" => "Adjustable",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'strap_type' => [[
+                'value' => 'Adjustable',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // WATER RESISTANCE
-            "water_resistance_level" => [[
-                "value" => "water_resistant",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'water_resistance_level' => [[
+                'value' => 'water_resistant',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // COLOR
-            "color" => [[
-                "value" => "Black",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Black',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // SIZE
-            "size" => [[
-                "value" => "One Size",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'size' => [[
+                'value' => 'One Size',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PART NUMBER
-            "part_number" => [[
-                "value" => "BAG-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'BAG-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BACKPACK TYPE
-            "backpack_design" => [[
-                "value" => "daypack_backpack",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'backpack_design' => [[
+                'value' => 'daypack_backpack',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // CLOSURE
-            "closure" => [[
-                "type" => [[
-                    "value" => "Zipper",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+            'closure' => [[
+                'type' => [[
+                    'value' => 'Zipper',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MAIN IMAGE
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PRICE
-            "list_price" => [[
-                "value" => (float) $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => (float) $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // INVENTORY
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => (int) $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => (int) $qty
             ]],
             // CONDITION
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // COUNTRY
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DG/HZ
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BATTERIES
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_included" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_included' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]]
         ];
         // EXTRA IMAGES
@@ -3934,13 +3975,14 @@ class AmazonService
             if ($index === 0 || $index > 8) {
                 continue;
             }
-            $payload["other_product_image_locator_" . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+            $payload['other_product_image_locator_' . $index] = [[
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function backpackVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -3952,9 +3994,9 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error('NO BACKPACK VARIANTS FOUND', [
-                    'product_id' => $product->id
-                ]);
+                // LOG::error('NO BACKPACK VARIANTS FOUND', [
+                //     'product_id' => $product->id
+                // ]);
                 return false;
             }
             // Parent SKU
@@ -3992,12 +4034,12 @@ class AmazonService
             }
             // Parent relationship
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR/SIZE",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR/SIZE',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             // Upload parent
             $parentResponse = $this->putListing(
@@ -4015,21 +4057,21 @@ class AmazonService
             $isAccepted = (
                 $parentBody->status ?? null
             ) === 'ACCEPTED';
-            LOG::info('BACKPACK PARENT RESPONSE', [
-                'sku' => $parentSku,
-                'status' => $parentBody->status ?? null,
-                'issues' => $parentBody->issues ?? [],
-            ]);
+            // LOG::info('BACKPACK PARENT RESPONSE', [
+            //     'sku' => $parentSku,
+            //     'status' => $parentBody->status ?? null,
+            //     'issues' => $parentBody->issues ?? [],
+            // ]);
             // Child variants
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? ('BACKPACK-' . $variant['id'])
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price'] ?? 0
                 );
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity'] ?? 0
                 );
                 // Shopify option1 = Color
@@ -4076,46 +4118,46 @@ class AmazonService
                 // Add variant image
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
                 // Price
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Inventory
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 // Variant color
                 $childPayload['color'] = [[
-                    "value" => ucfirst($color),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => ucfirst($color),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Variant size
                 $childPayload['size'] = [[
-                    "value" => $size,
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $size,
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Child relationship
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR/SIZE",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'COLOR/SIZE',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Upload child
                 $childResponse = $this->putListing(
@@ -4131,16 +4173,16 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info('BACKPACK CHILD RESPONSE', [
-                    'sku' => $sku,
-                    'status' => $childBody->status ?? null,
-                    'issues' => $childBody->issues ?? [],
-                ]);
+                // LOG::info('BACKPACK CHILD RESPONSE', [
+                //     'sku' => $sku,
+                //     'status' => $childBody->status ?? null,
+                //     'issues' => $childBody->issues ?? [],
+                // ]);
             }
             // Update sync status
             $product->update([
@@ -4160,11 +4202,11 @@ class AmazonService
                 'message' => 'Amazon backpack variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error('BACKPACK VARIANT UPLOAD FAILED', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // LOG::error('BACKPACK VARIANT UPLOAD FAILED', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
             ProductSyncLog::create([
                 'product_id' => $product->id,
                 'shop_id' => $shop->id,
@@ -4179,7 +4221,8 @@ class AmazonService
             ]);
         }
     }
-    public function inputMouseFullPayload($product, $amazon)  // 7 
+
+    public function inputMouseFullPayload($product, $amazon)  // 7
     {
         $variants = $this->parseJsonField($product->variants);
         $images = $this->parseJsonField($product->images);
@@ -4205,255 +4248,255 @@ class AmazonService
         );
         $payload = [
             // TITLE
-            "item_name" => [[
-                "value" => substr(trim($cleanTitle), 0, 200),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_name' => [[
+                'value' => substr(trim($cleanTitle), 0, 200),
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BRAND
-            "brand" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // GTIN EXEMPTION
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PRODUCT TYPE
-            "item_type_keyword" => [[
-                "value" => "INPUT_MOUSE",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'INPUT_MOUSE',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MODEL
-            "model_number" => [[
-                "value" => "MOUSE-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'MOUSE-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "Gaming Mouse",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'Gaming Mouse',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MANUFACTURER
-            "manufacturer" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DESCRIPTION
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'USB wired gaming mouse'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BULLET POINTS
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($b) => [
-                    "value" => substr($b, 0, 200),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($b, 0, 200),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
             // SEARCH TERMS
-            "generic_keyword" => [[
-                "value" => substr(
+            'generic_keyword' => [[
+                'value' => substr(
                     implode(' ', $searchTerms),
                     0,
                     250
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // SPECIAL FEATURE
-            "special_feature" => [[
-                "value" => "LED Lighting",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'special_feature' => [[
+                'value' => 'LED Lighting',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // STYLE
-            "style" => [[
-                "value" => "Gaming",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'style' => [[
+                'value' => 'Gaming',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MATERIAL
-            "material" => [[
-                "value" => "Plastic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'material' => [[
+                'value' => 'Plastic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // ITEM COUNT
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PACKAGE QUANTITY
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // COLOR
-            "color" => [[
-                "value" => "Black",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Black',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // SIZE
-            "size" => [[
-                "value" => "Standard",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'size' => [[
+                'value' => 'Standard',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PART NUMBER
-            "part_number" => [[
-                "value" => "MOUSE-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'MOUSE-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // EDITION
-            "edition" => [[
-                "value" => "Standard",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'edition' => [[
+                'value' => 'Standard',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // CONFIGURATION
-            "configuration" => [[
-                "value" => "Wired",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'configuration' => [[
+                'value' => 'Wired',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // HARDWARE PLATFORM
-            "hardware_platform" => [[
-                "value" => "PC",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'hardware_platform' => [[
+                'value' => 'PC',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PLATFORM
-            "platform_for_display" => [[
-                "value" => "Windows",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'platform_for_display' => [[
+                'value' => 'Windows',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // POWER SOURCE
-            "power_source_type" => [[
-                "value" => "Corded Electric",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'power_source_type' => [[
+                'value' => 'Corded Electric',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // SENSOR TECHNOLOGY
-            "movement_detection_technology" => [[
-                "value" => "Optical",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'movement_detection_technology' => [[
+                'value' => 'Optical',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // CONNECTIVITY
-            "connectivity_technology" => [[
-                "value" => "USB",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'connectivity_technology' => [[
+                'value' => 'USB',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // OS
-            "operating_system" => [[
-                "value" => "Windows",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'operating_system' => [[
+                'value' => 'Windows',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // HAND ORIENTATION
-            "hand_orientation" => [[
-                "value" => "Right",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'hand_orientation' => [[
+                'value' => 'Right',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // SENSOR
-            "sensor" => [[
-                "value" => "Optical",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'sensor' => [[
+                'value' => 'Optical',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BUTTONS
-            "button_quantity" => [[
-                "value" => 6,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'button_quantity' => [[
+                'value' => 6,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // CONTROL METHOD
-            "control_method" => [[
-                "value" => "push_button",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'control_method' => [[
+                'value' => 'push_button',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DPI
-            "mouse_maximum_sensitivity" => [[
-                "value" => 1600,
-                "unit" => "dots_per_inch",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'mouse_maximum_sensitivity' => [[
+                'value' => 1600,
+                'unit' => 'dots_per_inch',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // INCLUDED COMPONENTS
-            "included_components" => [[
-                "value" => "Gaming Mouse",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Gaming Mouse',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // RECOMMENDED USE
-            "recommended_uses_for_product" => [[
-                "value" => "Gaming",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'recommended_uses_for_product' => [[
+                'value' => 'Gaming',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // COMPATIBLE DEVICES
-            "compatible_devices" => [[
-                "value" => "Laptop",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'compatible_devices' => [[
+                'value' => 'Laptop',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // WARRANTY
-            "warranty_description" => [[
-                "value" => "1 Year Limited Warranty",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'warranty_description' => [[
+                'value' => '1 Year Limited Warranty',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BATTERIES
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_included" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_included' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // CONDITION
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PRICE
-            "list_price" => [[
-                "value" => (float) $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => (float) $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // INVENTORY
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => (int) $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => (int) $qty
             ]],
             // MAIN IMAGE
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // COUNTRY
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DG/HZ
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]]
         ];
         // EXTRA IMAGES
@@ -4461,13 +4504,14 @@ class AmazonService
             if ($index === 0 || $index > 8) {
                 continue;
             }
-            $payload["other_product_image_locator_" . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+            $payload['other_product_image_locator_' . $index] = [[
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function inputMouseVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -4479,9 +4523,9 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error('NO MOUSE VARIANTS FOUND', [
-                    'product_id' => $product->id
-                ]);
+                // LOG::error('NO MOUSE VARIANTS FOUND', [
+                //     'product_id' => $product->id
+                // ]);
                 return false;
             }
             // Parent SKU
@@ -4523,12 +4567,12 @@ class AmazonService
             );
             // Parent relationship
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             // Safety cleanup
             unset(
@@ -4550,21 +4594,21 @@ class AmazonService
             $isAccepted = (
                 $parentBody->status ?? null
             ) === 'ACCEPTED';
-            LOG::info('MOUSE PARENT RESPONSE', [
-                'sku' => $parentSku,
-                'status' => $parentBody->status ?? null,
-                'issues' => $parentBody->issues ?? [],
-            ]);
+            // LOG::info('MOUSE PARENT RESPONSE', [
+            //     'sku' => $parentSku,
+            //     'status' => $parentBody->status ?? null,
+            //     'issues' => $parentBody->issues ?? [],
+            // ]);
             // CHILD VARIANTS
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? ('MOUSE-' . $variant['id'])
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price'] ?? 0
                 );
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity'] ?? 0
                 );
                 // option1 = Color
@@ -4607,41 +4651,41 @@ class AmazonService
                 // Add variant image
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
                 // Variant price
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Inventory
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 // Variant color
                 $childPayload['color'] = [[
-                    "value" => ucfirst($color),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => ucfirst($color),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Variation Theme
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Child relation
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Upload child
                 $childResponse = $this->putListing(
@@ -4657,16 +4701,16 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info('MOUSE CHILD RESPONSE', [
-                    'sku' => $sku,
-                    'status' => $childBody->status ?? null,
-                    'issues' => $childBody->issues ?? [],
-                ]);
+                // LOG::info('MOUSE CHILD RESPONSE', [
+                //     'sku' => $sku,
+                //     'status' => $childBody->status ?? null,
+                //     'issues' => $childBody->issues ?? [],
+                // ]);
             }
             // Update sync status
             $product->update([
@@ -4686,11 +4730,11 @@ class AmazonService
                 'message' => 'Amazon mouse variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error('MOUSE VARIANT UPLOAD FAILED', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // LOG::error('MOUSE VARIANT UPLOAD FAILED', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
             ProductSyncLog::create([
                 'product_id' => $product->id,
                 'shop_id' => $shop->id,
@@ -4705,6 +4749,7 @@ class AmazonService
             ]);
         }
     }
+
     public function watchFullPayload($product, $amazon)  // 8
     {
         $variants = $this->parseJsonField($product->variants);
@@ -4732,264 +4777,264 @@ class AmazonService
         );
         $payload = [
             // TITLE
-            "item_name" => [[
-                "value" => substr(trim($cleanTitle), 0, 200),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_name' => [[
+                'value' => substr(trim($cleanTitle), 0, 200),
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BRAND
-            "brand" => [[
-                "value" => "Symbol",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Symbol',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // GTIN EXEMPTION
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PRODUCT TYPE
-            "item_type_keyword" => [[
-                "value" => "WATCH",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'WATCH',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MODEL
-            "model_number" => [[
-                "value" => "AZ-SYM-SS21A-12C",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'AZ-SYM-SS21A-12C',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "Analog Black Dial Watch",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'Analog Black Dial Watch',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // WARRANTY TYPE
-            "warranty_type" => [[
-                "value" => "manufacturer",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'warranty_type' => [[
+                'value' => 'manufacturer',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MULTIPLE BATTERY COMPONENTS
-            "has_multiple_battery_powered_components" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'has_multiple_battery_powered_components' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // CALENDAR TYPE
-            "calendar_type" => [[
-                "value" => "no_calendar",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'calendar_type' => [[
+                'value' => 'no_calendar',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BATTERY INSTALLATION
-            "battery_installation_device_type" => [[
-                "value" => "not_installed",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'battery_installation_device_type' => [[
+                'value' => 'not_installed',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BATTERY COUNT
-            "num_batteries" => [[
-                "quantity" => 1,
-                "type" => "lr44",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'num_batteries' => [[
+                'quantity' => 1,
+                'type' => 'lr44',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BATTERY DETAILS
-            "battery" => [[
-                "cell_composition" => [[
-                    "value" => "alkaline",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+            'battery' => [[
+                'cell_composition' => [[
+                    'value' => 'alkaline',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BATTERY PACKAGING
-            "non_lithium_battery_packaging" => [[
-                "value" => "batteries_contained_in_equipment",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'non_lithium_battery_packaging' => [[
+                'value' => 'batteries_contained_in_equipment',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MANUFACTURER
-            "manufacturer" => [[
-                "value" => "Symbol",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Symbol',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DESCRIPTION
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Premium analog wrist watch with quartz movement and stylish black dial.'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BULLET POINTS
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($b) => [
-                    "value" => substr($b, 0, 200),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($b, 0, 200),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
             // SEARCH TERMS
-            "generic_keyword" => [[
-                "value" => substr(
+            'generic_keyword' => [[
+                'value' => substr(
                     implode(' ', $searchTerms),
                     0,
                     250
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // FEATURES
-            "special_feature" => [[
-                "value" => "Water Resistant",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'special_feature' => [[
+                'value' => 'Water Resistant',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // STYLE
-            "style" => [[
-                "value" => "Casual",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'style' => [[
+                'value' => 'Casual',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DEPARTMENT
-            "department" => [[
-                "value" => "mens",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'department' => [[
+                'value' => 'mens',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // TARGET GENDER
-            "target_gender" => [[
-                "value" => "male",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'target_gender' => [[
+                'value' => 'male',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MATERIAL
-            "material" => [[
-                "value" => "PU",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'material' => [[
+                'value' => 'PU',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // ITEM COUNT
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PACKAGE QUANTITY
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // STRAP TYPE
-            "strap_type" => [[
-                "value" => "strap",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'strap_type' => [[
+                'value' => 'strap',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // WATER RESISTANCE
-            "water_resistance_level" => [[
-                "value" => "water_resistant",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'water_resistance_level' => [[
+                'value' => 'water_resistant',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DISPLAY
-            "display" => [[
-                "value" => "Analog",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'display' => [[
+                'value' => 'Analog',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // COLOR
-            "color" => [[
-                "value" => "Black",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Black',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // SIZE
-            "size" => [[
-                "value" => "One Size",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'size' => [[
+                'value' => 'One Size',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PART NUMBER
-            "part_number" => [[
-                "value" => "AZ-SYM-SS21A-12C",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'AZ-SYM-SS21A-12C',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // CLASP
-            "clasp_type" => [[
-                "value" => "Buckle",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'clasp_type' => [[
+                'value' => 'Buckle',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MOVEMENT
-            "watch_movement_type" => [[
-                "value" => "Quartz",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'watch_movement_type' => [[
+                'value' => 'Quartz',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // SHAPE
-            "item_shape" => [[
-                "value" => "Round",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_shape' => [[
+                'value' => 'Round',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // EDITION
-            "edition" => [[
-                "value" => "Standard Edition",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'edition' => [[
+                'value' => 'Standard Edition',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // POWER SOURCE
-            "power_source_type" => [[
-                "value" => "Battery Powered",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'power_source_type' => [[
+                'value' => 'Battery Powered',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // INCLUDED COMPONENTS
-            "included_components" => [[
-                "value" => "Watch",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Watch',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // WARRANTY DESCRIPTION
-            "warranty_description" => [[
-                "value" => "1 Year Manufacturer Warranty",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'warranty_description' => [[
+                'value' => '1 Year Manufacturer Warranty',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BATTERY FLAGS
-            "batteries_required" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_included" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_included' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // CONDITION
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PRICE
-            "list_price" => [[
-                "value" => (float) $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => (float) $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // INVENTORY
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => (int) $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => (int) $qty
             ]],
             // MAIN IMAGE
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // COUNTRY
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DG/HZ
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]]
         ];
         // EXTRA IMAGES
@@ -4997,13 +5042,14 @@ class AmazonService
             if ($index === 0 || $index > 8) {
                 continue;
             }
-            $payload["other_product_image_locator_" . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+            $payload['other_product_image_locator_' . $index] = [[
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function watchVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -5015,9 +5061,9 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error('NO WATCH VARIANTS FOUND', [
-                    'product_id' => $product->id
-                ]);
+                // LOG::error('NO WATCH VARIANTS FOUND', [
+                //     'product_id' => $product->id
+                // ]);
                 return false;
             }
             // Parent SKU
@@ -5055,12 +5101,12 @@ class AmazonService
             }
             // Parent relationship
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             // Upload parent
             $parentResponse = $this->putListing(
@@ -5078,21 +5124,21 @@ class AmazonService
             $isAccepted = (
                 $parentBody->status ?? null
             ) === 'ACCEPTED';
-            LOG::info('WATCH PARENT RESPONSE', [
-                'sku' => $parentSku,
-                'status' => $parentBody->status ?? null,
-                'issues' => $parentBody->issues ?? [],
-            ]);
+            // LOG::info('WATCH PARENT RESPONSE', [
+            //     'sku' => $parentSku,
+            //     'status' => $parentBody->status ?? null,
+            //     'issues' => $parentBody->issues ?? [],
+            // ]);
             // CHILD VARIANTS
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? ('WATCH-' . $variant['id'])
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price'] ?? 0
                 );
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity'] ?? 0
                 );
                 // Shopify option1 = Color
@@ -5135,40 +5181,40 @@ class AmazonService
                 // Add variant image
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
                 // PRICE
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // INVENTORY
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 // Variant Color
                 $childPayload['color'] = [[
-                    "value" => ucfirst($color),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => ucfirst($color),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // CHILD RELATIONSHIP
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Upload child
                 $childResponse = $this->putListing(
@@ -5184,16 +5230,16 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info('WATCH CHILD RESPONSE', [
-                    'sku' => $sku,
-                    'status' => $childBody->status ?? null,
-                    'issues' => $childBody->issues ?? [],
-                ]);
+                // LOG::info('WATCH CHILD RESPONSE', [
+                //     'sku' => $sku,
+                //     'status' => $childBody->status ?? null,
+                //     'issues' => $childBody->issues ?? [],
+                // ]);
             }
             // Update sync status
             $product->update([
@@ -5213,11 +5259,11 @@ class AmazonService
                 'message' => 'Amazon watch variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error('WATCH VARIANT UPLOAD FAILED', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // LOG::error('WATCH VARIANT UPLOAD FAILED', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
             ProductSyncLog::create([
                 'product_id' => $product->id,
                 'shop_id' => $shop->id,
@@ -5232,6 +5278,7 @@ class AmazonService
             ]);
         }
     }
+
     public function cameraFullPayload($product, $amazon)  // 9
     {
         $variants = $this->parseJsonField($product->variants);
@@ -5259,178 +5306,178 @@ class AmazonService
         );
         $payload = [
             // TITLE
-            "item_name" => [[
-                "value" => substr(trim($cleanTitle), 0, 200),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_name' => [[
+                'value' => substr(trim($cleanTitle), 0, 200),
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BRAND
-            "brand" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // GTIN EXEMPTION
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PRODUCT TYPE
-            "item_type_keyword" => [[
-                "value" => "CAMERA",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'CAMERA',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MODEL
-            "model_number" => [[
-                "value" => "CAM-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'CAM-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MANUFACTURER
-            "manufacturer" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DESCRIPTION
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'High quality digital camera.'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BULLET POINTS
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($b) => [
-                    "value" => substr($b, 0, 200),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($b, 0, 200),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
             // SEARCH TERMS
-            "generic_keyword" => [[
-                "value" => substr(
+            'generic_keyword' => [[
+                'value' => substr(
                     implode(' ', $searchTerms),
                     0,
                     250
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // COLOR
-            "color" => [[
-                "value" => "Black",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Black',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // SIZE
-            "size" => [[
-                "value" => "Standard",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'size' => [[
+                'value' => 'Standard',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PART NUMBER
-            "part_number" => [[
-                "value" => "CAM-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'CAM-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // INCLUDED COMPONENTS
-            "included_components" => [[
-                "value" => "Camera",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Camera',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // ITEM COUNT
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PACKAGE QUANTITY
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BATTERY FLAGS
-            "batteries_required" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_included" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_included' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // RECHARGEABLE BATTERY
-            "includes_rechargable_battery" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'includes_rechargable_battery' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // MULTIPLE BATTERY COMPONENTS
-            "has_multiple_battery_powered_components" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'has_multiple_battery_powered_components' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BATTERY INSTALLATION
-            "battery_installation_device_type" => [[
-                "value" => "not_installed",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'battery_installation_device_type' => [[
+                'value' => 'not_installed',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BATTERY COUNT
-            "num_batteries" => [[
-                "quantity" => 1,
-                "type" => "aa",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'num_batteries' => [[
+                'quantity' => 1,
+                'type' => 'aa',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BATTERY DETAILS
-            "battery" => [[
-                "cell_composition" => [[
-                    "value" => "alkaline",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+            'battery' => [[
+                'cell_composition' => [[
+                    'value' => 'alkaline',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // BATTERY PACKAGING
-            "non_lithium_battery_packaging" => [[
-                "value" => "batteries_contained_in_equipment",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'non_lithium_battery_packaging' => [[
+                'value' => 'batteries_contained_in_equipment',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // WARRANTY
-            "warranty_description" => [[
-                "value" => "1 Year Manufacturer Warranty",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'warranty_description' => [[
+                'value' => '1 Year Manufacturer Warranty',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // CONDITION
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // PRICE
-            "list_price" => [[
-                "value" => (float) $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => (float) $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // INVENTORY
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => (int) $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => (int) $qty
             ]],
             // MAIN IMAGE
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // COUNTRY
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DG/HZ
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]]
         ];
         // EXTRA IMAGES
@@ -5438,13 +5485,14 @@ class AmazonService
             if ($index === 0 || $index > 8) {
                 continue;
             }
-            $payload["other_product_image_locator_" . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+            $payload['other_product_image_locator_' . $index] = [[
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function cameraVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -5456,9 +5504,9 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error('NO CAMERA VARIANTS FOUND', [
-                    'product_id' => $product->id
-                ]);
+                // LOG::error('NO CAMERA VARIANTS FOUND', [
+                //     'product_id' => $product->id
+                // ]);
                 return false;
             }
             // Parent SKU
@@ -5496,12 +5544,12 @@ class AmazonService
             }
             // Parent relationship
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             // Upload parent
             $parentResponse = $this->putListing(
@@ -5519,21 +5567,21 @@ class AmazonService
             $isAccepted = (
                 $parentBody->status ?? null
             ) === 'ACCEPTED';
-            LOG::info('CAMERA PARENT RESPONSE', [
-                'sku' => $parentSku,
-                'status' => $parentBody->status ?? null,
-                'issues' => $parentBody->issues ?? [],
-            ]);
+            // LOG::info('CAMERA PARENT RESPONSE', [
+            //     'sku' => $parentSku,
+            //     'status' => $parentBody->status ?? null,
+            //     'issues' => $parentBody->issues ?? [],
+            // ]);
             // CHILD VARIANTS
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? ('CAMERA-' . $variant['id'])
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price'] ?? 0
                 );
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity'] ?? 0
                 );
                 // Shopify option1 = Color
@@ -5576,40 +5624,40 @@ class AmazonService
                 // Add variant image
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
                 // PRICE
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // INVENTORY
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 // Variant Color
                 $childPayload['color'] = [[
-                    "value" => ucfirst($color),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => ucfirst($color),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // CHILD RELATIONSHIP
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Upload child
                 $childResponse = $this->putListing(
@@ -5625,16 +5673,16 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info('CAMERA CHILD RESPONSE', [
-                    'sku' => $sku,
-                    'status' => $childBody->status ?? null,
-                    'issues' => $childBody->issues ?? [],
-                ]);
+                // LOG::info('CAMERA CHILD RESPONSE', [
+                //     'sku' => $sku,
+                //     'status' => $childBody->status ?? null,
+                //     'issues' => $childBody->issues ?? [],
+                // ]);
             }
             // Update sync status
             $product->update([
@@ -5654,11 +5702,11 @@ class AmazonService
                 'message' => 'Amazon camera variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error('CAMERA VARIANT UPLOAD FAILED', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // LOG::error('CAMERA VARIANT UPLOAD FAILED', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
             ProductSyncLog::create([
                 'product_id' => $product->id,
                 'shop_id' => $shop->id,
@@ -5673,7 +5721,8 @@ class AmazonService
             ]);
         }
     }
-    public function monitorFullPayload($product, $amazon) // 10
+
+    public function monitorFullPayload($product, $amazon)  // 10
     {
         $variants = $this->parseJsonField($product->variants);
         $images = $this->parseJsonField($product->images);
@@ -5681,8 +5730,8 @@ class AmazonService
         // Dynamic Price
         $price = (float) (
             $variant['price']
-            ?? $product->price
-            ?? 199.99
+                ?? $product->price
+                ?? 199.99
         );
         if ($price <= 1) {
             $price = 199.99;
@@ -5690,7 +5739,7 @@ class AmazonService
         // Quantity
         $qty = (int) (
             $variant['inventory_quantity']
-            ?? 10
+                ?? 10
         );
         // Main Image
         $image = $images[0]['src']
@@ -5704,258 +5753,258 @@ class AmazonService
         );
         $payload = [
             // Title
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title),
                     0,
                     200
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Brand
-            "brand" => [[
-                "value" => "ZEBRONICS",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'ZEBRONICS',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Manufacturer
-            "manufacturer" => [[
-                "value" => "ZEBRONICS",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'ZEBRONICS',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // GTIN Exemption
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Product Type
-            "item_type_keyword" => [[
-                "value" => "computer-monitors",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'computer-monitors',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Model
-            "model_number" => [[
-                "value" => "ZEB-V19HD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'ZEB-V19HD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "18.5 Inch LED Monitor",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => '18.5 Inch LED Monitor',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Description
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'HD LED monitor with HDMI and VGA support.'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Bullet Points
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($point) => [
-                    "value" => substr($point, 0, 200),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($point, 0, 200),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
             // Search Terms
-            "generic_keyword" => [[
-                "value" => substr(
+            'generic_keyword' => [[
+                'value' => substr(
                     implode(' ', $searchTerms),
                     0,
                     250
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Style
-            "style" => [[
-                "value" => "Modern",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'style' => [[
+                'value' => 'Modern',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Material
-            "material" => [[
-                "value" => "Plastic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'material' => [[
+                'value' => 'Plastic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Item Count
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "unit_count" => [[
-                "value" => 1,
-                "unit" => "count",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'unit_count' => [[
+                'value' => 1,
+                'unit' => 'count',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Display
-            "display" => [[
-                "size" => [[
-                    "value" => 18.5,
-                    "unit" => "inches"
+            'display' => [[
+                'size' => [[
+                    'value' => 18.5,
+                    'unit' => 'inches'
                 ]],
-                "resolution_maximum" => [[
-                    "value" => "1366 x 768"
+                'resolution_maximum' => [[
+                    'value' => '1366 x 768'
                 ]],
-                "technology" => [[
-                    "value" => "LED"
+                'technology' => [[
+                    'value' => 'LED'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "resolution" => [[
-                "value" => "HD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'resolution' => [[
+                'value' => 'HD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Color
-            "color" => [[
-                "value" => "Black",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Black',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Size
-            "size" => [[
-                "value" => "18.5 Inch",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'size' => [[
+                'value' => '18.5 Inch',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Part Number
-            "part_number" => [[
-                "value" => "ZEB-V19HD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'ZEB-V19HD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Shape
-            "item_shape" => [[
-                "value" => "Rectangular",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_shape' => [[
+                'value' => 'Rectangular',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Horizontal Resolution
-            "max_horizontal_resolution" => [[
-                "value" => 1366,
-                "unit" => "pixels",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'max_horizontal_resolution' => [[
+                'value' => 1366,
+                'unit' => 'pixels',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Vertical Resolution
-            "max_vertical_resolution" => [[
-                "value" => 768,
-                "unit" => "pixels",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'max_vertical_resolution' => [[
+                'value' => 768,
+                'unit' => 'pixels',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Refresh Rate
-            "refresh_rate" => [[
-                "value" => 60,
-                "unit" => "hertz",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'refresh_rate' => [[
+                'value' => 60,
+                'unit' => 'hertz',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Aspect Ratio
-            "aspect_ratio" => [[
-                "value" => "16:9",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'aspect_ratio' => [[
+                'value' => '16:9',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Image Aspect Ratio
-            "image_aspect_ratio" => [[
-                "value" => "16:9",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'image_aspect_ratio' => [[
+                'value' => '16:9',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Response Time
-            "response_time" => [[
-                "value" => 5,
-                "unit" => "milliseconds",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'response_time' => [[
+                'value' => 5,
+                'unit' => 'milliseconds',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Screen Surface
-            "screen_surface_description" => [[
-                "value" => "Glossy",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'screen_surface_description' => [[
+                'value' => 'Glossy',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Item Dimensions
-            "item_depth_width_height" => [[
-                "depth" => [
-                    "value" => 7,
-                    "unit" => "inches"
+            'item_depth_width_height' => [[
+                'depth' => [
+                    'value' => 7,
+                    'unit' => 'inches'
                 ],
-                "width" => [
-                    "value" => 17,
-                    "unit" => "inches"
+                'width' => [
+                    'value' => 17,
+                    'unit' => 'inches'
                 ],
-                "height" => [
-                    "value" => 13,
-                    "unit" => "inches"
+                'height' => [
+                    'value' => 13,
+                    'unit' => 'inches'
                 ],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Compatible Devices
-            "compatible_devices" => [[
-                "value" => "Laptop, PC",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'compatible_devices' => [[
+                'value' => 'Laptop, PC',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Included Components
-            "included_components" => [[
-                "value" => "Monitor, HDMI Cable, Power Cable, User Manual",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Monitor, HDMI Cable, Power Cable, User Manual',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Warranty
-            "warranty_description" => [[
-                "value" => "1 Year Manufacturer Warranty",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'warranty_description' => [[
+                'value' => '1 Year Manufacturer Warranty',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Batteries
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_included" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_included' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "has_multiple_battery_powered_components" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'has_multiple_battery_powered_components' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Condition
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Price
-            "list_price" => [[
-                "value" => $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Inventory
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => $qty
             ]],
             // Main Image
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Country
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DG/HZ
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]]
         ];
         // Extra Images
@@ -5963,13 +6012,14 @@ class AmazonService
             if ($index === 0 || $index > 8) {
                 continue;
             }
-            $payload["other_product_image_locator_" . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+            $payload['other_product_image_locator_' . $index] = [[
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function monitorVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -5981,9 +6031,9 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error('NO MONITOR VARIANTS FOUND', [
-                    'product_id' => $product->id
-                ]);
+                // LOG::error('NO MONITOR VARIANTS FOUND', [
+                //     'product_id' => $product->id
+                // ]);
                 return false;
             }
             // Parent SKU
@@ -6021,12 +6071,12 @@ class AmazonService
             }
             // Parent Relationship
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             // Upload Parent
             $parentResponse = $this->putListing(
@@ -6044,11 +6094,11 @@ class AmazonService
             $isAccepted = (
                 $parentBody->status ?? null
             ) === 'ACCEPTED';
-            LOG::info('MONITOR PARENT RESPONSE', [
-                'sku' => $parentSku,
-                'status' => $parentBody->status ?? null,
-                'issues' => $parentBody->issues ?? [],
-            ]);
+            // LOG::info('MONITOR PARENT RESPONSE', [
+            //     'sku' => $parentSku,
+            //     'status' => $parentBody->status ?? null,
+            //     'issues' => $parentBody->issues ?? [],
+            // ]);
             // CHILD VARIANTS
             foreach ($variants as $variant) {
                 $sku = trim(
@@ -6056,18 +6106,18 @@ class AmazonService
                         ?? ('MONITOR-' . $variant['id'])
                 );
                 // Dynamic Price
-                $price = (float)(
+                $price = (float) (
                     $variant['price']
-                    ?? $product->price
-                    ?? 199.99
+                        ?? $product->price
+                        ?? 199.99
                 );
                 if ($price <= 1) {
                     $price = 199.99;
                 }
                 // Quantity
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity']
-                    ?? 0
+                        ?? 0
                 );
                 // Shopify option1 = Color
                 $color = trim(
@@ -6110,40 +6160,40 @@ class AmazonService
                 // Add Variant Image
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
                 // Price
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Inventory
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 // Variant Color
                 $childPayload['color'] = [[
-                    "value" => ucfirst($color),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => ucfirst($color),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Child Relationship
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 // Upload Child
                 $childResponse = $this->putListing(
@@ -6159,16 +6209,16 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info('MONITOR CHILD RESPONSE', [
-                    'sku' => $sku,
-                    'status' => $childBody->status ?? null,
-                    'issues' => $childBody->issues ?? [],
-                ]);
+                // LOG::info('MONITOR CHILD RESPONSE', [
+                //     'sku' => $sku,
+                //     'status' => $childBody->status ?? null,
+                //     'issues' => $childBody->issues ?? [],
+                // ]);
             }
             // Update sync status
             $product->update([
@@ -6188,11 +6238,11 @@ class AmazonService
                 'message' => 'Amazon monitor variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error('MONITOR VARIANT UPLOAD FAILED', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // LOG::error('MONITOR VARIANT UPLOAD FAILED', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
             ProductSyncLog::create([
                 'product_id' => $product->id,
                 'shop_id' => $shop->id,
@@ -6207,22 +6257,23 @@ class AmazonService
             ]);
         }
     }
-    public function notebookComputerFullPayload($product, $amazon) // 11
+
+    public function notebookComputerFullPayload($product, $amazon)  // 11
     {
         $variants = $this->parseJsonField($product->variants);
         $images = $this->parseJsonField($product->images);
         $variant = $variants[0] ?? [];
         $price = (float) (
             $variant['price']
-            ?? $product->price
-            ?? 999.99
+                ?? $product->price
+                ?? 999.99
         );
         if ($price <= 1) {
             $price = 999.99;
         }
         $qty = (int) (
             $variant['inventory_quantity']
-            ?? 10
+                ?? 10
         );
         $image = $images[0]['src']
             ?? 'https://via.placeholder.com/500';
@@ -6231,256 +6282,257 @@ class AmazonService
         );
         $payload = [
             // REQUIRED
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title),
                     0,
                     200
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value" => "HP",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'HP',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_type_keyword" => [[
-                "value" => "standard-laptop-computers",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'standard-laptop-computers',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Notebook Computer'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($point) => [
-                    "value" => substr($point, 0, 500),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($point, 0, 500),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // RECOMMENDED
-            "manufacturer" => [[
-                "value" => "HP",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'HP',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_number" => [[
-                "value" => "HP15-I5",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'HP15-I5',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "HP Notebook",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'HP Notebook',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "color" => [[
-                "value" => "Silver",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Silver',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "list_price" => [[
-                "value" => $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => $qty
             ]],
-            "graphics_processor_manufacturer" => [[
-                "value" => "NVIDIA",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'graphics_processor_manufacturer' => [[
+                'value' => 'NVIDIA',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "version_for_country" => [[
-                "value" => "US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'version_for_country' => [[
+                'value' => 'US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "cpu_model" => [[
-                "manufacturer" => [[
-                    "value" => "Intel"
+            'cpu_model' => [[
+                'manufacturer' => [[
+                    'value' => 'Intel'
                 ]],
-                "model_number" => [[
-                    "value" => "i7-13700HX"
+                'model_number' => [[
+                    'value' => 'i7-13700HX'
                 ]],
-                "family" => [[
-                    "value" => "core_i7"
+                'family' => [[
+                    'value' => 'core_i7'
                 ]],
-                "speed" => [[
-                    "value" => 2.1,
-                    "unit" => "GHz"
+                'speed' => [[
+                    'value' => 2.1,
+                    'unit' => 'GHz'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "processor_count" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'processor_count' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "operating_system" => [[
-                "value" => "Windows 11",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'operating_system' => [[
+                'value' => 'Windows 11',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "display" => [[
-                "type" => [[
-                    "value" => "LED",
-                    "language_tag" => "en_US"
+            'display' => [[
+                'type' => [[
+                    'value' => 'LED',
+                    'language_tag' => 'en_US'
                 ]],
-                "technology" => [[
-                    "value" => "LCD",
-                    "language_tag" => "en_US"
+                'technology' => [[
+                    'value' => 'LCD',
+                    'language_tag' => 'en_US'
                 ]],
-                "size" => [[
-                    "value" => 15.6,
-                    "unit" => "inches"
+                'size' => [[
+                    'value' => 15.6,
+                    'unit' => 'inches'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "graphics_description" => [[
-                "value" => "Dedicated",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'graphics_description' => [[
+                'value' => 'Dedicated',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "graphics_ram" => [[
-                "size" => [[
-                    "value" => 8,
-                    "unit" => "GB"
+            'graphics_ram' => [[
+                'size' => [[
+                    'value' => 8,
+                    'unit' => 'GB'
                 ]],
-                "type" => [[
-                    "value" => "gddr6"
+                'type' => [[
+                    'value' => 'gddr6'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "graphics_card_interface" => [[
-                "value" => "pci_e",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'graphics_card_interface' => [[
+                'value' => 'pci_e',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_display_weight" => [[
-                "value" => 2.4,
-                "unit" => "kilograms",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_display_weight' => [[
+                'value' => 2.4,
+                'unit' => 'kilograms',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_length_width_thickness" => [[
-                "length" => [
-                    "value" => 14.1,
-                    "unit" => "inches"
+            'item_length_width_thickness' => [[
+                'length' => [
+                    'value' => 14.1,
+                    'unit' => 'inches'
                 ],
-                "width" => [
-                    "value" => 10.2,
-                    "unit" => "inches"
+                'width' => [
+                    'value' => 10.2,
+                    'unit' => 'inches'
                 ],
-                "thickness" => [
-                    "value" => 0.95,
-                    "unit" => "inches"
+                'thickness' => [
+                    'value' => 0.95,
+                    'unit' => 'inches'
                 ],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "ram_memory" => [[
-                "installed_size" => [[
-                    "value" => 16,
-                    "unit" => "GB"
+            'ram_memory' => [[
+                'installed_size' => [[
+                    'value' => 16,
+                    'unit' => 'GB'
                 ]],
-                "maximum_size" => [[
-                    "value" => 32,
-                    "unit" => "GB"
+                'maximum_size' => [[
+                    'value' => 32,
+                    'unit' => 'GB'
                 ]],
-                "technology" => [[
-                    "value" => "DDR5",
-                    "language_tag" => "en_US"
+                'technology' => [[
+                    'value' => 'DDR5',
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "flash_memory" => [[
-                "installed_size" => [[
-                    "value" => 1024,
-                    "unit" => "GB"
+            'flash_memory' => [[
+                'installed_size' => [[
+                    'value' => 1024,
+                    'unit' => 'GB'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "hard_disk" => [[
-                "description" => [[
-                    "value" => "SSD"
+            'hard_disk' => [[
+                'description' => [[
+                    'value' => 'SSD'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "included_components" => [[
-                "value" => "Laptop, Power Adapter, User Manual",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Laptop, Power Adapter, User Manual',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "warranty_description" => [[
-                "value" => "1 Year Manufacturer Warranty",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'warranty_description' => [[
+                'value' => '1 Year Manufacturer Warranty',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "modified_product" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'modified_product' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "specific_uses_for_product" => [[
-                "value" => "Gaming",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'specific_uses_for_product' => [[
+                'value' => 'Gaming',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "target_region" => [[
-                "value" => "Global",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'target_region' => [[
+                'value' => 'Global',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "total_usb_3_0_ports" => [[
-                "value" => 3,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'total_usb_3_0_ports' => [[
+                'value' => 3,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "total_usb_2_0_ports" => [[
-                "value" => 0,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'total_usb_2_0_ports' => [[
+                'value' => 0,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_year" => [[
-                "value" => 2025,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_year' => [[
+                'value' => 2025,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
         ];
         foreach ($images as $index => $img) {
             if ($index === 0 || $index > 8) {
                 continue;
             }
-            $payload["other_product_image_locator_" . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+            $payload['other_product_image_locator_' . $index] = [[
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function notebookComputerVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -6492,12 +6544,12 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error(
-                    'NO NOTEBOOK VARIANTS FOUND',
-                    [
-                        'product_id' => $product->id
-                    ]
-                );
+                // LOG::error(
+                //     'NO NOTEBOOK VARIANTS FOUND',
+                //     [
+                //         'product_id' => $product->id
+                //     ]
+                // );
                 return false;
             }
             $parentSku = DB::table('amazon_products')
@@ -6539,12 +6591,12 @@ class AmazonService
                 }
             }
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentResponse = $this->putListing(
                 $shop,
@@ -6559,35 +6611,35 @@ class AmazonService
                 ? $parentResponse->dto()
                 : null;
             $isAccepted =
-                ($parentBody->status ?? null)
-                === 'ACCEPTED';
-            LOG::info(
-                'NOTEBOOK PARENT RESPONSE',
-                [
-                    'sku' => $parentSku,
-                    'status' => $parentBody->status ?? null,
-                    'issues' => $parentBody->issues ?? [],
-                ]
-            );
+                ($parentBody->status ?? null) ===
+                'ACCEPTED';
+            // LOG::info(
+            //     'NOTEBOOK PARENT RESPONSE',
+            //     [
+            //         'sku' => $parentSku,
+            //         'status' => $parentBody->status ?? null,
+            //         'issues' => $parentBody->issues ?? [],
+            //     ]
+            // );
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? (
-                            'NOTEBOOK-' .
-                            $variant['id']
+                            'NOTEBOOK-'
+                            . $variant['id']
                         )
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price']
-                    ?? $product->price
-                    ?? 999.99
+                        ?? $product->price
+                        ?? 999.99
                 );
                 if ($price <= 1) {
                     $price = 999.99;
                 }
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity']
-                    ?? 0
+                        ?? 0
                 );
                 $color = trim(
                     $variant['option1']
@@ -6618,8 +6670,7 @@ class AmazonService
                 $variantImage = null;
                 foreach ($images as $img) {
                     if (
-                        !empty($img['variant_ids'])
-                        &&
+                        !empty($img['variant_ids']) &&
                         in_array(
                             $variant['id'],
                             $img['variant_ids']
@@ -6632,49 +6683,49 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" =>
-                        $variantImage,
-                        "marketplace_id" =>
-                        "ATVPDKIKX0DER"
+                        'media_location' =>
+                            $variantImage,
+                        'marketplace_id' =>
+                            'ATVPDKIKX0DER'
                     ]];
                 }
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code"
-                    => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' =>
+                        'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 $childPayload['color'] = [[
-                    "value" => ucfirst(
+                    'value' => ucfirst(
                         $color
                     ),
-                    "language_tag" =>
-                    "en_US",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'language_tag' =>
+                        'en_US',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" =>
-                    $parentSku,
-                    "child_relationship_type" =>
-                    "variation",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'parent_sku' =>
+                        $parentSku,
+                    'child_relationship_type' =>
+                        'variation',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childResponse = $this->putListing(
                     $shop,
@@ -6689,25 +6740,25 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info(
-                    'NOTEBOOK CHILD RESPONSE',
-                    [
-                        'sku' => $sku,
-                        'status' => $childBody->status ?? null,
-                        'issues' => $childBody->issues ?? [],
-                    ]
-                );
+                // LOG::info(
+                //     'NOTEBOOK CHILD RESPONSE',
+                //     [
+                //         'sku' => $sku,
+                //         'status' => $childBody->status ?? null,
+                //         'issues' => $childBody->issues ?? [],
+                //     ]
+                // );
             }
             $product->update([
                 'synced_to_amazon' =>
-                $isAccepted ? 1 : 0,
+                    $isAccepted ? 1 : 0,
                 'needs_resync' =>
-                $isAccepted ? 0 : 1
+                    $isAccepted ? 0 : 1
             ]);
             ProductSyncLog::create([
                 'product_id' => $product->id,
@@ -6715,30 +6766,30 @@ class AmazonService
                 'platform' => 'amazon',
                 'status' => 'success',
                 'message' =>
-                'Amazon notebook variation sync successful',
+                    'Amazon notebook variation sync successful',
                 'type' => 'product'
             ]);
             return response()->json([
                 'success' => true,
                 'message' =>
-                'Amazon notebook variation sync successful'
+                    'Amazon notebook variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error(
-                'NOTEBOOK VARIANT UPLOAD FAILED',
-                [
-                    'error' => $e->getMessage(),
-                    'line' => $e->getLine(),
-                    'file' => $e->getFile(),
-                ]
-            );
+            // LOG::error(
+            //     'NOTEBOOK VARIANT UPLOAD FAILED',
+            //     [
+            //         'error' => $e->getMessage(),
+            //         'line' => $e->getLine(),
+            //         'file' => $e->getFile(),
+            //     ]
+            // );
             ProductSyncLog::create([
                 'product_id' => $product->id,
                 'shop_id' => $shop->id,
                 'platform' => 'amazon',
                 'status' => 'error',
                 'error_message' =>
-                $e->getMessage(),
+                    $e->getMessage(),
                 'type' => 'product'
             ]);
             return response()->json([
@@ -6747,7 +6798,8 @@ class AmazonService
             ]);
         }
     }
-    public function footwearFullPayload($product, $amazon) // 12
+
+    public function footwearFullPayload($product, $amazon)  // 12
     {
         $variants = $this->parseJsonField(
             $product->variants
@@ -6756,17 +6808,17 @@ class AmazonService
             $product->images
         );
         $variant = $variants[0] ?? [];
-        $price = (float)(
+        $price = (float) (
             $variant['price']
-            ?? $product->price
-            ?? 99.99
+                ?? $product->price
+                ?? 99.99
         );
         if ($price <= 1) {
             $price = 99.99;
         }
-        $qty = (int)(
+        $qty = (int) (
             $variant['inventory_quantity']
-            ?? 10
+                ?? 10
         );
         $image = $images[0]['src']
             ?? 'https://via.placeholder.com/500';
@@ -6774,179 +6826,179 @@ class AmazonService
             $amazon->bullet_points
         );
         $payload = [
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title),
                     0,
                     250
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value" => "Nike",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Nike',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_type_keyword" => [[
-                "value" => "road-running-shoes",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'road-running-shoes',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Footwear'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "bullet_point" => collect(
+            'bullet_point' => collect(
                 $bulletPoints
             )->map(fn($point) => [
-                "value" => substr(
+                'value' => substr(
                     $point,
                     0,
                     500
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ])->values()->toArray(),
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "manufacturer" => [[
-                "value" => "Nike",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Nike',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_number" => [[
-                "value" => "NK-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'NK-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "Running Shoe",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'Running Shoe',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "style" => [[
-                "value" => "Sport",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'style' => [[
+                'value' => 'Sport',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "target_gender" => [[
-                "value" => "male",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'target_gender' => [[
+                'value' => 'male',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "age_range_description" => [[
-                "value" => "Adult",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'age_range_description' => [[
+                'value' => 'Adult',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "material" => [[
-                "value" => "Polyester",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'material' => [[
+                'value' => 'Polyester',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "color" => [[
-                "value" => "Black",
-                "standardized_values" => [
-                    "Black"
+            'color' => [[
+                'value' => 'Black',
+                'standardized_values' => [
+                    'Black'
                 ],
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "size" => [[
-                "value" => "9",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'size' => [[
+                'value' => '9',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "footwear_size" => [[
-                "size_system" =>
-                "us_footwear_size_system",
-                "size_class" =>
-                "numeric",
-                "size" =>
-                "numeric_9",
-                "gender" =>
-                "men",
-                "age_group" =>
-                "adult",
-                "width" =>
-                "medium",
-                "marketplace_id" =>
-                "ATVPDKIKX0DER"
+            'footwear_size' => [[
+                'size_system' =>
+                    'us_footwear_size_system',
+                'size_class' =>
+                    'numeric',
+                'size' =>
+                    'numeric_9',
+                'gender' =>
+                    'men',
+                'age_group' =>
+                    'adult',
+                'width' =>
+                    'medium',
+                'marketplace_id' =>
+                    'ATVPDKIKX0DER'
             ]],
-            "water_resistance_level" => [[
-                "value" => "water_resistant",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'water_resistance_level' => [[
+                'value' => 'water_resistant',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "list_price" => [[
-                "value" => $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => $qty
             ]],
-            "closure" => [[
-                "type" => [[
-                    "value" => "Lace-Up",
-                    "language_tag" => "en_US"
+            'closure' => [[
+                'type' => [[
+                    'value' => 'Lace-Up',
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "sole_material" => [[
-                "value" => "rubber",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'sole_material' => [[
+                'value' => 'rubber',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "cpsia_cautionary_statement" => [[
-                "value" => "no_warning_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'cpsia_cautionary_statement' => [[
+                'value' => 'no_warning_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "heel" => [[
-                "type" => [[
-                    "value" => "flat"
+            'heel' => [[
+                'type' => [[
+                    'value' => 'flat'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "height_map" => [[
-                "value" => "low_top",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'height_map' => [[
+                'value' => 'low_top',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "contains_battery_or_cell" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'contains_battery_or_cell' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_included" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_included' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
         ];
         foreach ($images as $index => $img) {
@@ -6956,16 +7008,17 @@ class AmazonService
             ) {
                 continue;
             }
-            $payload['other_product_image_locator_' .
-                $index] = [[
-                "media_location" =>
-                $img['src'],
-                "marketplace_id" =>
-                "ATVPDKIKX0DER"
+            $payload['other_product_image_locator_'
+                    . $index] = [[
+                'media_location' =>
+                    $img['src'],
+                'marketplace_id' =>
+                    'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function footwearVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -6977,12 +7030,12 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error(
-                    'NO FOOTWEAR VARIANTS FOUND',
-                    [
-                        'product_id' => $product->id
-                    ]
-                );
+                // LOG::error(
+                //     'NO FOOTWEAR VARIANTS FOUND',
+                //     [
+                //         'product_id' => $product->id
+                //     ]
+                // );
                 return false;
             }
             $parentSku = DB::table('amazon_products')
@@ -7019,12 +7072,12 @@ class AmazonService
                 }
             }
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentResponse = $this->putListing(
                 $shop,
@@ -7041,34 +7094,34 @@ class AmazonService
             $isAccepted = (
                 $parentBody->status ?? null
             ) === 'ACCEPTED';
-            LOG::info(
-                'FOOTWEAR PARENT RESPONSE',
-                [
-                    'sku' => $parentSku,
-                    'status' => $parentBody->status ?? null,
-                    'issues' => $parentBody->issues ?? [],
-                ]
-            );
+            // LOG::info(
+            //     'FOOTWEAR PARENT RESPONSE',
+            //     [
+            //         'sku' => $parentSku,
+            //         'status' => $parentBody->status ?? null,
+            //         'issues' => $parentBody->issues ?? [],
+            //     ]
+            // );
             // CHILD VARIANTS
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? (
-                            'FOOTWEAR-' .
-                            $variant['id']
+                            'FOOTWEAR-'
+                            . $variant['id']
                         )
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price']
-                    ?? $product->price
-                    ?? 99.99
+                        ?? $product->price
+                        ?? 99.99
                 );
                 if ($price <= 1) {
                     $price = 99.99;
                 }
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity']
-                    ?? 0
+                        ?? 0
                 );
                 $color = trim(
                     $variant['option1']
@@ -7095,8 +7148,7 @@ class AmazonService
                 $variantImage = null;
                 foreach ($images as $img) {
                     if (
-                        !empty($img['variant_ids'])
-                        &&
+                        !empty($img['variant_ids']) &&
                         in_array(
                             $variant['id'],
                             $img['variant_ids']
@@ -7109,52 +7161,52 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" =>
-                        $variantImage,
-                        "marketplace_id" =>
-                        "ATVPDKIKX0DER"
+                        'media_location' =>
+                            $variantImage,
+                        'marketplace_id' =>
+                            'ATVPDKIKX0DER'
                     ]];
                 }
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" =>
-                    "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' =>
+                        'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 $childPayload['color'] = [[
-                    "value" => ucfirst(
+                    'value' => ucfirst(
                         $color
                     ),
-                    "standardized_values" => [
+                    'standardized_values' => [
                         ucfirst($color)
                     ],
-                    "language_tag" =>
-                    "en_US",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'language_tag' =>
+                        'en_US',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" =>
-                    $parentSku,
-                    "child_relationship_type" =>
-                    "variation",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'parent_sku' =>
+                        $parentSku,
+                    'child_relationship_type' =>
+                        'variation',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childResponse = $this->putListing(
                     $shop,
@@ -7169,27 +7221,27 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info(
-                    'FOOTWEAR CHILD RESPONSE',
-                    [
-                        'sku' => $sku,
-                        'status' =>
-                        $childBody->status ?? null,
-                        'issues' =>
-                        $childBody->issues ?? [],
-                    ]
-                );
+                // LOG::info(
+                //     'FOOTWEAR CHILD RESPONSE',
+                //     [
+                //         'sku' => $sku,
+                //         'status' =>
+                //         $childBody->status ?? null,
+                //         'issues' =>
+                //         $childBody->issues ?? [],
+                //     ]
+                // );
             }
             $product->update([
                 'synced_to_amazon' =>
-                $isAccepted ? 1 : 0,
+                    $isAccepted ? 1 : 0,
                 'needs_resync' =>
-                $isAccepted ? 0 : 1
+                    $isAccepted ? 0 : 1
             ]);
             ProductSyncLog::create([
                 'product_id' => $product->id,
@@ -7197,30 +7249,30 @@ class AmazonService
                 'platform' => 'amazon',
                 'status' => 'success',
                 'message' =>
-                'Amazon footwear variation sync successful',
+                    'Amazon footwear variation sync successful',
                 'type' => 'product'
             ]);
             return response()->json([
                 'success' => true,
                 'message' =>
-                'Amazon footwear variation sync successful'
+                    'Amazon footwear variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error(
-                'FOOTWEAR VARIANT UPLOAD FAILED',
-                [
-                    'error' => $e->getMessage(),
-                    'line' => $e->getLine(),
-                    'file' => $e->getFile(),
-                ]
-            );
+            // LOG::error(
+            //     'FOOTWEAR VARIANT UPLOAD FAILED',
+            //     [
+            //         'error' => $e->getMessage(),
+            //         'line' => $e->getLine(),
+            //         'file' => $e->getFile(),
+            //     ]
+            // );
             ProductSyncLog::create([
                 'product_id' => $product->id,
                 'shop_id' => $shop->id,
                 'platform' => 'amazon',
                 'status' => 'error',
                 'error_message' =>
-                $e->getMessage(),
+                    $e->getMessage(),
                 'type' => 'product'
             ]);
             return response()->json([
@@ -7229,22 +7281,23 @@ class AmazonService
             ]);
         }
     }
-    public function handbagFullPayload($product, $amazon) // 13
+
+    public function handbagFullPayload($product, $amazon)  // 13
     {
         $variants = $this->parseJsonField($product->variants);
         $images = $this->parseJsonField($product->images);
         $variant = $variants[0] ?? [];
         $price = (float) (
             $variant['price']
-            ?? $product->price
-            ?? 29.99
+                ?? $product->price
+                ?? 29.99
         );
         if ($price <= 1) {
             $price = 29.99;
         }
         $qty = (int) (
             $variant['inventory_quantity']
-            ?? 10
+                ?? 10
         );
         $image = $images[0]['src']
             ?? 'https://via.placeholder.com/500';
@@ -7252,202 +7305,202 @@ class AmazonService
             $amazon->bullet_points
         );
         $payload = [
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title),
                     0,
                     125
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_type_keyword" => [[
-                "value" => "clutch-handbags",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'clutch-handbags',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Women Clutch Handbag'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($point) => [
-                    "value" => substr($point, 0, 500),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($point, 0, 500),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "manufacturer" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_number" => [[
-                "value" => "HB-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'HB-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "Designer Clutch",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'Designer Clutch',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "department" => [[
-                "value" => "Womens",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'department' => [[
+                'value' => 'Womens',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "target_gender" => [[
-                "value" => "female",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'target_gender' => [[
+                'value' => 'female',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "age_range_description" => [[
-                "value" => "Adult",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'age_range_description' => [[
+                'value' => 'Adult',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "style" => [[
-                "value" => "Evening",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'style' => [[
+                'value' => 'Evening',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "material" => [[
-                "value" => "Polyester",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'material' => [[
+                'value' => 'Polyester',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "lining_description" => [[
-                "value" => "Polyester",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'lining_description' => [[
+                'value' => 'Polyester',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "pattern_type" => [[
-                "value" => "Geometric",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'pattern_type' => [[
+                'value' => 'Geometric',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "special_feature" => [[
-                "value" => "Lightweight",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'special_feature' => [[
+                'value' => 'Lightweight',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "list_price" => [[
-                "value" => $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => $qty
             ]],
-            "size_info" => [[
-                "display_name" => [[
-                    "value" => "Medium",
-                    "language_tag" => "en_US"
+            'size_info' => [[
+                'display_name' => [[
+                    'value' => 'Medium',
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "seasons" => [[
-                "value" => "all_seasons",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'seasons' => [[
+                'value' => 'all_seasons',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "capacity" => [[
-                "value" => 1,
-                "unit" => "liters",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'capacity' => [[
+                'value' => 1,
+                'unit' => 'liters',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "color" => [[
-                "value" => "Blue",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Blue',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "inner" => [[
-                "material" => [[
-                    "value" => "Polyester",
-                    "language_tag" => "en_US"
+            'inner' => [[
+                'material' => [[
+                    'value' => 'Polyester',
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "outer" => [[
-                "material" => [[
-                    "value" => "Polyester",
-                    "language_tag" => "en_US"
+            'outer' => [[
+                'material' => [[
+                    'value' => 'Polyester',
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_compartments" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_compartments' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "import_designation" => [[
-                "value" => "imported",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'import_designation' => [[
+                'value' => 'imported',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "strap_type" => [[
-                "value" => "Chain Strap",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'strap_type' => [[
+                'value' => 'Chain Strap',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "closure" => [[
-                "type" => [[
-                    "value" => "Snap"
+            'closure' => [[
+                'type' => [[
+                    'value' => 'Snap'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_dimensions" => [[
-                "length" => [
-                    "value" => 12,
-                    "unit" => "centimeters"
+            'item_dimensions' => [[
+                'length' => [
+                    'value' => 12,
+                    'unit' => 'centimeters'
                 ],
-                "width" => [
-                    "value" => 5,
-                    "unit" => "centimeters"
+                'width' => [
+                    'value' => 5,
+                    'unit' => 'centimeters'
                 ],
-                "height" => [
-                    "value" => 30,
-                    "unit" => "centimeters"
+                'height' => [
+                    'value' => 30,
+                    'unit' => 'centimeters'
                 ],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
         ];
         foreach ($images as $index => $img) {
@@ -7455,12 +7508,13 @@ class AmazonService
                 continue;
             }
             $payload['other_product_image_locator_' . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function handbagVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -7472,12 +7526,12 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error(
-                    'NO HANDBAG VARIANTS FOUND',
-                    [
-                        'product_id' => $product->id
-                    ]
-                );
+                // LOG::error(
+                //     'NO HANDBAG VARIANTS FOUND',
+                //     [
+                //         'product_id' => $product->id
+                //     ]
+                // );
                 return false;
             }
             $parentSku = DB::table('amazon_products')
@@ -7515,12 +7569,12 @@ class AmazonService
             }
             // Parent Relation
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             // Upload Parent
             $parentResponse = $this->putListing(
@@ -7536,38 +7590,38 @@ class AmazonService
                 ? $parentResponse->dto()
                 : null;
             $isAccepted =
-                ($parentBody->status ?? null)
-                === 'ACCEPTED';
-            LOG::info(
-                'HANDBAG PARENT RESPONSE',
-                [
-                    'sku' => $parentSku,
-                    'status' =>
-                    $parentBody->status ?? null,
-                    'issues' =>
-                    $parentBody->issues ?? [],
-                ]
-            );
+                ($parentBody->status ?? null) ===
+                'ACCEPTED';
+            // LOG::info(
+            //     'HANDBAG PARENT RESPONSE',
+            //     [
+            //         'sku' => $parentSku,
+            //         'status' =>
+            //         $parentBody->status ?? null,
+            //         'issues' =>
+            //         $parentBody->issues ?? [],
+            //     ]
+            // );
             // Children
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? (
-                            'HANDBAG-' .
-                            $variant['id']
+                            'HANDBAG-'
+                            . $variant['id']
                         )
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price']
-                    ?? $product->price
-                    ?? 29.99
+                        ?? $product->price
+                        ?? 29.99
                 );
                 if ($price <= 1) {
                     $price = 29.99;
                 }
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity']
-                    ?? 0
+                        ?? 0
                 );
                 $color = trim(
                     $variant['option1']
@@ -7600,8 +7654,7 @@ class AmazonService
                 $variantImage = null;
                 foreach ($images as $img) {
                     if (
-                        !empty($img['variant_ids'])
-                        &&
+                        !empty($img['variant_ids']) &&
                         in_array(
                             $variant['id'],
                             $img['variant_ids']
@@ -7614,52 +7667,52 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" =>
-                        $variantImage,
-                        "marketplace_id" =>
-                        "ATVPDKIKX0DER"
+                        'media_location' =>
+                            $variantImage,
+                        'marketplace_id' =>
+                            'ATVPDKIKX0DER'
                     ]];
                 }
                 // Offer
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" =>
-                    "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' =>
+                        'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 // Color
                 $childPayload['color'] = [[
-                    "value" => ucfirst(
+                    'value' => ucfirst(
                         $color
                     ),
-                    "language_tag" =>
-                    "en_US",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'language_tag' =>
+                        'en_US',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 // Child Relation
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" =>
-                    $parentSku,
-                    "child_relationship_type" =>
-                    "variation",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'parent_sku' =>
+                        $parentSku,
+                    'child_relationship_type' =>
+                        'variation',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 // Upload Child
                 $childResponse = $this->putListing(
@@ -7675,69 +7728,70 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info(
-                    'HANDBAG CHILD RESPONSE',
-                    [
-                        'sku' => $sku,
-                        'status' =>
-                        $childBody->status ?? null,
-                        'issues' =>
-                        $childBody->issues ?? [],
-                    ]
-                );
+                // LOG::info(
+                //     'HANDBAG CHILD RESPONSE',
+                //     [
+                //         'sku' => $sku,
+                //         'status' =>
+                //         $childBody->status ?? null,
+                //         'issues' =>
+                //         $childBody->issues ?? [],
+                //     ]
+                // );
             }
             // Sync Status
             $product->update([
                 'synced_to_amazon' =>
-                $isAccepted ? 1 : 0,
+                    $isAccepted ? 1 : 0,
                 'needs_resync' =>
-                $isAccepted ? 0 : 1
+                    $isAccepted ? 0 : 1
             ]);
             return response()->json([
                 'success' => true,
                 'message' =>
-                'Amazon handbag variation sync successful'
+                    'Amazon handbag variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error(
-                'HANDBAG VARIANT UPLOAD FAILED',
-                [
-                    'error' =>
-                    $e->getMessage(),
-                    'line' =>
-                    $e->getLine(),
-                    'file' =>
-                    $e->getFile(),
-                ]
-            );
+            // LOG::error(
+            //     'HANDBAG VARIANT UPLOAD FAILED',
+            //     [
+            //         'error' =>
+            //         $e->getMessage(),
+            //         'line' =>
+            //         $e->getLine(),
+            //         'file' =>
+            //         $e->getFile(),
+            //     ]
+            // );
             return response()->json([
                 'success' => false,
                 'error' =>
-                $e->getMessage()
+                    $e->getMessage()
             ]);
         }
     }
-    public function cableFullPayload($product, $amazon) // 14
+
+    public function cableFullPayload($product, $amazon)  // 14
     {
         $variants = $this->parseJsonField($product->variants);
         $images = $this->parseJsonField($product->images);
         $variant = $variants[0] ?? [];
         $price = (float) (
             $variant['price']
-            ?? $product->price
-            ?? 9.99
+                ?? $product->price
+                ?? 9.99
         );
         if ($price <= 1) {
             $price = 9.99;
         }
         $qty = (int) (
             $variant['inventory_quantity']
-            ?? 10
+                ?? 10
         );
         $image = $images[0]['src']
             ?? 'https://via.placeholder.com/500';
@@ -7745,108 +7799,108 @@ class AmazonService
             $amazon->bullet_points
         );
         $payload = [
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title),
                     0,
                     200
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_type_keyword" => [[
-                "value" => "electrical-cable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'electrical-cable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Cable'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($point) => [
-                    "value" => substr($point, 0, 700),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($point, 0, 700),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "manufacturer" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_number" => [[
-                "value" => "CBL-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'CBL-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "part_number" => [[
-                "value" => "CBL-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'CBL-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "color" => [[
-                "value" => "Black",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Black',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "size" => [[
-                "value" => "1 Meter",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'size' => [[
+                'value' => '1 Meter',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "included_components" => [[
-                "value" => "Cable",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Cable',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "list_price" => [[
-                "value" => $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => $qty
             ]],
         ];
         foreach ($images as $index => $img) {
@@ -7854,12 +7908,13 @@ class AmazonService
                 continue;
             }
             $payload['other_product_image_locator_' . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function cableVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -7871,12 +7926,12 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error(
-                    'NO CABLE VARIANTS FOUND',
-                    [
-                        'product_id' => $product->id
-                    ]
-                );
+                // LOG::error(
+                //     'NO CABLE VARIANTS FOUND',
+                //     [
+                //         'product_id' => $product->id
+                //     ]
+                // );
                 return false;
             }
             $parentSku = DB::table('amazon_products')
@@ -7913,12 +7968,12 @@ class AmazonService
                 }
             }
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentResponse = $this->putListing(
                 $shop,
@@ -7933,38 +7988,38 @@ class AmazonService
                 ? $parentResponse->dto()
                 : null;
             $isAccepted =
-                ($parentBody->status ?? null)
-                === 'ACCEPTED';
-            LOG::info(
-                'CABLE PARENT RESPONSE',
-                [
-                    'sku' => $parentSku,
-                    'status' =>
-                    $parentBody->status ?? null,
-                    'issues' =>
-                    $parentBody->issues ?? [],
-                ]
-            );
+                ($parentBody->status ?? null) ===
+                'ACCEPTED';
+            // LOG::info(
+            //     'CABLE PARENT RESPONSE',
+            //     [
+            //         'sku' => $parentSku,
+            //         'status' =>
+            //         $parentBody->status ?? null,
+            //         'issues' =>
+            //         $parentBody->issues ?? [],
+            //     ]
+            // );
             // Children
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? (
-                            'CABLE-' .
-                            $variant['id']
+                            'CABLE-'
+                            . $variant['id']
                         )
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price']
-                    ?? $product->price
-                    ?? 9.99
+                        ?? $product->price
+                        ?? 9.99
                 );
                 if ($price <= 1) {
                     $price = 9.99;
                 }
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity']
-                    ?? 0
+                        ?? 0
                 );
                 $color = trim(
                     $variant['option1']
@@ -7996,8 +8051,7 @@ class AmazonService
                 $variantImage = null;
                 foreach ($images as $img) {
                     if (
-                        !empty($img['variant_ids'])
-                        &&
+                        !empty($img['variant_ids']) &&
                         in_array(
                             $variant['id'],
                             $img['variant_ids']
@@ -8010,49 +8064,49 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" =>
-                        $variantImage,
-                        "marketplace_id" =>
-                        "ATVPDKIKX0DER"
+                        'media_location' =>
+                            $variantImage,
+                        'marketplace_id' =>
+                            'ATVPDKIKX0DER'
                     ]];
                 }
                 // Offer
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" =>
-                    "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' =>
+                        'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 // Variant Color
                 $childPayload['color'] = [[
-                    "value" => ucfirst($color),
-                    "language_tag" => "en_US",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => ucfirst($color),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 // Child Relation
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" =>
-                    $parentSku,
-                    "child_relationship_type" =>
-                    "variation",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'parent_sku' =>
+                        $parentSku,
+                    'child_relationship_type' =>
+                        'variation',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childResponse = $this->putListing(
                     $shop,
@@ -8067,68 +8121,69 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info(
-                    'CABLE CHILD RESPONSE',
-                    [
-                        'sku' => $sku,
-                        'status' =>
-                        $childBody->status ?? null,
-                        'issues' =>
-                        $childBody->issues ?? [],
-                    ]
-                );
+                // LOG::info(
+                //     'CABLE CHILD RESPONSE',
+                //     [
+                //         'sku' => $sku,
+                //         'status' =>
+                //         $childBody->status ?? null,
+                //         'issues' =>
+                //         $childBody->issues ?? [],
+                //     ]
+                // );
             }
             $product->update([
                 'synced_to_amazon' =>
-                $isAccepted ? 1 : 0,
+                    $isAccepted ? 1 : 0,
                 'needs_resync' =>
-                $isAccepted ? 0 : 1
+                    $isAccepted ? 0 : 1
             ]);
             return response()->json([
                 'success' => true,
                 'message' =>
-                'Amazon cable variation sync successful'
+                    'Amazon cable variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error(
-                'CABLE VARIANT UPLOAD FAILED',
-                [
-                    'error' =>
-                    $e->getMessage(),
-                    'line' =>
-                    $e->getLine(),
-                    'file' =>
-                    $e->getFile(),
-                ]
-            );
+            // LOG::error(
+            //     'CABLE VARIANT UPLOAD FAILED',
+            //     [
+            //         'error' =>
+            //         $e->getMessage(),
+            //         'line' =>
+            //         $e->getLine(),
+            //         'file' =>
+            //         $e->getFile(),
+            //     ]
+            // );
             return response()->json([
                 'success' => false,
                 'error' =>
-                $e->getMessage()
+                    $e->getMessage()
             ]);
         }
     }
-    public function chairFullPayload($product, $amazon) // 15
+
+    public function chairFullPayload($product, $amazon)  // 15
     {
         $variants = $this->parseJsonField($product->variants);
         $images = $this->parseJsonField($product->images);
         $variant = $variants[0] ?? [];
-        $price = (float)(
+        $price = (float) (
             $variant['price']
-            ?? $product->price
-            ?? 99.99
+                ?? $product->price
+                ?? 99.99
         );
         if ($price <= 1) {
             $price = 99.99;
         }
-        $qty = (int)(
+        $qty = (int) (
             $variant['inventory_quantity']
-            ?? 10
+                ?? 10
         );
         $image = $images[0]['src']
             ?? 'https://via.placeholder.com/500';
@@ -8136,172 +8191,172 @@ class AmazonService
             $amazon->bullet_points
         );
         $payload = [
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title),
                     0,
                     200
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_type_keyword" => [[
-                "value" => "dining-chairs",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'dining-chairs',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Chair'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($point) => [
-                    "value" => substr($point, 0, 500),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($point, 0, 500),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "manufacturer" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "color" => [[
-                "value" => "Black",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Black',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "material" => [[
-                "value" => "Wood",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'material' => [[
+                'value' => 'Wood',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "included_components" => [[
-                "value" => "Office Chair",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Office Chair',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_number" => [[
-                "value" => "CHR-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'CHR-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "part_number" => [[
-                "value" => "CHR-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'CHR-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "Ergonomic Office Chair",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'Ergonomic Office Chair',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "is_assembly_required" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'is_assembly_required' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "is_fragile" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'is_fragile' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_shape" => [[
-                "value" => "L-Shaped",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_shape' => [[
+                'value' => 'L-Shaped',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_weight" => [[
-                "value" => 15,
-                "unit" => "kilograms",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_weight' => [[
+                'value' => 15,
+                'unit' => 'kilograms',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "maximum_weight_recommendation" => [[
-                "value" => 120,
-                "unit" => "kilograms",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'maximum_weight_recommendation' => [[
+                'value' => 120,
+                'unit' => 'kilograms',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "frame" => [[
-                "material" => [[
-                    "value" => "Metal",
-                    "language_tag" => "en_US"
+            'frame' => [[
+                'material' => [[
+                    'value' => 'Metal',
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "seat" => [[
-                "depth" => [
+            'seat' => [[
+                'depth' => [
                     [
-                        "value" => 45,
-                        "unit" => "centimeters"
+                        'value' => 45,
+                        'unit' => 'centimeters'
                     ]
                 ],
-                "height" => [
+                'height' => [
                     [
-                        "value" => 50,
-                        "unit" => "centimeters"
+                        'value' => 50,
+                        'unit' => 'centimeters'
                     ]
                 ],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_depth_width_height" => [[
-                "depth" => [
-                    "value" => 24,
-                    "unit" => "inches"
+            'item_depth_width_height' => [[
+                'depth' => [
+                    'value' => 24,
+                    'unit' => 'inches'
                 ],
-                "width" => [
-                    "value" => 24,
-                    "unit" => "inches"
+                'width' => [
+                    'value' => 24,
+                    'unit' => 'inches'
                 ],
-                "height" => [
-                    "value" => 48,
-                    "unit" => "inches"
+                'height' => [
+                    'value' => 48,
+                    'unit' => 'inches'
                 ],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "list_price" => [[
-                "value" => $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => $qty
             ]]
         ];
         foreach ($images as $index => $img) {
@@ -8309,12 +8364,13 @@ class AmazonService
                 continue;
             }
             $payload['other_product_image_locator_' . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function chairVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -8326,12 +8382,12 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error(
-                    'NO CHAIR VARIANTS FOUND',
-                    [
-                        'product_id' => $product->id
-                    ]
-                );
+                // LOG::error(
+                //     'NO CHAIR VARIANTS FOUND',
+                //     [
+                //         'product_id' => $product->id
+                //     ]
+                // );
                 return false;
             }
             $parentSku = DB::table('amazon_products')
@@ -8368,12 +8424,12 @@ class AmazonService
                 }
             }
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentResponse = $this->putListing(
                 $shop,
@@ -8388,38 +8444,38 @@ class AmazonService
                 ? $parentResponse->dto()
                 : null;
             $isAccepted =
-                ($parentBody->status ?? null)
-                === 'ACCEPTED';
-            LOG::info(
-                'CHAIR PARENT RESPONSE',
-                [
-                    'sku' => $parentSku,
-                    'status' =>
-                    $parentBody->status ?? null,
-                    'issues' =>
-                    $parentBody->issues ?? [],
-                ]
-            );
+                ($parentBody->status ?? null) ===
+                'ACCEPTED';
+            // LOG::info(
+            //     'CHAIR PARENT RESPONSE',
+            //     [
+            //         'sku' => $parentSku,
+            //         'status' =>
+            //         $parentBody->status ?? null,
+            //         'issues' =>
+            //         $parentBody->issues ?? [],
+            //     ]
+            // );
             // Children
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? (
-                            'CHAIR-' .
-                            $variant['id']
+                            'CHAIR-'
+                            . $variant['id']
                         )
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price']
-                    ?? $product->price
-                    ?? 99.99
+                        ?? $product->price
+                        ?? 99.99
                 );
                 if ($price <= 1) {
                     $price = 99.99;
                 }
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity']
-                    ?? 0
+                        ?? 0
                 );
                 $color = trim(
                     $variant['option1']
@@ -8451,8 +8507,7 @@ class AmazonService
                 $variantImage = null;
                 foreach ($images as $img) {
                     if (
-                        !empty($img['variant_ids'])
-                        &&
+                        !empty($img['variant_ids']) &&
                         in_array(
                             $variant['id'],
                             $img['variant_ids']
@@ -8465,49 +8520,49 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" =>
-                        $variantImage,
-                        "marketplace_id" =>
-                        "ATVPDKIKX0DER"
+                        'media_location' =>
+                            $variantImage,
+                        'marketplace_id' =>
+                            'ATVPDKIKX0DER'
                     ]];
                 }
                 // Offer
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" =>
-                    "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' =>
+                        'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 // Variant Color
                 $childPayload['color'] = [[
-                    "value" => ucfirst($color),
-                    "language_tag" => "en_US",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => ucfirst($color),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 // Child Relation
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" =>
-                    $parentSku,
-                    "child_relationship_type" =>
-                    "variation",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'parent_sku' =>
+                        $parentSku,
+                    'child_relationship_type' =>
+                        'variation',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childResponse = $this->putListing(
                     $shop,
@@ -8522,68 +8577,69 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info(
-                    'CHAIR CHILD RESPONSE',
-                    [
-                        'sku' => $sku,
-                        'status' =>
-                        $childBody->status ?? null,
-                        'issues' =>
-                        $childBody->issues ?? [],
-                    ]
-                );
+                // LOG::info(
+                //     'CHAIR CHILD RESPONSE',
+                //     [
+                //         'sku' => $sku,
+                //         'status' =>
+                //         $childBody->status ?? null,
+                //         'issues' =>
+                //         $childBody->issues ?? [],
+                //     ]
+                // );
             }
             $product->update([
                 'synced_to_amazon' =>
-                $isAccepted ? 1 : 0,
+                    $isAccepted ? 1 : 0,
                 'needs_resync' =>
-                $isAccepted ? 0 : 1
+                    $isAccepted ? 0 : 1
             ]);
             return response()->json([
                 'success' => true,
                 'message' =>
-                'Amazon chair variation sync successful'
+                    'Amazon chair variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error(
-                'CHAIR VARIANT UPLOAD FAILED',
-                [
-                    'error' =>
-                    $e->getMessage(),
-                    'line' =>
-                    $e->getLine(),
-                    'file' =>
-                    $e->getFile(),
-                ]
-            );
+            // LOG::error(
+            //     'CHAIR VARIANT UPLOAD FAILED',
+            //     [
+            //         'error' =>
+            //         $e->getMessage(),
+            //         'line' =>
+            //         $e->getLine(),
+            //         'file' =>
+            //         $e->getFile(),
+            //     ]
+            // );
             return response()->json([
                 'success' => false,
                 'error' =>
-                $e->getMessage()
+                    $e->getMessage()
             ]);
         }
     }
-    public function tableFullPayload($product, $amazon) // 16
+
+    public function tableFullPayload($product, $amazon)  // 16
     {
         $variants = $this->parseJsonField($product->variants);
         $images = $this->parseJsonField($product->images);
         $variant = $variants[0] ?? [];
-        $price = (float)(
+        $price = (float) (
             $variant['price']
-            ?? $product->price
-            ?? 99.99
+                ?? $product->price
+                ?? 99.99
         );
         if ($price <= 1) {
             $price = 99.99;
         }
-        $qty = (int)(
+        $qty = (int) (
             $variant['inventory_quantity']
-            ?? 10
+                ?? 10
         );
         $image = $images[0]['src']
             ?? 'https://via.placeholder.com/500';
@@ -8591,170 +8647,170 @@ class AmazonService
             $amazon->bullet_points
         );
         $payload = [
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title),
                     0,
                     200
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_type_keyword" => [[
-                "value" => "dining-tables",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'dining-tables',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Wooden Table'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($point) => [
-                    "value" => substr($point, 0, 500),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($point, 0, 500),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "manufacturer" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "color" => [[
-                "value" => "Brown",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Brown',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "material" => [[
-                "value" => "Wood",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'material' => [[
+                'value' => 'Wood',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "top" => [[
-                "material" => [[
-                    "value" => "Wood",
-                    "language_tag" => "en_US"
+            'top' => [[
+                'material' => [[
+                    'value' => 'Wood',
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "frame" => [[
-                "material" => [[
-                    "value" => "Wood",
-                    "language_tag" => "en_US"
+            'frame' => [[
+                'material' => [[
+                    'value' => 'Wood',
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "Dining Table",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'Dining Table',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "base_type" => [[
-                "value" => "Leg",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'base_type' => [[
+                'value' => 'Leg',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_shape" => [[
-                "value" => "Rectangular",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_shape' => [[
+                'value' => 'Rectangular',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "is_fragile" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'is_fragile' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_depth_width_height" => [[
-                "depth" => [
-                    "value" => 24,
-                    "unit" => "inches"
+            'item_depth_width_height' => [[
+                'depth' => [
+                    'value' => 24,
+                    'unit' => 'inches'
                 ],
-                "width" => [
-                    "value" => 36,
-                    "unit" => "inches"
+                'width' => [
+                    'value' => 36,
+                    'unit' => 'inches'
                 ],
-                "height" => [
-                    "value" => 30,
-                    "unit" => "inches"
+                'height' => [
+                    'value' => 30,
+                    'unit' => 'inches'
                 ],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "included_components" => [[
-                "value" => "Table",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Table',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_number" => [[
-                "value" => "TBL-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'TBL-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "part_number" => [[
-                "value" => "TBL-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'TBL-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_weight" => [[
-                "value" => 20,
-                "unit" => "kilograms",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_weight' => [[
+                'value' => 20,
+                'unit' => 'kilograms',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_length" => [[
-                "value" => 24,
-                "unit" => "inches",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_length' => [[
+                'value' => 24,
+                'unit' => 'inches',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_width" => [[
-                "value" => 36,
-                "unit" => "inches",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_width' => [[
+                'value' => 36,
+                'unit' => 'inches',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "list_price" => [[
-                "value" => $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => $qty
             ]]
         ];
         foreach ($images as $index => $img) {
@@ -8762,12 +8818,13 @@ class AmazonService
                 continue;
             }
             $payload['other_product_image_locator_' . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function tableVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -8779,12 +8836,12 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error(
-                    'NO TABLE VARIANTS FOUND',
-                    [
-                        'product_id' => $product->id
-                    ]
-                );
+                // LOG::error(
+                //     'NO TABLE VARIANTS FOUND',
+                //     [
+                //         'product_id' => $product->id
+                //     ]
+                // );
                 return false;
             }
             $parentSku = DB::table('amazon_products')
@@ -8821,12 +8878,12 @@ class AmazonService
                 }
             }
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentResponse = $this->putListing(
                 $shop,
@@ -8841,38 +8898,38 @@ class AmazonService
                 ? $parentResponse->dto()
                 : null;
             $isAccepted =
-                ($parentBody->status ?? null)
-                === 'ACCEPTED';
-            LOG::info(
-                'TABLE PARENT RESPONSE',
-                [
-                    'sku' => $parentSku,
-                    'status' =>
-                    $parentBody->status ?? null,
-                    'issues' =>
-                    $parentBody->issues ?? [],
-                ]
-            );
+                ($parentBody->status ?? null) ===
+                'ACCEPTED';
+            // LOG::info(
+            //     'TABLE PARENT RESPONSE',
+            //     [
+            //         'sku' => $parentSku,
+            //         'status' =>
+            //         $parentBody->status ?? null,
+            //         'issues' =>
+            //         $parentBody->issues ?? [],
+            //     ]
+            // );
             // Children
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? (
-                            'TABLE-' .
-                            $variant['id']
+                            'TABLE-'
+                            . $variant['id']
                         )
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price']
-                    ?? $product->price
-                    ?? 99.99
+                        ?? $product->price
+                        ?? 99.99
                 );
                 if ($price <= 1) {
                     $price = 99.99;
                 }
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity']
-                    ?? 0
+                        ?? 0
                 );
                 $color = trim(
                     $variant['option1']
@@ -8904,8 +8961,7 @@ class AmazonService
                 $variantImage = null;
                 foreach ($images as $img) {
                     if (
-                        !empty($img['variant_ids'])
-                        &&
+                        !empty($img['variant_ids']) &&
                         in_array(
                             $variant['id'],
                             $img['variant_ids']
@@ -8918,46 +8974,46 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" =>
-                        $variantImage,
-                        "marketplace_id" =>
-                        "ATVPDKIKX0DER"
+                        'media_location' =>
+                            $variantImage,
+                        'marketplace_id' =>
+                            'ATVPDKIKX0DER'
                     ]];
                 }
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" =>
-                    "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' =>
+                        'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 $childPayload['color'] = [[
-                    "value" => ucfirst($color),
-                    "language_tag" => "en_US",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => ucfirst($color),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" =>
-                    $parentSku,
-                    "child_relationship_type" =>
-                    "variation",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'parent_sku' =>
+                        $parentSku,
+                    'child_relationship_type' =>
+                        'variation',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childResponse = $this->putListing(
                     $shop,
@@ -8972,68 +9028,69 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info(
-                    'TABLE CHILD RESPONSE',
-                    [
-                        'sku' => $sku,
-                        'status' =>
-                        $childBody->status ?? null,
-                        'issues' =>
-                        $childBody->issues ?? [],
-                    ]
-                );
+                // LOG::info(
+                //     'TABLE CHILD RESPONSE',
+                //     [
+                //         'sku' => $sku,
+                //         'status' =>
+                //         $childBody->status ?? null,
+                //         'issues' =>
+                //         $childBody->issues ?? [],
+                //     ]
+                // );
             }
             $product->update([
                 'synced_to_amazon' =>
-                $isAccepted ? 1 : 0,
+                    $isAccepted ? 1 : 0,
                 'needs_resync' =>
-                $isAccepted ? 0 : 1
+                    $isAccepted ? 0 : 1
             ]);
             return response()->json([
                 'success' => true,
                 'message' =>
-                'Amazon table variation sync successful'
+                    'Amazon table variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error(
-                'TABLE VARIANT UPLOAD FAILED',
-                [
-                    'error' =>
-                    $e->getMessage(),
-                    'line' =>
-                    $e->getLine(),
-                    'file' =>
-                    $e->getFile(),
-                ]
-            );
+            // LOG::error(
+            //     'TABLE VARIANT UPLOAD FAILED',
+            //     [
+            //         'error' =>
+            //         $e->getMessage(),
+            //         'line' =>
+            //         $e->getLine(),
+            //         'file' =>
+            //         $e->getFile(),
+            //     ]
+            // );
             return response()->json([
                 'success' => false,
                 'error' =>
-                $e->getMessage()
+                    $e->getMessage()
             ]);
         }
     }
-    public function sofaFullPayload($product, $amazon) // 17
+
+    public function sofaFullPayload($product, $amazon)  // 17
     {
         $variants = $this->parseJsonField($product->variants);
         $images = $this->parseJsonField($product->images);
         $variant = $variants[0] ?? [];
-        $price = (float)(
+        $price = (float) (
             $variant['price']
-            ?? $product->price
-            ?? 99.99
+                ?? $product->price
+                ?? 99.99
         );
         if ($price <= 1) {
             $price = 99.99;
         }
-        $qty = (int)(
+        $qty = (int) (
             $variant['inventory_quantity']
-            ?? 10
+                ?? 10
         );
         $image = $images[0]['src']
             ?? 'https://via.placeholder.com/500';
@@ -9041,179 +9098,179 @@ class AmazonService
             $amazon->bullet_points
         );
         $payload = [
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title),
                     0,
                     200
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_type_keyword" => [[
-                "value" => "sofas",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'sofas',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Comfortable Sofa'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($point) => [
-                    "value" => substr($point, 0, 500),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($point, 0, 500),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "manufacturer" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "color" => [[
-                "value" => "Brown",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Brown',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "material" => [[
-                "value" => "Wood",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'material' => [[
+                'value' => 'Wood',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "Living Room Sofa",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'Living Room Sofa',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "frame" => [[
-                "material" => [[
-                    "value" => "Wood",
-                    "language_tag" => "en_US"
+            'frame' => [[
+                'material' => [[
+                    'value' => 'Wood',
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "included_components" => [[
-                "value" => "Sofa",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Sofa',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_number" => [[
-                "value" => "SOFA-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'SOFA-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "part_number" => [[
-                "value" => "SOFA-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'SOFA-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_weight" => [[
-                "value" => 35,
-                "unit" => "kilograms",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_weight' => [[
+                'value' => 35,
+                'unit' => 'kilograms',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "seat" => [[
-                "height" => [[
-                    "value" => 18,
-                    "unit" => "inches"
+            'seat' => [[
+                'height' => [[
+                    'value' => 18,
+                    'unit' => 'inches'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "is_fragile" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'is_fragile' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "is_assembly_required" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'is_assembly_required' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "sofa_type" => [[
-                "value" => "standard",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'sofa_type' => [[
+                'value' => 'standard',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "seating_capacity" => [[
-                "value" => 3,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'seating_capacity' => [[
+                'value' => 3,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fabric_type" => [[
-                "value" => "Polyester",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'fabric_type' => [[
+                'value' => 'Polyester',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_depth_width_height" => [[
-                "depth" => [
-                    "value" => 36,
-                    "unit" => "inches"
+            'item_depth_width_height' => [[
+                'depth' => [
+                    'value' => 36,
+                    'unit' => 'inches'
                 ],
-                "width" => [
-                    "value" => 82,
-                    "unit" => "inches"
+                'width' => [
+                    'value' => 82,
+                    'unit' => 'inches'
                 ],
-                "height" => [
-                    "value" => 34,
-                    "unit" => "inches"
+                'height' => [
+                    'value' => 34,
+                    'unit' => 'inches'
                 ],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_length" => [[
-                "value" => 36,
-                "unit" => "inches",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_length' => [[
+                'value' => 36,
+                'unit' => 'inches',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_width" => [[
-                "value" => 84,
-                "unit" => "inches",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_width' => [[
+                'value' => 84,
+                'unit' => 'inches',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "list_price" => [[
-                "value" => $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => $qty
             ]]
         ];
         foreach ($images as $index => $img) {
@@ -9221,12 +9278,13 @@ class AmazonService
                 continue;
             }
             $payload['other_product_image_locator_' . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function sofaVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -9238,12 +9296,12 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error(
-                    'NO SOFA VARIANTS FOUND',
-                    [
-                        'product_id' => $product->id
-                    ]
-                );
+                // LOG::error(
+                //     'NO SOFA VARIANTS FOUND',
+                //     [
+                //         'product_id' => $product->id
+                //     ]
+                // );
                 return false;
             }
             $parentSku = DB::table('amazon_products')
@@ -9280,12 +9338,12 @@ class AmazonService
                 }
             }
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentResponse = $this->putListing(
                 $shop,
@@ -9300,38 +9358,38 @@ class AmazonService
                 ? $parentResponse->dto()
                 : null;
             $isAccepted =
-                ($parentBody->status ?? null)
-                === 'ACCEPTED';
-            LOG::info(
-                'SOFA PARENT RESPONSE',
-                [
-                    'sku' => $parentSku,
-                    'status' =>
-                    $parentBody->status ?? null,
-                    'issues' =>
-                    $parentBody->issues ?? [],
-                ]
-            );
+                ($parentBody->status ?? null) ===
+                'ACCEPTED';
+            // LOG::info(
+            //     'SOFA PARENT RESPONSE',
+            //     [
+            //         'sku' => $parentSku,
+            //         'status' =>
+            //         $parentBody->status ?? null,
+            //         'issues' =>
+            //         $parentBody->issues ?? [],
+            //     ]
+            // );
             // Children
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? (
-                            'SOFA-' .
-                            $variant['id']
+                            'SOFA-'
+                            . $variant['id']
                         )
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price']
-                    ?? $product->price
-                    ?? 99.99
+                        ?? $product->price
+                        ?? 99.99
                 );
                 if ($price <= 1) {
                     $price = 99.99;
                 }
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity']
-                    ?? 0
+                        ?? 0
                 );
                 $color = trim(
                     $variant['option1']
@@ -9362,8 +9420,7 @@ class AmazonService
                 $variantImage = null;
                 foreach ($images as $img) {
                     if (
-                        !empty($img['variant_ids'])
-                        &&
+                        !empty($img['variant_ids']) &&
                         in_array(
                             $variant['id'],
                             $img['variant_ids']
@@ -9376,46 +9433,46 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" =>
-                        $variantImage,
-                        "marketplace_id" =>
-                        "ATVPDKIKX0DER"
+                        'media_location' =>
+                            $variantImage,
+                        'marketplace_id' =>
+                            'ATVPDKIKX0DER'
                     ]];
                 }
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" =>
-                    "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' =>
+                        'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 $childPayload['color'] = [[
-                    "value" => ucfirst($color),
-                    "language_tag" => "en_US",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => ucfirst($color),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" =>
-                    $parentSku,
-                    "child_relationship_type" =>
-                    "variation",
-                    "marketplace_id" =>
-                    "ATVPDKIKX0DER"
+                    'parent_sku' =>
+                        $parentSku,
+                    'child_relationship_type' =>
+                        'variation',
+                    'marketplace_id' =>
+                        'ATVPDKIKX0DER'
                 ]];
                 $childResponse = $this->putListing(
                     $shop,
@@ -9430,68 +9487,69 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info(
-                    'SOFA CHILD RESPONSE',
-                    [
-                        'sku' => $sku,
-                        'status' =>
-                        $childBody->status ?? null,
-                        'issues' =>
-                        $childBody->issues ?? [],
-                    ]
-                );
+                // LOG::info(
+                //     'SOFA CHILD RESPONSE',
+                //     [
+                //         'sku' => $sku,
+                //         'status' =>
+                //         $childBody->status ?? null,
+                //         'issues' =>
+                //         $childBody->issues ?? [],
+                //     ]
+                // );
             }
             $product->update([
                 'synced_to_amazon' =>
-                $isAccepted ? 1 : 0,
+                    $isAccepted ? 1 : 0,
                 'needs_resync' =>
-                $isAccepted ? 0 : 1
+                    $isAccepted ? 0 : 1
             ]);
             return response()->json([
                 'success' => true,
                 'message' =>
-                'Amazon sofa variation sync successful'
+                    'Amazon sofa variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error(
-                'SOFA VARIANT UPLOAD FAILED',
-                [
-                    'error' =>
-                    $e->getMessage(),
-                    'line' =>
-                    $e->getLine(),
-                    'file' =>
-                    $e->getFile(),
-                ]
-            );
+            // LOG::error(
+            //     'SOFA VARIANT UPLOAD FAILED',
+            //     [
+            //         'error' =>
+            //         $e->getMessage(),
+            //         'line' =>
+            //         $e->getLine(),
+            //         'file' =>
+            //         $e->getFile(),
+            //     ]
+            // );
             return response()->json([
                 'success' => false,
                 'error' =>
-                $e->getMessage()
+                    $e->getMessage()
             ]);
         }
     }
-    public function mattressFullPayload($product, $amazon) // 18
+
+    public function mattressFullPayload($product, $amazon)  // 18
     {
         $variants = $this->parseJsonField($product->variants);
         $images = $this->parseJsonField($product->images);
         $variant = $variants[0] ?? [];
-        $price = (float)(
+        $price = (float) (
             $variant['price']
-            ?? $product->price
-            ?? 99.99
+                ?? $product->price
+                ?? 99.99
         );
         if ($price <= 1) {
             $price = 99.99;
         }
-        $qty = (int)(
+        $qty = (int) (
             $variant['inventory_quantity']
-            ?? 10
+                ?? 10
         );
         $image = $images[0]['src']
             ?? 'https://via.placeholder.com/500';
@@ -9499,179 +9557,179 @@ class AmazonService
             $amazon->bullet_points
         );
         $payload = [
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title),
                     0,
                     200
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_type_keyword" => [[
-                "value" => "mattresses",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'mattresses',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Comfortable Mattress'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($point) => [
-                    "value" => substr($point, 0, 500),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($point, 0, 500),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "manufacturer" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "Memory Foam Mattress",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'Memory Foam Mattress',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "material" => [[
-                "value" => "Memory Foam",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'material' => [[
+                'value' => 'Memory Foam',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "construction_type" => [[
-                "value" => "Memory Foam",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'construction_type' => [[
+                'value' => 'Memory Foam',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "size" => [[
-                "value" => "Queen (U.S. Standard)",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'size' => [[
+                'value' => 'Queen (U.S. Standard)',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "color" => [[
-                "value" => "White",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'White',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_shape" => [[
-                "value" => "Rectangular",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_shape' => [[
+                'value' => 'Rectangular',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "special_feature" => [[
-                "value" => "Pressure Relief",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'special_feature' => [[
+                'value' => 'Pressure Relief',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_number" => [[
-                "value" => "MAT-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'MAT-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "part_number" => [[
-                "value" => "MAT-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'MAT-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "list_price" => [[
-                "value" => $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "sub_brand" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'sub_brand' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_weight" => [[
-                "value" => 25,
-                "unit" => "pounds",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_weight' => [[
+                'value' => 25,
+                'unit' => 'pounds',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fill_material" => [[
-                "value" => "Memory Foam",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'fill_material' => [[
+                'value' => 'Memory Foam',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_firmness_description" => [[
-                "value" => "Medium",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_firmness_description' => [[
+                'value' => 'Medium',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "top_style" => [[
-                "value" => "tight_top",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'top_style' => [[
+                'value' => 'tight_top',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "top" => [[
-                "material" => [[
-                    "value" => "Memory Foam",
-                    "language_tag" => "en_US"
+            'top' => [[
+                'material' => [[
+                    'value' => 'Memory Foam',
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "included_components" => [[
-                "value" => "Mattress",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Mattress',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_length_width_thickness" => [[
-                "length" => [
-                    "value" => 80,
-                    "unit" => "inches"
+            'item_length_width_thickness' => [[
+                'length' => [
+                    'value' => 80,
+                    'unit' => 'inches'
                 ],
-                "width" => [
-                    "value" => 60,
-                    "unit" => "inches"
+                'width' => [
+                    'value' => 60,
+                    'unit' => 'inches'
                 ],
-                "thickness" => [
-                    "value" => 10,
-                    "unit" => "inches"
+                'thickness' => [
+                    'value' => 10,
+                    'unit' => 'inches'
                 ],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => $qty
             ]]
         ];
         foreach ($images as $index => $img) {
@@ -9679,12 +9737,13 @@ class AmazonService
                 continue;
             }
             $payload['other_product_image_locator_' . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function mattressVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -9692,12 +9751,12 @@ class AmazonService
             $variants = $this->parseJsonField($product->variants);
             $images = $this->parseJsonField($product->images);
             if (empty($variants)) {
-                LOG::error(
-                    'NO MATTRESS VARIANTS FOUND',
-                    [
-                        'product_id' => $product->id
-                    ]
-                );
+                // LOG::error(
+                //     'NO MATTRESS VARIANTS FOUND',
+                //     [
+                //         'product_id' => $product->id
+                //     ]
+                // );
                 return false;
             }
             $parentSku = DB::table('amazon_products')
@@ -9729,12 +9788,12 @@ class AmazonService
                 }
             }
             $parentPayload['variation_theme'] = [[
-                "name" => "SIZE",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'SIZE',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentResponse = $this->putListing(
                 $shop,
@@ -9749,33 +9808,26 @@ class AmazonService
                 ? $parentResponse->dto()
                 : null;
             $isAccepted =
-                ($parentBody->status ?? null)
-                === 'ACCEPTED';
-            LOG::info(
-                'MATTRESS PARENT RESPONSE',
-                [
-                    'sku' => $parentSku,
-                    'status' => $parentBody->status ?? null,
-                    'issues' => $parentBody->issues ?? [],
-                ]
-            );
+                ($parentBody->status ?? null) ===
+                'ACCEPTED';
+
             // Children
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? ('MATTRESS-' . $variant['id'])
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price']
-                    ?? $product->price
-                    ?? 99.99
+                        ?? $product->price
+                        ?? 99.99
                 );
                 if ($price <= 1) {
                     $price = 99.99;
                 }
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity']
-                    ?? 0
+                        ?? 0
                 );
                 $size = trim(
                     $variant['option1']
@@ -9813,36 +9865,36 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
                 $childPayload['size'] = [[
-                    "value" => $size,
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $size,
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 $childPayload['variation_theme'] = [[
-                    "name" => "SIZE",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'SIZE',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childResponse = $this->putListing(
                     $shop,
@@ -9857,69 +9909,70 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info(
-                    'MATTRESS CHILD RESPONSE',
-                    [
-                        'sku' => $sku,
-                        'status' => $childBody->status ?? null,
-                        'issues' => $childBody->issues ?? [],
-                    ]
-                );
+                // LOG::info(
+                //     'MATTRESS CHILD RESPONSE',
+                //     [
+                //         'sku' => $sku,
+                //         'status' => $childBody->status ?? null,
+                //         'issues' => $childBody->issues ?? [],
+                //     ]
+                // );
             }
             $product->update([
                 'synced_to_amazon' =>
-                $isAccepted ? 1 : 0,
+                    $isAccepted ? 1 : 0,
                 'needs_resync' =>
-                $isAccepted ? 0 : 1
+                    $isAccepted ? 0 : 1
             ]);
-            LOG::info(
-                'MATTRESS DB UPDATE',
-                [
-                    'product_id' => $product->id,
-                    'synced_to_amazon' => $isAccepted ? 1 : 0,
-                    'needs_resync' => $isAccepted ? 0 : 1
-                ]
-            );
+            // LOG::info(
+            //     'MATTRESS DB UPDATE',
+            //     [
+            //         'product_id' => $product->id,
+            //         'synced_to_amazon' => $isAccepted ? 1 : 0,
+            //         'needs_resync' => $isAccepted ? 0 : 1
+            //     ]
+            // );
             return response()->json([
                 'success' => true,
                 'message' => 'Amazon mattress variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error(
-                'MATTRESS VARIANT UPLOAD FAILED',
-                [
-                    'error' => $e->getMessage(),
-                    'line' => $e->getLine(),
-                    'file' => $e->getFile(),
-                ]
-            );
+            // LOG::error(
+            //     'MATTRESS VARIANT UPLOAD FAILED',
+            //     [
+            //         'error' => $e->getMessage(),
+            //         'line' => $e->getLine(),
+            //         'file' => $e->getFile(),
+            //     ]
+            // );
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage()
             ]);
         }
     }
-    public function bedFullPayload($product, $amazon) // 19
+
+    public function bedFullPayload($product, $amazon)  // 19
     {
         $variants = $this->parseJsonField($product->variants);
         $images = $this->parseJsonField($product->images);
         $variant = $variants[0] ?? [];
-        $price = (float)(
+        $price = (float) (
             $variant['price']
-            ?? $product->price
-            ?? 99.99
+                ?? $product->price
+                ?? 99.99
         );
         if ($price <= 1) {
             $price = 99.99;
         }
-        $qty = (int)(
+        $qty = (int) (
             $variant['inventory_quantity']
-            ?? 10
+                ?? 10
         );
         $image = $images[0]['src']
             ?? 'https://via.placeholder.com/500';
@@ -9927,174 +9980,174 @@ class AmazonService
             $amazon->bullet_points
         );
         $payload = [
-            "item_name" => [[
-                "value" => substr(
+            'item_name' => [[
+                'value' => substr(
                     trim($amazon->amazon_title),
                     0,
                     200
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "brand" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_type_keyword" => [[
-                "value" => "beds",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'beds',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Comfortable Bed'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($point) => [
-                    "value" => substr($point, 0, 500),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($point, 0, 500),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "manufacturer" => [[
-                "value" => "Generic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Generic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "Modern Bed Frame",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'Modern Bed Frame',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "material" => [[
-                "value" => "Wood",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'material' => [[
+                'value' => 'Wood',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fabric_type" => [[
-                "value" => "100% Polyester",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'fabric_type' => [[
+                'value' => '100% Polyester',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "size" => [[
-                "value" => "Queen (U.S. Standard)",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'size' => [[
+                'value' => 'Queen (U.S. Standard)',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "color" => [[
-                "value" => "Brown",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Brown',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "style" => [[
-                "value" => "Modern",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'style' => [[
+                'value' => 'Modern',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "age_range_description" => [[
-                "value" => "Adult",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'age_range_description' => [[
+                'value' => 'Adult',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "special_feature" => [[
-                "value" => "Upholstered",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'special_feature' => [[
+                'value' => 'Upholstered',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_number" => [[
-                "value" => "BED-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'BED-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "part_number" => [[
-                "value" => "BED-001",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'BED-001',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_weight" => [[
-                "value" => 50,
-                "unit" => "pounds",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_weight' => [[
+                'value' => 50,
+                'unit' => 'pounds',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "included_components" => [[
-                "value" => "Bed Frame",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Bed Frame',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_required" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "frame" => [[
-                "material" => [[
-                    "value" => "Wood",
-                    "language_tag" => "en_US"
+            'frame' => [[
+                'material' => [[
+                    'value' => 'Wood',
+                    'language_tag' => 'en_US'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_shape" => [[
-                "value" => "Rectangular",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_shape' => [[
+                'value' => 'Rectangular',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "is_assembly_required" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'is_assembly_required' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_length_width_height" => [[
-                "length" => [
-                    "value" => 80,
-                    "unit" => "inches"
+            'item_length_width_height' => [[
+                'length' => [
+                    'value' => 80,
+                    'unit' => 'inches'
                 ],
-                "width" => [
-                    "value" => 60,
-                    "unit" => "inches"
+                'width' => [
+                    'value' => 60,
+                    'unit' => 'inches'
                 ],
-                "height" => [
-                    "value" => 48,
-                    "unit" => "inches"
+                'height' => [
+                    'value' => 48,
+                    'unit' => 'inches'
                 ],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "list_price" => [[
-                "value" => $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => $qty
             ]]
         ];
         foreach ($images as $index => $img) {
@@ -10102,12 +10155,13 @@ class AmazonService
                 continue;
             }
             $payload['other_product_image_locator_' . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
+
     public function bedVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -10115,12 +10169,12 @@ class AmazonService
             $variants = $this->parseJsonField($product->variants);
             $images = $this->parseJsonField($product->images);
             if (empty($variants)) {
-                LOG::error(
-                    'NO BED VARIANTS FOUND',
-                    [
-                        'product_id' => $product->id
-                    ]
-                );
+                // LOG::error(
+                //     'NO BED VARIANTS FOUND',
+                //     [
+                //         'product_id' => $product->id
+                //     ]
+                // );
                 return false;
             }
             $parentSku = DB::table('amazon_products')
@@ -10151,12 +10205,12 @@ class AmazonService
                 }
             }
             $parentPayload['variation_theme'] = [[
-                "name" => "SIZE",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'SIZE',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentResponse = $this->putListing(
                 $shop,
@@ -10171,32 +10225,32 @@ class AmazonService
                 ? $parentResponse->dto()
                 : null;
             $isAccepted =
-                ($parentBody->status ?? null)
-                === 'ACCEPTED';
-            LOG::info(
-                'BED PARENT RESPONSE',
-                [
-                    'sku' => $parentSku,
-                    'status' => $parentBody->status ?? null,
-                    'issues' => $parentBody->issues ?? [],
-                ]
-            );
+                ($parentBody->status ?? null) ===
+                'ACCEPTED';
+            // LOG::info(
+            //     'BED PARENT RESPONSE',
+            //     [
+            //         'sku' => $parentSku,
+            //         'status' => $parentBody->status ?? null,
+            //         'issues' => $parentBody->issues ?? [],
+            //     ]
+            // );
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? ('BED-' . $variant['id'])
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price']
-                    ?? $product->price
-                    ?? 99.99
+                        ?? $product->price
+                        ?? 99.99
                 );
                 if ($price <= 1) {
                     $price = 99.99;
                 }
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity']
-                    ?? 0
+                        ?? 0
                 );
                 $size = trim(
                     $variant['option1']
@@ -10234,36 +10288,36 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
                 $childPayload['size'] = [[
-                    "value" => $size,
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $size,
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 $childPayload['variation_theme'] = [[
-                    "name" => "SIZE",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'SIZE',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childResponse = $this->putListing(
                     $shop,
@@ -10278,69 +10332,70 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info(
-                    'BED CHILD RESPONSE',
-                    [
-                        'sku' => $sku,
-                        'status' => $childBody->status ?? null,
-                        'issues' => $childBody->issues ?? [],
-                    ]
-                );
+                // LOG::info(
+                //     'BED CHILD RESPONSE',
+                //     [
+                //         'sku' => $sku,
+                //         'status' => $childBody->status ?? null,
+                //         'issues' => $childBody->issues ?? [],
+                //     ]
+                // );
             }
             $product->update([
                 'synced_to_amazon' =>
-                $isAccepted ? 1 : 0,
+                    $isAccepted ? 1 : 0,
                 'needs_resync' =>
-                $isAccepted ? 0 : 1
+                    $isAccepted ? 0 : 1
             ]);
-            LOG::info(
-                'BED DB UPDATE',
-                [
-                    'product_id' => $product->id,
-                    'synced_to_amazon' => $isAccepted ? 1 : 0,
-                    'needs_resync' => $isAccepted ? 0 : 1
-                ]
-            );
+            // LOG::info(
+            //     'BED DB UPDATE',
+            //     [
+            //         'product_id' => $product->id,
+            //         'synced_to_amazon' => $isAccepted ? 1 : 0,
+            //         'needs_resync' => $isAccepted ? 0 : 1
+            //     ]
+            // );
             return response()->json([
                 'success' => true,
                 'message' => 'Amazon bed variation sync successful'
             ]);
         } catch (\Throwable $e) {
-            LOG::error(
-                'BED VARIANT UPLOAD FAILED',
-                [
-                    'error' => $e->getMessage(),
-                    'line' => $e->getLine(),
-                    'file' => $e->getFile(),
-                ]
-            );
+            // LOG::error(
+            //     'BED VARIANT UPLOAD FAILED',
+            //     [
+            //         'error' => $e->getMessage(),
+            //         'line' => $e->getLine(),
+            //         'file' => $e->getFile(),
+            //     ]
+            // );
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage()
             ]);
         }
     }
+
     public function staplerFullPayload($product, $amazon)  // 20
     {
         $variants = $this->parseJsonField($product->variants);
         $images = $this->parseJsonField($product->images);
         $variant = $variants[0] ?? [];
-        $price = (float)(
+        $price = (float) (
             $variant['price']
-            ?? $product->price
-            ?? 99.99
+                ?? $product->price
+                ?? 99.99
         );
         if ($price <= 1) {
             $price = 99.99;
         }
-        $qty = (int)(
+        $qty = (int) (
             $variant['inventory_quantity']
-            ?? 10
+                ?? 10
         );
         $image = $images[0]['src']
             ?? 'https://via.placeholder.com/500';
@@ -10513,6 +10568,7 @@ class AmazonService
         }
         return $payload;
     }
+
     public function staplerVariantPayload($shop, $product, $amazon)
     {
         try {
@@ -10524,12 +10580,12 @@ class AmazonService
                 $product->images
             );
             if (empty($variants)) {
-                LOG::error(
-                    'NO STAPLER VARIANTS FOUND',
-                    [
-                        'product_id' => $product->id
-                    ]
-                );
+                // LOG::error(
+                //     'NO STAPLER VARIANTS FOUND',
+                //     [
+                //         'product_id' => $product->id
+                //     ]
+                // );
                 return false;
             }
             $parentSku = DB::table('amazon_products')
@@ -10560,12 +10616,12 @@ class AmazonService
                 }
             }
             $parentPayload['variation_theme'] = [[
-                "name" => "COLOR",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'name' => 'COLOR',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentPayload['parentage_level'] = [[
-                "value" => "parent",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'value' => 'parent',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
             $parentResponse = $this->putListing(
                 $shop,
@@ -10580,32 +10636,32 @@ class AmazonService
                 ? $parentResponse->dto()
                 : null;
             $isAccepted =
-                ($parentBody->status ?? null)
-                === 'ACCEPTED';
-            LOG::info(
-                'STAPLER PARENT RESPONSE',
-                [
-                    'sku' => $parentSku,
-                    'status' => $parentBody->status ?? null,
-                    'issues' => $parentBody->issues ?? [],
-                ]
-            );
+                ($parentBody->status ?? null) ===
+                'ACCEPTED';
+            // LOG::info(
+            //     'STAPLER PARENT RESPONSE',
+            //     [
+            //         'sku' => $parentSku,
+            //         'status' => $parentBody->status ?? null,
+            //         'issues' => $parentBody->issues ?? [],
+            //     ]
+            // );
             foreach ($variants as $variant) {
                 $sku = trim(
                     $variant['sku']
                         ?? ('STP-' . $variant['id'])
                 );
-                $price = (float)(
+                $price = (float) (
                     $variant['price']
-                    ?? $product->price
-                    ?? 99.99
+                        ?? $product->price
+                        ?? 99.99
                 );
                 if ($price <= 1) {
                     $price = 99.99;
                 }
-                $qty = (int)(
+                $qty = (int) (
                     $variant['inventory_quantity']
-                    ?? 0
+                        ?? 0
                 );
                 $color = trim(
                     $variant['option1']
@@ -10643,36 +10699,36 @@ class AmazonService
                 }
                 if ($variantImage) {
                     $childPayload['main_product_image_locator'] = [[
-                        "media_location" => $variantImage,
-                        "marketplace_id" => "ATVPDKIKX0DER"
+                        'media_location' => $variantImage,
+                        'marketplace_id' => 'ATVPDKIKX0DER'
                     ]];
                 }
                 $childPayload['color'] = [[
-                    "value" => $color,
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $color,
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['list_price'] = [[
-                    "value" => $price,
-                    "currency" => "USD",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => $price,
+                    'currency' => 'USD',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['fulfillment_availability'] = [[
-                    "fulfillment_channel_code" => "DEFAULT",
-                    "quantity" => $qty
+                    'fulfillment_channel_code' => 'DEFAULT',
+                    'quantity' => $qty
                 ]];
                 $childPayload['variation_theme'] = [[
-                    "name" => "COLOR",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'name' => 'COLOR',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['parentage_level'] = [[
-                    "value" => "child",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => 'child',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childPayload['child_parent_sku_relationship'] = [[
-                    "parent_sku" => $parentSku,
-                    "child_relationship_type" => "variation",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'parent_sku' => $parentSku,
+                    'child_relationship_type' => 'variation',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]];
                 $childResponse = $this->putListing(
                     $shop,
@@ -10687,37 +10743,37 @@ class AmazonService
                     ? $childResponse->dto()
                     : null;
                 if (
-                    ($childBody->status ?? null)
-                    !== 'ACCEPTED'
+                    ($childBody->status ?? null) !==
+                    'ACCEPTED'
                 ) {
                     $isAccepted = false;
                 }
-                LOG::info(
-                    'STAPLER CHILD RESPONSE',
-                    [
-                        'sku' => $sku,
-                        'color' => $color,
-                        'status' => $childBody->status ?? null,
-                        'issues' => $childBody->issues ?? [],
-                    ]
-                );
+                // LOG::info(
+                //     'STAPLER CHILD RESPONSE',
+                //     [
+                //         'sku' => $sku,
+                //         'color' => $color,
+                //         'status' => $childBody->status ?? null,
+                //         'issues' => $childBody->issues ?? [],
+                //     ]
+                // );
             }
             $product->update([
                 'synced_to_amazon' =>
-                $isAccepted ? 1 : 0,
-                'needs_resync' =>
-                $isAccepted ? 0 : 1
-            ]);
-            LOG::info(
-                'STAPLER DB UPDATE',
-                [
-                    'product_id' => $product->id,
-                    'synced_to_amazon' =>
                     $isAccepted ? 1 : 0,
-                    'needs_resync' =>
+                'needs_resync' =>
                     $isAccepted ? 0 : 1
-                ]
-            );
+            ]);
+            // LOG::info(
+            //     'STAPLER DB UPDATE',
+            //     [
+            //         'product_id' => $product->id,
+            //         'synced_to_amazon' =>
+            //         $isAccepted ? 1 : 0,
+            //         'needs_resync' =>
+            //         $isAccepted ? 0 : 1
+            //     ]
+            // );
             return response()->json([
                 'success' => $isAccepted,
                 'message' => $isAccepted
@@ -10725,20 +10781,21 @@ class AmazonService
                     : 'Amazon stapler variation sync failed'
             ]);
         } catch (\Throwable $e) {
-            LOG::error(
-                'STAPLER VARIANT UPLOAD FAILED',
-                [
-                    'error' => $e->getMessage(),
-                    'line' => $e->getLine(),
-                    'file' => $e->getFile(),
-                ]
-            );
+            // LOG::error(
+            //     'STAPLER VARIANT UPLOAD FAILED',
+            //     [
+            //         'error' => $e->getMessage(),
+            //         'line' => $e->getLine(),
+            //         'file' => $e->getFile(),
+            //     ]
+            // );
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage()
             ]);
         }
     }
+
     public function keyboardFullPayload($product, $amazon)
     {
         $variants = $this->parseJsonField($product->variants);
@@ -10747,8 +10804,8 @@ class AmazonService
         // Price
         $price = (float) (
             $variant['price']
-            ?? $product->price
-            ?? 49.99
+                ?? $product->price
+                ?? 49.99
         );
         if ($price <= 1) {
             $price = 49.99;
@@ -10756,7 +10813,7 @@ class AmazonService
         // Quantity
         $qty = (int) (
             $variant['inventory_quantity']
-            ?? 0
+                ?? 0
         );
         // Main image
         $image = $images[0]['src']
@@ -10778,301 +10835,301 @@ class AmazonService
         );
         $payload = [
             // Title
-            "item_name" => [[
-                "value" => substr(trim($cleanTitle), 0, 200),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_name' => [[
+                'value' => substr(trim($cleanTitle), 0, 200),
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Brand
-            "brand" => [[
-                "value" => "Portronics",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'brand' => [[
+                'value' => 'Portronics',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "manufacturer" => [[
-                "value" => "Portronics",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'manufacturer' => [[
+                'value' => 'Portronics',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // GTIN exemption
-            "supplier_declared_has_product_identifier_exemption" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_has_product_identifier_exemption' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Product type
-            "item_type_keyword" => [[
-                "value" => "KEYBOARDS",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_type_keyword' => [[
+                'value' => 'KEYBOARDS',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Model
-            "model_number" => [[
-                "value" => "HYDRA-10",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_number' => [[
+                'value' => 'HYDRA-10',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "model_name" => [[
-                "value" => "Hydra 10 Mechanical Gaming Keyboard",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'model_name' => [[
+                'value' => 'Hydra 10 Mechanical Gaming Keyboard',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Description
-            "product_description" => [[
-                "value" => strip_tags(
+            'product_description' => [[
+                'value' => strip_tags(
                     $product->description
                         ?? 'Wireless RGB mechanical gaming keyboard.'
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Bullet points
-            "bullet_point" => collect($bulletPoints)
+            'bullet_point' => collect($bulletPoints)
                 ->map(fn($b) => [
-                    "value" => substr($b, 0, 200),
-                    "language_tag" => "en_US",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                    'value' => substr($b, 0, 200),
+                    'language_tag' => 'en_US',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ])
                 ->values()
                 ->toArray(),
             // Search terms
-            "generic_keyword" => [[
-                "value" => substr(
+            'generic_keyword' => [[
+                'value' => substr(
                     implode(' ', $searchTerms),
                     0,
                     250
                 ),
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Features
-            "special_feature" => [[
-                "value" => "RGB Backlit",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'special_feature' => [[
+                'value' => 'RGB Backlit',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "style" => [[
-                "value" => "Gaming",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'style' => [[
+                'value' => 'Gaming',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "theme" => [[
-                "value" => "Gaming",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'theme' => [[
+                'value' => 'Gaming',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Material
-            "material" => [[
-                "value" => "Plastic",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'material' => [[
+                'value' => 'Plastic',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Quantity details
-            "number_of_items" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_items' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "item_package_quantity" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'item_package_quantity' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "unit_count" => [[
-                "value" => 1,
-                "unit" => "count",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'unit_count' => [[
+                'value' => 1,
+                'unit' => 'count',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Color and size
-            "color" => [[
-                "value" => "Black",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'color' => [[
+                'value' => 'Black',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "size" => [[
-                "value" => "Compact 68 Keys",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'size' => [[
+                'value' => 'Compact 68 Keys',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Part info
-            "part_number" => [[
-                "value" => "HYDRA10-KB",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'part_number' => [[
+                'value' => 'HYDRA10-KB',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "edition" => [[
-                "value" => "Standard Edition",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'edition' => [[
+                'value' => 'Standard Edition',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "configuration" => [[
-                "value" => "Keyboard Only",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'configuration' => [[
+                'value' => 'Keyboard Only',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Keyboard info
-            "keyboard_description" => [[
-                "value" => "Mechanical Gaming Keyboard",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'keyboard_description' => [[
+                'value' => 'Mechanical Gaming Keyboard',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "keyboard_layout" => [[
-                "value" => "qwerty",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'keyboard_layout' => [[
+                'value' => 'qwerty',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "keyboard_backlighting_color_support" => [[
-                "value" => "rgb",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'keyboard_backlighting_color_support' => [[
+                'value' => 'rgb',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "switch_type" => [[
-                "value" => "Mechanical",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'switch_type' => [[
+                'value' => 'Mechanical',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Platform
-            "hardware_platform" => [[
-                "value" => "PC",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'hardware_platform' => [[
+                'value' => 'PC',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "platform_for_display" => [[
-                "value" => "Windows",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'platform_for_display' => [[
+                'value' => 'Windows',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "compatible_devices" => [[
-                "value" => "Laptop, PC",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'compatible_devices' => [[
+                'value' => 'Laptop, PC',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Language
-            "language" => [[
-                "value" => "english",
-                "type" => "unknown",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'language' => [[
+                'value' => 'english',
+                'type' => 'unknown',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Connectivity
-            "connectivity_technology" => [[
-                "value" => "Bluetooth",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'connectivity_technology' => [[
+                'value' => 'Bluetooth',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "power_source_type" => [[
-                "value" => "Battery Powered",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'power_source_type' => [[
+                'value' => 'Battery Powered',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Battery
-            "contains_battery_or_cell" => [[
-                "value" => "battery",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'contains_battery_or_cell' => [[
+                'value' => 'battery',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_required" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_required' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "batteries_included" => [[
-                "value" => true,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'batteries_included' => [[
+                'value' => true,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "has_multiple_battery_powered_components" => [[
-                "value" => false,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'has_multiple_battery_powered_components' => [[
+                'value' => false,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "battery_installation_device_type" => [[
-                "value" => "installed_in_equipment",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'battery_installation_device_type' => [[
+                'value' => 'installed_in_equipment',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "number_of_lithium_ion_cells" => [[
-                "value" => 1,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'number_of_lithium_ion_cells' => [[
+                'value' => 1,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "num_batteries" => [[
-                "quantity" => 1,
-                "type" => "nonstandard_battery",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'num_batteries' => [[
+                'quantity' => 1,
+                'type' => 'nonstandard_battery',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "battery" => [[
-                "cell_composition" => [[
-                    "value" => "lithium_ion",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+            'battery' => [[
+                'cell_composition' => [[
+                    'value' => 'lithium_ion',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]],
-                "weight" => [[
-                    "value" => 10,
-                    "unit" => "grams",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                'weight' => [[
+                    'value' => 10,
+                    'unit' => 'grams',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "lithium_battery" => [[
-                "energy_content" => [[
-                    "value" => 3.7,
-                    "unit" => "watt_hours",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+            'lithium_battery' => [[
+                'energy_content' => [[
+                    'value' => 3.7,
+                    'unit' => 'watt_hours',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]],
-                "weight" => [[
-                    "value" => 10,
-                    "unit" => "grams",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                'weight' => [[
+                    'value' => 10,
+                    'unit' => 'grams',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]],
-                "packaging" => [[
-                    "value" => "batteries_contained_in_equipment",
-                    "marketplace_id" => "ATVPDKIKX0DER"
+                'packaging' => [[
+                    'value' => 'batteries_contained_in_equipment',
+                    'marketplace_id' => 'ATVPDKIKX0DER'
                 ]],
-                "marketplace_id" => "ATVPDKIKX0DER"
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Package
-            "customer_package_type" => [[
-                "value" => "Retail Packaging",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'customer_package_type' => [[
+                'value' => 'Retail Packaging',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
-            "included_components" => [[
-                "value" => "Keyboard, USB Receiver, Charging Cable",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'included_components' => [[
+                'value' => 'Keyboard, USB Receiver, Charging Cable',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Warranty
-            "warranty_description" => [[
-                "value" => "1 Year Limited Warranty",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'warranty_description' => [[
+                'value' => '1 Year Limited Warranty',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Orientation
-            "orientation" => [[
-                "value" => "Ambidextrous",
-                "language_tag" => "en_US",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'orientation' => [[
+                'value' => 'Ambidextrous',
+                'language_tag' => 'en_US',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Water resistance
-            "water_resistance_level" => [[
-                "value" => "water_resistant",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'water_resistance_level' => [[
+                'value' => 'water_resistant',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Condition
-            "condition_type" => [[
-                "value" => "new_new",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'condition_type' => [[
+                'value' => 'new_new',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Price
-            "list_price" => [[
-                "value" => $price,
-                "currency" => "USD",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'list_price' => [[
+                'value' => $price,
+                'currency' => 'USD',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Inventory
-            "fulfillment_availability" => [[
-                "fulfillment_channel_code" => "DEFAULT",
-                "quantity" => $qty
+            'fulfillment_availability' => [[
+                'fulfillment_channel_code' => 'DEFAULT',
+                'quantity' => $qty
             ]],
             // Main image
-            "main_product_image_locator" => [[
-                "media_location" => $image,
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'main_product_image_locator' => [[
+                'media_location' => $image,
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // Country
-            "country_of_origin" => [[
-                "value" => "IN",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'country_of_origin' => [[
+                'value' => 'IN',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]],
             // DG/HZ
-            "supplier_declared_dg_hz_regulation" => [[
-                "value" => "not_applicable",
-                "marketplace_id" => "ATVPDKIKX0DER"
+            'supplier_declared_dg_hz_regulation' => [[
+                'value' => 'not_applicable',
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]]
         ];
         // Extra images
@@ -11080,14 +11137,15 @@ class AmazonService
             if ($index === 0 || $index > 8) {
                 continue;
             }
-            $payload["other_product_image_locator_" . $index] = [[
-                "media_location" => $img['src'],
-                "marketplace_id" => "ATVPDKIKX0DER"
+            $payload['other_product_image_locator_' . $index] = [[
+                'media_location' => $img['src'],
+                'marketplace_id' => 'ATVPDKIKX0DER'
             ]];
         }
         return $payload;
     }
-    // this is test 
+
+    // this is test
     public function getSchemaConnector($shop)
     {
         $creds = $this->getDbCredentials($shop);
@@ -11098,6 +11156,7 @@ class AmazonService
             endpoint: Endpoint::NA,
         );
     }
+
     public function getProductTypeDefinition($shop)
     {
         try {
@@ -11112,10 +11171,10 @@ class AmazonService
             $response = $connector->send($request);
             return $response->json();
         } catch (\Throwable $e) {
-            LOG::error('SCHEMA ERROR', [
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-            ]);
+            // LOG::error('SCHEMA ERROR', [
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            // ]);
             return [
                 'error' => $e->getMessage()
             ];

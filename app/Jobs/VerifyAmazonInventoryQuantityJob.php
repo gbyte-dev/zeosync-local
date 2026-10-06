@@ -32,7 +32,7 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
         if (!$shop) {
             Log::warning('VerifyAmazonInventoryQuantityJob: Shop not found.', [
                 'shop_id' => $this->shopId,
-                'sku'     => $this->sku,
+                'sku' => $this->sku,
             ]);
             return;
         }
@@ -44,7 +44,7 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
         if (!$mapping) {
             Log::info('VerifyAmazonInventoryQuantityJob: Mapping not found or unmapped.', [
                 'shop_id' => $this->shopId,
-                'sku'     => $this->sku,
+                'sku' => $this->sku,
             ]);
             return;
         }
@@ -54,10 +54,10 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
         // -----------------------------------------------------------------
         if ($this->submissionId !== null && $mapping->submission_id !== $this->submissionId) {
             Log::info('VerifyAmazonInventoryQuantityJob: Abandoning verification (submission_id mismatch).', [
-                'shop_id'             => $this->shopId,
-                'sku'                 => $this->sku,
-                'job_submission_id'   => $this->submissionId,
-                'db_submission_id'    => $mapping->submission_id,
+                'shop_id' => $this->shopId,
+                'sku' => $this->sku,
+                'job_submission_id' => $this->submissionId,
+                'db_submission_id' => $mapping->submission_id,
             ]);
             return;
         }
@@ -65,18 +65,18 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
         $expectedAmazonQty = max(0, (int) $mapping->quantity);
         if ($expectedAmazonQty !== (int) $this->expectedQuantity) {
             Log::info('VerifyAmazonInventoryQuantityJob: Abandoning verification (quantity changed).', [
-                'shop_id'            => $this->shopId,
-                'sku'                => $this->sku,
-                'job_expected'       => $this->expectedQuantity,
-                'db_quantity'        => $mapping->quantity,
+                'shop_id' => $this->shopId,
+                'sku' => $this->sku,
+                'job_expected' => $this->expectedQuantity,
+                'db_quantity' => $mapping->quantity,
                 'db_amazon_expected' => $expectedAmazonQty,
             ]);
             return;
         }
 
-        $hasMatchingSubmissionId = $this->submissionId !== null
-            && !empty($mapping->submission_id)
-            && $mapping->submission_id === $this->submissionId;
+        $hasMatchingSubmissionId = $this->submissionId !== null &&
+            !empty($mapping->submission_id) &&
+            $mapping->submission_id === $this->submissionId;
 
         if ($this->syncedAt !== null && !empty($mapping->last_synced_at)) {
             try {
@@ -85,20 +85,20 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
                 if ($currentSyncedAt->greaterThan($originalSyncedAt)) {
                     if ($hasMatchingSubmissionId) {
                         Log::info('VerifyAmazonInventoryQuantityJob: Timestamp skew detected but submission_id matches, proceeding with verification.', [
-                            'shop_id'            => $this->shopId,
-                            'sku'                => $this->sku,
-                            'mapping_id'         => $mapping->id,
-                            'job_submission_id'  => $this->submissionId,
-                            'db_submission_id'   => $mapping->submission_id,
-                            'job_synced_at'      => $this->syncedAt,
-                            'db_last_synced_at'  => $mapping->last_synced_at,
+                            'shop_id' => $this->shopId,
+                            'sku' => $this->sku,
+                            'mapping_id' => $mapping->id,
+                            'job_submission_id' => $this->submissionId,
+                            'db_submission_id' => $mapping->submission_id,
+                            'job_synced_at' => $this->syncedAt,
+                            'db_last_synced_at' => $mapping->last_synced_at,
                         ]);
                     } else {
                         Log::info('VerifyAmazonInventoryQuantityJob: Abandoning verification (newer sync timestamp).', [
-                            'shop_id'            => $this->shopId,
-                            'sku'                => $this->sku,
-                            'job_synced_at'      => $this->syncedAt,
-                            'db_last_synced_at'  => $mapping->last_synced_at,
+                            'shop_id' => $this->shopId,
+                            'sku' => $this->sku,
+                            'job_synced_at' => $this->syncedAt,
+                            'db_last_synced_at' => $mapping->last_synced_at,
                         ]);
                         return;
                     }
@@ -123,9 +123,9 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
         } catch (\Throwable $e) {
             Log::error('VerifyAmazonInventoryQuantityJob: checkAmazonListing threw exception.', [
                 'shop_id' => $this->shopId,
-                'sku'     => $this->sku,
+                'sku' => $this->sku,
                 'attempt' => $this->attempt,
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
 
             $this->retryOrAbort($mapping, "Amazon verification request failed: {$e->getMessage()}");
@@ -136,9 +136,9 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
             $errMsg = $listing['error'] ?? 'Amazon listing check returned failure';
             Log::warning('VerifyAmazonInventoryQuantityJob: checkAmazonListing returned failure.', [
                 'shop_id' => $this->shopId,
-                'sku'     => $this->sku,
+                'sku' => $this->sku,
                 'attempt' => $this->attempt,
-                'error'   => $errMsg,
+                'error' => $errMsg,
             ]);
 
             $isFatal = $this->isPermanentFailure($errMsg);
@@ -159,9 +159,9 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
         } else {
             $liveQuantity = null;
             $resolved = [
-                'quantity'           => null,
-                'source'             => $resolution['source'],
-                'channel'            => null,
+                'quantity' => null,
+                'source' => $resolution['source'],
+                'channel' => null,
                 'available_channels' => $resolution['available_channels'],
             ];
         }
@@ -174,19 +174,19 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
                 ->first()
             : null;
 
-        Log::info('Amazon Inventory Verification Quantity Resolved', [
-            'operation_id'       => $matchingOp?->id,
-            'operation_uuid'     => $matchingOp?->operation_uuid,
-            'amazon_sku'         => $this->sku,
-            'expected_quantity'  => $this->expectedQuantity,
-            'target_channel'     => $targetChannel,
-            'selected_quantity'  => $liveQuantity,
-            'selected_source'    => $resolved['source'],
-            'selected_channel'   => $resolved['channel'],
-            'available_channels' => $resolved['available_channels'],
-            'attempt'            => $this->attempt,
-            'submission_id'      => $this->submissionId,
-        ]);
+        // Log::info('Amazon Inventory Verification Quantity Resolved', [
+        //     'operation_id'       => $matchingOp?->id,
+        //     'operation_uuid'     => $matchingOp?->operation_uuid,
+        //     'amazon_sku'         => $this->sku,
+        //     'expected_quantity'  => $this->expectedQuantity,
+        //     'target_channel'     => $targetChannel,
+        //     'selected_quantity'  => $liveQuantity,
+        //     'selected_source'    => $resolved['source'],
+        //     'selected_channel'   => $resolved['channel'],
+        //     'available_channels' => $resolved['available_channels'],
+        //     'attempt'            => $this->attempt,
+        //     'submission_id'      => $this->submissionId,
+        // ]);
 
         // -----------------------------------------------------------------
         // 1. PRIORITIZE ACTUAL QUANTITY VERIFICATION
@@ -197,9 +197,9 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
             $fresh = $mapping->fresh();
             if ($this->isStillCurrent($fresh)) {
                 $fresh->update([
-                    'sync_status'       => 'success',
+                    'sync_status' => 'success',
                     'submission_status' => 'confirmed',
-                    'error_message'     => null,
+                    'error_message' => null,
                 ]);
 
                 // Transition matching awaiting_verification operations to completed
@@ -208,18 +208,18 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
                         ->where('shopify_inventory_item_id', $fresh->shopify_inventory_item_id)
                         ->whereIn('status', ['awaiting_verification', 'processing'])
                         ->update([
-                            'status'       => 'completed',
-                            'stage'        => 'completed',
+                            'status' => 'completed',
+                            'stage' => 'completed',
                             'completed_at' => now(),
                         ]);
                 }
 
-                Log::info('VerifyAmazonInventoryQuantityJob: Amazon inventory quantity CONFIRMED.', [
-                    'shop_id'  => $this->shopId,
-                    'sku'      => $this->sku,
-                    'quantity' => $liveQuantity,
-                    'attempt'  => $this->attempt,
-                ]);
+                // Log::info('VerifyAmazonInventoryQuantityJob: Amazon inventory quantity CONFIRMED.', [
+                //     'shop_id'  => $this->shopId,
+                //     'sku'      => $this->sku,
+                //     'quantity' => $liveQuantity,
+                //     'attempt'  => $this->attempt,
+                // ]);
             }
             return;
         }
@@ -238,11 +238,11 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
     private function isPermanentFailure(string $errorMessage): bool
     {
         $lower = strtolower($errorMessage);
-        return str_contains($lower, 'invalid sku')
-            || str_contains($lower, 'unauthorized')
-            || str_contains($lower, 'invalid product type')
-            || str_contains($lower, 'invalid marketplace')
-            || str_contains($lower, 'permanently rejected');
+        return str_contains($lower, 'invalid sku') ||
+            str_contains($lower, 'unauthorized') ||
+            str_contains($lower, 'invalid product type') ||
+            str_contains($lower, 'invalid marketplace') ||
+            str_contains($lower, 'permanently rejected');
     }
 
     private function retryOrAbort(ProductMarketplaceMapping $mapping, string $failureReason, bool $forceAbort = false): void
@@ -260,19 +260,19 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
             // Attempt 6 -> 7: +240s (T+720s / 12m)
             // Attempt 7 -> 8: +300s (T+1020s / 17m)
             $delaySeconds = match ($this->attempt) {
-                1       => 35,
-                2, 3    => 60,
-                4       => 120,
-                5       => 180,
-                6       => 240,
+                1 => 35,
+                2, 3 => 60,
+                4 => 120,
+                5 => 180,
+                6 => 240,
                 default => 300,
             };
 
-            Log::info("VerifyAmazonInventoryQuantityJob: Scheduling reconciliation attempt {$nextAttempt} in {$delaySeconds}s.", [
-                'shop_id' => $this->shopId,
-                'sku'     => $this->sku,
-                'attempt' => $this->attempt,
-            ]);
+            // Log::info("VerifyAmazonInventoryQuantityJob: Scheduling reconciliation attempt {$nextAttempt} in {$delaySeconds}s.", [
+            //     'shop_id' => $this->shopId,
+            //     'sku'     => $this->sku,
+            //     'attempt' => $this->attempt,
+            // ]);
 
             self::dispatch(
                 $this->shopId,
@@ -281,9 +281,10 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
                 $this->submissionId,
                 $this->syncedAt,
                 $nextAttempt
-            )->onConnection('database')
-             ->onQueue('default')
-             ->delay(now()->addSeconds($delaySeconds));
+            )
+                ->onConnection('database')
+                ->onQueue('default')
+                ->delay(now()->addSeconds($delaySeconds));
 
             return;
         }
@@ -292,9 +293,9 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
         $fresh = $mapping->fresh();
         if ($this->isStillCurrent($fresh)) {
             $fresh->update([
-                'sync_status'       => 'failed',
+                'sync_status' => 'failed',
                 'submission_status' => 'mismatch',
-                'error_message'     => $failureReason,
+                'error_message' => $failureReason,
             ]);
 
             // Mark matching awaiting_verification operations as failed
@@ -303,16 +304,16 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
                     ->where('shopify_inventory_item_id', $fresh->shopify_inventory_item_id)
                     ->whereIn('status', ['awaiting_verification'])
                     ->update([
-                        'status'     => 'failed',
+                        'status' => 'failed',
                         'last_error' => $failureReason,
                     ]);
             }
 
-            Log::warning('VerifyAmazonInventoryQuantityJob: Max verification attempts reached (mismatch).', [
-                'shop_id' => $this->shopId,
-                'sku'     => $this->sku,
-                'error'   => $failureReason,
-            ]);
+            // Log::warning('VerifyAmazonInventoryQuantityJob: Max verification attempts reached (mismatch).', [
+            //     'shop_id' => $this->shopId,
+            //     'sku'     => $this->sku,
+            //     'error'   => $failureReason,
+            // ]);
         }
     }
 
@@ -331,9 +332,9 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
             return false;
         }
 
-        $hasMatchingSubmissionId = $this->submissionId !== null
-            && !empty($mapping->submission_id)
-            && $mapping->submission_id === $this->submissionId;
+        $hasMatchingSubmissionId = $this->submissionId !== null &&
+            !empty($mapping->submission_id) &&
+            $mapping->submission_id === $this->submissionId;
 
         if (!$hasMatchingSubmissionId && $this->syncedAt !== null && !empty($mapping->last_synced_at)) {
             try {
@@ -392,9 +393,9 @@ class VerifyAmazonInventoryQuantityJob implements ShouldQueue
         }
 
         return [
-            'quantity'           => $selectedQuantity,
-            'source'             => $selectedSource,
-            'channel'            => $selectedChannel,
+            'quantity' => $selectedQuantity,
+            'source' => $selectedSource,
+            'channel' => $selectedChannel,
             'available_channels' => $availableChannels,
         ];
     }

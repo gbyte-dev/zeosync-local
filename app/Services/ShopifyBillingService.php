@@ -5,9 +5,9 @@ namespace App\Services;
 use App\Models\Plan;
 use App\Models\Shop;
 use App\Models\ShopSubscription;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -18,6 +18,7 @@ class ShopifyBillingService
         $path = route('shopify.billing.callback', ['shop' => $shop->shop], false);
         return rtrim($this->publicAppUrl(), '/') . $path;
     }
+
     public function createSubscription(Shop $shop, Plan $plan, string $billingInterval, string $returnUrl): array
     {
         $billingInterval = strtoupper($billingInterval);
@@ -27,35 +28,35 @@ class ShopifyBillingService
         $response = $this->graphQl(
             $shop,
             <<<'GRAPHQL'
-    mutation AppSubscriptionCreate(
-    $name: String!,
-    $returnUrl: URL!,
-    $lineItems: [AppSubscriptionLineItemInput!]!,
-    $trialDays: Int,
-    $test: Boolean!,
-    $replacementBehavior: AppSubscriptionReplacementBehavior
-    ) {
-    appSubscriptionCreate(
-        name: $name,
-        returnUrl: $returnUrl,
-        lineItems: $lineItems,
-        trialDays: $trialDays,
-        test: $test,
-        replacementBehavior: $replacementBehavior
-    ) {
-        userErrors {
-        field
-        message
-        }
-        appSubscription {
-        id
-        name
-        status
-        }
-        confirmationUrl
-    }
-    }
-    GRAPHQL,
+            mutation AppSubscriptionCreate(
+            $name: String!,
+            $returnUrl: URL!,
+            $lineItems: [AppSubscriptionLineItemInput!]!,
+            $trialDays: Int,
+            $test: Boolean!,
+            $replacementBehavior: AppSubscriptionReplacementBehavior
+            ) {
+            appSubscriptionCreate(
+                name: $name,
+                returnUrl: $returnUrl,
+                lineItems: $lineItems,
+                trialDays: $trialDays,
+                test: $test,
+                replacementBehavior: $replacementBehavior
+            ) {
+                userErrors {
+                field
+                message
+                }
+                appSubscription {
+                id
+                name
+                status
+                }
+                confirmationUrl
+            }
+            }
+            GRAPHQL,
             [
                 'name' => $plan->name,
                 'returnUrl' => $returnUrl,
@@ -108,11 +109,11 @@ class ShopifyBillingService
             'billing_interval' => $billingInterval,
         ];
     }
+
     public function syncSubscription(
         Shop $shop,
         ?ShopSubscription $localSubscription = null
     ): ?ShopSubscription {
-
         $localSubscription ??= ShopSubscription::with('plan')
             ->where('shop_id', $shop->id)
             ->first();
@@ -170,64 +171,68 @@ class ShopifyBillingService
         $response = $this->graphQl(
             $shop,
             <<<'GRAPHQL'
-    query AppSubscriptionStatus($id: ID!) {
-    node(id: $id) {
-        ... on AppSubscription {
-        id
-        name
-        status
-        test
-        createdAt
-        currentPeriodEnd
-        lineItems {
-            id
-            plan {
-            pricingDetails {
-                __typename
-                ... on AppRecurringPricing {
-                interval
-                price {
-                    amount
-                    currencyCode
+            query AppSubscriptionStatus($id: ID!) {
+            node(id: $id) {
+                ... on AppSubscription {
+                id
+                name
+                status
+                test
+                createdAt
+                currentPeriodEnd
+                lineItems {
+                    id
+                    plan {
+                    pricingDetails {
+                        __typename
+                        ... on AppRecurringPricing {
+                        interval
+                        price {
+                            amount
+                            currencyCode
+                        }
+                        }
+                    }
+                    }
                 }
                 }
             }
             }
-        }
-        }
-    }
-    }
-    GRAPHQL,
+            GRAPHQL,
             ['id' => $gid]
         );
         return $this->normalizeSubscription(data_get($response, 'data.node'));
     }
+
     public function fetchLatestSubscription(Shop $shop): ?array
     {
         $response = $this->graphQl(
             $shop,
             <<<'GRAPHQL'
-query AppSubscriptions {
-    currentAppInstallation {
-        allSubscriptions(first: 50, reverse: true) {
-            edges {
-                node {
-                    id
-                    name
-                    status
-                    test
-                    createdAt
-                    currentPeriodEnd
-                    lineItems {
-                        id
-                        plan {
-                            pricingDetails {
-                                __typename
-                                ... on AppRecurringPricing {
-                                    interval
-                                    price {
-                                        amount
-                                        currencyCode
+            query AppSubscriptions {
+                currentAppInstallation {
+                    allSubscriptions(first: 50, reverse: true) {
+                        edges {
+                            node {
+                                id
+                                name
+                                status
+                                test
+                                createdAt
+                                currentPeriodEnd
+                                lineItems {
+                                    id
+                                    plan {
+                                        pricingDetails {
+                                            __typename
+                                            ... on AppRecurringPricing {
+                                                interval
+                                                price {
+                                                    amount
+                                                    currencyCode
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -235,10 +240,7 @@ query AppSubscriptions {
                     }
                 }
             }
-        }
-    }
-}
-GRAPHQL
+            GRAPHQL
         );
 
         if (!empty($response['errors'])) {
@@ -270,19 +272,20 @@ GRAPHQL
             })
             ->sortByDesc(
                 fn(array $subscription) =>
-                $subscription['created_at']?->getTimestamp() ?? 0
+                    $subscription['created_at']?->getTimestamp() ?? 0
             )
             ->first();
 
         $latestSubscription = $subscriptions
             ->sortByDesc(
                 fn(array $subscription) =>
-                $subscription['created_at']?->getTimestamp() ?? 0
+                    $subscription['created_at']?->getTimestamp() ?? 0
             )
             ->first();
 
         return $activeSubscription ?? $latestSubscription;
     }
+
     public function isActivatedStatus(?string $status): bool
     {
         return in_array(strtoupper((string) $status), ['ACTIVE', 'ACCEPTED'], true);
@@ -337,7 +340,6 @@ GRAPHQL
     //         ->first() ?? $subscription;
     // }
 
-
     private function persistSubscription(Shop $shop, array $shopifySubscription, ?ShopSubscription $localSubscription = null): ShopSubscription
     {
         if (
@@ -352,8 +354,8 @@ GRAPHQL
             // Shopify plan is not active yet.
             // Keep the custom plan active.
             if (
-                !$this->isActivatedStatus($shopifyStatus)
-                && $shopifyStatus !== 'cancelled'
+                !$this->isActivatedStatus($shopifyStatus) &&
+                $shopifyStatus !== 'cancelled'
             ) {
                 Log::info('CUSTOM PLAN KEPT - NO ACTIVE SHOPIFY PLAN', [
                     'shop_id' => $shop->id,
@@ -401,7 +403,6 @@ GRAPHQL
                 'old_trial_used' => $localSubscription->trial_used,
             ]);
         }
-
 
         // Already-used trial protection.
         // If Shopify is currently returning the trial plan again,
@@ -541,7 +542,6 @@ GRAPHQL
         return $subscription;
     }
 
-
     private function resolvePlan(
         array $shopifySubscription,
         ?ShopSubscription $localSubscription = null
@@ -554,7 +554,8 @@ GRAPHQL
             $plan = Plan::query()
                 ->where('is_active', true)
                 ->where(function ($query) use ($name, $slug) {
-                    $query->where('name', $name)
+                    $query
+                        ->where('name', $name)
                         ->orWhere('slug', $slug);
                 })
                 ->first();
@@ -588,6 +589,7 @@ GRAPHQL
 
         return null;
     }
+
     private function normalizeSubscription(?array $node): ?array
     {
         if (!$node || !isset($node['id'])) {
@@ -608,6 +610,7 @@ GRAPHQL
             'currency_code' => data_get($recurringDetails, 'price.currencyCode', config('services.shopify.billing.currency', 'USD')),
         ];
     }
+
     private function graphQl(Shop $shop, string $query, array $variables = []): array
     {
         if (empty($shop->shop) || empty($shop->access_token)) {
@@ -652,12 +655,12 @@ GRAPHQL
         }
 
         if (!$response->successful()) {
-            Log::error('SHOPIFY BILLING FAILED', [
-                'shop_id' => $shop->id ?? null,
-                'shop' => $shop->shop ?? null,
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
+            // Log::error('SHOPIFY BILLING FAILED', [
+            //     'shop_id' => $shop->id ?? null,
+            //     'shop' => $shop->shop ?? null,
+            //     'status' => $response->status(),
+            //     'body' => $response->body(),
+            // ]);
 
             return [
                 'errors' => [
@@ -692,6 +695,7 @@ GRAPHQL
 
         return $payload ?? [];
     }
+
     private function publicAppUrl(): string
     {
         Log::info('URL DEBUG', [
@@ -734,25 +738,25 @@ GRAPHQL
         $response = $this->graphQl(
             $shop,
             <<<'GRAPHQL'
-mutation CancelSubscription(
-    $id: ID!,
-    $prorate: Boolean!
-) {
-    appSubscriptionCancel(
-        id: $id,
-        prorate: $prorate
-    ) {
-        appSubscription {
-            id
-            status
-        }
-        userErrors {
-            field
-            message
-        }
-    }
-}
-GRAPHQL,
+            mutation CancelSubscription(
+                $id: ID!,
+                $prorate: Boolean!
+            ) {
+                appSubscriptionCancel(
+                    id: $id,
+                    prorate: $prorate
+                ) {
+                    appSubscription {
+                        id
+                        status
+                    }
+                    userErrors {
+                        field
+                        message
+                    }
+                }
+            }
+            GRAPHQL,
             [
                 'id' => $gid,
                 'prorate' => false,
@@ -793,12 +797,12 @@ GRAPHQL,
 
         $subscriptionData = data_get($payload, 'appSubscription');
         if (!$subscriptionData || empty($subscriptionData['id'])) {
-            Log::error('SHOPIFY SUBSCRIPTION CANCEL MISSING APP SUBSCRIPTION', [
-                'shop_id' => $shop->id ?? null,
-                'shop' => $shop->shop ?? null,
-                'subscription_gid' => $gid,
-                'payload' => $payload,
-            ]);
+            // Log::error('SHOPIFY SUBSCRIPTION CANCEL MISSING APP SUBSCRIPTION', [
+            //     'shop_id' => $shop->id ?? null,
+            //     'shop' => $shop->shop ?? null,
+            //     'subscription_gid' => $gid,
+            //     'payload' => $payload,
+            // ]);
             return false;
         }
 

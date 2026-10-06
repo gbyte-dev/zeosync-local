@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\AdminSetting;
 use App\Models\Shop;
 use App\Models\ShopSubscription;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
-use App\Models\AdminSetting;
+use Illuminate\Support\Facades\Log;
 
 class ShopifyPlanSyncService
 {
@@ -98,11 +98,11 @@ class ShopifyPlanSyncService
             );
 
             if (!$response->successful()) {
-                Log::error('TOKEN REFRESH FAILED', [
-                    'shop' => $shopModel->shop,
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
+                // Log::error('TOKEN REFRESH FAILED', [
+                //     'shop' => $shopModel->shop,
+                //     'status' => $response->status(),
+                //     'body' => $response->body(),
+                // ]);
 
                 if ($response->status() === 401) {
                     $shopModel->update([
@@ -126,10 +126,10 @@ class ShopifyPlanSyncService
             $data = $response->json();
 
             if (!isset($data['access_token'])) {
-                Log::error('REFRESH RESPONSE MISSING TOKEN', [
-                    'shop' => $shopModel->shop,
-                    'body' => $data,
-                ]);
+                // Log::error('REFRESH RESPONSE MISSING TOKEN', [
+                //     'shop' => $shopModel->shop,
+                //     'body' => $data,
+                // ]);
 
                 return [
                     'success' => false,

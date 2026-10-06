@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Log;
-use SellingPartnerApi\SellingPartnerApi;
-use SellingPartnerApi\Enums\Endpoint;
 use App\Models\AdminSetting;
+use Illuminate\Support\Facades\Log;
+use SellingPartnerApi\Enums\Endpoint;
 use SellingPartnerApi\Seller\ProductTypeDefinitionsV20200901\Requests\GetDefinitionsProductType;
+use SellingPartnerApi\SellingPartnerApi;
 
 class AmazonSchemaService
 {
@@ -48,35 +48,36 @@ class AmazonSchemaService
                 $data['real_schema'] =
                     $realSchema;
             }
-            Log::info('AMAZON SCHEMA RESPONSE', [
-                'product_type' => $productType,
-                'response_keys' =>
-                array_keys($data),
-                'real_schema_keys' =>
-                array_keys(
-                    $data['real_schema']
-                        ?? []
-                ),
-                'total_properties' =>
-                count(
-                    $data['real_schema']['properties']
-                        ?? []
-                )
-            ]);
+            // Log::info('AMAZON SCHEMA RESPONSE', [
+            //     'product_type' => $productType,
+            //     'response_keys' =>
+            //     array_keys($data),
+            //     'real_schema_keys' =>
+            //     array_keys(
+            //         $data['real_schema']
+            //             ?? []
+            //     ),
+            //     'total_properties' =>
+            //     count(
+            //         $data['real_schema']['properties']
+            //             ?? []
+            //     )
+            // ]);
             return $data;
         } catch (\Throwable $e) {
-            Log::error('AMAZON SCHEMA ERROR', [
-                'product_type' => $productType,
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile()
-            ]);
+            // Log::error('AMAZON SCHEMA ERROR', [
+            //     'product_type' => $productType,
+            //     'error' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile()
+            // ]);
             return [
                 'success' => false,
                 'message' => $e->getMessage()
             ];
         }
     }
+
     private function resolveSchemaNode(array $node): array
     {
         if (isset($node['enum'])) {
@@ -117,14 +118,15 @@ class AmazonSchemaService
         }
         return $node;
     }
+
     public function extractFields($schema)
     {
         $groups =
             $schema['propertyGroups']
-            ?? [];
+                ?? [];
         $properties =
             $schema['real_schema']['properties']
-            ?? [];
+                ?? [];
         if (empty($properties)) {
             return [];
         }
@@ -132,11 +134,11 @@ class AmazonSchemaService
         foreach ($groups as $group) {
             $propertyNames =
                 $group['propertyNames']
-                ?? [];
+                    ?? [];
             foreach ($propertyNames as $propertyName) {
                 $property =
                     $properties[$propertyName]
-                    ?? [];
+                        ?? [];
                 if (empty($property)) {
                     continue;
                 }
@@ -146,11 +148,10 @@ class AmazonSchemaService
                     );
                 $propertyType =
                     $node['type']
-                    ?? 'string';
+                        ?? 'string';
                 // Skip complex objects
                 if (
-                    isset($property['properties'])
-                    ||
+                    isset($property['properties']) ||
                     (
                         isset($node['items']) &&
                         isset($node['items']['properties'])
@@ -180,8 +181,7 @@ class AmazonSchemaService
                     str_contains(
                         strtolower($propertyName),
                         'image'
-                    )
-                    ||
+                    ) ||
                     str_contains(
                         strtolower($propertyName),
                         'media'
@@ -191,8 +191,7 @@ class AmazonSchemaService
                 }
                 // Number
                 elseif (
-                    $propertyType === 'number'
-                    ||
+                    $propertyType === 'number' ||
                     $propertyType === 'integer'
                 ) {
                     $fieldType = 'number';
@@ -202,13 +201,11 @@ class AmazonSchemaService
                     str_contains(
                         strtolower($propertyName),
                         'description'
-                    )
-                    ||
+                    ) ||
                     str_contains(
                         strtolower($propertyName),
                         'bullet'
-                    )
-                    ||
+                    ) ||
                     str_contains(
                         strtolower($propertyName),
                         'keyword'
@@ -223,13 +220,13 @@ class AmazonSchemaService
                 // Label
                 $fieldLabel =
                     $property['title']
-                    ?? ucfirst(
-                        str_replace(
-                            '_',
-                            ' ',
-                            $propertyName
-                        )
-                    );
+                        ?? ucfirst(
+                            str_replace(
+                                '_',
+                                ' ',
+                                $propertyName
+                            )
+                        );
                 // Required
                 $required =
                     in_array(
@@ -237,14 +234,14 @@ class AmazonSchemaService
                         $schema['real_schema']['required']
                             ?? []
                     );
-                Log::info('FIELD DEBUG', [
-                    'property' =>
-                    $propertyName,
-                    'type' =>
-                    $fieldType,
-                    'required' =>
-                    $required
-                ]);
+                // Log::info('FIELD DEBUG', [
+                //     'property' =>
+                //     $propertyName,
+                //     'type' =>
+                //     $fieldType,
+                //     'required' =>
+                //     $required
+                // ]);
                 $fields[] = [
                     'key' => $propertyName,
                     'name' => $fieldLabel,
@@ -259,6 +256,7 @@ class AmazonSchemaService
         }
         return $fields;
     }
+
     public function getDbCredentials($shop)
     {
         return [
@@ -268,6 +266,7 @@ class AmazonSchemaService
             'seller_id' => $shop->amazon_seller_id ?? null,
         ];
     }
+
     private function getSchemaConnector($shop)
     {
         $creds = $this->getDbCredentials($shop);

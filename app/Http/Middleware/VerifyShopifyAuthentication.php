@@ -110,14 +110,14 @@ class VerifyShopifyAuthentication
                         'shop' => $tokenResult['shop'],
                     ]);
 
-                    Log::info('SHOPIFY TOKEN AUTH SUCCESS', [
-                        'shop' => $tokenResult['shop'],
-                        'shop_id' => $tokenResult['shop_model']->id,
-                        'session_id' => session()->getId(),
-                        'session_verified_shop' => session('_shopify_verified_shop'),
-                        'session_cookie' => config('session.cookie'),
-                        'session_driver' => config('session.driver'),
-                    ]);
+                    // Log::info('SHOPIFY TOKEN AUTH SUCCESS', [
+                    //     'shop' => $tokenResult['shop'],
+                    //     'shop_id' => $tokenResult['shop_model']->id,
+                    //     'session_id' => session()->getId(),
+                    //     'session_verified_shop' => session('_shopify_verified_shop'),
+                    //     'session_cookie' => config('session.cookie'),
+                    //     'session_driver' => config('session.driver'),
+                    // ]);
 
                     return $next($request);
                 }
