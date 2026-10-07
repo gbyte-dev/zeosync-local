@@ -384,10 +384,10 @@
 
             </div>
 
-            <div class="mt-3 d-flex gap-2">
+           {{-- <div class="mt-3 d-flex gap-2">
                 <a href="mailto:support@zeosync.io" class="saas-btn saas-btn-outline">Contact Support</a>
-                <a href="/docs" class="saas-btn saas-btn-outline">View Documentation</a>
-            </div>
+                <a href="#" class="saas-btn saas-btn-outline">View Documentation</a>
+            </div> --}}
 
             <div class="saas-banner-success mt-3" id="contact-support" style="font-size:13px;">
                 <i class="bi bi-info-circle-fill"></i>
