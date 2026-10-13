@@ -367,22 +367,37 @@ class ShopifyController extends Controller
                 ?? (app()->has('csp_nonce') ? app('csp_nonce') : (view()->shared('cspNonce') ?? ''));
             $escapedUrl = json_encode($redirectUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES);
             $appName = e(config('app.name', 'ZeoSync'));
+            $safeRedirectUrl = e($redirectUrl);
+            $safeApiKey = e((string) $shopifyApiKey);
             $html = <<<HTML
                 <!DOCTYPE html>
                 <html lang="en">
                 <head>
                     <meta charset="utf-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <meta name="shopify-api-key" content="{$safeApiKey}">
                     <title>Connecting to Shopify &mdash; {$appName}</title>
+                    <script nonce="{$cspNonce}" src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
                     <script nonce="{$cspNonce}">
-                        if (window.top !== window.self) {
-                            window.top.location.href = {$escapedUrl};
+                        function navigateToAuthorize() {
+                            try {
+                                if (typeof open === 'function') {
+                                    open({$escapedUrl}, '_top');
+                                } else {
+                                    window.location.href = {$escapedUrl};
+                                }
+                            } catch (e) {
+                                console.warn('Automated top-level navigation blocked. Awaiting user click.', e);
+                            }
+                        }
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', navigateToAuthorize);
                         } else {
-                            window.location.href = {$escapedUrl};
+                            navigateToAuthorize();
                         }
                     </script>
                     <noscript>
-                        <meta http-equiv="refresh" content="0; url={$redirectUrl}">
+                        <meta http-equiv="refresh" content="0; url={$safeRedirectUrl}">
                     </noscript>
                     <style nonce="{$cspNonce}">
                         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -400,7 +415,7 @@ class ShopifyController extends Controller
                         .redirect-card {
                             text-align: center;
                             padding: 36px 28px;
-                            max-width: 420px;
+                            max-width: 440px;
                             width: 90%;
                             background: #FFFFFF;
                             border-radius: 12px;
@@ -430,6 +445,24 @@ class ShopifyController extends Controller
                             font-size: 13px;
                             color: #6B7280;
                             line-height: 1.5;
+                            margin-bottom: 16px;
+                        }
+                        .btn-authorize {
+                            display: inline-block;
+                            background-color: #008060;
+                            color: #FFFFFF;
+                            font-size: 14px;
+                            font-weight: 600;
+                            padding: 10px 22px;
+                            border-radius: 6px;
+                            text-decoration: none;
+                            transition: background-color 0.15s ease-in-out;
+                            cursor: pointer;
+                        }
+                        .btn-authorize:hover {
+                            background-color: #006e52;
+                            color: #FFFFFF;
+                            text-decoration: none;
                         }
                     </style>
                 </head>
@@ -437,7 +470,10 @@ class ShopifyController extends Controller
                     <div class="redirect-card" role="status" aria-live="polite">
                         <div class="spinner"></div>
                         <h1 class="redirect-title">Setting things up</h1>
-                        <p class="redirect-desc">Confirming your store details. This only takes a moment…</p>
+                        <p class="redirect-desc">Confirming your store details. If you are not redirected automatically, click below to continue:</p>
+                        <a href="{$safeRedirectUrl}" target="_top" class="btn-authorize" onclick="try { open({$escapedUrl}, '_top'); return false; } catch (e) { return true; }">
+                            Continue to Shopify Authorization &rarr;
+                        </a>
                     </div>
                 </body>
                 </html>

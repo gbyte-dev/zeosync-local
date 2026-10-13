@@ -193,7 +193,12 @@ it('2. Embedded /install returns iframe breakout navigation with clean loading U
     $response->assertStatus(200);
     $response->assertHeader('content-type', 'text/html; charset=UTF-8');
     $content = $response->getContent();
-    expect($content)->toContain('window.top.location.href');
+    expect($content)->not->toContain('window.top.location.href');
+    expect($content)->toContain('https://cdn.shopify.com/shopifycloud/app-bridge.js');
+    expect($content)->toContain('name="shopify-api-key"');
+    expect($content)->toContain('open(');
+    expect($content)->toContain('target="_top"');
+    expect($content)->toContain('Continue to Shopify Authorization');
     expect($content)->toContain('https://demo-store.myshopify.com/admin/oauth/authorize?');
     expect($content)->toContain('<script nonce=');
     expect($content)->toContain('<style nonce=');
@@ -203,6 +208,17 @@ it('2. Embedded /install returns iframe breakout navigation with clean loading U
     expect($content)->toContain('role="status"');
     expect($content)->toContain('aria-live="polite"');
     expect($content)->toContain('<noscript>');
+});
+
+it('2b. Embedded /install response provides actionable click-to-authorize fallback without leaking secrets', function () {
+    $response = $this->get('/install?shop=demo-store.myshopify.com&embedded=1');
+
+    $content = $response->getContent();
+    expect($content)->toContain('btn-authorize');
+    expect($content)->toContain('onclick="try { open(');
+    expect($content)->toContain('test-api-key');
+    expect($content)->not->toContain('test-api-secret');
+    expect($content)->not->toContain('shpat_');
 });
 
 it('3. Invalid shop domain fails with 400', function () {
