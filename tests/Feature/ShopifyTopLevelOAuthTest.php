@@ -187,13 +187,19 @@ it('1. Top-level /install redirects directly (302) to Shopify OAuth', function (
     expect($redirectLocation)->toContain('state=');
 });
 
-it('2. Embedded /install returns iframe breakout navigation with clean loading UI', function () {
+it('2. Embedded /install returns iframe breakout navigation with clean loading UI and App Bridge fallback', function () {
     $response = $this->get('/install?shop=demo-store.myshopify.com&embedded=1');
 
     $response->assertStatus(200);
     $response->assertHeader('content-type', 'text/html; charset=UTF-8');
     $content = $response->getContent();
-    expect($content)->toContain('window.top.location.href');
+    expect($content)->not->toContain('window.top.location.href');
+    expect($content)->toContain('app-bridge.js');
+    expect($content)->toContain('shopify-api-key');
+    expect($content)->toContain("open(");
+    expect($content)->toContain("'_top'");
+    expect($content)->toContain('target="_top"');
+    expect($content)->toContain('Continue to Shopify Authorization');
     expect($content)->toContain('https://demo-store.myshopify.com/admin/oauth/authorize?');
     expect($content)->toContain('<script nonce=');
     expect($content)->toContain('<style nonce=');
