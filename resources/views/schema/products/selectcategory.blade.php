@@ -201,8 +201,7 @@
 
     <!-- Form Container -->
     <div class="sp-card">
-        <form id="selectCategoryForm" action="{{ route('user.addProductCategory', [
-    'shop' => $activeShop]) }}" method="POST">
+        <form id="selectCategoryForm" action="{{ route('user.addProductCategory', [ 'shop' => $activeShop]) }}" method="POST">
             @csrf
             <input type="hidden" name="shop" value="{{ $activeShop }}">
 
