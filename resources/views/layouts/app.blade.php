@@ -750,7 +750,7 @@
                         try {
                             const token = await shopify.idToken();
                             if (token) {
-                                let headers = new Headers(init.headers || {});
+                                let headers = new Headers(init.headers || (typeof Request !== 'undefined' && resource instanceof Request ? resource.headers : {}));
                                 if (!headers.has('Authorization')) {
                                     headers.set('Authorization', `Bearer ${token}`);
                                 }

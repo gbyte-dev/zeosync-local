@@ -258,6 +258,9 @@ class CategorySearchDropdownTest extends TestCase
         $this->assertStringContainsString('ArrowUp', $html);
         $this->assertStringContainsString('Escape', $html);
         $this->assertStringContainsString('No subcategories found', $html);
+        // Authenticated fetch migration verification
+        $this->assertStringContainsString('fetch(url,', $html);
+        $this->assertStringNotContainsString('new XMLHttpRequest', $html);
     }
 
     public function test_edit_product_view_renders_searchable_dropdown_and_prefills_existing_subcategory(): void
@@ -325,6 +328,9 @@ class CategorySearchDropdownTest extends TestCase
         $this->assertStringContainsString('ArrowUp', $html);
         $this->assertStringContainsString('Escape', $html);
         $this->assertStringContainsString('No subcategories found', $html);
+        // Authenticated fetch migration verification
+        $this->assertStringContainsString('fetch(url,', $html);
+        $this->assertStringNotContainsString('new XMLHttpRequest', $html);
     }
 
     public function test_amazon_products_index_view_renders_empty_state_correctly(): void
@@ -342,5 +348,71 @@ class CategorySearchDropdownTest extends TestCase
         $this->assertStringContainsString('Products added through ZeoSync will appear here.', $html);
         $this->assertStringContainsString('bi bi-box-seam', $html);
         $this->assertStringNotContainsString('No products has been aded by our plateform.', $html);
+    }
+
+    public function test_category_search_rejects_unauthenticated_request_with_401_json(): void
+    {
+        $parent = Category::create([
+            'name' => 'Fashion',
+            'category' => 'fashion',
+            'slug' => 'fashion',
+            'parent_id' => null,
+            'level' => 1,
+        ]);
+
+        $response = $this->get(route('shopify.categories.search', [
+            'parent_id' => $parent->id,
+            'shop' => $this->shop->shop,
+        ]));
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'success' => false,
+            'requires_reauth' => true,
+            'error' => 'Unauthorized',
+        ]);
+        $response->assertHeader('X-Shopify-Retry-Invalid-Session-Request', '1');
+    }
+
+    public function test_category_search_succeeds_with_bearer_token(): void
+    {
+        $parent = Category::create([
+            'name' => 'Home & Kitchen',
+            'category' => 'home-kitchen',
+            'slug' => 'home-kitchen',
+            'parent_id' => null,
+            'level' => 1,
+        ]);
+
+        Category::create([
+            'name' => 'Cookware',
+            'category' => 'cookware',
+            'slug' => 'cookware',
+            'parent_id' => $parent->id,
+            'level' => 2,
+        ]);
+
+        $validator = \Mockery::mock(\App\Services\ShopifySessionTokenValidator::class)->makePartial();
+        $validator->shouldReceive('validate')->andReturn([
+            'shop' => $this->shop->shop,
+            'shop_model' => $this->shop,
+            'payload' => ['dest' => "https://{$this->shop->shop}"],
+        ]);
+        app()->instance(\App\Services\ShopifySessionTokenValidator::class, $validator);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer mock-valid-app-bridge-token',
+            'Accept' => 'application/json',
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])->get(route('shopify.categories.search', [
+            'parent_id' => $parent->id,
+            'shop' => $this->shop->shop,
+        ]));
+
+        $response->assertStatus(200);
+        $data = $response->json();
+        $this->assertIsArray($data);
+        $this->assertCount(1, $data);
+        $this->assertEquals('Cookware', $data[0]['name']);
     }
 }

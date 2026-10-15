@@ -511,3 +511,87 @@ it('Test 18: Dashboard access with tampered HMAC fails closed', function () {
     $response->assertStatus(401);
 });
 
+it('Test 19: Invalid Bearer token returns 401 JSON without explicit Accept header', function () {
+    $forgedToken = generateShopifyTestJwt('store-a.myshopify.com', 'test-api-key', 'test-api-secret', 300, -60, null, null, null, 'wrong-secret');
+
+    // Make request with Authorization header only - no Accept: application/json or X-Requested-With
+    $response = $this->withHeaders([
+        'Authorization' => "Bearer {$forgedToken}",
+    ])->get('/shopify-auth-test-endpoint');
+
+    $response->assertStatus(401);
+    $response->assertJson([
+        'success' => false,
+        'requires_reauth' => true,
+        'error' => 'Unauthorized',
+    ]);
+    $response->assertHeader('X-Shopify-Retry-Invalid-Session-Request', '1');
+});
+
+it('Test 20: Shopify iframe launch with ?session=opaque-session-id is not treated as a token candidate', function () {
+    Shop::create([
+        'shop'         => 'store-a.myshopify.com',
+        'shop_name'    => 'Store A',
+        'email'        => 'store@example.com',
+        'access_token' => 'token-a',
+        'is_active'    => 1,
+    ]);
+
+    $params = [
+        'embedded'  => '1',
+        'host'      => base64_encode('admin.shopify.com/store/store-a'),
+        'shop'      => 'store-a.myshopify.com',
+        'timestamp' => (string) time(),
+        'session'   => '2348a9f6-opaque-shopify-admin-iframe-session',
+    ];
+    ksort($params);
+    $params['hmac'] = hash_hmac('sha256', urldecode(http_build_query($params)), 'test-api-secret');
+
+    // Because 'session' is no longer treated as a JWT token candidate, HMAC auth succeeds cleanly
+    $response = $this->get('/shopify-auth-test-endpoint?' . http_build_query($params));
+
+    $response->assertStatus(200);
+    $data = $response->json();
+    expect($data['active_shop'])->toBe('store-a.myshopify.com');
+    expect($data['verified_shop'])->toBe('store-a.myshopify.com');
+    expect($data['auth_source'])->toBe('shopify_hmac');
+});
+
+it('Test 21: Invalid Bearer token does not fall back to an active session of another shop', function () {
+    $shopA = Shop::create([
+        'shop'         => 'store-a.myshopify.com',
+        'shop_name'    => 'Store A',
+        'email'        => 'store-a@example.com',
+        'access_token' => 'token-a',
+        'is_active'    => 1,
+    ]);
+
+    $forgedToken = generateShopifyTestJwt('store-b.myshopify.com', 'test-api-key', 'test-api-secret', 300, -60, null, null, null, 'wrong-secret');
+
+    // Pre-existing session belongs to Store A, but request provides invalid Bearer token
+    $response = $this->withSession([
+        '_shopify_verified_shop' => 'store-a.myshopify.com',
+        '_shopify_verified_at'   => time(),
+        'active_shop'            => 'store-a.myshopify.com',
+        'active_shop_id'         => $shopA->id,
+    ])->withHeaders([
+        'Authorization' => "Bearer {$forgedToken}",
+    ])->get('/shopify-auth-test-endpoint');
+
+    $response->assertStatus(401);
+    $response->assertJson([
+        'success' => false,
+        'requires_reauth' => true,
+        'error' => 'Unauthorized',
+    ]);
+});
+
+it('Test 22: Browser navigation with invalid token does not authenticate and fails closed', function () {
+    // Standalone browser navigation with an invalid query token
+    $response = $this->get('/shopify-auth-test-endpoint?id_token=malformed-token-string');
+
+    // Should not succeed with 200 and should not authenticate
+    expect($response->status())->not->toBe(200);
+    expect(session('_shopify_verified_shop'))->toBeNull();
+});
+

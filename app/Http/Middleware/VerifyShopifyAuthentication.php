@@ -65,6 +65,8 @@ class VerifyShopifyAuthentication
 
         // 2. Priority 2: App Bridge Session Token (Authorization header, custom header, or URL query token) OR Laravel Crypt Path/Query Token
         $sessionToken = $this->extractSessionToken($request);
+        $tokenValidationFailed = false;
+
         if ($sessionToken) {
             // 2a. Validate App Bridge JWT Session Token
             $tokenResult = $this->validator->validate($sessionToken);
@@ -88,7 +90,7 @@ class VerifyShopifyAuthentication
                         'path' => $request->path(),
                     ]);
 
-                    if ($request->ajax() || $request->expectsJson()) {
+                    if ($this->isApiOrAjaxRequest($request)) {
                         return response()->json([
                             'success' => false,
                             'requires_reauth' => true,
@@ -97,6 +99,8 @@ class VerifyShopifyAuthentication
                             'message' => 'Shopify session token destination does not match requested shop.',
                         ], 401)->header('X-Shopify-Retry-Invalid-Session-Request', '1');
                     }
+
+                    return redirect()->route('shopify.install', array_filter(['shop' => $requestedShop ?: $tokenResult['shop']]));
                 } else {
                     $request->attributes->set('shopify_verified_shop', $tokenResult['shop']);
                     $request->attributes->set('shopify_verified_model', $tokenResult['shop_model']);
@@ -148,12 +152,14 @@ class VerifyShopifyAuthentication
                 return $next($request);
             }
 
-            // If a session token was provided but is invalid, fail closed for AJAX/JSON
+            // If a session token was provided but is invalid, fail closed for API/AJAX requests
+            $tokenValidationFailed = true;
+
             Log::warning('VerifyShopifyAuthentication: Invalid session token provided.', [
                 'path' => $request->path(),
             ]);
 
-            if ($request->ajax() || $request->expectsJson()) {
+            if ($this->isApiOrAjaxRequest($request)) {
                 $requestedShop = $this->extractRequestedShop($request);
                 return response()->json([
                     'success' => false,
@@ -186,7 +192,8 @@ class VerifyShopifyAuthentication
         ]);
 
         // 4. Priority 3: Established Cryptographically Verified Session
-        if (session()->has('_shopify_verified_shop')) {
+        // Only allow session fallback if no explicit token validation failed on this request
+        if (!$tokenValidationFailed && session()->has('_shopify_verified_shop')) {
             $rawSessionShop = (string) session('_shopify_verified_shop');
             $sessionShopDomain = $this->validator->normalizeShopDomain($rawSessionShop);
             $requestedShop = $this->extractRequestedShop($request);
@@ -251,8 +258,8 @@ class VerifyShopifyAuthentication
             }
         }
 
-        // 5. If AJAX / JSON request without authentication on protected route -> 401
-        if ($request->ajax() || $request->expectsJson()) {
+        // 5. If AJAX / JSON / API request without authentication on protected route -> 401
+        if ($this->isApiOrAjaxRequest($request)) {
             Log::warning('VerifyShopifyAuthentication: Unauthenticated AJAX/API request rejected.', [
                 'url' => $request->fullUrl(),
             ]);
@@ -300,7 +307,7 @@ class VerifyShopifyAuthentication
             }
         }
 
-        $queryCandidates = ['id_token', 'token', 'session_token', 'session', 'shopify_token'];
+        $queryCandidates = ['id_token', 'token', 'session_token', 'shopify_token'];
         foreach ($queryCandidates as $param) {
             $val = $request->query($param);
             if (!empty($val) && is_string($val)) {
@@ -573,5 +580,17 @@ class VerifyShopifyAuthentication
 
         $decoded = base64_decode(strtr($host, '-_', '+/'), true);
         return $decoded !== false ? $decoded : $host;
+    }
+
+    /**
+     * Determine if the request is an API, AJAX, or token-authenticated request that expects a JSON response.
+     */
+    protected function isApiOrAjaxRequest(Request $request): bool
+    {
+        return $request->ajax()
+            || $request->expectsJson()
+            || !empty($request->bearerToken())
+            || $request->hasHeader('X-Shopify-Session-Token')
+            || $request->routeIs('shopify.categories.search');
     }
 }

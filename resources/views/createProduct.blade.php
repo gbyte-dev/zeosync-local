@@ -1556,25 +1556,27 @@
             "?parent_id=" + encodeURIComponent(categoryId) +
             "&search=" + encodeURIComponent(searchQuery || '');
 
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
-        xhr.setRequestHeader('Accept', 'application/json');
-
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return;
-            if (xhr.status !== 200) {
-                console.error('Subcategory request failed:', xhr.status);
-                return;
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             }
-
-            let categories;
-            try {
-                categories = JSON.parse(xhr.responseText);
-            } catch (error) {
-                console.error('Invalid JSON response:', error);
-                return;
+        })
+        .then(async response => {
+            if (!response.ok) {
+                console.error('Subcategory request failed:', response.status);
+                return null;
             }
-
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                console.error('Non-JSON response received from category search');
+                return null;
+            }
+            return response.json();
+        })
+        .then(categories => {
+            if (!categories) return;
             if (!Array.isArray(categories)) categories = [];
 
             if (!query) {
@@ -1582,12 +1584,10 @@
             }
 
             renderSubCategories(categories);
-        };
-
-        xhr.onerror = function() { console.error('XHR NETWORK ERROR'); };
-        xhr.ontimeout = function() { console.error('XHR TIMEOUT'); };
-        xhr.timeout = 10000;
-        xhr.send();
+        })
+        .catch(error => {
+            console.error('Subcategory fetch error:', error);
+        });
     }
 
     if (subCategorySearch) {

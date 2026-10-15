@@ -279,7 +279,12 @@
             activeTab = 'shopify';
             currentPage = 1;
 
-            fetch('{{ route("shopify.inventory.shopify") }}')
+            fetch('{{ route("shopify.inventory.shopify") }}', {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
                 .then(res => res.json())
                 .then(data => {
                     shopifyData = data;
@@ -292,7 +297,12 @@
             activeTab = 'amazon';
             currentPage = 1;
 
-            fetch('{{ route("shopify.inventory.amazon") }}')
+            fetch('{{ route("shopify.inventory.amazon") }}', {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
                 .then(res => res.json())
                 .then(data => {
 
@@ -488,7 +498,12 @@
             const btn = event.target;
             btn.innerHTML = 'Refreshing...';
             btn.disabled = true;
-            fetch('{{ route("shopify.inventory.refresh") }}')
+            fetch('{{ route("shopify.inventory.refresh") }}', {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
                 .then(() => {
                     if (activeTab === 'shopify') loadShopify();
                     else loadAmazon();
