@@ -97,7 +97,7 @@
                 <div class="card-body">
                     <h6 class="card-title">Third-Party Service Providers</h6>
                     <p class="card-text text-muted">
-                        {{getAppName()}} works with third-party providers required to operate and support the Service. These may include Shopify, Amazon, Stripe, hosting and database providers, and email or support service providers. We do not sell personal data. We may share data only as necessary to provide the Service, process payments, maintain infrastructure, or comply with legal obligations.
+                        {{getAppName()}} works with third-party providers required to operate and support the Service. These may include Shopify, Amazon, and email or support service providers. We do not sell personal data. We may share data only as necessary to provide the Service, process payments, maintain infrastructure, or comply with legal obligations.
                     </p>
                 </div>
             </div>
