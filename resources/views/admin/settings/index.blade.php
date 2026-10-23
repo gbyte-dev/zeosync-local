@@ -5,7 +5,7 @@
 
 @php
 $groups = [
-    'App Basic Details' => ['app_name','currency','timezone','support_email','support_contact_no', 'app_logo','app_favicon'],
+    'App Basic Details' => ['app_name','currency','timezone','support_email','privacy_contact_email','support_contact_no', 'app_logo','app_favicon'],
     'Email / SMTP Settings' => ['admin_email','SMTP_host','SMTP_port','SMTP_username','SMTP_password','SMTP_encryption','from_email','from_name'],
     'Stripe Settings' => ['stripe_secret_key','stripe_publishable_key','stripe_webhook_secret'],
     'Amazon Credentials' => ['production_client_id','production_client_secret','amazon_refresh_token','amazon_seller_id','amazon_app_id'],
@@ -48,13 +48,22 @@ $groups = [
                             <div class="col-md-6 col-12">
                                 <div class="mb-2">
                                     <label class="form-label small mb-1 text-muted">
-                                        {{ ucfirst(str_replace('_', ' ', $key)) }}
+                                        @if($key === 'privacy_contact_email')
+                                            Privacy Contact Email
+                                        @else
+                                            {{ ucfirst(str_replace('_', ' ', $key)) }}
+                                        @endif
                                         @if($key === 'openai_api_key')
                                             <a href="https://aistudio.google.com/api-keys" target="_blank" class="ms-2">Get API Key</a>
                                         @endif
                                     </label>
 
-                                    @if($key === 'admin_email')
+                                    @if($key === 'privacy_contact_email')
+                                        <input type="email" name="{{ $key }}" class="form-control @error($key) is-invalid @enderror" value="{{ old($key, $value) }}" placeholder="privacy@zeosync.app">
+                                        @error($key)
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    @elseif($key === 'admin_email')
                                         <input type="email" name="{{ $key }}" class="form-control" value="{{ old($key, $value) }}">
                                     @elseif($key === 'SMTP_password')
                                         <input type="password" name="{{ $key }}" class="form-control" value="{{ old($key, $value) }}">

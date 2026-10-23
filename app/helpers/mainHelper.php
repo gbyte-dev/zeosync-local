@@ -17,6 +17,20 @@ if (!function_exists('setting')) {
     }
 }
 
+if (!function_exists('getPrivacyContactEmail')) {
+    function getPrivacyContactEmail(): string
+    {
+        $raw = setting('privacy_contact_email');
+        $email = is_string($raw) ? trim($raw) : '';
+
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return 'privacy@zeosync.app';
+        }
+
+        return $email;
+    }
+}
+
 if (!function_exists('getMailSettings')) {
 function getMailSettings(){
     try {

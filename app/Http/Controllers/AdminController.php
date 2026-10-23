@@ -215,6 +215,12 @@ class AdminController extends Controller
 
     public function settingsupdate(Request $request)
     {
+        $request->validate([
+            'privacy_contact_email' => ['nullable', 'email', 'max:255'],
+        ], [], [
+            'privacy_contact_email' => 'Privacy Contact Email',
+        ]);
+
         $oldProductionClientId = trim((string) AdminSetting::get('production_client_id', ''));
         $oldProductionClientSecret = trim((string) AdminSetting::get('production_client_secret', ''));
 
@@ -225,6 +231,7 @@ class AdminController extends Controller
             'app_logo',
             'app_favicon',
             'support_email',
+            'privacy_contact_email',
             'admin_email',
             'SMTP_host',
             'SMTP_port',
@@ -295,12 +302,15 @@ class AdminController extends Controller
                     ['option_value' => (string) $submittedValue]
                 );
             } else {
+                $rawVal = $request->input($key);
+                $cleanVal = is_string($rawVal) ? trim($rawVal) : ($rawVal ?? '');
+
                 AdminSetting::updateOrCreate(
                     ['option_key' => $key],
                     [
                         'option_value' => in_array($key, ['is_testmode', 'app_maintenance', 'install_info'])
                             ? ($request->has($key) ? '1' : '0')
-                            : ($request->input($key) ?? '')
+                            : $cleanVal
                     ]
                 );
             }

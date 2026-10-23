@@ -124,7 +124,10 @@
                 <div class="card-body">
                     <h6 class="card-title">Your Rights</h6>
                     <p class="card-text text-muted">
-                        You may request access to, correction of, or deletion of your data, subject to applicable law and the retention requirements described above. You can also revoke API access and disconnect your store from the Service through the app or account settings. For privacy-related inquiries, please contact us at privacy@zeosync.app.
+                        @php
+                            $privacyContactEmail = getPrivacyContactEmail();
+                        @endphp
+                        You may request access to, correction of, or deletion of your data, subject to applicable law and the retention requirements described above. You can also revoke API access and disconnect your store from the Service through the app or account settings. For privacy-related inquiries, please contact us at <a href="mailto:{{ $privacyContactEmail }}">{{ $privacyContactEmail }}</a>.
                     </p>
                 </div>
             </div>
