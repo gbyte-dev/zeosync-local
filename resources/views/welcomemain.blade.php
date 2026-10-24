@@ -6,6 +6,156 @@
 
 @push('styles')
 <style nonce="{{ $cspNonce }}">
+    /* Hero section with +60px added height (~545px to 550px total height) */
+    .hero {
+        padding-top: 60px;
+        padding-bottom: 62px;
+        gap: 50px;
+    }
+    .hero h1 {
+        font-size: clamp(2.45rem, 3.8vw, 3.35rem);
+        line-height: 1.15;
+        letter-spacing: -0.045em;
+    }
+    .hero .eyebrow {
+        margin-bottom: 14px;
+        font-size: 0.75rem;
+    }
+    .hero .lead {
+        margin-top: 16px;
+        font-size: 1rem;
+        line-height: 1.62;
+        max-width: 580px;
+    }
+    .hero .herocopy p + p {
+        margin-top: 12px;
+    }
+    .hero .actions {
+        margin-top: 20px;
+    }
+    .hero .btn {
+        padding: 12px 22px;
+        font-size: 0.9rem;
+    }
+    .hero .micro {
+        margin-top: 14px;
+        font-size: 0.8rem;
+    }
+    .hero .workspace {
+        box-shadow: 0 18px 50px rgba(17, 28, 37, 0.1);
+    }
+    .hero .workspacebar {
+        padding: 12px 20px;
+        font-size: 0.8rem;
+    }
+    .hero .mini-brand {
+        font-size: 0.84rem;
+    }
+    .hero .demo {
+        font-size: 0.72rem;
+    }
+    .hero .workspacebody {
+        padding: 16px 20px;
+    }
+    .hero .wsheading small {
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+    }
+    .hero .wsheading h3 {
+        margin-top: 4px;
+        font-size: 1.16rem;
+    }
+    .hero .avatar {
+        padding: 8px 10px;
+        font-size: 0.72rem;
+    }
+    .hero .channels {
+        margin: 15px 0;
+        gap: 10px;
+    }
+    .hero .channels > div {
+        padding: 9px 15px;
+    }
+    .hero .channels b {
+        font-size: 1.08rem;
+    }
+    .hero .channels span:not(.connection) {
+        font-size: 0.72rem;
+    }
+    .hero .connection {
+        font-size: 1.35rem;
+    }
+    .hero .metrics {
+        padding: 12px 14px;
+        gap: 9px;
+        border-radius: 8px;
+    }
+    .hero .metrics span {
+        font-size: 0.78rem;
+    }
+    .hero .metrics strong {
+        font-size: 1.45rem;
+        margin: 2px 0;
+    }
+    .hero .metrics small {
+        font-size: 0.7rem;
+    }
+    .hero .tabletitle {
+        margin: 14px 0 8px;
+        font-size: 0.78rem;
+    }
+    .hero .tabletitle span {
+        font-size: 0.72rem;
+    }
+    .hero .activity {
+        padding: 9.5px 0;
+        gap: 10px;
+    }
+    .hero .activity b {
+        font-size: 0.8rem;
+    }
+    .hero .activity small {
+        font-size: 0.72rem;
+    }
+    .hero .activityicon {
+        padding: 6px 9px;
+        font-size: 1rem;
+        border-radius: 6px;
+    }
+    .hero .tag {
+        padding: 3px 8px;
+        font-size: 0.72rem;
+    }
+    .hero .workspacefoot {
+        padding: 8px 12px;
+        font-size: 0.72rem;
+    }
+
+    @media (min-width: 1500px) {
+        .hero {
+            padding-top: 68px;
+            padding-bottom: 70px;
+        }
+    }
+    @media (max-width: 1050px) {
+        .hero {
+            gap: 30px;
+        }
+        .hero .workspacebody {
+            padding: 14px 18px;
+        }
+    }
+    @media (max-width: 780px) {
+        .hero {
+            padding-top: 42px;
+            padding-bottom: 46px;
+            gap: 34px;
+        }
+        .hero h1 {
+            font-size: clamp(2.2rem, 7.5vw, 3rem);
+        }
+    }
+
     .feature-video-section {
         padding-top: 36px;
         padding-bottom: 64px;
