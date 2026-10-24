@@ -4,6 +4,233 @@
 @section('meta_description', 'Connect Amazon and Shopify with clearer product, inventory, order and returns workflows.')
 @section('preview-banner', 'Website preview  . Proposed launch plans & illustrative product experience')
 
+@push('styles')
+<style nonce="{{ $cspNonce }}">
+    .feature-video-section {
+        padding-top: 36px;
+        padding-bottom: 64px;
+        background: var(--paper);
+    }
+    .feature-video-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 48px;
+        align-items: center;
+    }
+    .feature-video-copy {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .feature-video-section .eyebrow {
+        color: #1d68a4;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        font-size: 0.75rem;
+        letter-spacing: 0.14em;
+        font-weight: 700;
+    }
+    .feature-video-section .eyebrow .line {
+        background: #1d68a4;
+        width: 25px;
+        height: 2px;
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 0;
+    }
+    .feature-video-copy h2 {
+        color: var(--ink);
+        font-size: clamp(1.85rem, 2.5vw, 2.5rem);
+        line-height: 1.2;
+        letter-spacing: -0.04em;
+        margin-bottom: 12px;
+        font-weight: 600;
+    }
+    .feature-video-copy .lead {
+        color: var(--muted);
+        font-size: 0.975rem;
+        line-height: 1.65;
+        margin-top: 0;
+        margin-bottom: 22px;
+        max-width: 520px;
+    }
+    .feature-highlights-2x2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+    .feature-highlight-card {
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        padding: 14px 14px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 94px;
+        box-shadow: 0 2px 8px rgba(17, 28, 37, 0.03);
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .feature-highlight-card:hover {
+        transform: translateY(-2px);
+        border-color: #377fa4;
+        box-shadow: 0 6px 16px rgba(17, 28, 37, 0.06);
+    }
+    .feature-highlight-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .feature-highlight-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        background: #eef6fb;
+        color: #1d68a4;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .feature-highlight-num {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #9eadb5;
+        letter-spacing: 0.05em;
+    }
+    .feature-highlight-title {
+        font-family: 'DM Sans', Arial, sans-serif;
+        font-size: 0.85rem;
+        line-height: 1.35;
+        font-weight: 600;
+        color: var(--ink);
+        margin: 0;
+    }
+    .feature-video-media {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        width: 100%;
+    }
+    .feature-video-card {
+        background: #ffffff;
+        border: 1px solid #d2dce0;
+        border-radius: 12px;
+        box-shadow: 0 16px 40px -12px rgba(17, 28, 37, 0.12), 0 6px 16px -6px rgba(17, 28, 37, 0.05);
+        overflow: hidden;
+        width: 100%;
+        transition: box-shadow 0.3s ease;
+    }
+    .feature-video-card:hover {
+        box-shadow: 0 20px 48px -12px rgba(17, 28, 37, 0.15), 0 8px 20px -6px rgba(17, 28, 37, 0.07);
+    }
+    .feature-video-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 9px 15px;
+        background: #f6f8f8;
+        border-bottom: 1px solid var(--line);
+        font-size: 0.75rem;
+        color: var(--muted);
+    }
+    .feature-video-dots {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .feature-video-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #d2dce0;
+        display: inline-block;
+    }
+    .feature-video-label {
+        font-weight: 600;
+        color: var(--ink);
+        font-size: 0.725rem;
+        letter-spacing: -0.01em;
+    }
+    .feature-video-badge {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #1d68a4;
+        background: #eef6fb;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #d6e8f5;
+    }
+    .feature-video-viewport {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: #0f172a;
+    }
+    .feature-video-element {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: #0f172a;
+    }
+    @media (max-width: 1100px) {
+        .feature-video-grid {
+            gap: 36px;
+        }
+    }
+    @media (max-width: 960px) {
+        .feature-video-grid {
+            gap: 28px;
+        }
+        .feature-video-copy h2 {
+            font-size: 1.85rem;
+        }
+        .feature-highlight-card {
+            padding: 10px 12px;
+            min-height: 84px;
+        }
+        .feature-highlight-title {
+            font-size: 0.8rem;
+        }
+    }
+    @media (max-width: 768px) {
+        .feature-video-section {
+            padding-top: 24px;
+            padding-bottom: 48px;
+        }
+        .feature-video-grid {
+            grid-template-columns: 1fr;
+            gap: 28px;
+        }
+        .feature-video-copy .lead {
+            max-width: 100%;
+            margin-bottom: 20px;
+        }
+        .feature-video-media {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+    }
+    @media (max-width: 520px) {
+        .feature-highlights-2x2 {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        .feature-highlight-card {
+            min-height: auto;
+            padding: 12px 14px;
+        }
+        .feature-video-bar {
+            padding: 8px 12px;
+        }
+    }
+</style>
+@endpush
+
 @section('content')
 		<section class="hero wrap">
 			<div class="herocopy">
@@ -59,6 +286,107 @@
 						<div><b>Return ready to review</b><small>Order #1032 · Check return details</small></div><span class="tag neutral">Review</span></div>
 				</div>
 				<div class="workspacefoot">Sample data. Product layout shown for illustration.</div>
+			</div>
+		</section>
+		<section class="section wrap feature-video-section" id="product-tour" aria-labelledby="feature-video-heading">
+			<div class="feature-video-grid">
+				<div class="feature-video-copy">
+					<p class="eyebrow"><span class="line"></span> PRODUCT TOUR</p>
+					<h2 id="feature-video-heading">See ZeoSync in Action</h2>
+					<p class="lead">Discover how ZeoSync connects Amazon and Shopify, simplifies product synchronization, and helps you manage your commerce workflow from one place.</p>
+
+					<div class="feature-highlights-2x2" aria-label="Feature Highlights">
+						<div class="feature-highlight-card">
+							<div class="feature-highlight-header">
+								<div class="feature-highlight-icon" aria-hidden="true">
+									<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+										<path d="M16 3h5v5"></path>
+										<path d="M4 20L21 3"></path>
+										<path d="M21 16v5h-5"></path>
+										<path d="M15 15l6 6"></path>
+										<path d="M4 4l5 5"></path>
+									</svg>
+								</div>
+								<span class="feature-highlight-num">01</span>
+							</div>
+							<h3 class="feature-highlight-title">Seamless Amazon + Shopify Integration</h3>
+						</div>
+
+						<div class="feature-highlight-card">
+							<div class="feature-highlight-header">
+								<div class="feature-highlight-icon" aria-hidden="true">
+									<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+										<path d="M21.5 2v6h-6"></path>
+										<path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"></path>
+									</svg>
+								</div>
+								<span class="feature-highlight-num">02</span>
+							</div>
+							<h3 class="feature-highlight-title">Automated Product Synchronization</h3>
+						</div>
+
+						<div class="feature-highlight-card">
+							<div class="feature-highlight-header">
+								<div class="feature-highlight-icon" aria-hidden="true">
+									<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+										<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+										<polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+										<line x1="12" y1="22.08" x2="12" y2="12"></line>
+									</svg>
+								</div>
+								<span class="feature-highlight-num">03</span>
+							</div>
+							<h3 class="feature-highlight-title">Centralized Inventory Management</h3>
+						</div>
+
+						<div class="feature-highlight-card">
+							<div class="feature-highlight-header">
+								<div class="feature-highlight-icon" aria-hidden="true">
+									<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+										<path d="M9 11l3 3L22 4"></path>
+										<path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+									</svg>
+								</div>
+								<span class="feature-highlight-num">04</span>
+							</div>
+							<h3 class="feature-highlight-title">Streamlined Order Workflows</h3>
+						</div>
+					</div>
+				</div>
+
+				<div class="feature-video-media">
+					<div class="feature-video-card">
+						<div class="feature-video-bar">
+							<div class="feature-video-dots" aria-hidden="true">
+								<span class="feature-video-dot"></span>
+								<span class="feature-video-dot"></span>
+								<span class="feature-video-dot"></span>
+							</div>
+							<span class="feature-video-label">ZeoSync &middot; Amazon + Shopify Walkthrough</span>
+							<span class="feature-video-badge">1080p HD</span>
+						</div>
+						<div class="feature-video-viewport">
+							<video
+								id="zeosync-tour-video"
+								class="feature-video-element"
+								controls
+								preload="none"
+								playsinline
+								width="1280"
+								height="720"
+								@if (file_exists(public_path('video/zeosync-feature-overview-poster.webp')))
+									poster="{{ asset('video/zeosync-feature-overview-poster.webp') }}"
+								@endif
+							>
+								<source
+									src="{{ asset('video/zeosync-feature-overview.mp4') }}"
+									type="video/mp4"
+								>
+								Your browser does not support HTML video.
+							</video>
+						</div>
+					</div>
+				</div>
 			</div>
 		</section>
 		<section class="strip">
