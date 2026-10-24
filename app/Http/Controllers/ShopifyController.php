@@ -4131,23 +4131,88 @@ class ShopifyController extends Controller
         $search = trim((string) $request->query('search', ''));
         $parentId = $request->query('parent_id');
 
-        $query = Category::query();
-
-        if ($search !== '') {
-            $query->where('name', 'like', '%' . $search . '%');
-        }
-
+        // When parent_id is specified, strictly query subcategories of that parent
         if ($parentId !== null && $parentId !== '') {
-            $query->where('parent_id', (int) $parentId);
-        } else {
-            $query->whereNull('parent_id');
+            $query = Category::query()->where('parent_id', (int) $parentId);
+
+            if ($search !== '') {
+                $query->where('name', 'like', '%' . $search . '%');
+            }
+
+            return response()->json(
+                $query
+                    ->orderBy('name')
+                    ->limit(100)
+                    ->get(['id', 'name'])
+            );
         }
 
-        return response()->json(
-            $query
+        // When parent_id is not specified (combined category & subcategory search)
+        if ($search === '') {
+            $mainCategories = Category::query()
+                ->whereNull('parent_id')
                 ->orderBy('name')
                 ->limit(100)
-                ->get(['id', 'name'])
-        );
+                ->get(['id', 'name']);
+
+            $results = $mainCategories->map(function ($cat) {
+                return [
+                    'id' => $cat->id,
+                    'name' => $cat->name,
+                    'parent_id' => null,
+                    'parent_name' => null,
+                    'is_subcategory' => false,
+                ];
+            });
+
+            return response()->json($results);
+        }
+
+        // Non-empty search: matching main categories
+        $mainCategories = Category::query()
+            ->whereNull('parent_id')
+            ->where('name', 'like', '%' . $search . '%')
+            ->orderBy('name')
+            ->limit(50)
+            ->get(['id', 'name']);
+
+        // Matching subcategories (by subcategory name OR parent category name)
+        $subCategories = Category::query()
+            ->whereNotNull('parent_id')
+            ->has('parent')
+            ->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhereHas('parent', function ($pq) use ($search) {
+                      $pq->where('name', 'like', '%' . $search . '%');
+                  });
+            })
+            ->with(['parent:id,name'])
+            ->orderBy('name')
+            ->limit(100)
+            ->get(['id', 'name', 'parent_id']);
+
+        $combined = collect();
+
+        foreach ($mainCategories as $cat) {
+            $combined->push([
+                'id' => $cat->id,
+                'name' => $cat->name,
+                'parent_id' => null,
+                'parent_name' => null,
+                'is_subcategory' => false,
+            ]);
+        }
+
+        foreach ($subCategories as $sub) {
+            $combined->push([
+                'id' => $sub->id,
+                'name' => $sub->name,
+                'parent_id' => $sub->parent_id,
+                'parent_name' => $sub->parent ? $sub->parent->name : null,
+                'is_subcategory' => true,
+            ]);
+        }
+
+        return response()->json($combined);
     }
 }

@@ -415,4 +415,230 @@ class CategorySearchDropdownTest extends TestCase
         $this->assertCount(1, $data);
         $this->assertEquals('Cookware', $data[0]['name']);
     }
+
+    public function test_category_search_without_parent_returns_main_categories_when_search_is_empty(): void
+    {
+        Category::create([
+            'name' => 'Electronics',
+            'category' => 'electronics',
+            'slug' => 'electronics',
+            'parent_id' => null,
+            'level' => 1,
+        ]);
+
+        $clothing = Category::create([
+            'name' => 'Clothing',
+            'category' => 'clothing',
+            'slug' => 'clothing',
+            'parent_id' => null,
+            'level' => 1,
+        ]);
+
+        Category::create([
+            'name' => 'Shirts',
+            'category' => 'shirts',
+            'slug' => 'shirts',
+            'parent_id' => $clothing->id,
+            'level' => 2,
+        ]);
+
+        $response = $this->withSession($this->authSession())->getJson(route('shopify.categories.search', [
+            'search' => '',
+            'shop' => $this->shop->shop,
+        ]));
+
+        $response->assertStatus(200);
+        $data = $response->json();
+
+        // Should return main categories only
+        $this->assertCount(2, $data);
+        $names = array_column($data, 'name');
+        $this->assertContains('Clothing', $names);
+        $this->assertContains('Electronics', $names);
+        $this->assertNotContains('Shirts', $names);
+    }
+
+    public function test_category_search_returns_matching_main_categories_and_subcategories_with_parent_info(): void
+    {
+        $clothing = Category::create([
+            'name' => 'Clothing Tops',
+            'category' => 'clothing-tops',
+            'slug' => 'clothing-tops',
+            'parent_id' => null,
+            'level' => 1,
+        ]);
+
+        $baby = Category::create([
+            'name' => "Baby & Children's Tops",
+            'category' => 'baby-tops',
+            'slug' => 'baby-tops',
+            'parent_id' => null,
+            'level' => 1,
+        ]);
+
+        Category::create([
+            'name' => 'Shirts',
+            'category' => 'shirts-clothing',
+            'slug' => 'shirts-clothing',
+            'parent_id' => $clothing->id,
+            'level' => 2,
+        ]);
+
+        Category::create([
+            'name' => 'Shirts',
+            'category' => 'shirts-baby',
+            'slug' => 'shirts-baby',
+            'parent_id' => $baby->id,
+            'level' => 2,
+        ]);
+
+        Category::create([
+            'name' => 'T-Shirts',
+            'category' => 't-shirts-clothing',
+            'slug' => 't-shirts-clothing',
+            'parent_id' => $clothing->id,
+            'level' => 2,
+        ]);
+
+        $response = $this->withSession($this->authSession())->getJson(route('shopify.categories.search', [
+            'search' => 'shirt',
+            'shop' => $this->shop->shop,
+        ]));
+
+        $response->assertStatus(200);
+        $data = $response->json();
+
+        $this->assertCount(3, $data);
+
+        // Check subcategory results contain valid parent_id, parent_name, and is_subcategory = true
+        foreach ($data as $item) {
+            $this->assertTrue($item['is_subcategory']);
+            $this->assertNotNull($item['parent_id']);
+            $this->assertNotNull($item['parent_name']);
+        }
+
+        $parentNames = array_column($data, 'parent_name');
+        $this->assertContains('Clothing Tops', $parentNames);
+        $this->assertContains("Baby & Children's Tops", $parentNames);
+    }
+
+    public function test_category_search_finds_subcategories_when_searching_by_parent_name(): void
+    {
+        $parent = Category::create([
+            'name' => 'Activewear Tops',
+            'category' => 'activewear-tops',
+            'slug' => 'activewear-tops',
+            'parent_id' => null,
+            'level' => 1,
+        ]);
+
+        Category::create([
+            'name' => 'Gym Tanks',
+            'category' => 'gym-tanks',
+            'slug' => 'gym-tanks',
+            'parent_id' => $parent->id,
+            'level' => 2,
+        ]);
+
+        $response = $this->withSession($this->authSession())->getJson(route('shopify.categories.search', [
+            'search' => 'activewear',
+            'shop' => $this->shop->shop,
+        ]));
+
+        $response->assertStatus(200);
+        $data = $response->json();
+
+        $names = array_column($data, 'name');
+        $this->assertContains('Activewear Tops', $names);
+        $this->assertContains('Gym Tanks', $names);
+
+        $gymTank = collect($data)->firstWhere('name', 'Gym Tanks');
+        $this->assertNotNull($gymTank);
+        $this->assertTrue($gymTank['is_subcategory']);
+        $this->assertEquals($parent->id, $gymTank['parent_id']);
+        $this->assertEquals('Activewear Tops', $gymTank['parent_name']);
+    }
+
+    public function test_create_product_view_renders_category_search_dropdown_elements(): void
+    {
+        View::share('cspNonce', 'test-csp-nonce-create-cat');
+        View::share('errors', new ViewErrorBag());
+
+        $html = View::make('createProduct', [
+            'activeShop' => $this->shop->shop,
+            'currency' => 'INR',
+        ])->render();
+
+        $this->assertStringContainsString('id="category_wrapper"', $html);
+        $this->assertStringContainsString('id="category_search"', $html);
+        $this->assertStringContainsString('id="category"', $html);
+        $this->assertStringContainsString('id="category_results"', $html);
+        $this->assertStringContainsString('category-dropdown', $html);
+        $this->assertStringContainsString('openCategoryDropdown', $html);
+        $this->assertStringContainsString('closeCategoryDropdown', $html);
+        $this->assertStringContainsString('selectCategoryItem', $html);
+    }
+
+    public function test_edit_product_view_renders_category_search_dropdown_and_prefills_both(): void
+    {
+        View::share('cspNonce', 'test-csp-nonce-edit-cat');
+        View::share('errors', new ViewErrorBag());
+
+        $parent = Category::create([
+            'name' => 'Men Fashion',
+            'category' => 'men-fashion',
+            'slug' => 'men-fashion',
+            'parent_id' => null,
+            'level' => 1,
+        ]);
+
+        $sub = Category::create([
+            'name' => 'Hoodies',
+            'category' => 'hoodies',
+            'slug' => 'hoodies',
+            'parent_id' => $parent->id,
+            'level' => 2,
+        ]);
+
+        $productData = [
+            'id' => '99887766',
+            'title' => 'Comfort Hoodie',
+            'body_html' => '<p>Fleece hoodie</p>',
+            'status' => 'active',
+            'variants' => [],
+            'options' => [],
+            'images' => [],
+        ];
+
+        $dbProduct = [
+            'id' => 901,
+            'category_id' => $parent->id,
+            'sub_category_id' => $sub->id,
+            'title' => 'Comfort Hoodie',
+        ];
+
+        $html = View::make('EditProduct', [
+            'product' => $productData,
+            'activeShop' => $this->shop->shop,
+            'amazonData' => null,
+            'dbProduct' => $dbProduct,
+        ])->render();
+
+        $this->assertStringContainsString('id="category_wrapper"', $html);
+        $this->assertStringContainsString('id="category_search"', $html);
+        $this->assertStringContainsString('value="Men Fashion"', $html);
+        $this->assertStringContainsString('value="' . $parent->id . '"', $html);
+
+        $this->assertStringContainsString('id="sub_category_wrapper"', $html);
+        $this->assertStringContainsString('id="sub_category_search"', $html);
+        $this->assertStringContainsString('value="Hoodies"', $html);
+        $this->assertStringContainsString('value="' . $sub->id . '"', $html);
+
+        $this->assertStringContainsString('category-dropdown', $html);
+        $this->assertStringContainsString('openCategoryDropdown', $html);
+        $this->assertStringContainsString('closeCategoryDropdown', $html);
+        $this->assertStringContainsString('selectCategoryItem', $html);
+    }
 }
+
+

@@ -35,6 +35,7 @@
         gap: 12px;
     }
 
+    .category-dropdown,
     .subcategory-dropdown {
         position: absolute;
         top: calc(100% + 4px);
@@ -53,16 +54,20 @@
             0 4px 6px rgba(0, 0, 0, 0.08),
             0 10px 20px rgba(0, 0, 0, 0.06);
 
-        max-height: 240px;
+        max-height: 260px;
         overflow-y: auto;
         padding: 4px 0;
     }
 
+    .category-dropdown .list-group-item,
     .subcategory-dropdown .list-group-item {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         width: 100%;
+        box-sizing: border-box;
 
-        padding: 8px 10px;
+        padding: 8px 12px;
 
         border: 0;
         border-bottom: 1px solid #F3F4F6;
@@ -74,12 +79,17 @@
         text-align: left;
 
         cursor: pointer;
+        transition: background-color 0.1s ease;
     }
 
+    .category-dropdown .list-group-item:last-child,
     .subcategory-dropdown .list-group-item:last-child {
         border-bottom: 0;
     }
 
+    .category-dropdown .list-group-item:hover,
+    .category-dropdown .list-group-item.active,
+    .category-dropdown .list-group-item.is-active,
     .subcategory-dropdown .list-group-item:hover,
     .subcategory-dropdown .list-group-item.active,
     .subcategory-dropdown .list-group-item.is-active {
@@ -88,16 +98,64 @@
         outline: none;
     }
 
+    .category-dropdown .list-group-item:focus,
     .subcategory-dropdown .list-group-item:focus {
         background: #F3F4F6 !important;
         color: #111827 !important;
         outline: none;
     }
 
+    .category-item-left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .category-item-name {
+        font-weight: 500;
+        color: #111827;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .category-item-right {
+        flex: 0 0 auto;
+        margin-left: 10px;
+        text-align: right;
+    }
+
+    .category-item-parent {
+        font-size: 11.5px;
+        color: #6B7280;
+        font-weight: 400;
+        white-space: nowrap;
+    }
+
+    .category-item-badge {
+        font-size: 10.5px;
+        background: #F3F4F6;
+        color: #4B5563;
+        border: 1px solid #E5E7EB;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .category-item-check {
+        color: #059669;
+        flex-shrink: 0;
+    }
+
+    .category-dropdown::-webkit-scrollbar,
     .subcategory-dropdown::-webkit-scrollbar {
         width: 6px;
     }
 
+    .category-dropdown::-webkit-scrollbar-thumb,
     .subcategory-dropdown::-webkit-scrollbar-thumb {
         background: #D1D5DB;
         border-radius: 10px;
@@ -625,40 +683,57 @@
                         <label class="form-label">Product Title</label>
                         <input type="text" name="title" class="form-control" placeholder="Enter product title" value="{{ old('title') }}" required>
                     </div>
-                    @php $n = old('category',0); @endphp
+                    @php
+                    $selectedCategory = old('category', '');
+                    $selectedCategoryName = '';
+                    if ($selectedCategory) {
+                        $selectedCategoryName = getCategoryData($selectedCategory, 'name');
+                    }
+
+                    $selectedCreateSubCat = old('sub_category', '');
+                    $selectedCreateSubCatName = '';
+                    if ($selectedCategory && $selectedCreateSubCat) {
+                        foreach (getCategorires($selectedCategory) as $subCatItem) {
+                            if ($selectedCreateSubCat == $subCatItem['id']) {
+                                $selectedCreateSubCatName = $subCatItem['name'];
+                                break;
+                            }
+                        }
+                        if (!$selectedCreateSubCatName) {
+                            $selectedCreateSubCatName = getCategoryData($selectedCreateSubCat, 'name');
+                        }
+                    }
+                    @endphp
+
                     <div class="col-md-4 mb-3">
-                        <label class="form-label">Product Category</label>
-                        <select
-                            name="category"
-                            id="category"
-                            class="form-select"
-                            onchange="updatecategory(this.value)"
-                            required>
-                            <option value="">Select Category</option>
-                            @foreach(getCategorires() as $categories)
-                            @php if($n == 0){ $n = $categories['id']; } @endphp
-                            <option value="<?= $categories['id'] ?>" {{ old('category') == $categories['id'] ? 'selected' : '' }}><?= $categories['name'] ?></option>
-                            @endforeach
-                        </select>
+                        <label for="category_search" class="form-label">Product Category</label>
+                        <div class="position-relative" id="category_wrapper">
+                            <input
+                                type="text"
+                                id="category_search"
+                                class="form-control"
+                                placeholder="Search category or subcategory..."
+                                autocomplete="off"
+                                value="{{ $selectedCategoryName }}"
+                                required>
+
+                            <input
+                                type="hidden"
+                                name="category"
+                                id="category"
+                                value="{{ $selectedCategory }}">
+
+                            <div
+                                id="category_results"
+                                class="subcategory-dropdown category-dropdown">
+                            </div>
+                        </div>
                     </div>
+
                     <div class="mb-3 col-md-4">
                         <label for="sub_category_search" class="form-label">
                             Sub Category
                         </label>
-
-                        @php
-                        $selectedCreateSubCat = old('sub_category');
-                        $selectedCreateSubCatName = '';
-                        $activeCategoryId = old('category');
-                        if ($activeCategoryId && $selectedCreateSubCat) {
-                            foreach (getCategorires($activeCategoryId) as $subCatItem) {
-                                if ($selectedCreateSubCat == $subCatItem['id']) {
-                                    $selectedCreateSubCatName = $subCatItem['name'];
-                                    break;
-                                }
-                            }
-                        }
-                        @endphp
 
                         <div class="position-relative" id="sub_category_wrapper">
                             <input
@@ -668,7 +743,7 @@
                                 placeholder="Search sub category..."
                                 autocomplete="off"
                                 value="{{ $selectedCreateSubCatName }}"
-                                {{ empty($activeCategoryId) ? 'disabled' : '' }}
+                                {{ empty($selectedCategory) ? 'disabled' : '' }}
                                 required>
 
                             <input
@@ -1425,15 +1500,27 @@
         libraryModal.hide();
     });
 
+    const categorySearch = document.getElementById('category_search');
+    const categoryInput = document.getElementById('category');
+    const categoryResults = document.getElementById('category_results');
+    const categoryWrapper = document.getElementById('category_wrapper') || (categorySearch ? categorySearch.closest('.position-relative') : null);
+
     const subCategorySearch = document.getElementById('sub_category_search');
     const subCategoryInput = document.getElementById('sub_category');
     const subCategoryResults = document.getElementById('sub_category_results');
-    const categorySelect = document.getElementById('category');
+    const subCategoryWrapper = document.getElementById('sub_category_wrapper') || (subCategorySearch ? subCategorySearch.closest('.position-relative') : null);
+    const categorySelect = categoryInput;
+
+    let categoryTimer = null;
+    let currentCategoryItems = [];
+    let highlightedCategoryIndex = -1;
+    let committedCategoryName = categorySearch ? categorySearch.value : '';
 
     let subCategoryTimer = null;
     let subCategoryCache = {};
     let currentSubCategoryItems = [];
     let highlightedSubCategoryIndex = -1;
+    let committedSubCategoryName = subCategorySearch ? subCategorySearch.value : '';
 
     function escapeHtml(str) {
         if (!str) return '';
@@ -1448,10 +1535,285 @@
         });
     }
 
+    // ── Category Dropdown Handlers ──
+    function openCategoryDropdown() {
+        if (!categorySearch || categorySearch.disabled) return;
+        closeSubCategoryDropdown();
+        if (categoryResults) {
+            categoryResults.style.display = 'block';
+        }
+    }
+
+    function closeCategoryDropdown() {
+        if (!categoryResults) return;
+        categoryResults.style.display = 'none';
+        highlightedCategoryIndex = -1;
+        updateHighlightedCategory();
+    }
+
+    function updateHighlightedCategory() {
+        if (!categoryResults) return;
+        const buttons = categoryResults.querySelectorAll('.category-item');
+        buttons.forEach((btn, index) => {
+            if (index === highlightedCategoryIndex) {
+                btn.classList.add('active', 'is-active');
+                btn.scrollIntoView({ block: 'nearest' });
+            } else {
+                btn.classList.remove('active', 'is-active');
+            }
+        });
+    }
+
+    function renderCategories(items) {
+        if (!categoryResults) return;
+        currentCategoryItems = Array.isArray(items) ? items : [];
+        highlightedCategoryIndex = -1;
+        categoryResults.innerHTML = '';
+
+        if (currentCategoryItems.length === 0) {
+            categoryResults.innerHTML = `
+                <div class="list-group-item text-muted" style="padding: 10px 12px; font-size: 13px;">
+                    No categories or subcategories found
+                </div>
+            `;
+            openCategoryDropdown();
+            return;
+        }
+
+        const currentCatVal = categoryInput ? categoryInput.value : '';
+        const currentSubVal = subCategoryInput ? subCategoryInput.value : '';
+
+        currentCategoryItems.forEach((item, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'list-group-item list-group-item-action category-item';
+
+            const isSub = !!item.is_subcategory;
+            const isSelected = isSub 
+                ? (String(currentSubVal) === String(item.id))
+                : (String(currentCatVal) === String(item.id) && !currentSubVal);
+
+            btn.setAttribute('data-id', item.id);
+            btn.setAttribute('data-name', item.name);
+            btn.setAttribute('data-is-sub', isSub ? '1' : '0');
+            if (item.parent_id) btn.setAttribute('data-parent-id', item.parent_id);
+            if (item.parent_name) btn.setAttribute('data-parent-name', item.parent_name);
+
+            const checkSvg = `
+                <svg class="category-item-check" width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>`;
+
+            const rightContext = isSub
+                ? `<span class="category-item-parent">${escapeHtml(item.parent_name || '')}</span>`
+                : `<span class="category-item-badge">Category</span>`;
+
+            btn.innerHTML = `
+                <div class="category-item-left">
+                    ${isSelected ? checkSvg : ''}
+                    <span class="category-item-name">${escapeHtml(item.name)}</span>
+                </div>
+                <div class="category-item-right">
+                    ${rightContext}
+                </div>
+            `;
+
+            btn.addEventListener('mouseenter', function() {
+                highlightedCategoryIndex = idx;
+                updateHighlightedCategory();
+            });
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                selectCategoryItem(item);
+            });
+
+            categoryResults.appendChild(btn);
+        });
+
+        openCategoryDropdown();
+    }
+
+    function fetchAndFilterCategories(searchQuery) {
+        const query = (searchQuery || '').trim();
+        const url = "{{ route('shopify.categories.search') }}" + "?search=" + encodeURIComponent(query);
+
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(async response => {
+            if (!response.ok) return null;
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) return null;
+            return response.json();
+        })
+        .then(categories => {
+            if (!categories) return;
+            renderCategories(categories);
+        })
+        .catch(error => {
+            console.error('Category fetch error:', error);
+        });
+    }
+
+    function selectCategoryItem(item) {
+        if (!item) return;
+
+        if (item.is_subcategory && item.parent_id) {
+            // User selected a subcategory directly from Category dropdown:
+            // 1. Set Category field to its parent category
+            if (categoryInput) categoryInput.value = item.parent_id;
+            if (categorySearch) {
+                categorySearch.value = item.parent_name || '';
+                categorySearch.setCustomValidity('');
+            }
+            committedCategoryName = item.parent_name || '';
+
+            // 2. Set Subcategory field to the selected subcategory
+            if (subCategoryInput) subCategoryInput.value = item.id;
+            if (subCategorySearch) {
+                subCategorySearch.value = item.name;
+                subCategorySearch.disabled = false;
+                subCategorySearch.setCustomValidity('');
+            }
+            committedSubCategoryName = item.name;
+
+            closeCategoryDropdown();
+
+            // Populate cache for this parent so sibling subcategories are available
+            ensureSubCategoryCache(item.parent_id);
+
+        } else {
+            // User selected a main category:
+            const oldCategoryId = categoryInput ? categoryInput.value : '';
+            if (categoryInput) categoryInput.value = item.id;
+            if (categorySearch) {
+                categorySearch.value = item.name;
+                categorySearch.setCustomValidity('');
+            }
+            committedCategoryName = item.name;
+
+            // Check if current subcategory is still valid under new category
+            let subcategoryStillValid = false;
+            if (String(oldCategoryId) === String(item.id)) {
+                subcategoryStillValid = true;
+            } else if (subCategoryInput && subCategoryInput.value && subCategoryCache[item.id]) {
+                subcategoryStillValid = subCategoryCache[item.id].some(s => String(s.id) === String(subCategoryInput.value));
+            }
+
+            if (!subcategoryStillValid) {
+                if (subCategoryInput) subCategoryInput.value = '';
+                if (subCategorySearch) {
+                    subCategorySearch.value = '';
+                    subCategorySearch.setCustomValidity('');
+                }
+                committedSubCategoryName = '';
+            }
+
+            if (subCategorySearch) {
+                subCategorySearch.disabled = false;
+            }
+
+            closeCategoryDropdown();
+
+            // Fetch subcategories for this category, open subcategory picker
+            ensureSubCategoryCache(item.id, () => {
+                if (subCategorySearch && !subcategoryStillValid) {
+                    subCategorySearch.focus();
+                    openSubCategoryDropdown();
+                    renderSubCategories(subCategoryCache[item.id] || []);
+                }
+            });
+        }
+
+        if (typeof updateSubmitButtonState === 'function') {
+            updateSubmitButtonState();
+        }
+    }
+
+    if (categorySearch) {
+        categorySearch.addEventListener('click', function() {
+            openCategoryDropdown();
+            fetchAndFilterCategories(this.value === committedCategoryName ? '' : this.value);
+        });
+
+        categorySearch.addEventListener('focus', function() {
+            openCategoryDropdown();
+            fetchAndFilterCategories(this.value === committedCategoryName ? '' : this.value);
+        });
+
+        categorySearch.addEventListener('input', function() {
+            const search = this.value;
+            clearTimeout(categoryTimer);
+
+            categoryTimer = setTimeout(() => {
+                fetchAndFilterCategories(search);
+            }, 150);
+        });
+
+        categorySearch.addEventListener('keydown', function(event) {
+            const isOpen = categoryResults && categoryResults.style.display === 'block';
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                if (!isOpen) {
+                    openCategoryDropdown();
+                    fetchAndFilterCategories(this.value === committedCategoryName ? '' : this.value);
+                    return;
+                }
+                const count = currentCategoryItems.length;
+                if (count > 0) {
+                    highlightedCategoryIndex = (highlightedCategoryIndex + 1) % count;
+                    updateHighlightedCategory();
+                }
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (!isOpen) {
+                    openCategoryDropdown();
+                    fetchAndFilterCategories(this.value === committedCategoryName ? '' : this.value);
+                    return;
+                }
+                const count = currentCategoryItems.length;
+                if (count > 0) {
+                    highlightedCategoryIndex = highlightedCategoryIndex <= 0 ? count - 1 : highlightedCategoryIndex - 1;
+                    updateHighlightedCategory();
+                }
+            } else if (event.key === 'Enter') {
+                if (isOpen && currentCategoryItems.length > 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (highlightedCategoryIndex >= 0 && highlightedCategoryIndex < currentCategoryItems.length) {
+                        selectCategoryItem(currentCategoryItems[highlightedCategoryIndex]);
+                    } else if (currentCategoryItems.length === 1) {
+                        selectCategoryItem(currentCategoryItems[0]);
+                    }
+                }
+            } else if (event.key === 'Escape') {
+                if (isOpen) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeCategoryDropdown();
+                    if (committedCategoryName) {
+                        categorySearch.value = committedCategoryName;
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Sub Category Dropdown Handlers ──
     function openSubCategoryDropdown() {
         if (!subCategorySearch || subCategorySearch.disabled) return;
-        if (!categorySelect || !categorySelect.value) return;
-        subCategoryResults.style.display = 'block';
+        if (!categoryInput || !categoryInput.value) return;
+        closeCategoryDropdown();
+        if (subCategoryResults) {
+            subCategoryResults.style.display = 'block';
+        }
     }
 
     function closeSubCategoryDropdown() {
@@ -1466,12 +1828,10 @@
         const buttons = subCategoryResults.querySelectorAll('.list-group-item-action');
         buttons.forEach((btn, index) => {
             if (index === highlightedSubCategoryIndex) {
-                btn.classList.add('active');
-                btn.classList.add('is-active');
+                btn.classList.add('active', 'is-active');
                 btn.scrollIntoView({ block: 'nearest' });
             } else {
-                btn.classList.remove('active');
-                btn.classList.remove('is-active');
+                btn.classList.remove('active', 'is-active');
             }
         });
     }
@@ -1481,6 +1841,7 @@
             subCategorySearch.value = name;
             subCategorySearch.setCustomValidity('');
         }
+        committedSubCategoryName = name;
         if (subCategoryInput) {
             subCategoryInput.value = id;
         }
@@ -1498,7 +1859,7 @@
 
         if (currentSubCategoryItems.length === 0) {
             subCategoryResults.innerHTML = `
-                <div class="list-group-item text-muted">
+                <div class="list-group-item text-muted" style="padding: 10px 12px; font-size: 13px;">
                     No subcategories found
                 </div>
             `;
@@ -1506,13 +1867,28 @@
             return;
         }
 
+        const currentSubVal = subCategoryInput ? subCategoryInput.value : '';
+
         currentSubCategoryItems.forEach((category, idx) => {
             const item = document.createElement('button');
             item.type = 'button';
             item.className = 'list-group-item list-group-item-action';
-            item.textContent = category.name;
+            const isSelected = String(currentSubVal) === String(category.id);
+
             item.setAttribute('data-id', category.id);
             item.setAttribute('data-name', category.name);
+
+            const checkSvg = `
+                <svg class="category-item-check" width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>`;
+
+            item.innerHTML = `
+                <div class="category-item-left">
+                    ${isSelected ? checkSvg : ''}
+                    <span class="category-item-name">${escapeHtml(category.name)}</span>
+                </div>
+            `;
 
             item.addEventListener('mouseenter', function() {
                 highlightedSubCategoryIndex = idx;
@@ -1532,8 +1908,8 @@
     }
 
     function fetchAndFilterSubCategories(searchQuery) {
-        if (!categorySelect) return;
-        const categoryId = categorySelect.value;
+        if (!categoryInput) return;
+        const categoryId = categoryInput.value;
         if (!categoryId) {
             closeSubCategoryDropdown();
             return;
@@ -1590,15 +1966,38 @@
         });
     }
 
+    function ensureSubCategoryCache(categoryId, callback) {
+        if (!categoryId) return;
+        if (subCategoryCache[categoryId]) {
+            if (callback) callback();
+            return;
+        }
+        const url = "{{ route('shopify.categories.search') }}?parent_id=" + encodeURIComponent(categoryId) + "&search=";
+        fetch(url, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+            if (Array.isArray(data)) {
+                subCategoryCache[categoryId] = data;
+            }
+            if (callback) callback();
+        })
+        .catch(err => console.error('Error prefetching subcategories:', err));
+    }
+
     if (subCategorySearch) {
         subCategorySearch.addEventListener('click', function() {
-            if (!categorySelect || !categorySelect.value) return;
+            if (!categoryInput || !categoryInput.value) return;
             openSubCategoryDropdown();
             fetchAndFilterSubCategories(this.value);
         });
 
         subCategorySearch.addEventListener('focus', function() {
-            if (!categorySelect || !categorySelect.value) return;
+            if (!categoryInput || !categoryInput.value) return;
             openSubCategoryDropdown();
             fetchAndFilterSubCategories(this.value);
         });
@@ -1663,16 +2062,30 @@
                     event.preventDefault();
                     event.stopPropagation();
                     closeSubCategoryDropdown();
+                    if (committedSubCategoryName) {
+                        subCategorySearch.value = committedSubCategoryName;
+                    }
                 }
             }
         });
     }
 
     document.addEventListener('click', function(e) {
-        if (!subCategorySearch) return;
-        const wrapper = document.getElementById('sub_category_wrapper') || subCategorySearch.closest('.position-relative');
-        if (wrapper && !wrapper.contains(e.target)) {
+        if (categoryWrapper && !categoryWrapper.contains(e.target)) {
+            closeCategoryDropdown();
+            if (categorySearch && committedCategoryName && categorySearch.value.trim() === '') {
+                if (categoryInput && categoryInput.value) {
+                    categorySearch.value = committedCategoryName;
+                }
+            }
+        }
+        if (subCategoryWrapper && !subCategoryWrapper.contains(e.target)) {
             closeSubCategoryDropdown();
+            if (subCategorySearch && committedSubCategoryName && subCategorySearch.value.trim() === '') {
+                if (subCategoryInput && subCategoryInput.value) {
+                    subCategorySearch.value = committedSubCategoryName;
+                }
+            }
         }
     });
 
@@ -1864,12 +2277,20 @@
         updateSubmitButtonState();
     }
 
-    function updatecategory(category) {
+    function updatecategory(categoryId) {
+        if (categoryInput) {
+            categoryInput.value = categoryId || '';
+        }
+        if (!categoryId) {
+            if (categorySearch) categorySearch.value = '';
+            committedCategoryName = '';
+        }
         clearTimeout(subCategoryTimer);
         if (subCategorySearch) {
             subCategorySearch.value = '';
-            subCategorySearch.disabled = !category;
+            subCategorySearch.disabled = !categoryId;
             subCategorySearch.setCustomValidity('');
+            committedSubCategoryName = '';
         }
         if (subCategoryInput) {
             subCategoryInput.value = '';
@@ -1881,7 +2302,7 @@
         highlightedSubCategoryIndex = -1;
         currentSubCategoryItems = [];
 
-        if (category) {
+        if (categoryId) {
             fetchAndFilterSubCategories('');
         }
         if (typeof updateSubmitButtonState === 'function') {
@@ -2000,9 +2421,12 @@
                 message: 'Please enter a product title.'
             },
             {
-                element: document.getElementById('category'),
-                isValid: (el) => el && el.value.trim() !== '',
-                message: 'Please select a product category.'
+                element: document.getElementById('category_search') || document.getElementById('category'),
+                isValid: () => {
+                    const cat = document.getElementById('category');
+                    return cat && cat.value.trim() !== '';
+                },
+                message: 'Please search and select a product category.'
             },
             {
                 element: document.getElementById('sub_category_search'),
@@ -2182,6 +2606,19 @@
         // Submit protection handler
         form.addEventListener('submit', function(e) {
             const categoryElement = document.getElementById('category');
+            if (categoryElement && (!categoryElement.value || !categoryElement.value.trim())) {
+                if (categorySearch) {
+                    categorySearch.setCustomValidity('Please search and select a category from the dropdown.');
+                    categorySearch.reportValidity();
+                }
+                e.preventDefault();
+                updateSubmitButtonState();
+                highlightAndFocusFirstInvalidField();
+                return false;
+            } else if (categorySearch) {
+                categorySearch.setCustomValidity('');
+            }
+
             if (categoryElement && categoryElement.value && (!subCategoryInput || !subCategoryInput.value)) {
                 subCategorySearch.setCustomValidity('Please select a sub category from the dropdown.');
                 subCategorySearch.reportValidity();
