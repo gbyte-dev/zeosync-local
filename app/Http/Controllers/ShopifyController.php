@@ -4131,12 +4131,22 @@ class ShopifyController extends Controller
         $search = trim((string) $request->query('search', ''));
         $parentId = $request->query('parent_id');
 
+        $searchTerms = array_values(array_unique(array_filter([
+            $search,
+            str_replace(' ', '_', $search),
+            str_replace('_', ' ', $search),
+        ])));
+
         // When parent_id is specified, strictly query subcategories of that parent
         if ($parentId !== null && $parentId !== '') {
             $query = Category::query()->where('parent_id', (int) $parentId);
 
             if ($search !== '') {
-                $query->where('name', 'like', '%' . $search . '%');
+                $query->where(function ($q) use ($searchTerms) {
+                    foreach ($searchTerms as $term) {
+                        $q->orWhere('name', 'like', '%' . $term . '%');
+                    }
+                });
             }
 
             return response()->json(
@@ -4171,7 +4181,11 @@ class ShopifyController extends Controller
         // Non-empty search: matching main categories
         $mainCategories = Category::query()
             ->whereNull('parent_id')
-            ->where('name', 'like', '%' . $search . '%')
+            ->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->orWhere('name', 'like', '%' . $term . '%');
+                }
+            })
             ->orderBy('name')
             ->limit(50)
             ->get(['id', 'name']);
@@ -4180,11 +4194,13 @@ class ShopifyController extends Controller
         $subCategories = Category::query()
             ->whereNotNull('parent_id')
             ->has('parent')
-            ->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                  ->orWhereHas('parent', function ($pq) use ($search) {
-                      $pq->where('name', 'like', '%' . $search . '%');
-                  });
+            ->where(function ($q) use ($searchTerms) {
+                foreach ($searchTerms as $term) {
+                    $q->orWhere('name', 'like', '%' . $term . '%')
+                      ->orWhereHas('parent', function ($pq) use ($term) {
+                          $pq->where('name', 'like', '%' . $term . '%');
+                      });
+                }
             })
             ->with(['parent:id,name'])
             ->orderBy('name')

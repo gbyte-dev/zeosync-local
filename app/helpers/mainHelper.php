@@ -363,3 +363,37 @@ if (!function_exists('html_to_plain_text')) {
     }
 }
 
+if (!function_exists('formatCategoryDisplayName')) {
+    /**
+     * Format category and subcategory technical identifiers into readable labels for display.
+     * e.g., DESIGNER_SHIRT -> Designer shirt, ORCA_SHIRT -> Orca shirt,
+     * while preserving already human-readable names like "Nightgown & Nightshirt".
+     *
+     * @param string|null $name
+     * @return string
+     */
+    function formatCategoryDisplayName(?string $name): string
+    {
+        if ($name === null || $name === '') {
+            return '';
+        }
+
+        $trimmed = trim($name);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        $hasUnderscore = str_contains($trimmed, '_');
+        $isAllCaps = (preg_match('/[A-Z]/', $trimmed) && !preg_match('/[a-z]/', $trimmed));
+
+        if ($hasUnderscore || $isAllCaps) {
+            $cleaned = preg_replace('/_+/', ' ', $trimmed);
+            $cleaned = preg_replace('/\s+/', ' ', $cleaned);
+            $cleaned = mb_strtolower(trim($cleaned), 'UTF-8');
+            return mb_convert_case(mb_substr($cleaned, 0, 1, 'UTF-8'), MB_CASE_UPPER, 'UTF-8') . mb_substr($cleaned, 1, null, 'UTF-8');
+        }
+
+        return $trimmed;
+    }
+}
+

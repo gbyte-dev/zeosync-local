@@ -639,6 +639,119 @@ class CategorySearchDropdownTest extends TestCase
         $this->assertStringContainsString('closeCategoryDropdown', $html);
         $this->assertStringContainsString('selectCategoryItem', $html);
     }
+
+    public function test_format_category_display_name_humanizes_technical_identifiers(): void
+    {
+        $this->assertEquals('Designer shirt', formatCategoryDisplayName('DESIGNER_SHIRT'));
+        $this->assertEquals('Orca shirt', formatCategoryDisplayName('ORCA_SHIRT'));
+        $this->assertEquals('Nightgown nightshirt', formatCategoryDisplayName('NIGHTGOWN_NIGHTSHIRT'));
+        $this->assertEquals('T shirts', formatCategoryDisplayName('T_SHIRTS'));
+        $this->assertEquals('Baby clothing', formatCategoryDisplayName('BABY_CLOTHING'));
+
+        // Preserves already human-readable labels
+        $this->assertEquals('Nightgown & Nightshirt', formatCategoryDisplayName('Nightgown & Nightshirt'));
+        $this->assertEquals("Baby & Children's Tops", formatCategoryDisplayName("Baby & Children's Tops"));
+        $this->assertEquals('T-Shirts', formatCategoryDisplayName('T-Shirts'));
+        $this->assertEquals('', formatCategoryDisplayName(null));
+        $this->assertEquals('', formatCategoryDisplayName(''));
+    }
+
+    public function test_edit_product_view_humanizes_technical_category_and_subcategory_prefill(): void
+    {
+        View::share('cspNonce', 'test-csp-nonce-edit');
+        View::share('errors', new ViewErrorBag());
+
+        $parent = Category::create([
+            'name' => 'DESIGNER_SHIRT',
+            'category' => 'designer_shirt',
+            'slug' => 'designer-shirt',
+            'parent_id' => null,
+            'level' => 1,
+        ]);
+
+        $sub = Category::create([
+            'name' => 'ORCA_SHIRT',
+            'category' => 'orca_shirt',
+            'slug' => 'orca-shirt',
+            'parent_id' => $parent->id,
+            'level' => 2,
+        ]);
+
+        $productData = [
+            'id' => '11223344',
+            'title' => 'Orca Designer Shirt',
+            'body_html' => '<p>Shirt description</p>',
+            'status' => 'active',
+            'variants' => [],
+            'options' => [],
+            'images' => [],
+        ];
+
+        $dbProduct = [
+            'id' => 888,
+            'category_id' => $parent->id,
+            'sub_category_id' => $sub->id,
+            'title' => 'Orca Designer Shirt',
+        ];
+
+        $html = View::make('EditProduct', [
+            'product' => $productData,
+            'activeShop' => $this->shop->shop,
+            'amazonData' => null,
+            'dbProduct' => $dbProduct,
+        ])->render();
+
+        // Visible search inputs display humanized labels
+        $this->assertStringContainsString('id="category_search"', $html);
+        $this->assertStringContainsString('value="Designer shirt"', $html);
+        $this->assertStringContainsString('id="sub_category_search"', $html);
+        $this->assertStringContainsString('value="Orca shirt"', $html);
+
+        // Hidden input values preserve raw database IDs
+        $this->assertStringContainsString('id="category"', $html);
+        $this->assertStringContainsString('value="' . $parent->id . '"', $html);
+        $this->assertStringContainsString('id="sub_category"', $html);
+        $this->assertStringContainsString('value="' . $sub->id . '"', $html);
+
+        // JavaScript formatting helper is present
+        $this->assertStringContainsString('function formatCategoryName', $html);
+    }
+
+    public function test_category_search_matches_by_both_technical_and_humanized_terms(): void
+    {
+        $parent = Category::create([
+            'name' => 'DESIGNER_SHIRT',
+            'category' => 'designer_shirt',
+            'slug' => 'designer-shirt',
+            'parent_id' => null,
+            'level' => 1,
+        ]);
+
+        $sub = Category::create([
+            'name' => 'ORCA_SHIRT',
+            'category' => 'orca_shirt',
+            'slug' => 'orca-shirt',
+            'parent_id' => $parent->id,
+            'level' => 2,
+        ]);
+
+        // Search for 'shirt'
+        $response = $this->withSession($this->authSession())
+            ->getJson(route('shopify.categories.search', ['search' => 'shirt']));
+        $response->assertOk();
+        $data = $response->json();
+        $names = array_column($data, 'name');
+        $this->assertContains('DESIGNER_SHIRT', $names);
+        $this->assertContains('ORCA_SHIRT', $names);
+
+        // Search for humanized label 'designer shirt' with space
+        $responseSpace = $this->withSession($this->authSession())
+            ->getJson(route('shopify.categories.search', ['search' => 'designer shirt']));
+        $responseSpace->assertOk();
+        $dataSpace = $responseSpace->json();
+        $namesSpace = array_column($dataSpace, 'name');
+        $this->assertContains('DESIGNER_SHIRT', $namesSpace);
+    }
 }
 
 

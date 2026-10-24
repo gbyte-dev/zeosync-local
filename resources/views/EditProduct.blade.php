@@ -770,7 +770,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                                 class="form-control"
                                 placeholder="Search category or subcategory..."
                                 autocomplete="off"
-                                value="{{ $selectedCategoryName }}"
+                                value="{{ formatCategoryDisplayName($selectedCategoryName) }}"
                                 required>
 
                             <input
@@ -799,7 +799,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                                 class="form-control"
                                 placeholder="Search sub category..."
                                 autocomplete="off"
-                                value="{{ $selectedsubCategoryName }}"
+                                value="{{ formatCategoryDisplayName($selectedsubCategoryName) }}"
                                 {{ empty($selectedCategory) ? 'disabled' : '' }}>
 
                             <input
@@ -1949,6 +1949,22 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
         });
     }
 
+    function formatCategoryName(name) {
+        if (!name || typeof name !== 'string') return '';
+        const trimmed = name.trim();
+        if (!trimmed) return '';
+
+        const hasUnderscore = trimmed.includes('_');
+        const isAllCaps = /[A-Z]/.test(trimmed) && !/[a-z]/.test(trimmed);
+
+        if (hasUnderscore || isAllCaps) {
+            const cleaned = trimmed.replace(/_+/g, ' ').replace(/\s+/g, ' ').toLowerCase();
+            return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+        }
+
+        return trimmed;
+    }
+
     // ── Category Dropdown Handlers ──
     function openCategoryDropdown() {
         if (!categorySearch || categorySearch.disabled) return;
@@ -2007,8 +2023,12 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                 ? (String(currentSubVal) === String(item.id))
                 : (String(currentCatVal) === String(item.id) && !currentSubVal);
 
+            const displayName = formatCategoryName(item.name);
+            const parentDisplayName = formatCategoryName(item.parent_name || '');
+
             btn.setAttribute('data-id', item.id);
             btn.setAttribute('data-name', item.name);
+            btn.setAttribute('data-display-name', displayName);
             btn.setAttribute('data-is-sub', isSub ? '1' : '0');
             if (item.parent_id) btn.setAttribute('data-parent-id', item.parent_id);
             if (item.parent_name) btn.setAttribute('data-parent-name', item.parent_name);
@@ -2019,13 +2039,13 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
                 </svg>`;
 
             const rightContext = isSub
-                ? `<span class="category-item-parent">${escapeHtml(item.parent_name || '')}</span>`
+                ? `<span class="category-item-parent">${escapeHtml(parentDisplayName)}</span>`
                 : `<span class="category-item-badge">Category</span>`;
 
             btn.innerHTML = `
                 <div class="category-item-left">
                     ${isSelected ? checkSvg : ''}
-                    <span class="category-item-name">${escapeHtml(item.name)}</span>
+                    <span class="category-item-name">${escapeHtml(displayName)}</span>
                 </div>
                 <div class="category-item-right">
                     ${rightContext}
@@ -2082,20 +2102,22 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
             // User selected a subcategory directly from Category dropdown:
             // 1. Set Category field to its parent category
             if (categoryInput) categoryInput.value = item.parent_id;
+            const parentFormatted = formatCategoryName(item.parent_name || '');
             if (categorySearch) {
-                categorySearch.value = item.parent_name || '';
+                categorySearch.value = parentFormatted;
                 categorySearch.setCustomValidity('');
             }
-            committedCategoryName = item.parent_name || '';
+            committedCategoryName = parentFormatted;
 
             // 2. Set Subcategory field to the selected subcategory
             if (subCategoryInput) subCategoryInput.value = item.id;
+            const subFormatted = formatCategoryName(item.name || '');
             if (subCategorySearch) {
-                subCategorySearch.value = item.name;
+                subCategorySearch.value = subFormatted;
                 subCategorySearch.disabled = false;
                 subCategorySearch.setCustomValidity('');
             }
-            committedSubCategoryName = item.name;
+            committedSubCategoryName = subFormatted;
 
             closeCategoryDropdown();
 
@@ -2106,11 +2128,12 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
             // User selected a main category:
             const oldCategoryId = categoryInput ? categoryInput.value : '';
             if (categoryInput) categoryInput.value = item.id;
+            const catFormatted = formatCategoryName(item.name || '');
             if (categorySearch) {
-                categorySearch.value = item.name;
+                categorySearch.value = catFormatted;
                 categorySearch.setCustomValidity('');
             }
-            committedCategoryName = item.name;
+            committedCategoryName = catFormatted;
 
             // Check if current subcategory is still valid under new category
             let subcategoryStillValid = false;
@@ -2247,11 +2270,12 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
     }
 
     function selectSubCategory(id, name) {
+        const formatted = formatCategoryName(name);
         if (subCategorySearch) {
-            subCategorySearch.value = name;
+            subCategorySearch.value = formatted;
             subCategorySearch.setCustomValidity('');
         }
-        committedSubCategoryName = name;
+        committedSubCategoryName = formatted;
         if (subCategoryInput) {
             subCategoryInput.value = id;
         }
@@ -2281,9 +2305,11 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
             item.type = 'button';
             item.className = 'list-group-item list-group-item-action';
             const isSelected = String(currentSubVal) === String(category.id);
+            const displayName = formatCategoryName(category.name);
 
             item.setAttribute('data-id', category.id);
             item.setAttribute('data-name', category.name);
+            item.setAttribute('data-display-name', displayName);
 
             const checkSvg = `
                 <svg class="category-item-check" width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
@@ -2293,7 +2319,7 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
             item.innerHTML = `
                 <div class="category-item-left">
                     ${isSelected ? checkSvg : ''}
-                    <span class="category-item-name">${escapeHtml(category.name)}</span>
+                    <span class="category-item-name">${escapeHtml(displayName)}</span>
                 </div>
             `;
 
@@ -2329,9 +2355,11 @@ $shopQuery = $currentShop ? '?shop=' . urlencode($currentShop) : '';
         if (subCategoryCache[categoryId]) {
             const filtered = query === '' 
                 ? subCategoryCache[categoryId]
-                : subCategoryCache[categoryId].filter(cat => 
-                    cat.name && cat.name.toLowerCase().includes(query)
-                  );
+                : subCategoryCache[categoryId].filter(cat => {
+                    const raw = (cat.name || '').toLowerCase();
+                    const formatted = formatCategoryName(cat.name || '').toLowerCase();
+                    return raw.includes(query) || formatted.includes(query);
+                  });
             renderSubCategories(filtered);
             return;
         }
