@@ -102,7 +102,7 @@
                                     <input form="move-subcategories-form" type="checkbox" name="subcategory_ids[]" value="{{ $child->id }}">
                                 </td>
                                 <td class="ps-4 text-muted fw-semibold">
-                                    #{{ $key + 1 }}
+                                    {{ $key + 1 }}
                                 </td>
 
                                 <td>
@@ -161,7 +161,7 @@
                         <div class="d-flex justify-content-between align-items-start row gap-2">
                             <div class="col">
                                 <div class="small text-muted mb-1">
-                                    #{{ $key + 1 }}
+                                    {{ $key + 1 }}
                                 </div>
                                 <div class="fw-bold text-dark">
                                     {{ (ucfirst(strtolower(str_replace('_', ' ', $child->name)))) }}

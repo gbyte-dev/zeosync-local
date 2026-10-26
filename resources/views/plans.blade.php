@@ -1181,17 +1181,13 @@ $subscriptionStatus = 'Trialing';
 <div class="modal fade saas-modal" id="enterpriseModal" tabindex="-1">
     <div class="modal-dialog modal-md modal-dialog-centered">
         <div class="modal-content">
-
             <form method="POST" action="{{ route('contact.store') }}">
                 @csrf
-
                 <input type="hidden" name="enquiry_type" value="enterprise_plan_enquiry">
-
                 <div class="modal-header">
                     <h5 class="modal-title"> Contact Admin for Enterprise Plan  </h5>
                     <button type="button" class="btn-close"  data-bs-dismiss="modal">    </button>
                 </div>
-
                 <div class="modal-body">
                     @if ($errors->any() && old('enquiry_type') === 'enterprise_plan_enquiry')
                         <div class="alert alert-danger">
@@ -1206,7 +1202,6 @@ $subscriptionStatus = 'Trialing';
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label"> Full Name </label>
-
                             <input type="text" name="name" class="form-control @if($errors->has('name') && old('enquiry_type') === 'enterprise_plan_enquiry') is-invalid @endif"
                                 maxlength="100"
                                 value="{{ old('name', $shop->shop_name ?? '') }}"
@@ -1215,10 +1210,8 @@ $subscriptionStatus = 'Trialing';
                                 <div class="invalid-feedback">{{ $errors->first('name') }}</div>
                             @endif
                         </div>
-
                         <div class="col-md-6 mb-3">
                             <label class="form-label"> Email Address </label>
-
                             <input type="email" name="email" class="form-control @if($errors->has('email') && old('enquiry_type') === 'enterprise_plan_enquiry') is-invalid @endif"
                                 maxlength="255"
                                 value="{{ old('email', $shop->email ?? '') }}"
@@ -1231,8 +1224,7 @@ $subscriptionStatus = 'Trialing';
                         <div class="col-12 mb-3">
                             <label class="form-label"> Subject </label>
                             <input type="text" name="subject" class="form-control @if($errors->has('subject') && old('enquiry_type') === 'enterprise_plan_enquiry') is-invalid @endif"
-                                maxlength="255"
-                                value="{{ old('subject') }}"
+                                maxlength="255"   value="{{ old('subject') }}"
                                 placeholder="Example: Need higher product and sync limits"
                                 required>
                             @if($errors->has('subject') && old('enquiry_type') === 'enterprise_plan_enquiry')
